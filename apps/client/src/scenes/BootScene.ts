@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { ANIMATED_MONSTER_FRAME_ASSETS, ANIMATED_UNIT_FRAME_ASSETS, assertCombatAnimationManifestValid } from "../game/combatAnimationManifest";
+import { publicAssetUrl } from "../game/publicAssetUrl";
 
 export class BootScene extends Phaser.Scene {
   private illustratedArtFailures: string[] = [];
@@ -19,7 +20,7 @@ export class BootScene extends Phaser.Scene {
       "heavyCrossbowman",
     ] as const;
     for (const unitId of illustratedUnits) {
-      this.load.image(`unit-art-${unitId}`, `/assets/original/units/${unitId}/portrait.png`);
+      this.load.image(`unit-art-${unitId}`, publicAssetUrl(`assets/original/units/${unitId}/portrait.png`));
     }
     assertCombatAnimationManifestValid();
     for (const asset of ANIMATED_UNIT_FRAME_ASSETS) {
@@ -30,7 +31,7 @@ export class BootScene extends Phaser.Scene {
     }
     const illustratedMonsters = ["miremaw", "ashwing", "rootback"] as const;
     for (const monsterId of illustratedMonsters) {
-      this.load.image(`monster-art-${monsterId}`, `/assets/original/monsters/${monsterId}/portrait.png`);
+      this.load.image(`monster-art-${monsterId}`, publicAssetUrl(`assets/original/monsters/${monsterId}/portrait.png`));
     }
   }
 

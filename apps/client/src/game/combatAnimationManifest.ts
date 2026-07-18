@@ -4,6 +4,7 @@ import {
   type FrameAnimatedCombatActorManifest,
   type FrameAnimatedCombatActorManifestTable,
 } from "./frameAnimatedCombatActor";
+import { publicAssetUrl } from "./publicAssetUrl";
 
 export const ANIMATED_UNIT_IDS = [
   "warrior",
@@ -59,7 +60,7 @@ const ACTION_FPS: Readonly<Record<AnimatedUnitId, Readonly<Record<CombatAction, 
 function createAsset(unitId: AnimatedUnitId): UnitFrameAsset {
   const artId = ART_IDS[unitId];
   const textureKey = `unit-action-sheet-${artId}`;
-  const path = `/assets/original/units/${unitId}/sprites/action-sheet.png`;
+  const path = publicAssetUrl(`assets/original/units/${unitId}/sprites/action-sheet.png`);
   const frames: Readonly<Record<CombatAction, number>> = {
     idle: 4,
     walk: 4,
@@ -111,7 +112,7 @@ function createMonsterAsset(monsterId: AnimatedMonsterId): MonsterFrameAsset {
     monsterId,
     artId: monsterId,
     textureKey,
-    path: `/assets/original/monsters/${monsterId}/sprites/action-sheet.png`,
+    path: publicAssetUrl(`assets/original/monsters/${monsterId}/sprites/action-sheet.png`),
     manifest: createSixRowManifest({
       id: monsterId,
       textureKey,
