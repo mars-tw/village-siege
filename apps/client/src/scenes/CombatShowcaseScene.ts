@@ -112,6 +112,16 @@ interface ShowcaseActor {
 
 interface SceneData { readonly returnScene?: string }
 
+type TouchInteractionMode = "smart" | "move" | "attack" | "box" | "pan";
+type TouchControlPanel = "main" | "groups" | "system";
+
+interface TouchCameraDrag {
+  readonly pointerX: number;
+  readonly pointerY: number;
+  readonly scrollX: number;
+  readonly scrollY: number;
+}
+
 const ORIGIN: ScreenPoint = { x: 780, y: 70 };
 const WORLD_BOUNDS = { x: 0, y: 0, width: 1660, height: 920 } as const;
 const PLAYER_COLOR = 0x65c9a4;
@@ -162,6 +172,14 @@ export class CombatShowcaseScene extends Phaser.Scene {
   private resultText?: Phaser.GameObjects.Text;
   private interfacePanel?: Phaser.GameObjects.Graphics;
   private touchControls?: HTMLElement;
+  private touchReadout?: HTMLOutputElement;
+  private touchBriefing?: HTMLElement;
+  private touchMode: TouchInteractionMode = "smart";
+  private touchPanel: TouchControlPanel = "main";
+  private touchCameraDrag?: TouchCameraDrag;
+  private touchDidPan = false;
+  private touchNotice = "";
+  private touchNoticeUntil = 0;
   private returnScene = "VillageSelectScene";
   private ended = false;
   private aiElapsedMs = 0;
@@ -179,6 +197,12 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.formationKind = "wedge";
     this.dragStart = undefined;
     this.dragClickedId = undefined;
+    this.touchMode = "smart";
+    this.touchPanel = "main";
+    this.touchCameraDrag = undefined;
+    this.touchDidPan = false;
+    this.touchNotice = "";
+    this.touchNoticeUntil = 0;
     this.ended = false;
     this.aiElapsedMs = 0;
   }
@@ -206,6 +230,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
     this.updateSelectionPanel();
     this.updateSkirmishInterface();
+    this.maybeShowTouchBriefing();
   }
 
   update(_time: number, delta: number): void {
@@ -264,35 +289,60 @@ export class CombatShowcaseScene extends Phaser.Scene {
     controls.className = "combat-touch-controls";
     controls.setAttribute("aria-label", "手機戰鬥操作");
     controls.innerHTML = `
-      <div class="touch-dpad" aria-label="移動鏡頭">
-        <button type="button" data-touch-action="camera-up" aria-label="鏡頭向上">▲</button>
-        <button type="button" data-touch-action="camera-left" aria-label="鏡頭向左">◀</button>
-        <button type="button" data-touch-action="camera-down" aria-label="鏡頭向下">▼</button>
-        <button type="button" data-touch-action="camera-right" aria-label="鏡頭向右">▶</button>
-      </div>
-      <div class="touch-command-grid" aria-label="部隊命令">
-        <button type="button" data-touch-action="select-all">全選</button>
-        <button type="button" data-touch-action="clear">取消</button>
-        <button type="button" data-touch-action="skill">技能</button>
-        <button type="button" data-touch-action="formation">隊形</button>
-        <button type="button" data-touch-action="store-1" aria-label="儲存編隊一">存1</button>
-        <button type="button" data-touch-action="recall-1" aria-label="叫回編隊一">叫1</button>
-        <button type="button" data-touch-action="store-2" aria-label="儲存編隊二">存2</button>
-        <button type="button" data-touch-action="recall-2" aria-label="叫回編隊二">叫2</button>
-        <button type="button" data-touch-action="store-3" aria-label="儲存編隊三">存3</button>
-        <button type="button" data-touch-action="recall-3" aria-label="叫回編隊三">叫3</button>
-        <button type="button" data-touch-action="restart">重開</button>
-        <button type="button" data-touch-action="leave">返回</button>
-      </div>`;
+      <section class="touch-briefing" role="dialog" aria-modal="true" aria-labelledby="touch-briefing-title" hidden>
+        <p>Mobile command briefing</p>
+        <h2 id="touch-briefing-title">三步開始指揮</h2>
+        <ol>
+          <li><strong>1　選部隊</strong><span>點我軍，或按「全軍」。</span></li>
+          <li><strong>2　下命令</strong><span>點地移動；點敵軍攻擊。</span></li>
+          <li><strong>3　看戰場</strong><span>拖空地移鏡；精準操作用下方模式。</span></li>
+        </ol>
+        <button type="button" data-touch-action="close-briefing"><span>開始指揮</span></button>
+      </section>
+      <output class="touch-mode-readout" aria-live="polite"></output>
+      <section class="touch-control-panel" data-touch-panel-view="main" aria-label="主要命令">
+        <button type="button" data-touch-action="select-all"><span>全</span><small>全軍</small></button>
+        <button type="button" data-touch-mode="move" aria-pressed="false"><span>走</span><small>移動</small></button>
+        <button type="button" data-touch-mode="attack" aria-pressed="false"><span>攻</span><small>攻擊</small></button>
+        <button type="button" data-touch-action="skill"><span>技</span><small>技能</small></button>
+        <button type="button" data-touch-action="formation"><span>陣</span><small>隊形</small></button>
+        <button type="button" data-touch-mode="box" aria-pressed="false"><span>框</span><small>框選</small></button>
+        <button type="button" data-touch-mode="pan" aria-pressed="false"><span>移</span><small>移鏡</small></button>
+        <button type="button" data-touch-action="open-system"><span>•••</span><small>更多</small></button>
+      </section>
+      <section class="touch-control-panel" data-touch-panel-view="groups" aria-label="編隊命令" hidden>
+        <button type="button" data-touch-action="store-1"><span>存</span><small>編隊 1</small></button>
+        <button type="button" data-touch-action="recall-1"><span>叫</span><small>編隊 1</small></button>
+        <button type="button" data-touch-action="store-2"><span>存</span><small>編隊 2</small></button>
+        <button type="button" data-touch-action="recall-2"><span>叫</span><small>編隊 2</small></button>
+        <button type="button" data-touch-action="store-3"><span>存</span><small>編隊 3</small></button>
+        <button type="button" data-touch-action="recall-3"><span>叫</span><small>編隊 3</small></button>
+        <button type="button" data-touch-action="open-main"><span>返</span><small>主命令</small></button>
+      </section>
+      <section class="touch-control-panel" data-touch-panel-view="system" aria-label="其他命令" hidden>
+        <button type="button" data-touch-action="clear"><span>消</span><small>取消選取</small></button>
+        <button type="button" data-touch-action="open-groups"><span>組</span><small>編隊</small></button>
+        <button type="button" data-touch-action="open-briefing"><span>?</span><small>說明</small></button>
+        <button type="button" data-touch-action="restart"><span>重</span><small>重開</small></button>
+        <button type="button" data-touch-action="leave"><span>退</span><small>離開</small></button>
+        <button type="button" data-touch-action="open-main"><span>返</span><small>主命令</small></button>
+      </section>`;
     controls.addEventListener("pointerdown", (event) => event.stopPropagation());
+    controls.addEventListener("contextmenu", (event) => event.preventDefault());
     controls.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const button = (event.target as Element | null)?.closest<HTMLButtonElement>("[data-touch-action]");
-      if (button) this.handleTouchAction(button.dataset.touchAction ?? "");
+      const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button");
+      if (!button) return;
+      const mode = button.dataset.touchMode as TouchInteractionMode | undefined;
+      if (mode) this.setTouchMode(this.touchMode === mode ? "smart" : mode);
+      else this.handleTouchAction(button.dataset.touchAction ?? "");
     });
     host.append(controls);
     this.touchControls = controls;
+    this.touchReadout = controls.querySelector<HTMLOutputElement>(".touch-mode-readout") ?? undefined;
+    this.touchBriefing = controls.querySelector<HTMLElement>(".touch-briefing") ?? undefined;
+    this.syncTouchControls();
   }
 
   private spawnCombatants(): void {
@@ -358,7 +408,12 @@ export class CombatShowcaseScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     visual.container.addAt(selectionRing, 0);
     visual.container.add([healthBar, teamMark]);
-    visual.container.setSize(72, 96).setInteractive({ useHandCursor: true }).setData("showcaseActorId", instanceId);
+    const touchHitWidth = artId === "boar_rider" || team === "monster" ? 132 : 112;
+    const touchHitHeight = artId === "boar_rider" || team === "monster" ? 148 : 132;
+    visual.container
+      .setSize(touchHitWidth, touchHitHeight)
+      .setInteractive({ useHandCursor: true })
+      .setData("showcaseActorId", instanceId);
     const actor: ShowcaseActor = {
       instanceId,
       contentId: definition.id,
@@ -603,16 +658,46 @@ export class CombatShowcaseScene extends Phaser.Scene {
     }
   }
 
+  private actorAtPointer(
+    over: readonly Phaser.GameObjects.GameObject[],
+    screenPoint: ScreenPoint,
+    teamFilter?: (team: Team) => boolean,
+  ): ShowcaseActor | undefined {
+    const direct = over
+      .map((object) => this.findLivingActor(String(object.getData("showcaseActorId") ?? "")))
+      .filter((actor): actor is ShowcaseActor => Boolean(actor && (!teamFilter || teamFilter(actor.team))));
+    const candidates = direct.length > 0
+      ? direct
+      : this.actors.filter((actor) => !actor.dead && (!teamFilter || teamFilter(actor.team)));
+    const camera = this.cameras.main;
+    return candidates
+      .map((actor) => {
+        const x = actor.visual.container.x - camera.scrollX;
+        const y = actor.visual.container.y - camera.scrollY - 34;
+        return { actor, distance: Math.hypot(x - screenPoint.x, y - screenPoint.y) };
+      })
+      .filter(({ distance }) => direct.length > 0 || distance <= 104)
+      .sort((left, right) => left.distance - right.distance || right.actor.visual.container.depth - left.actor.visual.container.depth)[0]
+      ?.actor;
+  }
+
   private onPointerDown(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]): void {
     if (this.ended) return;
-    const clicked = over
-      .map((object) => this.findLivingActor(String(object.getData("showcaseActorId") ?? "")))
-      .find((actor): actor is ShowcaseActor => Boolean(actor));
+    const screenPoint = { x: pointer.x, y: pointer.y };
+    const clicked = this.actorAtPointer(over, screenPoint);
     if (pointer.button === 0) {
-      this.dragStart = { x: pointer.x, y: pointer.y };
+      this.dragStart = screenPoint;
       this.dragClickedId = clicked?.instanceId;
       this.dragAdditive = pointer.event.shiftKey;
-      this.selectionBox?.clear().setVisible(true);
+      this.touchDidPan = false;
+      if (this.isTouchCommandPointer(pointer)) {
+        this.selectionBox?.clear().setVisible(this.touchMode === "box");
+        this.touchCameraDrag = this.touchMode === "pan" || (this.touchMode === "smart" && !clicked)
+          ? { pointerX: pointer.x, pointerY: pointer.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY }
+          : undefined;
+      } else {
+        this.selectionBox?.clear().setVisible(true);
+      }
       return;
     }
     const selectedActors = this.getSelectedActors();
@@ -623,34 +708,82 @@ export class CombatShowcaseScene extends Phaser.Scene {
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
     if (!this.dragStart || !this.selectionBox) return;
     const rectangle = createPointerRectangle(this.dragStart, { x: pointer.x, y: pointer.y });
+    if (this.isTouchCommandPointer(pointer) && this.touchCameraDrag) {
+      if (rectangle.width <= 11 && rectangle.height <= 11) return;
+      this.touchDidPan = true;
+      this.selectionBox.clear().setVisible(false);
+      this.cameras.main.scrollX = this.touchCameraDrag.scrollX - (pointer.x - this.touchCameraDrag.pointerX);
+      this.cameras.main.scrollY = this.touchCameraDrag.scrollY - (pointer.y - this.touchCameraDrag.pointerY);
+      return;
+    }
+    if (this.isTouchCommandPointer(pointer) && this.touchMode !== "box") return;
     this.selectionBox.clear();
     if (rectangle.width < 3 && rectangle.height < 3) return;
     this.selectionBox.fillStyle(0x65c9a4, 0.12).fillRect(rectangle.left, rectangle.top, rectangle.width, rectangle.height);
     this.selectionBox.lineStyle(2, 0xa8efd2, 0.9).strokeRect(rectangle.left, rectangle.top, rectangle.width, rectangle.height);
   }
 
-  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+  private onPointerUp(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[] = []): void {
     if (!this.dragStart || pointer.button !== 0) return;
     const start = this.dragStart;
     const end = { x: pointer.x, y: pointer.y };
     const rectangle = createPointerRectangle(start, end);
     const members = this.squadMembers();
-    if (rectangle.width <= 7 && rectangle.height <= 7) {
-      const actor = this.dragClickedId ? this.findLivingActor(this.dragClickedId) : undefined;
-      if (this.isTouchCommandPointer(pointer) && actor?.team !== "player" && this.getSelectedActors().length > 0) {
-        this.issueSelectedCommand(actor, end);
-      } else if (this.isTouchCommandPointer(pointer) && !actor && this.getSelectedActors().length > 0) {
-        this.issueSelectedCommand(undefined, end);
-      } else {
-        this.squadSelection.selectMember(actor?.team === "player" ? this.toSquadMember(actor) : undefined, this.dragAdditive);
+    if (this.isTouchCommandPointer(pointer)) {
+      if (this.touchDidPan) {
+        this.resetPointerGesture();
+        return;
       }
+      const actor = this.actorAtPointer(over, end)
+        ?? (this.dragClickedId ? this.findLivingActor(this.dragClickedId) : undefined);
+      if (this.touchMode === "box") {
+        if (rectangle.width > 12 || rectangle.height > 12) {
+          this.squadSelection.selectByPointerRectangle(start, end, members, this.squadAdapter(), false, 28);
+        } else {
+          const friendly = this.actorAtPointer(over, end, (team) => team === "player");
+          this.squadSelection.selectMember(friendly ? this.toSquadMember(friendly) : undefined);
+        }
+        this.setTouchMode("smart");
+      } else if (this.touchMode === "move") {
+        if (this.getSelectedActors().length > 0) {
+          this.issueSelectedCommand(undefined, end);
+          this.setTouchMode("smart");
+        } else {
+          this.setTouchNotice("先選取部隊");
+        }
+      } else if (this.touchMode === "attack") {
+        const target = this.actorAtPointer(over, end, (team) => team !== "player");
+        if (target && this.getSelectedActors().length > 0) {
+          this.issueSelectedCommand(target, end);
+          this.setTouchMode("smart");
+        } else {
+          this.setTouchNotice(target ? "先選取部隊" : "請點敵軍或野怪");
+        }
+      } else if (this.touchMode === "smart") {
+        if (actor?.team === "player") {
+          this.squadSelection.selectMember(this.toSquadMember(actor), false);
+        } else if (actor && this.getSelectedActors().length > 0) {
+          this.issueSelectedCommand(actor, end);
+        } else if (!actor && this.getSelectedActors().length > 0) {
+          this.issueSelectedCommand(undefined, end);
+        }
+      }
+    } else if (rectangle.width <= 7 && rectangle.height <= 7) {
+      const actor = this.dragClickedId ? this.findLivingActor(this.dragClickedId) : undefined;
+      this.squadSelection.selectMember(actor?.team === "player" ? this.toSquadMember(actor) : undefined, this.dragAdditive);
     } else {
       this.squadSelection.selectByPointerRectangle(start, end, members, this.squadAdapter(), this.dragAdditive, 16);
     }
+    this.resetPointerGesture();
+    this.syncSelectionVisuals();
+  }
+
+  private resetPointerGesture(): void {
     this.dragStart = undefined;
     this.dragClickedId = undefined;
+    this.touchCameraDrag = undefined;
+    this.touchDidPan = false;
     this.selectionBox?.clear().setVisible(false);
-    this.syncSelectionVisuals();
   }
 
   private onSkillKey(): void {
@@ -710,7 +843,111 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.updateSelectionPanel();
   }
 
+  private maybeShowTouchBriefing(): void {
+    if (!this.isCompactLandscape()) return;
+    let alreadySeen = false;
+    try {
+      alreadySeen = sessionStorage.getItem("village-siege-touch-briefing-v2") === "seen";
+    } catch {
+      // Storage may be disabled; showing the briefing is the safer fallback.
+    }
+    if (!alreadySeen) this.showTouchBriefing();
+  }
+
+  private showTouchBriefing(): void {
+    if (!this.isCompactLandscape() || !this.touchBriefing || !this.touchControls) return;
+    this.touchBriefing.hidden = false;
+    this.touchControls.classList.add("is-briefing");
+    this.input.enabled = false;
+  }
+
+  private closeTouchBriefing(): void {
+    if (!this.touchBriefing || !this.touchControls) return;
+    this.touchBriefing.hidden = true;
+    this.touchControls.classList.remove("is-briefing");
+    try {
+      sessionStorage.setItem("village-siege-touch-briefing-v2", "seen");
+    } catch {
+      // The game remains playable when session storage is unavailable.
+    }
+    this.input.enabled = true;
+    this.setTouchNotice("點我軍選取，拖空地移鏡");
+  }
+
+  private setTouchMode(mode: TouchInteractionMode): void {
+    this.touchMode = mode;
+    this.touchPanel = "main";
+    this.resetPointerGesture();
+    this.syncTouchControls();
+  }
+
+  private setTouchPanel(panel: TouchControlPanel): void {
+    this.touchPanel = panel;
+    this.touchMode = "smart";
+    this.resetPointerGesture();
+    this.syncTouchControls();
+  }
+
+  private syncTouchControls(): void {
+    if (!this.touchControls) return;
+    this.touchControls.querySelectorAll<HTMLElement>("[data-touch-panel-view]").forEach((panel) => {
+      panel.hidden = panel.dataset.touchPanelView !== this.touchPanel;
+    });
+    this.touchControls.querySelectorAll<HTMLButtonElement>("[data-touch-mode]").forEach((button) => {
+      const active = button.dataset.touchMode === this.touchMode;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    this.updateTouchReadout();
+  }
+
+  private setTouchNotice(label: string): void {
+    this.touchNotice = label;
+    this.touchNoticeUntil = performance.now() + 1_600;
+    this.updateTouchReadout();
+  }
+
+  private updateTouchReadout(): void {
+    if (!this.touchReadout) return;
+    if (this.touchNotice && performance.now() < this.touchNoticeUntil) {
+      if (this.touchReadout.value !== this.touchNotice) this.touchReadout.value = this.touchNotice;
+      return;
+    }
+    this.touchNotice = "";
+    const count = this.getSelectedActors().length;
+    const label = ({
+      smart: count > 0
+        ? `智慧指令｜已選 ${count} 人｜點地移動・點敵攻擊・拖地移鏡`
+        : "智慧指令｜點我軍選取・拖空地移鏡",
+      move: count > 0 ? `移動模式｜點目的地（${count} 人）` : "移動模式｜請先選取部隊",
+      attack: count > 0 ? `攻擊模式｜點敵軍或野怪（${count} 人）` : "攻擊模式｜請先選取部隊",
+      box: "框選模式｜拖過我軍，放開即完成",
+      pan: "移鏡模式｜拖曳戰場；再點一次移鏡可結束",
+    } as const)[this.touchMode];
+    if (this.touchReadout.value !== label) this.touchReadout.value = label;
+  }
+
   private handleTouchAction(action: string): void {
+    if (action === "open-briefing") {
+      this.showTouchBriefing();
+      return;
+    }
+    if (action === "close-briefing") {
+      this.closeTouchBriefing();
+      return;
+    }
+    if (action === "open-main") {
+      this.setTouchPanel("main");
+      return;
+    }
+    if (action === "open-groups") {
+      this.setTouchPanel("groups");
+      return;
+    }
+    if (action === "open-system") {
+      this.setTouchPanel("system");
+      return;
+    }
     if (action === "restart") {
       this.restartBattle();
       return;
@@ -720,14 +957,6 @@ export class CombatShowcaseScene extends Phaser.Scene {
       return;
     }
     if (this.ended) return;
-    if (action === "camera-up" || action === "camera-down" || action === "camera-left" || action === "camera-right") {
-      const distance = 135;
-      if (action === "camera-up") this.cameras.main.scrollY -= distance;
-      if (action === "camera-down") this.cameras.main.scrollY += distance;
-      if (action === "camera-left") this.cameras.main.scrollX -= distance;
-      if (action === "camera-right") this.cameras.main.scrollX += distance;
-      return;
-    }
     if (action === "select-all") {
       this.squadSelection.selectAllFriendly(this.squadMembers());
       this.syncSelectionVisuals();
@@ -737,10 +966,17 @@ export class CombatShowcaseScene extends Phaser.Scene {
     if (action === "clear") {
       this.squadSelection.clearSelection();
       this.syncSelectionVisuals();
+      this.setTouchPanel("main");
+      this.setTouchNotice("已取消選取");
       return;
     }
     if (action === "skill") {
+      if (this.getSelectedActors().length === 0) {
+        this.setTouchNotice("先選取部隊");
+        return;
+      }
       this.onSkillKey();
+      this.setTouchNotice("已下達技能命令");
       return;
     }
     if (action === "formation") {
@@ -757,14 +993,17 @@ export class CombatShowcaseScene extends Phaser.Scene {
       }
       this.squadSelection.storeControlGroup(slot);
       this.announceTouchCommand(`已儲存編隊 ${slot}`);
+      this.setTouchPanel("main");
       return;
     }
     this.squadSelection.recallControlGroup(slot, this.squadMembers());
     this.syncSelectionVisuals();
     this.announceTouchCommand(this.squadSelection.selectedIds.length > 0 ? `已叫回編隊 ${slot}` : `編隊 ${slot} 尚未儲存`, this.squadSelection.selectedIds.length > 0 ? "#dce9c6" : "#ffbd82");
+    this.setTouchPanel("main");
   }
 
   private announceTouchCommand(label: string, color = "#dce9c6"): void {
+    this.setTouchNotice(label);
     spawnFloatingText(this, {
       x: 640 + this.cameras.main.scrollX,
       y: 116 + this.cameras.main.scrollY,
@@ -789,13 +1028,15 @@ export class CombatShowcaseScene extends Phaser.Scene {
       ?.setPosition(36, 24)
       .setFontSize(compact ? 21 : 16)
       .setText(compact
-        ? "點我軍選取／點地面移動／點敵軍攻擊　下方按鈕可施放技能、編隊與移動鏡頭"
+        ? "手機指揮：點我軍選取・點地移動・點敵攻擊・拖空地移鏡　需要精準操作可切換下方模式"
         : "框選／Shift 複選　右鍵移動／攻擊　Q 全隊技能　F 切換隊形　Ctrl+1–3 編隊　WASD 移鏡頭");
     this.scoreText?.setPosition(36, compact ? 61 : 52).setFontSize(compact ? 19 : 15);
     this.selectionText
       ?.setPosition(compact ? 288 : 24, compact ? 535 : 640)
       .setFontSize(compact ? 20 : 15)
-      .setWordWrapWidth(compact ? 410 : 920);
+      .setWordWrapWidth(compact ? 410 : 920)
+      .setVisible(!compact);
+    this.syncTouchControls();
   }
 
   private updateSelectionPanel(): void {
@@ -805,6 +1046,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
       this.selectionText.setText(this.isCompactLandscape()
         ? "未選取｜點選或框選我軍"
         : "拖曳框選我軍，前往兩座烽火台累積 100 勝點；野怪保持中立，遭攻擊後才會反擊。R 重開，Esc 返回。");
+      this.updateTouchReadout();
       return;
     }
     const actor = selectedActors[0]!;
@@ -815,6 +1057,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
       ? `${selectedActors.length}人｜${this.formationKind === "wedge" ? "楔形" : "橫列"}｜${actor.definition.displayName} ${Math.ceil(actor.hitPoints)}/${actor.definition.maxHitPoints}｜${ability.displayName} ${cooldown}`
       : `已選 ${selectedActors.length} 人｜${this.formationKind === "wedge" ? "楔形" : "橫列"}　主選：${actor.definition.displayName} ${Math.ceil(actor.hitPoints)}/${actor.definition.maxHitPoints}\n` +
         `Q ${ability.displayName}（${cooldown}）— ${ability.description}　狀態：${statuses}`);
+    this.updateTouchReadout();
   }
 
   private finishBattle(winner: SkirmishSide, reason: "victoryPoints" | "elimination"): void {
@@ -1155,6 +1398,10 @@ export class CombatShowcaseScene extends Phaser.Scene {
     window.removeEventListener("resize", this.onViewportResize);
     this.touchControls?.remove();
     this.touchControls = undefined;
+    this.touchReadout = undefined;
+    this.touchBriefing = undefined;
+    this.touchCameraDrag = undefined;
+    this.touchDidPan = false;
     for (const actor of this.actors) actor.visual.destroy();
     this.actors = [];
     this.squadSelection.clearSelection();
