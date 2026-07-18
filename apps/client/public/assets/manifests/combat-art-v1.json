@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifestVersion": "1.0.0",
+  "artSetId": "combat-art-v1",
+  "status": "proceduralFallback",
+  "proceduralFallback": true,
+  "atlasRequiredForProduction": true,
+  "originality": "project-original",
+  "sourceBible": "docs/rework/art-bible-draft.md",
+  "projection": {
+    "type": "2:1-isometric",
+    "tileWidth": 96,
+    "tileHeight": 48,
+    "screenX": "(gridX-gridY)*48",
+    "screenY": "(gridX+gridY)*24"
+  },
+  "facings": ["e", "ne", "nw", "w", "sw", "se"],
+  "actions": ["idle", "walk", "attack", "hurt", "death", "cast"],
+  "frameNaming": "{category}_{id}_{skin}_{facing}_{action}_{frame:02}",
+  "phaserAnimationKey": "{category}.{id}.{action}.{facing}",
+  "packing": {
+    "format": "Phaser multiatlas JSON Hash + RGBA8888 PNG",
+    "maxPage": [2048, 2048],
+    "trim": true,
+    "padding": 4,
+    "border": 4,
+    "extrude": 2,
+    "filter": "NEAREST",
+    "straightAlpha": true,
+    "transparentRgb": [0, 0, 0],
+    "mipmaps": false
+  },
+  "teamColor": {
+    "maskRequired": true,
+    "indices": {
+      "TC0": "#253844",
+      "TC1": "#41657A",
+      "TC2": "#6E94A8",
+      "TC3": "#A9C5CF"
+    },
+    "proceduralPalettes": {
+      "pine": ["#1E3A31", "#315E4D", "#6F967A", "#B8C99A"],
+      "river": ["#244452", "#39738A", "#72A4B3", "#B8D3D2"],
+      "crag": ["#5A3229", "#96513C", "#C27A50", "#E2B66E"],
+      "enemy": ["#542A2B", "#8F3B3A", "#C16A55", "#E3AA7B"],
+      "neutral": ["#253844", "#41657A", "#6E94A8", "#A9C5CF"]
+    }
+  },
+  "entities": {
+    "mage": {
+      "category": "unit",
+      "frame": [96, 112],
+      "anchor": [48, 88],
+      "shadow": [28, 11],
+      "silhouette": "split trailing cap, triangular robe, hollow-ring staff",
+      "teamZones": ["cap-tail", "double-belt", "staff-knot"],
+      "clips": {
+        "idle": { "frames": 8, "fps": 6, "loop": true, "events": [[2, "emberPulse"], [6, "emberPulse"]] },
+        "walk": { "frames": 8, "fps": 10, "loop": true, "events": [[1, "footL"], [5, "footR"]] },
+        "attack": { "frames": 10, "fps": 12, "loop": false, "events": [[2, "telegraph"], [6, "projectile"], [8, "recover"]] },
+        "hurt": { "frames": 4, "fps": 12, "loop": false, "events": [[0, "flinch"]] },
+        "death": { "frames": 12, "fps": 10, "loop": false, "events": [[4, "dropStaff"], [8, "collisionOff"]] },
+        "cast": { "frames": 12, "fps": 12, "loop": false, "events": [[2, "telegraph"], [7, "aoeCommit"], [10, "recover"]] }
+      }
+    },
+    "archer": {
+      "category": "unit",
+      "frame": [96, 112],
+      "anchor": [48, 88],
+      "shadow": [29, 11],
+      "silhouette": "tall recurved bow, diagonal short cape, offset quiver",
+      "teamZones": ["shoulder-scarf", "arrow-fletching", "knee-tie"],
+      "clips": {
+        "idle": { "frames": 8, "fps": 6, "loop": true, "events": [[5, "scan"]] },
+        "walk": { "frames": 8, "fps": 11, "loop": true, "events": [[1, "footL"], [5, "footR"]] },
+        "attack": { "frames": 10, "fps": 14, "loop": false, "events": [[2, "nock"], [6, "projectile"], [9, "recover"]] },
+        "hurt": { "frames": 4, "fps": 13, "loop": false, "events": [[0, "flinch"]] },
+        "death": { "frames": 12, "fps": 10, "loop": false, "events": [[5, "dropBow"], [8, "collisionOff"]] },
+        "cast": { "frames": 10, "fps": 12, "loop": false, "events": [[2, "skillNock"], [6, "projectile"], [9, "recover"]] }
+      }
+    },
+    "musketeer": {
+      "category": "unit",
+      "frame": [112, 112],
+      "anchor": [56, 88],
+      "shadow": [34, 12],
+      "silhouette": "full-body diagonal musket, soft wedge cap, six powder flasks",
+      "teamZones": ["hat-band", "cross-strap", "powder-flask-covers"],
+      "clips": {
+        "idle": { "frames": 8, "fps": 6, "loop": true, "events": [[5, "checkMatch"]] },
+        "walk": { "frames": 8, "fps": 9, "loop": true, "events": [[1, "footL"], [5, "footR"]] },
+        "attack": { "frames": 14, "fps": 12, "loop": false, "events": [[3, "brace"], [6, "muzzle"], [6, "projectile"], [9, "reloadOpen"], [12, "reloadClose"]] },
+        "hurt": { "frames": 4, "fps": 12, "loop": false, "events": [[0, "flinch"]] },
+        "death": { "frames": 12, "fps": 9, "loop": false, "events": [[4, "dropMusket"], [8, "collisionOff"]] },
+        "cast": { "frames": 12, "fps": 11, "loop": false, "events": [[2, "forkOpen"], [6, "muzzle"], [6, "pierceLine"], [11, "recover"]] }
+      }
+    },
+    "warrior": {
+      "category": "unit",
+      "frame": [96, 112],
+      "anchor": [48, 88],
+      "shadow": [31, 12],
+      "silhouette": "wide broken-tip blade, one-sided cape, forward diamond stance",
+      "teamZones": ["one-sided-cape", "bracer", "grip-wrap"],
+      "clips": {
+        "idle": { "frames": 8, "fps": 7, "loop": true, "events": [[4, "weightShift"]] },
+        "walk": { "frames": 8, "fps": 12, "loop": true, "events": [[1, "footL"], [5, "footR"]] },
+        "attack": { "frames": 9, "fps": 15, "loop": false, "events": [[2, "windup"], [5, "meleeHit"], [8, "recover"]] },
+        "hurt": { "frames": 4, "fps": 14, "loop": false, "events": [[0, "flinch"]] },
+        "death": { "frames": 12, "fps": 11, "loop": false, "events": [[6, "dropBlade"], [8, "collisionOff"]] },
+        "cast": { "frames": 10, "fps": 14, "loop": false, "events": [[2, "backStep"], [6, "cleaveHit"], [9, "recover"]] }
+      }
+    },
+    "shieldbearer": {
+      "category": "unit",
+      "frame": [112, 112],
+      "anchor": [56, 88],
+      "shadow": [38, 14],
+      "silhouette": "wide-bottom trapezoid wicker shield with horizontal short spear",
+      "teamZones": ["shield-corner-cloth", "back-strap", "spear-tassel"],
+      "clips": {
+        "idle": { "frames": 8, "fps": 6, "loop": true, "events": [[4, "shieldSettle"]] },
+        "walk": { "frames": 8, "fps": 9, "loop": true, "events": [[1, "footL"], [5, "footR"]] },
+        "attack": { "frames": 10, "fps": 12, "loop": false, "events": [[2, "jabWindup"], [6, "meleeHit"], [9, "recover"]] },
+        "hurt": { "frames": 4, "fps": 11, "loop": false, "events": [[0, "shieldImpact"]] },
+        "death": { "frames": 12, "fps": 9, "loop": false, "events": [[5, "shieldFall"], [9, "collisionOff"]] },
+        "cast": { "frames": 10, "fps": 10, "loop": false, "events": [[2, "braceStart"], [6, "guardActive"], [7, "wedgeSet"]] }
+      }
+    },
+    "boar_rider": {
+      "category": "unit",
+      "frame": [144, 128],
+      "anchor": [72, 101],
+      "shadow": [58, 20],
+      "silhouette": "low long boar, forward rider, short hooked lance, unequal tusks",
+      "teamZones": ["saddle-cloth", "lance-tassel", "rider-shoulder-strap"],
+      "clips": {
+        "idle": { "frames": 8, "fps": 6, "loop": true, "events": [[3, "snort"], [6, "hoofScrape"]] },
+        "walk": { "frames": 10, "fps": 12, "loop": true, "events": [[1, "frontHoof"], [6, "rearHoof"]] },
+        "attack": { "frames": 12, "fps": 14, "loop": false, "events": [[2, "lowerTusk"], [7, "meleeHit"], [11, "recover"]] },
+        "hurt": { "frames": 4, "fps": 12, "loop": false, "events": [[0, "rear"]] },
+        "death": { "frames": 14, "fps": 9, "loop": false, "events": [[5, "riderSeparate"], [10, "collisionOff"]] },
+        "cast": { "frames": 12, "fps": 13, "loop": false, "events": [[1, "scrape1"], [4, "scrape2"], [7, "chargeActive"], [7, "dustBurst"]] }
+      }
+    },
+    "heavy_crossbow": {
+      "category": "unit",
+      "frame": [112, 112],
+      "anchor": [56, 88],
+      "shadow": [39, 14],
+      "silhouette": "wide transverse bow, rear winch, crouched folding stand",
+      "teamZones": ["chest-strap", "limb-binding", "cocking-cloth"],
+      "clips": {
+        "idle": { "frames": 8, "fps": 6, "loop": true, "events": [[5, "winchCheck"]] },
+        "walk": { "frames": 8, "fps": 8, "loop": true, "events": [[1, "footL"], [5, "footR"]] },
+        "attack": { "frames": 14, "fps": 11, "loop": false, "events": [[2, "standOpen"], [5, "draw"], [8, "projectile"], [9, "recoil"], [13, "standClose"]] },
+        "hurt": { "frames": 4, "fps": 11, "loop": false, "events": [[0, "flinch"]] },
+        "death": { "frames": 12, "fps": 9, "loop": false, "events": [[4, "crossbowDrop"], [8, "collisionOff"]] },
+        "cast": { "frames": 12, "fps": 10, "loop": false, "events": [[3, "stakeLoad"], [7, "projectile"], [8, "pinCue"], [11, "recover"]] }
+      }
+    },
+    "miremaw": {
+      "category": "monster",
+      "frame": [128, 128],
+      "anchor": [64, 101],
+      "shadow": [50, 18],
+      "silhouette": "low six-legged wet-clay beast, shovel jaw, three reed sacs",
+      "teamZones": [],
+      "clips": {
+        "idle": { "frames": 8, "fps": 6, "loop": true, "events": [[4, "reedPulse"]] },
+        "walk": { "frames": 10, "fps": 12, "loop": true, "events": [[1, "foreFeet"], [6, "rearFeet"]] },
+        "attack": { "frames": 10, "fps": 14, "loop": false, "events": [[3, "jawOpen"], [6, "meleeHit"], [9, "recover"]] },
+        "hurt": { "frames": 4, "fps": 12, "loop": false, "events": [[0, "flinch"]] },
+        "death": { "frames": 12, "fps": 9, "loop": false, "events": [[9, "collisionOff"]] },
+        "cast": { "frames": 12, "fps": 10, "loop": false, "events": [[4, "submerge"], [8, "emergeHit"]] }
+      }
+    },
+    "ashwing": {
+      "category": "monster",
+      "frame": [144, 144],
+      "anchor": [72, 116],
+      "shadow": [56, 20],
+      "silhouette": "four-legged charcoal hunter, two broken fan wings, beak and lizard tail",
+      "teamZones": [],
+      "clips": {
+        "idle": { "frames": 8, "fps": 7, "loop": true, "events": [[4, "wingRustle"]] },
+        "walk": { "frames": 8, "fps": 13, "loop": true, "events": [[1, "foreFeet"], [5, "rearFeet"]] },
+        "attack": { "frames": 10, "fps": 15, "loop": false, "events": [[3, "beakOpen"], [6, "meleeHit"]] },
+        "hurt": { "frames": 4, "fps": 13, "loop": false, "events": [[0, "flinch"]] },
+        "death": { "frames": 10, "fps": 10, "loop": false, "events": [[7, "collisionOff"]] },
+        "cast": { "frames": 10, "fps": 12, "loop": false, "events": [[3, "takeoff"], [7, "diveHit"]] }
+      }
+    },
+    "rootback": {
+      "category": "monster",
+      "frame": [160, 144],
+      "anchor": [80, 116],
+      "shadow": [78, 27],
+      "silhouette": "three offset shale slabs, root bindings, unequal arms, hanging ceramic bell",
+      "teamZones": [],
+      "clips": {
+        "idle": { "frames": 8, "fps": 5, "loop": true, "events": [[4, "bellSway"]] },
+        "walk": { "frames": 10, "fps": 8, "loop": true, "events": [[1, "shortFoot"], [6, "longFoot"]] },
+        "attack": { "frames": 12, "fps": 11, "loop": false, "events": [[4, "brace"], [8, "meleeHit"]] },
+        "hurt": { "frames": 4, "fps": 10, "loop": false, "events": [[0, "crackFlash"]] },
+        "death": { "frames": 14, "fps": 8, "loop": false, "events": [[11, "collisionOff"]] },
+        "cast": { "frames": 14, "fps": 9, "loop": false, "events": [[4, "telegraph"], [10, "slamHit"]] }
+      }
+    }
+  },
+  "projectiles": {
+    "arrow": { "frame": [32, 16], "facings": 6, "flightFrames": 4, "fps": 18 },
+    "shadow_arrow": { "frame": [40, 24], "facings": 6, "flightFrames": 6, "fps": 18 },
+    "musket_trace": { "frame": [32, 16], "facings": 6, "flightFrames": 3, "fps": 24 },
+    "arcane_cinder": { "frame": [48, 48], "facings": 6, "flightFrames": 8, "fps": 16 },
+    "heavy_bolt": { "frame": [48, 24], "facings": 6, "flightFrames": 4, "fps": 16 }
+  },
+  "acceptance": {
+    "allFramesMustBeAuthored": true,
+    "mirroredFacingsAllowed": false,
+    "maxIdleAnchorDriftPx": 1,
+    "maxAttackTipDriftPx": 3,
+    "runtimeAtlasOnly": true,
+    "proceduralFallbackIsFinalArt": false
+  }
+}

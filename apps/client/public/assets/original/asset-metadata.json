@@ -1,0 +1,313 @@
+{
+  "schemaVersion": 1,
+  "assetSet": "village-siege-combat-portraits-v1",
+  "generatedAtUtc": "2026-07-17T05:31:45.455Z",
+  "source": {
+    "file": "apps/client/public/assets/original/source/combat-lineup-approved.png",
+    "width": 1717,
+    "height": 916,
+    "sha256": "a851ba3ac430f1ecb4eaf1611602f000946b380d4ee02729c1a9eb78eed9dc37",
+    "provenance": "Project-bound image generated with OpenAI image generation and explicitly approved by the project owner",
+    "preparedAlpha": {
+      "file": "apps/client/public/assets/original/source/combat-lineup-approved-alpha.png",
+      "sha256": "ffe954c82f1798f2080ec0cc3c359e8feb62389b9f32219d31f245d9f46ef799",
+      "process": "Prepared with the installed imagegen skill remove_chroma_key.py helper; retained as the reproducible crop master"
+    }
+  },
+  "process": {
+    "script": "scripts/extract-combat-portraits.mjs",
+    "backgroundRemoval": {
+      "helper": "$CODEX_HOME/skills/.system/imagegen/scripts/remove_chroma_key.py",
+      "usage": "local build-time imagegen skill helper; prepared alpha master is checked into the project"
+    },
+    "cropTool": {
+      "package": "sharp",
+      "version": "0.32.6",
+      "license": "Apache-2.0"
+    },
+    "paddingPx": 16,
+    "foregroundAlphaThreshold": 8
+  },
+  "portraits": {
+    "warrior": {
+      "file": "apps/client/public/assets/original/units/warrior/portrait.png",
+      "sourceCrop": {
+        "left": 24,
+        "top": 43,
+        "width": 449,
+        "height": 443
+      },
+      "componentCleanup": {
+        "detectedComponents": 103,
+        "keptComponents": 1,
+        "removedComponents": 102,
+        "removedPixels": 303,
+        "minimumDetachedSize": 298
+      },
+      "holeRepair": {
+        "repairedHoles": 218,
+        "repairedPixels": 521,
+        "maximumHoleSize": 596
+      },
+      "alphaBoundsInCrop": {
+        "left": 13,
+        "top": 15,
+        "width": 431,
+        "height": 428
+      },
+      "output": {
+        "width": 463,
+        "height": 460,
+        "channels": 4,
+        "hasAlpha": true,
+        "transparentPixels": 135302,
+        "partialAlphaPixels": 11220,
+        "opaquePixels": 66458,
+        "foregroundCoverage": 0.3647196919898582,
+        "edgeForegroundPixels": 0,
+        "cornerMaxAlpha": 0
+      },
+      "sha256": "2011a5900bf9876fb824916f71ed51e9ddf3d6996b2e7d4c337b48d4e61d1d6e"
+    },
+    "shieldBearer": {
+      "file": "apps/client/public/assets/original/units/shieldBearer/portrait.png",
+      "sourceCrop": {
+        "left": 480,
+        "top": 76,
+        "width": 397,
+        "height": 416
+      },
+      "componentCleanup": {
+        "detectedComponents": 48,
+        "keptComponents": 1,
+        "removedComponents": 47,
+        "removedPixels": 116,
+        "minimumDetachedSize": 247
+      },
+      "holeRepair": {
+        "repairedHoles": 186,
+        "repairedPixels": 407,
+        "maximumHoleSize": 495
+      },
+      "alphaBoundsInCrop": {
+        "left": 9,
+        "top": 24,
+        "width": 364,
+        "height": 374
+      },
+      "output": {
+        "width": 396,
+        "height": 406,
+        "channels": 4,
+        "hasAlpha": true,
+        "transparentPixels": 76774,
+        "partialAlphaPixels": 23713,
+        "opaquePixels": 60289,
+        "foregroundCoverage": 0.5224784793750311,
+        "edgeForegroundPixels": 0,
+        "cornerMaxAlpha": 0
+      },
+      "sha256": "d45c4f415c96cda1e4c2138529d883c4d96e87c45576102807c8c886c46f2ec5"
+    },
+    "archer": {
+      "file": "apps/client/public/assets/original/units/archer/portrait.png",
+      "sourceCrop": {
+        "left": 875,
+        "top": 24,
+        "width": 388,
+        "height": 475
+      },
+      "componentCleanup": {
+        "detectedComponents": 44,
+        "keptComponents": 1,
+        "removedComponents": 43,
+        "removedPixels": 126,
+        "minimumDetachedSize": 276
+      },
+      "holeRepair": {
+        "repairedHoles": 87,
+        "repairedPixels": 406,
+        "maximumHoleSize": 552
+      },
+      "alphaBoundsInCrop": {
+        "left": 32,
+        "top": 20,
+        "width": 318,
+        "height": 441
+      },
+      "output": {
+        "width": 350,
+        "height": 473,
+        "channels": 4,
+        "hasAlpha": true,
+        "transparentPixels": 102833,
+        "partialAlphaPixels": 15990,
+        "opaquePixels": 46727,
+        "foregroundCoverage": 0.37884022953790397,
+        "edgeForegroundPixels": 0,
+        "cornerMaxAlpha": 0
+      },
+      "sha256": "b47df12a7289720351e7d4f0d7e9ccf53b3dbe19da538039252ea37fa80a6315"
+    },
+    "mage": {
+      "file": "apps/client/public/assets/original/units/mage/portrait.png",
+      "sourceCrop": {
+        "left": 1238,
+        "top": 31,
+        "width": 380,
+        "height": 462
+      },
+      "componentCleanup": {
+        "detectedComponents": 86,
+        "keptComponents": 2,
+        "removedComponents": 84,
+        "removedPixels": 382,
+        "minimumDetachedSize": 263
+      },
+      "holeRepair": {
+        "repairedHoles": 115,
+        "repairedPixels": 1194,
+        "maximumHoleSize": 526
+      },
+      "alphaBoundsInCrop": {
+        "left": 31,
+        "top": 11,
+        "width": 333,
+        "height": 445
+      },
+      "output": {
+        "width": 365,
+        "height": 477,
+        "channels": 4,
+        "hasAlpha": true,
+        "transparentPixels": 91813,
+        "partialAlphaPixels": 17998,
+        "opaquePixels": 64294,
+        "foregroundCoverage": 0.47265730450015797,
+        "edgeForegroundPixels": 0,
+        "cornerMaxAlpha": 0
+      },
+      "sha256": "7f0d71b94fcdfd4000825b9f2cac40b179b3e887c85e77e9373713de0c1fd0ec"
+    },
+    "musketeer": {
+      "file": "apps/client/public/assets/original/units/musketeer/portrait.png",
+      "sourceCrop": {
+        "left": 48,
+        "top": 476,
+        "width": 514,
+        "height": 409
+      },
+      "componentCleanup": {
+        "detectedComponents": 216,
+        "keptComponents": 1,
+        "removedComponents": 215,
+        "removedPixels": 1909,
+        "minimumDetachedSize": 315
+      },
+      "holeRepair": {
+        "repairedHoles": 188,
+        "repairedPixels": 942,
+        "maximumHoleSize": 630
+      },
+      "alphaBoundsInCrop": {
+        "left": 27,
+        "top": 8,
+        "width": 475,
+        "height": 401
+      },
+      "output": {
+        "width": 507,
+        "height": 433,
+        "channels": 4,
+        "hasAlpha": true,
+        "transparentPixels": 141443,
+        "partialAlphaPixels": 14134,
+        "opaquePixels": 63954,
+        "foregroundCoverage": 0.35570375026761597,
+        "edgeForegroundPixels": 0,
+        "cornerMaxAlpha": 0
+      },
+      "sha256": "e104cc8e49518d0f2cf97e07a9a3a6616428fcd94350d44391ee6b88da79f3ba"
+    },
+    "boarRider": {
+      "file": "apps/client/public/assets/original/units/boarRider/portrait.png",
+      "sourceCrop": {
+        "left": 531,
+        "top": 505,
+        "width": 487,
+        "height": 365
+      },
+      "componentCleanup": {
+        "detectedComponents": 89,
+        "keptComponents": 1,
+        "removedComponents": 88,
+        "removedPixels": 643,
+        "minimumDetachedSize": 266
+      },
+      "holeRepair": {
+        "repairedHoles": 213,
+        "repairedPixels": 939,
+        "maximumHoleSize": 533
+      },
+      "alphaBoundsInCrop": {
+        "left": 3,
+        "top": 1,
+        "width": 484,
+        "height": 364
+      },
+      "output": {
+        "width": 516,
+        "height": 396,
+        "channels": 4,
+        "hasAlpha": true,
+        "transparentPixels": 109111,
+        "partialAlphaPixels": 15450,
+        "opaquePixels": 79775,
+        "foregroundCoverage": 0.4660216506146739,
+        "edgeForegroundPixels": 0,
+        "cornerMaxAlpha": 0
+      },
+      "sha256": "7048e0792c906ebe19fc9a6cf03d064fcda84bfeb7670317a8f4a125c841dcd0"
+    },
+    "heavyCrossbowman": {
+      "file": "apps/client/public/assets/original/units/heavyCrossbowman/portrait.png",
+      "sourceCrop": {
+        "left": 1042,
+        "top": 502,
+        "width": 601,
+        "height": 382
+      },
+      "componentCleanup": {
+        "detectedComponents": 240,
+        "keptComponents": 1,
+        "removedComponents": 239,
+        "removedPixels": 810,
+        "minimumDetachedSize": 344
+      },
+      "holeRepair": {
+        "repairedHoles": 269,
+        "repairedPixels": 1604,
+        "maximumHoleSize": 688
+      },
+      "alphaBoundsInCrop": {
+        "left": 13,
+        "top": 0,
+        "width": 572,
+        "height": 382
+      },
+      "output": {
+        "width": 604,
+        "height": 414,
+        "channels": 4,
+        "hasAlpha": true,
+        "transparentPixels": 146750,
+        "partialAlphaPixels": 18747,
+        "opaquePixels": 84559,
+        "foregroundCoverage": 0.41313145855328404,
+        "edgeForegroundPixels": 0,
+        "cornerMaxAlpha": 0
+      },
+      "sha256": "bd7c845abdf3a87d6224a3a5bd786a1a8b036d8e1aa98a9fbe121fc8852f8e41"
+    }
+  }
+}

@@ -1,0 +1,67 @@
+﻿{
+    "schemaVersion":  1,
+    "assetSet":  "village-siege-monster-portraits-v1",
+    "generatedAtUtc":  "2026-07-17T06:21:53.6204697Z",
+    "source":  {
+                   "file":  "apps/client/public/assets/original/source/monster-lineup-approved-alpha.png",
+                   "width":  1774,
+                   "height":  887,
+                   "sha256":  "83fc5fd1fe5dc6c25215d4edf8a9e929fcf3e181c210863855d362713357a12c",
+                   "provenance":  "Original project-bound OpenAI image generation on flat magenta chroma key"
+               },
+    "process":  {
+                    "script":  "scripts/extract-monster-portraits.ps1",
+                    "chromaHelper":  "$CODEX_HOME/skills/.system/imagegen/scripts/remove_chroma_key.py",
+                    "paddingPx":  16
+                },
+    "portraits":  {
+                      "miremaw":  {
+                                      "file":  "apps/client/public/assets/original/monsters/miremaw/portrait.png",
+                                      "sourceCrop":  {
+                                                         "left":  24,
+                                                         "top":  250,
+                                                         "width":  580,
+                                                         "height":  540
+                                                     },
+                                      "output":  {
+                                                     "width":  612,
+                                                     "height":  572,
+                                                     "channels":  4,
+                                                     "cornerMaxAlpha":  0
+                                                 },
+                                      "sha256":  "9cbdb06ef1d36e2fd469977116dec4c7948ea2706d8c814e6d5ff7fb99cf3e11"
+                                  },
+                      "ashwing":  {
+                                      "file":  "apps/client/public/assets/original/monsters/ashwing/portrait.png",
+                                      "sourceCrop":  {
+                                                         "left":  595,
+                                                         "top":  90,
+                                                         "width":  575,
+                                                         "height":  710
+                                                     },
+                                      "output":  {
+                                                     "width":  607,
+                                                     "height":  742,
+                                                     "channels":  4,
+                                                     "cornerMaxAlpha":  0
+                                                 },
+                                      "sha256":  "5104bf34e68fe9648a2dd9c9817e7c007726ec8865ecb63151538e1f7d0bc222"
+                                  },
+                      "rootback":  {
+                                       "file":  "apps/client/public/assets/original/monsters/rootback/portrait.png",
+                                       "sourceCrop":  {
+                                                          "left":  1180,
+                                                          "top":  90,
+                                                          "width":  580,
+                                                          "height":  715
+                                                      },
+                                       "output":  {
+                                                      "width":  612,
+                                                      "height":  747,
+                                                      "channels":  4,
+                                                      "cornerMaxAlpha":  0
+                                                  },
+                                       "sha256":  "ef981f8fecbc2b1426af0954e3ec74a0eb932fef97652a924fa375005c9386ba"
+                                   }
+                  }
+}
