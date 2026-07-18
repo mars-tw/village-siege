@@ -160,6 +160,8 @@ export class CombatShowcaseScene extends Phaser.Scene {
   private instructionText?: Phaser.GameObjects.Text;
   private selectionText?: Phaser.GameObjects.Text;
   private resultText?: Phaser.GameObjects.Text;
+  private interfacePanel?: Phaser.GameObjects.Graphics;
+  private touchControls?: HTMLElement;
   private returnScene = "VillageSelectScene";
   private ended = false;
   private aiElapsedMs = 0;
@@ -188,6 +190,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.cameras.main.centerOn(center.x, center.y);
     this.mapView = drawBattleMap(this, ORIGIN);
     this.createInterface();
+    this.createTouchControls();
     this.createObjectiveMarkers();
     this.spawnCombatants();
     this.input.mouse?.disableContextMenu();
@@ -198,6 +201,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-R", this.restartBattle, this);
     this.input.keyboard?.on("keydown-ESC", this.leaveShowcase, this);
     this.input.keyboard?.on("keydown", this.onKeyboardShortcut, this);
+    window.addEventListener("resize", this.onViewportResize);
     this.createCameraKeys();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
     this.updateSelectionPanel();
@@ -227,9 +231,9 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private createInterface(): void {
-    const panel = this.add.graphics().setScrollFactor(0).setDepth(40_000);
-    panel.fillStyle(0x111a17, 0.94).fillRect(16, 14, 1248, 76);
-    panel.lineStyle(2, 0xd2c383, 0.75).strokeRect(16, 14, 1248, 76);
+    this.interfacePanel = this.add.graphics().setScrollFactor(0).setDepth(40_000);
+    this.interfacePanel.fillStyle(0x111a17, 0.94).fillRect(16, 14, 1248, 76);
+    this.interfacePanel.lineStyle(2, 0xd2c383, 0.75).strokeRect(16, 14, 1248, 76);
     this.instructionText = this.add.text(
       36,
       24,
@@ -251,6 +255,44 @@ export class CombatShowcaseScene extends Phaser.Scene {
       wordWrap: { width: 920 },
     }).setScrollFactor(0).setDepth(40_001);
     this.selectionBox = this.add.graphics().setScrollFactor(0).setDepth(45_000).setVisible(false);
+    this.applyResponsiveInterface();
+  }
+
+  private createTouchControls(): void {
+    const host = this.game.canvas.parentElement ?? document.body;
+    const controls = document.createElement("nav");
+    controls.className = "combat-touch-controls";
+    controls.setAttribute("aria-label", "手機戰鬥操作");
+    controls.innerHTML = `
+      <div class="touch-dpad" aria-label="移動鏡頭">
+        <button type="button" data-touch-action="camera-up" aria-label="鏡頭向上">▲</button>
+        <button type="button" data-touch-action="camera-left" aria-label="鏡頭向左">◀</button>
+        <button type="button" data-touch-action="camera-down" aria-label="鏡頭向下">▼</button>
+        <button type="button" data-touch-action="camera-right" aria-label="鏡頭向右">▶</button>
+      </div>
+      <div class="touch-command-grid" aria-label="部隊命令">
+        <button type="button" data-touch-action="select-all">全選</button>
+        <button type="button" data-touch-action="clear">取消</button>
+        <button type="button" data-touch-action="skill">技能</button>
+        <button type="button" data-touch-action="formation">隊形</button>
+        <button type="button" data-touch-action="store-1" aria-label="儲存編隊一">存1</button>
+        <button type="button" data-touch-action="recall-1" aria-label="叫回編隊一">叫1</button>
+        <button type="button" data-touch-action="store-2" aria-label="儲存編隊二">存2</button>
+        <button type="button" data-touch-action="recall-2" aria-label="叫回編隊二">叫2</button>
+        <button type="button" data-touch-action="store-3" aria-label="儲存編隊三">存3</button>
+        <button type="button" data-touch-action="recall-3" aria-label="叫回編隊三">叫3</button>
+        <button type="button" data-touch-action="restart">重開</button>
+        <button type="button" data-touch-action="leave">返回</button>
+      </div>`;
+    controls.addEventListener("pointerdown", (event) => event.stopPropagation());
+    controls.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const button = (event.target as Element | null)?.closest<HTMLButtonElement>("[data-touch-action]");
+      if (button) this.handleTouchAction(button.dataset.touchAction ?? "");
+    });
+    host.append(controls);
+    this.touchControls = controls;
   }
 
   private spawnCombatants(): void {
@@ -568,37 +610,14 @@ export class CombatShowcaseScene extends Phaser.Scene {
       .find((actor): actor is ShowcaseActor => Boolean(actor));
     if (pointer.button === 0) {
       this.dragStart = { x: pointer.x, y: pointer.y };
-      this.dragClickedId = clicked?.team === "player" ? clicked.instanceId : undefined;
+      this.dragClickedId = clicked?.instanceId;
       this.dragAdditive = pointer.event.shiftKey;
       this.selectionBox?.clear().setVisible(true);
       return;
     }
     const selectedActors = this.getSelectedActors();
     if (pointer.button !== 2 || selectedActors.length === 0) return;
-    if (clicked && clicked.team !== "player") {
-      for (const actor of selectedActors) {
-        actor.targetId = clicked.instanceId;
-        actor.objectiveId = undefined;
-        this.setActorDestination(actor, clicked.position);
-      }
-      spawnFloatingText(this, { x: clicked.visual.container.x, y: clicked.visual.container.y - 72 }, "攻擊目標", "#ffbd82");
-    } else {
-      const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      const target = clampToWalkable(worldToGrid(world, ORIGIN));
-      const assignments = assignFormationDestinations(
-        selectedActors.map((actor) => ({ id: actor.instanceId, position: actor.position })),
-        target,
-        { kind: this.formationKind, spacing: 0.82 },
-      );
-      for (const assignment of assignments) {
-        const actor = this.findLivingActor(assignment.memberId);
-        if (!actor) continue;
-        actor.targetId = undefined;
-        actor.objectiveId = this.beaconAt(assignment.destination)?.id;
-        this.setActorDestination(actor, assignment.destination);
-      }
-      spawnSkillTelegraph(this, gridToWorld(target, ORIGIN), PLAYER_COLOR, 18, 280);
-    }
+    this.issueSelectedCommand(clicked, { x: pointer.x, y: pointer.y });
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
@@ -618,7 +637,13 @@ export class CombatShowcaseScene extends Phaser.Scene {
     const members = this.squadMembers();
     if (rectangle.width <= 7 && rectangle.height <= 7) {
       const actor = this.dragClickedId ? this.findLivingActor(this.dragClickedId) : undefined;
-      this.squadSelection.selectMember(actor ? this.toSquadMember(actor) : undefined, this.dragAdditive);
+      if (this.isTouchCommandPointer(pointer) && actor?.team !== "player" && this.getSelectedActors().length > 0) {
+        this.issueSelectedCommand(actor, end);
+      } else if (this.isTouchCommandPointer(pointer) && !actor && this.getSelectedActors().length > 0) {
+        this.issueSelectedCommand(undefined, end);
+      } else {
+        this.squadSelection.selectMember(actor?.team === "player" ? this.toSquadMember(actor) : undefined, this.dragAdditive);
+      }
     } else {
       this.squadSelection.selectByPointerRectangle(start, end, members, this.squadAdapter(), this.dragAdditive, 16);
     }
@@ -632,11 +657,44 @@ export class CombatShowcaseScene extends Phaser.Scene {
     for (const actor of this.getSelectedActors()) this.castSkill(actor);
   }
 
+  private issueSelectedCommand(clicked: ShowcaseActor | undefined, screenPoint: ScreenPoint): void {
+    const selectedActors = this.getSelectedActors();
+    if (selectedActors.length === 0) return;
+    if (clicked && clicked.team !== "player") {
+      for (const actor of selectedActors) {
+        actor.targetId = clicked.instanceId;
+        actor.objectiveId = undefined;
+        this.setActorDestination(actor, clicked.position);
+      }
+      spawnFloatingText(this, { x: clicked.visual.container.x, y: clicked.visual.container.y - 72 }, "攻擊目標", "#ffbd82");
+      return;
+    }
+    const world = this.cameras.main.getWorldPoint(screenPoint.x, screenPoint.y);
+    const target = clampToWalkable(worldToGrid(world, ORIGIN));
+    const assignments = assignFormationDestinations(
+      selectedActors.map((actor) => ({ id: actor.instanceId, position: actor.position })),
+      target,
+      { kind: this.formationKind, spacing: 0.82 },
+    );
+    for (const assignment of assignments) {
+      const actor = this.findLivingActor(assignment.memberId);
+      if (!actor) continue;
+      actor.targetId = undefined;
+      actor.objectiveId = this.beaconAt(assignment.destination)?.id;
+      this.setActorDestination(actor, assignment.destination);
+    }
+    spawnSkillTelegraph(this, gridToWorld(target, ORIGIN), PLAYER_COLOR, 18, 280);
+  }
+
+  private isTouchCommandPointer(pointer: Phaser.Input.Pointer): boolean {
+    const event = pointer.event as PointerEvent;
+    return event.pointerType === "touch" || this.isCompactLandscape();
+  }
+
   private onKeyboardShortcut(event: KeyboardEvent): void {
     const key = event.key.toLowerCase();
     if (key === "f" && !event.ctrlKey) {
-      this.formationKind = this.formationKind === "wedge" ? "line" : "wedge";
-      spawnFloatingText(this, { x: 640 + this.cameras.main.scrollX, y: 116 + this.cameras.main.scrollY }, this.formationKind === "wedge" ? "楔形隊形" : "橫列隊形", "#dce9c6");
+      this.toggleFormation();
       event.preventDefault();
       return;
     }
@@ -646,21 +704,117 @@ export class CombatShowcaseScene extends Phaser.Scene {
     }
   }
 
+  private toggleFormation(): void {
+    this.formationKind = this.formationKind === "wedge" ? "line" : "wedge";
+    this.announceTouchCommand(this.formationKind === "wedge" ? "楔形隊形" : "橫列隊形");
+    this.updateSelectionPanel();
+  }
+
+  private handleTouchAction(action: string): void {
+    if (action === "restart") {
+      this.restartBattle();
+      return;
+    }
+    if (action === "leave") {
+      this.leaveShowcase();
+      return;
+    }
+    if (this.ended) return;
+    if (action === "camera-up" || action === "camera-down" || action === "camera-left" || action === "camera-right") {
+      const distance = 135;
+      if (action === "camera-up") this.cameras.main.scrollY -= distance;
+      if (action === "camera-down") this.cameras.main.scrollY += distance;
+      if (action === "camera-left") this.cameras.main.scrollX -= distance;
+      if (action === "camera-right") this.cameras.main.scrollX += distance;
+      return;
+    }
+    if (action === "select-all") {
+      this.squadSelection.selectAllFriendly(this.squadMembers());
+      this.syncSelectionVisuals();
+      this.announceTouchCommand("已選取全軍");
+      return;
+    }
+    if (action === "clear") {
+      this.squadSelection.clearSelection();
+      this.syncSelectionVisuals();
+      return;
+    }
+    if (action === "skill") {
+      this.onSkillKey();
+      return;
+    }
+    if (action === "formation") {
+      this.toggleFormation();
+      return;
+    }
+    const group = /^(store|recall)-([123])$/.exec(action);
+    if (!group) return;
+    const slot = Number(group[2]) as 1 | 2 | 3;
+    if (group[1] === "store") {
+      if (this.squadSelection.selectedIds.length === 0) {
+        this.announceTouchCommand("請先選取單位", "#ffbd82");
+        return;
+      }
+      this.squadSelection.storeControlGroup(slot);
+      this.announceTouchCommand(`已儲存編隊 ${slot}`);
+      return;
+    }
+    this.squadSelection.recallControlGroup(slot, this.squadMembers());
+    this.syncSelectionVisuals();
+    this.announceTouchCommand(this.squadSelection.selectedIds.length > 0 ? `已叫回編隊 ${slot}` : `編隊 ${slot} 尚未儲存`, this.squadSelection.selectedIds.length > 0 ? "#dce9c6" : "#ffbd82");
+  }
+
+  private announceTouchCommand(label: string, color = "#dce9c6"): void {
+    spawnFloatingText(this, {
+      x: 640 + this.cameras.main.scrollX,
+      y: 116 + this.cameras.main.scrollY,
+    }, label, color);
+  }
+
+  private readonly onViewportResize = (): void => {
+    this.applyResponsiveInterface();
+    this.updateSelectionPanel();
+  };
+
+  private isCompactLandscape(): boolean {
+    return window.matchMedia("(orientation: landscape) and (max-height: 520px)").matches;
+  }
+
+  private applyResponsiveInterface(): void {
+    const compact = this.isCompactLandscape();
+    this.interfacePanel?.clear();
+    this.interfacePanel?.fillStyle(0x111a17, 0.94).fillRect(16, 14, 1248, compact ? 92 : 76);
+    this.interfacePanel?.lineStyle(2, 0xd2c383, 0.75).strokeRect(16, 14, 1248, compact ? 92 : 76);
+    this.instructionText
+      ?.setPosition(36, 24)
+      .setFontSize(compact ? 21 : 16)
+      .setText(compact
+        ? "點我軍選取／點地面移動／點敵軍攻擊　下方按鈕可施放技能、編隊與移動鏡頭"
+        : "框選／Shift 複選　右鍵移動／攻擊　Q 全隊技能　F 切換隊形　Ctrl+1–3 編隊　WASD 移鏡頭");
+    this.scoreText?.setPosition(36, compact ? 61 : 52).setFontSize(compact ? 19 : 15);
+    this.selectionText
+      ?.setPosition(compact ? 288 : 24, compact ? 535 : 640)
+      .setFontSize(compact ? 20 : 15)
+      .setWordWrapWidth(compact ? 410 : 920);
+  }
+
   private updateSelectionPanel(): void {
     if (!this.selectionText) return;
     const selectedActors = this.getSelectedActors();
     if (selectedActors.length === 0) {
-      this.selectionText.setText("拖曳框選我軍，前往兩座烽火台累積 100 勝點；野怪保持中立，遭攻擊後才會反擊。R 重開，Esc 返回。");
+      this.selectionText.setText(this.isCompactLandscape()
+        ? "未選取｜點選或框選我軍"
+        : "拖曳框選我軍，前往兩座烽火台累積 100 勝點；野怪保持中立，遭攻擊後才會反擊。R 重開，Esc 返回。");
       return;
     }
     const actor = selectedActors[0]!;
     const ability = actor.definition.activeAbility;
     const cooldown = actor.skillCooldownMs <= 0 ? "就緒" : `${(actor.skillCooldownMs / 1000).toFixed(1)}s`;
     const statuses = [...actor.statuses.keys()].join("、") || "無";
-    this.selectionText.setText(
-      `已選 ${selectedActors.length} 人｜${this.formationKind === "wedge" ? "楔形" : "橫列"}　主選：${actor.definition.displayName} ${Math.ceil(actor.hitPoints)}/${actor.definition.maxHitPoints}\n` +
-      `Q ${ability.displayName}（${cooldown}）— ${ability.description}　狀態：${statuses}`,
-    );
+    this.selectionText.setText(this.isCompactLandscape()
+      ? `${selectedActors.length}人｜${this.formationKind === "wedge" ? "楔形" : "橫列"}｜${actor.definition.displayName} ${Math.ceil(actor.hitPoints)}/${actor.definition.maxHitPoints}｜${ability.displayName} ${cooldown}`
+      : `已選 ${selectedActors.length} 人｜${this.formationKind === "wedge" ? "楔形" : "橫列"}　主選：${actor.definition.displayName} ${Math.ceil(actor.hitPoints)}/${actor.definition.maxHitPoints}\n` +
+        `Q ${ability.displayName}（${cooldown}）— ${ability.description}　狀態：${statuses}`);
   }
 
   private finishBattle(winner: SkirmishSide, reason: "victoryPoints" | "elimination"): void {
@@ -668,7 +822,8 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.ended = true;
     const victory = winner === "player";
     const reasonText = reason === "victoryPoints" ? "戰略勝點達成" : victory ? "敵軍主力瓦解" : "我軍主力瓦解";
-    this.resultText = this.add.text(640, 330, victory ? `戰役勝利\n${reasonText}\n按 R 再戰` : `防線失守\n${reasonText}\n按 R 重整`, {
+    const replayHint = this.isCompactLandscape() ? "點下方「重開」再戰" : "按 R 再戰";
+    this.resultText = this.add.text(640, 330, victory ? `戰役勝利\n${reasonText}\n${replayHint}` : `防線失守\n${reasonText}\n${replayHint}`, {
       align: "center",
       color: victory ? "#dff0b4" : "#ffb09c",
       backgroundColor: "#101916e8",
@@ -997,6 +1152,9 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.input.keyboard?.off("keydown-R", this.restartBattle, this);
     this.input.keyboard?.off("keydown-ESC", this.leaveShowcase, this);
     this.input.keyboard?.off("keydown", this.onKeyboardShortcut, this);
+    window.removeEventListener("resize", this.onViewportResize);
+    this.touchControls?.remove();
+    this.touchControls = undefined;
     for (const actor of this.actors) actor.visual.destroy();
     this.actors = [];
     this.squadSelection.clearSelection();
@@ -1006,6 +1164,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.cameraKeys = undefined;
     this.selected = undefined;
     this.resultText = undefined;
+    this.interfacePanel = undefined;
   }
 }
 
