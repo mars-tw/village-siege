@@ -2,6 +2,8 @@
 
 這份指南寫給第一次接觸 Village Siege 的玩家與開發者。只想玩單機時，不需要帳號、API 金鑰或多人伺服器。
 
+只想直接遊玩，請開啟 **[GitHub Pages 公開單機版](https://mars-tw.github.io/village-siege/)**；後面的本機安裝步驟主要提供給想研究或修改程式的人。
+
 ![Village Siege 戰場畫面](../output/playwright/frame-animation-map-final.png)
 
 ## 一、五分鐘開始單機遊戲
