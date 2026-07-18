@@ -25,6 +25,7 @@ button { color: inherit; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 
 .village-siege-host { position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate; }
+.combat-touch-controls { display: none; }
 
 .village-select-shell {
   position: absolute;
@@ -183,6 +184,93 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
   .hud-status { right: auto; left: 18px; }
 }
 
+@media (orientation: landscape) and (max-height: 520px) {
+  canvas { touch-action: none; }
+
+  .village-select-shell {
+    grid-template-columns: minmax(210px, 0.78fr) minmax(360px, 1.22fr);
+    grid-template-rows: 38px minmax(0, 1fr) 48px;
+    gap: 6px 12px;
+    overflow: hidden;
+    padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+  .village-select-shell::before { inset: 4px; border-width: 1px; box-shadow: inset 0 0 0 2px var(--lime-shadow); }
+  .map-scrim { display: none; }
+  .select-masthead {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    max-width: none;
+  }
+  .select-kicker { margin: 0; font-size: 0.58rem; letter-spacing: 0.1em; white-space: nowrap; }
+  .select-masthead h1 { max-width: none; font-size: 1.55rem; line-height: 1; letter-spacing: -0.035em; white-space: nowrap; }
+  .select-masthead > p:last-child { overflow: hidden; max-width: none; margin: 0; font-size: 0.66rem; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+  .village-route, .ai-roster { display: grid; min-height: 0; grid-template-rows: 32px minmax(0, 1fr); }
+  .section-heading { align-items: center; gap: 7px; margin: 0; padding: 0 0 3px; }
+  .section-heading > span { width: 27px; height: 27px; font-size: 0.6rem; }
+  .section-heading h2 { font-size: 0.92rem; }
+  .section-heading p { display: none; }
+  .village-options { grid-template-rows: repeat(3, minmax(44px, 1fr)); gap: 4px; min-height: 0; padding: 3px 0 0; }
+  .village-options::before { display: none; }
+  .village-choice { grid-template-columns: 44px minmax(0, 1fr) 36px; min-height: 44px; height: 100%; padding: 2px 5px 2px 0; box-shadow: 2px 2px 0 var(--lime-shadow); }
+  .choice-mark { width: 44px; height: 100%; min-height: 40px; font-size: 1.05rem; }
+  .choice-copy { min-width: 0; gap: 1px; padding-left: 7px; }
+  .choice-copy strong, .ai-choice strong { overflow: hidden; font-size: 0.78rem; line-height: 1.05; text-overflow: ellipsis; white-space: nowrap; }
+  .choice-copy small, .ai-choice small { overflow: hidden; font-size: 0.62rem; line-height: 1.12; text-overflow: ellipsis; }
+  .choice-copy small { white-space: nowrap; }
+  .choice-state { min-width: 32px; font-size: 0.55rem; }
+  .ai-options { grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: 4px; min-height: 0; overflow: visible; padding: 3px 0 0; }
+  .ai-choice { grid-template-rows: 25px auto minmax(0, 1fr) auto; min-height: 44px; height: 100%; gap: 3px; padding: 5px 4px 4px; box-shadow: 2px 2px 0 var(--lime-shadow); }
+  .ai-mark { width: 25px; height: 25px; border-width: 1px; font-size: 0.78rem; }
+  .ai-choice small { display: -webkit-box; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+  .ai-choice .choice-state { align-self: end; font-size: 0.52rem; }
+  .village-choice.is-selected, .ai-choice.is-selected { box-shadow: 3px 3px 0 var(--pine); transform: translate(-1px, -1px); }
+  .march-actions { grid-column: 1 / -1; min-width: 0; min-height: 44px; align-items: center; justify-content: space-between; flex-direction: row; gap: 8px; padding-top: 3px; }
+  .march-actions > div { min-width: 0; flex: 0 0 auto; flex-direction: row; gap: 7px; }
+  .selection-readout { overflow: hidden; font-size: 0.64rem; text-overflow: ellipsis; white-space: nowrap; }
+  .primary-action, .secondary-action { width: auto; min-height: 44px; padding: 5px 10px; box-shadow: 2px 2px 0 var(--charcoal); font-size: 0.7rem; white-space: nowrap; }
+  .secondary-action small { margin-left: 3px; font-size: 0.5rem; }
+
+  .combat-touch-controls {
+    position: absolute;
+    right: max(6px, env(safe-area-inset-right));
+    bottom: max(5px, env(safe-area-inset-bottom));
+    left: max(6px, env(safe-area-inset-left));
+    z-index: 60;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: end;
+    gap: 10px;
+    pointer-events: none;
+  }
+  .combat-touch-controls button {
+    display: grid;
+    min-width: 44px;
+    min-height: 44px;
+    place-items: center;
+    border: 1px solid var(--copper-light);
+    border-radius: 3px;
+    padding: 2px 4px;
+    color: var(--chalk);
+    background: rgba(17, 26, 23, 0.94);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7);
+    font: 850 0.68rem/1 "Segoe UI", "Noto Sans TC", sans-serif;
+    touch-action: manipulation;
+    pointer-events: auto;
+  }
+  .combat-touch-controls button:active { color: var(--charcoal); background: var(--copper-light); transform: translate(1px, 1px); box-shadow: none; }
+  .touch-dpad { display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px); gap: 3px; }
+  .touch-dpad button:nth-child(1) { grid-column: 2; grid-row: 1; }
+  .touch-dpad button:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .touch-dpad button:nth-child(3) { grid-column: 2; grid-row: 2; }
+  .touch-dpad button:nth-child(4) { grid-column: 3; grid-row: 2; }
+  .touch-command-grid { display: grid; grid-template-columns: repeat(6, minmax(44px, 1fr)); gap: 3px; justify-self: end; }
+  .touch-command-grid button:nth-last-child(-n + 2) { border-color: var(--river-light); }
+
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
@@ -217,4 +305,41 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
   .lobby-connect-actions { grid-template-columns: 1fr; }
   .lobby-room-actions { align-items: stretch; flex-direction: column; }
   .lobby-roster li { flex-direction: column; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .multiplayer-lobby { overflow: hidden; padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+  .lobby-card {
+    display: grid;
+    width: min(820px, 100%);
+    height: calc(100dvh - max(16px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+    max-height: 100%;
+    grid-template-columns: minmax(210px, 0.78fr) minmax(350px, 1.22fr);
+    grid-template-rows: 18px 42px 58px 18px minmax(0, 1fr);
+    grid-template-areas:
+      "kicker kicker"
+      "title status"
+      "name connect"
+      "code error"
+      "roster actions";
+    gap: 5px 12px;
+    overflow: hidden;
+    padding: 10px 12px;
+    box-shadow: 4px 4px 0 #0b1210;
+  }
+  .lobby-card > .select-kicker { grid-area: kicker; }
+  .lobby-card > h1 { grid-area: title; margin: 0; font-size: 1.55rem; line-height: 1; white-space: nowrap; }
+  .lobby-status { grid-area: status; align-self: center; margin: 0; font-size: 0.7rem; }
+  .lobby-card > label { grid-area: name; min-width: 0; margin: 0; font-size: 0.66rem; }
+  .lobby-card input { width: 100%; min-width: 0; min-height: 44px; padding: 5px 7px; font-size: 0.78rem; }
+  .lobby-connect-actions { grid-area: connect; grid-template-columns: auto minmax(110px, 1fr) auto; gap: 6px; margin: 0; }
+  .lobby-connect-actions label { min-width: 0; margin: 0; font-size: 0.66rem; }
+  .lobby-code { grid-area: code; margin: 0; padding: 2px 0; font-size: 0.8rem; }
+  .lobby-error { grid-area: error; min-height: 18px; margin: 0; font-size: 0.66rem; }
+  .lobby-roster { grid-area: roster; grid-template-columns: repeat(2, minmax(0, 1fr)); align-self: stretch; gap: 4px; min-height: 0; margin: 0; overflow: hidden; }
+  .lobby-roster li { min-width: 0; flex-direction: column; gap: 2px; padding: 5px 7px; border-left-width: 5px; font-size: 0.68rem; }
+  .lobby-roster span { overflow: hidden; font-size: 0.58rem; text-overflow: ellipsis; white-space: nowrap; }
+  .lobby-room-actions { grid-area: actions; display: grid; grid-template-columns: repeat(3, minmax(44px, 1fr)); align-self: end; gap: 6px; }
+  .lobby-room-actions .primary-action, .lobby-room-actions .secondary-action,
+  .lobby-connect-actions .primary-action, .lobby-connect-actions .secondary-action { min-height: 44px; padding: 5px 9px; font-size: 0.7rem; }
 }
