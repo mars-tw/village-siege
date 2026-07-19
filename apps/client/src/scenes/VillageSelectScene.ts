@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
-import { fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
+import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
 
 export type VillageId = "pinehold" | "riverstead" | "highcrag";
 export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" | "raider";
@@ -30,6 +30,7 @@ export class VillageSelectScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#1c211f");
     const host = this.game.canvas.parentElement ?? document.body;
     host.classList.add("village-siege-host");
+    host.classList.add("selection-active");
     const root = document.createElement("main");
     root.className = "village-select-shell";
     root.innerHTML = `
@@ -64,6 +65,7 @@ export class VillageSelectScene extends Phaser.Scene {
     this.syncFullscreenButton();
     this.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
     this.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
+    this.events.on(GAME_FULLSCREEN_FALLBACK_EVENT, this.syncFullscreenButton, this);
     this.events.once("shutdown", this.destroySelector, this);
     this.events.once("destroy", this.destroySelector, this);
   }
@@ -95,7 +97,9 @@ export class VillageSelectScene extends Phaser.Scene {
   private destroySelector(): void {
     this.scale.off(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
     this.scale.off(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
+    this.events.off(GAME_FULLSCREEN_FALLBACK_EVENT, this.syncFullscreenButton, this);
     this.root?.remove();
+    (this.game.canvas.parentElement ?? document.body).classList.remove("selection-active");
     this.root = undefined;
   }
 }

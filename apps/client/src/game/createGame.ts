@@ -1,10 +1,8 @@
 import Phaser from "phaser";
 import { BootScene } from "../scenes/BootScene";
-import { MatchScene } from "../scenes/MatchScene";
 import { MultiplayerLobbyScene } from "../scenes/MultiplayerLobbyScene";
 import { VillageSelectScene } from "../scenes/VillageSelectScene";
 import { CombatShowcaseScene } from "../scenes/CombatShowcaseScene";
-import { createHud } from "../ui/hud";
 
 export function createGame(parent: string | HTMLElement): Phaser.Game {
   const game = new Phaser.Game({
@@ -20,9 +18,7 @@ export function createGame(parent: string | HTMLElement): Phaser.Game {
       fullscreenTarget: typeof parent === "string" ? parent : parent.id || null,
       autoRound: true,
     },
-    scene: [BootScene, VillageSelectScene, MultiplayerLobbyScene, MatchScene, CombatShowcaseScene]
+    scene: [BootScene, VillageSelectScene, MultiplayerLobbyScene, CombatShowcaseScene]
   });
-
-  game.registry.set("createHud", createHud);
   return game;
 }

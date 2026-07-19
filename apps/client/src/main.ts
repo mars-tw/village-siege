@@ -1,3 +1,4 @@
+import "./style.css";
 import { createGame } from "./game/createGame";
 import { installDeviceViewportFit } from "./game/deviceViewport";
 

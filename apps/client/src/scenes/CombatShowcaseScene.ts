@@ -4,11 +4,18 @@ import {
   COMBAT_UNITS,
   MONSTER_IDS,
   MONSTERS,
+  STATUS_EFFECTS,
   calculateDamage,
+  type AiPersonality,
 } from "@village-siege/shared";
 import { DEFAULT_TEAM_PALETTES } from "../game/combatArt";
 import { createFrameAnimatedCombatActor, requireFrameAnimatedManifest } from "../game/frameAnimatedCombatActor";
-import { COMBAT_ANIMATION_MANIFEST } from "../game/combatAnimationManifest";
+import {
+  ANIMATED_MONSTER_FRAME_ASSETS,
+  ANIMATED_UNIT_FRAME_ASSETS,
+  COMBAT_ANIMATION_MANIFEST,
+  assertCombatAnimationManifestValid,
+} from "../game/combatAnimationManifest";
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { gridDistance, gridToWorld, worldToGrid, type GridPoint, type ScreenPoint } from "../game/isometric";
 import {
@@ -47,8 +54,9 @@ import {
   type ProjectileVisualKind,
 } from "../game/combatEffects";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
-import { fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
+import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
 import { createCanvasButton, type CanvasButtonControl } from "../ui/canvasButton";
+import type { VillageId } from "../game/content";
 
 type Team = "player" | "enemy" | "monster";
 
@@ -97,6 +105,7 @@ interface ShowcaseActor {
   readonly healthBar: Phaser.GameObjects.Graphics;
   readonly teamMark: Phaser.GameObjects.Text;
   readonly statuses: Map<string, number>;
+  readonly statusTicks: Map<string, number>;
   position: GridPoint;
   destination?: GridPoint;
   targetId?: string;
@@ -110,10 +119,21 @@ interface ShowcaseActor {
   deployed: boolean;
   provokedBy: SkirmishSide | null;
   objectiveId?: BeaconId;
+  lastDamagedBy?: string;
   dead: boolean;
 }
 
-interface SceneData { readonly returnScene?: string }
+interface SceneData {
+  readonly villageId?: VillageId;
+  readonly aiPersonality?: AiPersonality;
+  readonly returnScene?: string;
+}
+
+interface BattleRewardLedger {
+  food: number;
+  wood: number;
+  stone: number;
+}
 
 type TouchInteractionMode = "smart" | "move" | "attack" | "box" | "pan";
 type TouchControlPanel = "main" | "groups" | "system";
@@ -121,6 +141,7 @@ type TouchControlPanel = "main" | "groups" | "system";
 interface TouchButtonSpec {
   readonly glyph: string;
   readonly label: string;
+  readonly accessibleLabel?: string;
   readonly action?: string;
   readonly mode?: TouchInteractionMode;
 }
@@ -150,19 +171,21 @@ const TOUCH_PANEL_BUTTONS: Readonly<Record<TouchControlPanel, readonly TouchButt
     { glyph: "•••", label: "更多", action: "open-system" },
   ],
   groups: [
-    { glyph: "存", label: "編隊 1", action: "store-1" },
-    { glyph: "叫", label: "編隊 1", action: "recall-1" },
-    { glyph: "存", label: "編隊 2", action: "store-2" },
-    { glyph: "叫", label: "編隊 2", action: "recall-2" },
-    { glyph: "存", label: "編隊 3", action: "store-3" },
-    { glyph: "叫", label: "編隊 3", action: "recall-3" },
+    { glyph: "存", label: "存編 1", accessibleLabel: "儲存編隊 1", action: "store-1" },
+    { glyph: "叫", label: "叫編 1", accessibleLabel: "選取編隊 1", action: "recall-1" },
+    { glyph: "存", label: "存編 2", accessibleLabel: "儲存編隊 2", action: "store-2" },
+    { glyph: "叫", label: "叫編 2", accessibleLabel: "選取編隊 2", action: "recall-2" },
+    { glyph: "存", label: "存編 3", accessibleLabel: "儲存編隊 3", action: "store-3" },
+    { glyph: "叫", label: "叫編 3", accessibleLabel: "選取編隊 3", action: "recall-3" },
     { glyph: "返", label: "主命令", action: "open-main" },
   ],
   system: [
     { glyph: "消", label: "取消", action: "clear" },
     { glyph: "組", label: "編隊", action: "open-groups" },
+    { glyph: "＋", label: "拉近", action: "zoom-in" },
+    { glyph: "－", label: "拉遠", action: "zoom-out" },
+    { glyph: "Ⅱ", label: "暫停", action: "pause" },
     { glyph: "?", label: "說明", action: "open-briefing" },
-    { glyph: "⛶", label: "全螢幕", action: "fullscreen" },
     { glyph: "重", label: "重開", action: "restart" },
     { glyph: "退", label: "離開", action: "leave" },
     { glyph: "返", label: "主命令", action: "open-main" },
@@ -227,16 +250,36 @@ export class CombatShowcaseScene extends Phaser.Scene {
   private touchDidPan = false;
   private touchNotice = "";
   private touchNoticeUntil = 0;
+  private villageId: VillageId = "pinehold";
+  private aiPersonality: AiPersonality = "balanced";
   private returnScene = "VillageSelectScene";
+  private battleRewards: Record<SkirmishSide, BattleRewardLedger> = {
+    player: { food: 0, wood: 0, stone: 0 },
+    enemy: { food: 0, wood: 0, stone: 0 },
+  };
   private ended = false;
-  private aiElapsedMs = 0;
+  private battlePaused = false;
+  private simulationAccumulatorMs = 0;
+  private uiRefreshElapsedMs = 0;
+  private artLoadFailures: string[] = [];
+  private loadingUi?: Phaser.GameObjects.Container;
+  private loadingBar?: Phaser.GameObjects.Graphics;
+  private loadingPercent?: Phaser.GameObjects.Text;
+  private pinchStartDistance = 0;
+  private pinchStartZoom = 1;
 
   constructor() {
     super({ key: "CombatShowcaseScene" });
   }
 
   init(data: SceneData): void {
+    this.villageId = data.villageId ?? "pinehold";
+    this.aiPersonality = data.aiPersonality ?? "balanced";
     this.returnScene = data.returnScene ?? "VillageSelectScene";
+    this.battleRewards = {
+      player: { food: 0, wood: 0, stone: 0 },
+      enemy: { food: 0, wood: 0, stone: 0 },
+    };
     this.actors = [];
     this.selected = undefined;
     this.squadSelection.clearSelection();
@@ -252,10 +295,74 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.touchNotice = "";
     this.touchNoticeUntil = 0;
     this.ended = false;
-    this.aiElapsedMs = 0;
+    this.battlePaused = false;
+    this.simulationAccumulatorMs = 0;
+    this.uiRefreshElapsedMs = 0;
+    this.artLoadFailures = [];
+    this.pinchStartDistance = 0;
+    this.pinchStartZoom = 1;
+  }
+
+  preload(): void {
+    assertCombatAnimationManifestValid();
+    const assets = [...ANIMATED_UNIT_FRAME_ASSETS, ...ANIMATED_MONSTER_FRAME_ASSETS]
+      .filter((asset) => !this.textures.exists(asset.textureKey));
+    if (assets.length === 0) return;
+
+    this.cameras.main.setBackgroundColor("#101917");
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+    const panel = this.add.graphics();
+    panel.fillStyle(0x0a100e, 0.97).fillRect(-360, -138, 720, 276);
+    panel.fillStyle(0xd9cca0, 1).fillRect(-348, -126, 696, 252);
+    panel.lineStyle(5, 0x101917, 1).strokeRect(-348, -126, 696, 252);
+    panel.lineStyle(3, 0x356b78, 0.78).strokeRect(-337, -115, 674, 230);
+    const kicker = this.add.text(-304, -91, "BATTLEFIELD QUARTERMASTER", {
+      color: "#356b78",
+      fontFamily: "Consolas, monospace",
+      fontSize: "16px",
+      fontStyle: "bold",
+      letterSpacing: 2,
+    });
+    const title = this.add.text(-304, -53, "正在展開戰場素材", {
+      color: "#101917",
+      fontFamily: 'Georgia, "Noto Serif TC", serif',
+      fontSize: "36px",
+      fontStyle: "bold",
+    });
+    const copy = this.add.text(-304, 2, `${this.villageDoctrineLabel()}｜敵策：${this.aiPersonalityLabel()}`, {
+      color: "#25483c",
+      fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+      fontSize: "19px",
+      fontStyle: "bold",
+    });
+    this.loadingBar = this.add.graphics();
+    this.loadingPercent = this.add.text(304, 74, "0%", {
+      color: "#101917",
+      fontFamily: "Consolas, monospace",
+      fontSize: "18px",
+      fontStyle: "bold",
+    }).setOrigin(1, 0.5);
+    this.loadingUi = this.add.container(width / 2, height / 2, [panel, kicker, title, copy, this.loadingBar, this.loadingPercent]);
+    this.onCombatLoadProgress(0);
+
+    this.load.on(Phaser.Loader.Events.PROGRESS, this.onCombatLoadProgress, this);
+    this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onCombatArtLoadError, this);
+    for (const asset of assets) this.load.image(asset.textureKey, asset.path);
   }
 
   create(): void {
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
+    this.load.off(Phaser.Loader.Events.PROGRESS, this.onCombatLoadProgress, this);
+    this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onCombatArtLoadError, this);
+    this.loadingUi?.destroy(true);
+    this.loadingUi = undefined;
+    this.loadingBar = undefined;
+    this.loadingPercent = undefined;
+    if (this.artLoadFailures.length > 0) {
+      this.showCombatArtLoadFailure();
+      return;
+    }
     this.cameras.main.setBackgroundColor("#17241f");
     this.cameras.main.setBounds(WORLD_BOUNDS.x, WORLD_BOUNDS.y, WORLD_BOUNDS.width, WORLD_BOUNDS.height);
     const center = gridToWorld({ x: (BATTLE_MAP_WIDTH - 1) / 2, y: (BATTLE_MAP_HEIGHT - 1) / 2 }, ORIGIN);
@@ -269,22 +376,47 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.input.on("pointerdown", this.onPointerDown, this);
     this.input.on("pointermove", this.onPointerMove, this);
     this.input.on("pointerup", this.onPointerUp, this);
+    this.input.on("wheel", this.onWheel, this);
+    this.input.addPointer(2);
     this.input.keyboard?.on("keydown-Q", this.onSkillKey, this);
     this.input.keyboard?.on("keydown-R", this.restartBattle, this);
     this.input.keyboard?.on("keydown-ESC", this.leaveShowcase, this);
+    this.input.keyboard?.on("keydown-P", this.toggleBattlePause, this);
     this.input.keyboard?.on("keydown", this.onKeyboardShortcut, this);
     window.addEventListener("resize", this.onViewportResize);
     this.createCameraKeys();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
     this.updateSelectionPanel();
     this.updateSkirmishInterface();
     this.maybeShowTouchBriefing();
   }
 
   update(_time: number, delta: number): void {
-    const deltaMs = Math.min(delta, 60);
-    this.updateCamera(deltaMs / 1000);
-    this.aiElapsedMs += deltaMs;
+    const frameDeltaMs = Math.min(delta, 200);
+    this.updateCamera(frameDeltaMs / 1000);
+    if (this.battlePaused) return;
+    const stepMs = 1000 / 30;
+    this.simulationAccumulatorMs += frameDeltaMs;
+    let steps = 0;
+    while (this.simulationAccumulatorMs >= stepMs && steps < 6) {
+      this.stepCombatSimulation(stepMs);
+      this.simulationAccumulatorMs -= stepMs;
+      steps += 1;
+    }
+    if (steps === 6) this.simulationAccumulatorMs = 0;
+    if (steps === 0) return;
+    for (const actor of this.actors) {
+      this.positionActor(actor);
+    }
+    this.uiRefreshElapsedMs += steps * stepMs;
+    if (this.uiRefreshElapsedMs >= 100) {
+      this.uiRefreshElapsedMs %= 100;
+      this.updateSelectionPanel();
+      this.updateSkirmishInterface();
+    }
+  }
+
+  private stepCombatSimulation(deltaMs: number): void {
+    const preparation = this.director.state.phase === "preparation";
     for (const actor of this.actors) {
       actor.visual.update(deltaMs);
       this.tickStatuses(actor, deltaMs);
@@ -293,14 +425,64 @@ export class CombatShowcaseScene extends Phaser.Scene {
       actor.actionLockMs = Math.max(0, actor.actionLockMs - deltaMs);
       actor.repathCooldownMs = Math.max(0, actor.repathCooldownMs - deltaMs);
       actor.aiDecisionCooldownMs = Math.max(0, actor.aiDecisionCooldownMs - deltaMs);
-      if (!actor.dead) this.updateActor(actor, deltaMs / 1000);
-      this.positionActor(actor);
+      if (!actor.dead) this.updateActor(actor, deltaMs / 1000, preparation);
     }
     this.tickSkirmish(deltaMs);
-    this.squadSelection.reconcile(this.squadMembers());
-    this.syncSelectionVisuals();
-    this.updateSelectionPanel();
-    this.updateSkirmishInterface();
+  }
+
+  private readonly onCombatLoadProgress = (progress: number): void => {
+    const clamped = Phaser.Math.Clamp(progress, 0, 1);
+    this.loadingBar?.clear();
+    this.loadingBar?.fillStyle(0x101917, 1).fillRect(-304, 58, 608, 34);
+    this.loadingBar?.fillStyle(0x25483c, 1).fillRect(-298, 64, 596 * clamped, 22);
+    this.loadingBar?.lineStyle(3, 0xe0b866, 1).strokeRect(-304, 58, 608, 34);
+    this.loadingPercent?.setText(`${Math.round(clamped * 100)}%`);
+  };
+
+  private readonly onCombatArtLoadError = (file: { readonly key?: unknown }): void => {
+    const key = typeof file.key === "string" ? file.key : "unknown-combat-art";
+    if ((key.startsWith("unit-action-sheet-") || key.startsWith("monster-action-sheet-")) && !this.artLoadFailures.includes(key)) {
+      this.artLoadFailures.push(key);
+    }
+  };
+
+  private showCombatArtLoadFailure(): void {
+    this.cameras.main.setBackgroundColor("#171c1a");
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+    this.add.text(width / 2, height / 2 - 55, "戰場美術載入失敗", {
+      color: "#ffb09c",
+      fontFamily: 'Georgia, "Noto Serif TC", serif',
+      fontSize: "38px",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setScrollFactor(0);
+    this.add.text(width / 2, height / 2 + 30, `缺少：${this.artLoadFailures.join("、")}\n請檢查網路後點畫面返回戰前會議。`, {
+      align: "center",
+      color: "#f0ebcf",
+      fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+      fontSize: "20px",
+      lineSpacing: 9,
+    }).setOrigin(0.5).setScrollFactor(0);
+    this.input.once("pointerup", this.leaveShowcase, this);
+    this.input.keyboard?.once("keydown-ESC", this.leaveShowcase, this);
+  }
+
+  private villageDoctrineLabel(): string {
+    return ({
+      pinehold: "松林堡・森衛射界",
+      riverstead: "河谷鎮・急行軍",
+      highcrag: "高地寨・石甲前線",
+    } satisfies Record<VillageId, string>)[this.villageId];
+  }
+
+  private aiPersonalityLabel(): string {
+    return ({
+      aggressor: "侵略者",
+      guardian: "守城者",
+      prosperer: "繁榮者",
+      balanced: "均衡者",
+      raider: "掠襲者",
+    } satisfies Record<AiPersonality, string>)[this.aiPersonality];
   }
 
   private createInterface(): void {
@@ -339,7 +521,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
       align: "center",
       color: "#f0ebcf",
       fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
-      fontSize: "21px",
+      fontSize: "27px",
       fontStyle: "bold",
     }).setOrigin(0.5);
     controls.add([this.touchReadoutPanel, this.touchReadout]);
@@ -371,6 +553,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.scale.on(Phaser.Scale.Events.RESIZE, this.applyResponsiveInterface, this);
     this.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
     this.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
+    this.events.on(GAME_FULLSCREEN_FALLBACK_EVENT, this.onFullscreenFallback, this);
     this.syncTouchControls();
   }
 
@@ -380,7 +563,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     const buttonHeight = 108;
     const gap = 8;
     const panelWidth = specs.length * buttonWidth + Math.max(0, specs.length - 1) * gap + 24;
-    const panel = this.add.container(0, 0).setName(`touch-panel-${panelName}`);
+    const panel = this.add.container(0, 0).setName(`touch-panel-${panelName}`).setSize(panelWidth, 128);
     const frame = this.add.graphics();
     frame.fillStyle(0x101917, 0.9).fillRect(-panelWidth / 2 + 7, -64 + 9, panelWidth, 128);
     frame.fillStyle(0x25483c, 0.98).fillRect(-panelWidth / 2, -64, panelWidth - 7, 119);
@@ -389,19 +572,21 @@ export class CombatShowcaseScene extends Phaser.Scene {
     panel.add(frame);
     specs.forEach((spec, index) => {
       const key = spec.mode ? `mode:${spec.mode}` : `action:${spec.action ?? "unknown"}`;
+      const controlKey = `${panelName}:${key}`;
       const button = createCanvasButton(this, {
         width: buttonWidth,
         height: buttonHeight,
         glyph: spec.glyph,
         label: spec.label,
-        name: `combat-${key}`,
+        ...(spec.accessibleLabel ? { accessibleLabel: spec.accessibleLabel } : {}),
+        name: `combat-${panelName}-${key}`,
       }, () => {
         if (spec.mode) this.setTouchMode(this.touchMode === spec.mode ? "smart" : spec.mode);
         else this.handleTouchAction(spec.action ?? "");
       });
       button.container.setPosition(-panelWidth / 2 + 12 + buttonWidth / 2 + index * (buttonWidth + gap), -1);
       panel.add(button.container);
-      this.touchButtons.set(key, button);
+      this.touchButtons.set(controlKey, button);
     });
     this.touchPanels.set(panelName, panel);
     this.touchControls.add(panel);
@@ -499,6 +684,35 @@ export class CombatShowcaseScene extends Phaser.Scene {
     return prompt;
   }
 
+  private applyVillageDoctrine(definition: CombatDefinitionView): CombatDefinitionView {
+    if (this.villageId === "pinehold" && ["archer", "musketeer", "heavyCrossbowman"].includes(definition.id)) {
+      return { ...definition, attackRange: definition.attackRange + 0.75 };
+    }
+    if (this.villageId === "riverstead") {
+      return { ...definition, moveSpeed: definition.moveSpeed * 1.1 };
+    }
+    if (this.villageId === "highcrag" && ["warrior", "shieldBearer"].includes(definition.id)) {
+      return { ...definition, maxHitPoints: Math.round(definition.maxHitPoints * 1.12), armor: definition.armor + 4 };
+    }
+    return definition;
+  }
+
+  private playerPalette() {
+    return this.villageId === "riverstead"
+      ? DEFAULT_TEAM_PALETTES.river
+      : this.villageId === "highcrag"
+        ? DEFAULT_TEAM_PALETTES.crag
+        : DEFAULT_TEAM_PALETTES.pine;
+  }
+
+  private initialEnemyDeploymentCount(): number {
+    return ({ aggressor: 4, guardian: 2, prosperer: 1, balanced: 2, raider: 3 } satisfies Record<AiPersonality, number>)[this.aiPersonality];
+  }
+
+  private enemyOpeningSkillCooldownRatio(): number {
+    return ({ aggressor: 0.38, guardian: 0.62, prosperer: 0.72, balanced: 0.55, raider: 0.45 } satisfies Record<AiPersonality, number>)[this.aiPersonality];
+  }
+
   private spawnCombatants(): void {
     const unitDefinitions = COMBAT_UNIT_IDS.map((id) => COMBAT_UNITS[id]);
     const suggested = getSuggestedSpawns();
@@ -511,9 +725,9 @@ export class CombatShowcaseScene extends Phaser.Scene {
       { x: 17, y: 9 }, { x: 15, y: 9 }, { x: 14, y: 11 },
     ].map(clampToWalkable);
     unitDefinitions.forEach((definition, index) => {
-      this.spawnActor("player", definition, playerSpawns[index]!, `p-${definition.id}`);
+      this.spawnActor("player", this.applyVillageDoctrine(definition), playerSpawns[index]!, `p-${definition.id}`);
       const enemy = this.spawnActor("enemy", definition, enemySpawns[index]!, `e-${definition.id}`);
-      enemy.deployed = index < 2;
+      enemy.deployed = index < this.initialEnemyDeploymentCount();
     });
 
     MONSTER_IDS.forEach((id, index) => {
@@ -537,7 +751,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
       id: artId,
       x: initialPoint.x,
       y: initialPoint.y,
-      teamPalette: team === "player" ? DEFAULT_TEAM_PALETTES.pine : team === "enemy" ? DEFAULT_TEAM_PALETTES.enemy : DEFAULT_TEAM_PALETTES.neutral,
+      teamPalette: team === "player" ? this.playerPalette() : team === "enemy" ? DEFAULT_TEAM_PALETTES.enemy : DEFAULT_TEAM_PALETTES.neutral,
       facing: team === "player" ? "ne" : "sw",
       action: "idle",
     } as const;
@@ -579,10 +793,11 @@ export class CombatShowcaseScene extends Phaser.Scene {
       healthBar,
       teamMark,
       statuses: new Map(),
+      statusTicks: new Map(),
       position: { ...position },
       hitPoints: definition.maxHitPoints,
       attackCooldownMs: team === "player" ? 0 : 700 + this.actors.length * 35,
-      skillCooldownMs: team === "player" ? 0 : definition.activeAbility.cooldownMs * 0.55,
+      skillCooldownMs: team === "player" ? 0 : definition.activeAbility.cooldownMs * this.enemyOpeningSkillCooldownRatio(),
       actionLockMs: 0,
       repathCooldownMs: 0,
       aiDecisionCooldownMs: team === "enemy" ? 250 + this.actors.length * 80 : 0,
@@ -597,9 +812,9 @@ export class CombatShowcaseScene extends Phaser.Scene {
     return actor;
   }
 
-  private updateActor(actor: ShowcaseActor, seconds: number): void {
+  private updateActor(actor: ShowcaseActor, seconds: number, preparation: boolean): void {
     if (this.ended) return;
-    if (actor.team === "enemy" && (!actor.deployed || this.director.state.phase === "preparation")) {
+    if (actor.team === "enemy" && (!actor.deployed || preparation)) {
       actor.destination = undefined;
       actor.route = [];
       if (actor.actionLockMs <= 0) actor.visual.play("idle", false);
@@ -614,7 +829,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     }
     if (actor.team === "enemy" && !target && actor.aiDecisionCooldownMs <= 0) {
       this.chooseEnemyIntent(actor);
-      actor.aiDecisionCooldownMs = 900;
+      actor.aiDecisionCooldownMs = this.enemyDecisionIntervalMs();
     }
     const currentTarget = actor.targetId ? this.findLivingActor(actor.targetId) : undefined;
     if (currentTarget) {
@@ -665,9 +880,10 @@ export class CombatShowcaseScene extends Phaser.Scene {
     }
     actor.visual.faceVector(dx, dy);
     actor.visual.play("walk", false);
-    const slow = this.hasStatus(actor, "slow") ? 0.58 : 1;
+    const slow = this.hasStatus(actor, "slow") ? 1 - STATUS_EFFECTS.slow.magnitude : 1;
     const terrainCost = getBattleTile(actor.position)?.moveCost ?? 1;
-    const step = Math.min(distance, actor.definition.moveSpeed * slow / Math.max(0.82, terrainCost) * seconds);
+    const momentum = this.hasStatus(actor, "slayerMomentum") ? 1.08 : 1;
+    const step = Math.min(distance, actor.definition.moveSpeed * slow * momentum / Math.max(0.82, terrainCost) * seconds);
     actor.position.x += dx / distance * step;
     actor.position.y += dy / distance * step;
   }
@@ -689,13 +905,21 @@ export class CombatShowcaseScene extends Phaser.Scene {
       if (target.team === "monster" && attacker.team !== "monster") target.provokedBy = attacker.team;
       const counterMultiplier = attacker.definition.counterModifiers?.[target.contentId] ?? 1;
       const coverMultiplier = 1 - (getBattleTile(target.position)?.cover ?? 0) * 0.28;
+      target.lastDamagedBy = attacker.instanceId;
       const damage = calculateDamage({
         baseDamage: attacker.definition.baseDamage,
         armor: target.definition.armor,
         counterMultiplier,
         skillMultiplier,
-        statusMultiplier: (this.hasStatus(target, "guard") || this.hasStatus(target, "shield") ? 0.62 : 1) * coverMultiplier,
-        armorBreak: this.hasStatus(target, "break") || this.hasStatus(target, "sunder") ? 10 : 0,
+        statusMultiplier: (ranged && attacker.contentId !== "mage" && this.hasStatus(target, "shieldWall") ? STATUS_EFFECTS.shieldWall.magnitude : 1)
+          * coverMultiplier
+          * (this.hasStatus(attacker, "slayerMomentum") ? 1.12 : 1),
+        armorBreak: this.hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0,
+        armorIgnore: attacker.contentId === "mage"
+          ? 0.35
+          : isSkill && attacker.contentId === "musketeer"
+            ? 0.6
+            : 0,
       });
       this.applyDamage(target, damage);
       if (isSkill) this.applyAbilityStatuses(attacker, target);
@@ -725,6 +949,17 @@ export class CombatShowcaseScene extends Phaser.Scene {
     let target = preferredTarget ?? (actor.targetId ? this.findLivingActor(actor.targetId) : undefined) ?? this.nearestOpponent(actor);
     if (ability.targeting !== "self" && !target) return;
     if (target && ability.targeting !== "self") {
+      const skillRange = actor.contentId === "boarRider"
+        ? 6
+        : actor.definition.attackRange + (ability.targeting === "ground" ? 1.5 : 0.5);
+      if (gridDistance(actor.position, target.position) > skillRange) {
+        actor.targetId = target.instanceId;
+        this.setActorDestination(actor, this.pointBeforeTarget(actor.position, target.position, Math.max(0.8, actor.definition.attackRange * 0.82)));
+        if (actor.team === "player") this.setTouchNotice(`${actor.definition.displayName}正在接近技能射程`);
+        return;
+      }
+    }
+    if (target && ability.targeting !== "self") {
       actor.targetId = target.instanceId;
       actor.visual.faceVector(target.position.x - actor.position.x, target.position.y - actor.position.y);
     }
@@ -738,8 +973,8 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.time.delayedCall(Math.max(80, ability.windupMs), () => {
       if (actor.dead) return;
       if (ability.targeting === "self" || actor.contentId === "shieldBearer") {
-        for (const status of ability.statusEffects) actor.statuses.set(String(status), 3_200);
-        actor.statuses.set("guard", 3_200);
+        for (const status of ability.statusEffects) this.applyStatus(actor, String(status));
+        this.applyStatus(actor, "guard", 3_200);
         spawnImpactBurst(this, { x: actor.visual.container.x, y: actor.visual.container.y - 20 }, PLAYER_COLOR, 22);
         return;
       }
@@ -765,17 +1000,19 @@ export class CombatShowcaseScene extends Phaser.Scene {
 
   private applyAbilityStatuses(source: ShowcaseActor, target: ShowcaseActor): void {
     for (const status of source.definition.activeAbility.statusEffects) {
-      target.statuses.set(String(status), 2_800);
+      this.applyStatus(target, String(status));
     }
-    const fallback = ({
-      archer: "slow",
-      mage: "burn",
-      musketeer: "armorBreak",
-      warrior: "stagger",
-      boarRider: "stun",
-      heavyCrossbowman: "root",
-    } as Readonly<Record<string, string>>)[source.contentId];
-    if (fallback) target.statuses.set(fallback, 2_400);
+  }
+
+  private applyStatus(target: ShowcaseActor, status: string, fallbackDurationMs?: number): void {
+    if (status === "stagger" && this.hasStatus(target, "tenacity")) return;
+    const definition = STATUS_EFFECTS[status as keyof typeof STATUS_EFFECTS];
+    const duration = definition?.durationMs && definition.durationMs > 0 ? definition.durationMs : fallbackDurationMs ?? 2_800;
+    target.statuses.set(status, duration);
+    if (definition && "tickIntervalMs" in definition && definition.tickIntervalMs) {
+      target.statusTicks.set(status, definition.tickIntervalMs);
+    }
+    if (status === "stagger") target.statuses.set("tenacity", STATUS_EFFECTS.tenacity.durationMs);
   }
 
   private applyDamage(target: ShowcaseActor, amount: number): void {
@@ -801,14 +1038,47 @@ export class CombatShowcaseScene extends Phaser.Scene {
       this.squadSelection.reconcile(this.squadMembers());
       this.syncSelectionVisuals();
       for (const actor of this.actors) if (actor.targetId === target.instanceId) actor.targetId = undefined;
+      if (target.team === "monster") this.awardMonsterReward(target);
     }
+  }
+
+  private awardMonsterReward(monster: ShowcaseActor): void {
+    const killer = monster.lastDamagedBy ? this.findLivingActor(monster.lastDamagedBy) : undefined;
+    if (!killer || killer.team === "monster" || !(monster.contentId in MONSTERS)) return;
+    const reward = MONSTERS[monster.contentId as keyof typeof MONSTERS].reward;
+    const durationMs = reward.buffDurationMs ?? 30_000;
+    const ledger = this.battleRewards[killer.team];
+    ledger.food += reward.food;
+    ledger.wood += reward.wood;
+    ledger.stone += reward.stone;
+    for (const ally of this.actors.filter((actor) => actor.team === killer.team && !actor.dead)) {
+      this.applyStatus(ally, "slayerMomentum", durationMs);
+    }
+    spawnFloatingText(
+      this,
+      { x: monster.visual.container.x, y: monster.visual.container.y - 94 },
+      `戰利 ${reward.food}糧・${reward.wood}木・${reward.stone}石｜全軍士氣提升`,
+      killer.team === "player" ? "#dff0b4" : "#ffbd82",
+    );
   }
 
   private tickStatuses(actor: ShowcaseActor, deltaMs: number): void {
     for (const [status, remaining] of actor.statuses) {
       const next = remaining - deltaMs;
-      if (next <= 0) actor.statuses.delete(status);
-      else actor.statuses.set(status, next);
+      if (status === "burn" && !actor.dead) {
+        let untilTick = (actor.statusTicks.get(status) ?? STATUS_EFFECTS.burn.tickIntervalMs ?? 1_000) - deltaMs;
+        if (untilTick <= 0) {
+          this.applyDamage(actor, STATUS_EFFECTS.burn.magnitude);
+          untilTick += STATUS_EFFECTS.burn.tickIntervalMs ?? 1_000;
+        }
+        actor.statusTicks.set(status, untilTick);
+      }
+      if (next <= 0) {
+        actor.statuses.delete(status);
+        actor.statusTicks.delete(status);
+      } else {
+        actor.statuses.set(status, next);
+      }
     }
   }
 
@@ -837,6 +1107,13 @@ export class CombatShowcaseScene extends Phaser.Scene {
 
   private onPointerDown(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]): void {
     if (this.ended || this.touchBriefingOpen) return;
+    if (this.isTouchPointer(pointer)) {
+      const activeTouches = this.activeTouchPointers();
+      if (activeTouches.length >= 2) {
+        this.beginPinch(activeTouches[0]!, activeTouches[1]!);
+        return;
+      }
+    }
     const screenPoint = { x: pointer.x, y: pointer.y };
     const clicked = this.actorAtPointer(over, screenPoint);
     if (pointer.button === 0) {
@@ -860,6 +1137,10 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
+    if (this.pinchStartDistance > 0 && this.isTouchPointer(pointer)) {
+      this.updatePinch();
+      return;
+    }
     if (this.touchBriefingOpen || !this.dragStart || !this.selectionBox) return;
     const rectangle = createPointerRectangle(this.dragStart, { x: pointer.x, y: pointer.y });
     if (this.isTouchCommandPointer(pointer) && this.touchCameraDrag) {
@@ -878,6 +1159,10 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private onPointerUp(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[] = []): void {
+    if (this.pinchStartDistance > 0) {
+      this.endPinch();
+      return;
+    }
     if (this.touchBriefingOpen || !this.dragStart || pointer.button !== 0) return;
     const start = this.dragStart;
     const end = { x: pointer.x, y: pointer.y };
@@ -974,8 +1259,37 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private isTouchCommandPointer(pointer: Phaser.Input.Pointer): boolean {
-    const event = pointer.event as PointerEvent;
-    return event.pointerType === "touch" || this.isCompactLandscape();
+    return this.isTouchPointer(pointer) || this.isCompactLandscape();
+  }
+
+  private isTouchPointer(pointer: Phaser.Input.Pointer): boolean {
+    return (pointer.event as PointerEvent | undefined)?.pointerType === "touch";
+  }
+
+  private activeTouchPointers(): Phaser.Input.Pointer[] {
+    return this.input.manager.pointers.filter((pointer) => pointer.isDown && this.isTouchPointer(pointer));
+  }
+
+  private beginPinch(first: Phaser.Input.Pointer, second: Phaser.Input.Pointer): void {
+    this.resetPointerGesture();
+    this.pinchStartDistance = Phaser.Math.Distance.Between(first.x, first.y, second.x, second.y);
+    this.pinchStartZoom = this.cameras.main.zoom;
+  }
+
+  private updatePinch(): void {
+    const touches = this.activeTouchPointers();
+    if (touches.length < 2 || this.pinchStartDistance <= 0) return;
+    const [first, second] = touches;
+    const distance = Phaser.Math.Distance.Between(first!.x, first!.y, second!.x, second!.y);
+    const anchor = { x: (first!.x + second!.x) / 2, y: (first!.y + second!.y) / 2 };
+    this.setCameraZoom(this.pinchStartZoom * distance / this.pinchStartDistance, anchor);
+  }
+
+  private endPinch(): void {
+    this.pinchStartDistance = 0;
+    this.pinchStartZoom = this.cameras.main.zoom;
+    this.resetPointerGesture();
+    this.setTouchNotice(`鏡頭 ${Math.round(this.cameras.main.zoom * 100)}%`);
   }
 
   private onKeyboardShortcut(event: KeyboardEvent): void {
@@ -1052,13 +1366,19 @@ export class CombatShowcaseScene extends Phaser.Scene {
     for (const [panelName, panel] of this.touchPanels) {
       const visible = compact && !this.touchBriefingOpen && panelName === this.touchPanel;
       panel.setVisible(visible).setActive(visible);
+      for (const spec of TOUCH_PANEL_BUTTONS[panelName]) {
+        const key = spec.mode ? `mode:${spec.mode}` : `action:${spec.action ?? "unknown"}`;
+        this.touchButtons.get(`${panelName}:${key}`)?.setVisible(visible);
+      }
     }
     this.touchReadout?.setVisible(compact && !this.touchBriefingOpen);
     this.touchReadoutPanel?.setVisible(compact && !this.touchBriefingOpen);
     for (const mode of ["move", "attack", "box", "pan"] as const) {
-      this.touchButtons.get(`mode:${mode}`)?.setActive(mode === this.touchMode);
+      this.touchButtons.get(`main:mode:${mode}`)?.setActive(mode === this.touchMode);
     }
+    this.touchButtons.get("system:action:pause")?.setLabel(this.battlePaused ? "▶" : "Ⅱ", this.battlePaused ? "繼續" : "暫停");
     this.touchBriefing?.setVisible(compact && this.touchBriefingOpen).setActive(compact && this.touchBriefingOpen);
+    this.touchButtons.get("action:close-briefing")?.setVisible(compact && this.touchBriefingOpen);
     this.layoutCanvasControls();
     this.updateTouchReadout();
   }
@@ -1079,8 +1399,8 @@ export class CombatShowcaseScene extends Phaser.Scene {
     const count = this.getSelectedActors().length;
     const label = ({
       smart: count > 0
-        ? `智慧指令｜已選 ${count} 人｜點地移動・點敵攻擊・拖地移鏡`
-        : "智慧指令｜點我軍選取・拖空地移鏡",
+        ? `智慧指令｜${count} 人｜點地移動・點敵攻擊・雙指縮放`
+        : "智慧指令｜點我軍選取・拖空地移鏡・雙指縮放",
       move: count > 0 ? `移動模式｜點目的地（${count} 人）` : "移動模式｜請先選取部隊",
       attack: count > 0 ? `攻擊模式｜點敵軍或野怪（${count} 人）` : "攻擊模式｜請先選取部隊",
       box: "框選模式｜拖過我軍，放開即完成",
@@ -1110,10 +1430,18 @@ export class CombatShowcaseScene extends Phaser.Scene {
       this.setTouchPanel("system");
       return;
     }
-    if (action === "fullscreen") {
-      const result = toggleGameFullscreen(this);
-      this.setTouchNotice(result === "expanded" ? "已填滿瀏覽器可用畫面" : result === "exited" ? "已離開全螢幕" : "正在進入全螢幕");
-      this.syncFullscreenButton();
+    if (action === "zoom-in") {
+      this.zoomCameraBy(0.16);
+      this.setTouchNotice(`鏡頭 ${Math.round(this.cameras.main.zoom * 100)}%`);
+      return;
+    }
+    if (action === "zoom-out") {
+      this.zoomCameraBy(-0.16);
+      this.setTouchNotice(`鏡頭 ${Math.round(this.cameras.main.zoom * 100)}%`);
+      return;
+    }
+    if (action === "pause") {
+      this.toggleBattlePause();
       return;
     }
     if (action === "restart") {
@@ -1185,23 +1513,34 @@ export class CombatShowcaseScene extends Phaser.Scene {
 
   private isCompactLandscape(): boolean {
     const profile = getDeviceViewportProfile();
-    return profile.landscape && (profile.mobile || profile.height <= 520);
+    return profile.landscape && (profile.touch || profile.coarsePointer || profile.height <= 520);
   }
 
   private applyResponsiveInterface(): void {
     const compact = this.isCompactLandscape();
     const viewportWidth = this.scale.gameSize.width;
+    const viewportHeight = this.scale.gameSize.height;
+    const profile = getDeviceViewportProfile();
+    const safeLeft = profile.safeArea.left * viewportWidth / Math.max(1, profile.width);
+    const safeRight = profile.safeArea.right * viewportWidth / Math.max(1, profile.width);
+    const safeTop = profile.safeArea.top * viewportHeight / Math.max(1, profile.height);
+    const panelX = safeLeft + 16;
+    const panelY = safeTop + 14;
+    const panelWidth = Math.max(320, viewportWidth - safeLeft - safeRight - 32);
     this.interfacePanel?.clear();
-    this.interfacePanel?.fillStyle(0x111a17, 0.94).fillRect(16, 14, Math.max(320, viewportWidth - 32), compact ? 92 : 76);
-    this.interfacePanel?.lineStyle(2, 0xd2c383, 0.75).strokeRect(16, 14, Math.max(320, viewportWidth - 32), compact ? 92 : 76);
+    this.interfacePanel?.fillStyle(0x111a17, 0.94).fillRect(panelX, panelY, panelWidth, compact ? 108 : 76);
+    this.interfacePanel?.lineStyle(2, 0xd2c383, 0.75).strokeRect(panelX, panelY, panelWidth, compact ? 108 : 76);
     this.instructionText
-      ?.setPosition(36, 24)
-      .setFontSize(compact ? 21 : 16)
-      .setWordWrapWidth(Math.max(360, viewportWidth - 310))
+      ?.setPosition(safeLeft + 36, safeTop + 24)
+      .setFontSize(compact ? 27 : 16)
+      .setWordWrapWidth(Math.max(360, viewportWidth - safeLeft - safeRight - 310))
       .setText(compact
-        ? "手機指揮：點我軍選取・點地移動・點敵攻擊・拖空地移鏡"
+        ? "手機指揮：點選・點地移動・點敵攻擊・拖曳移鏡・雙指縮放"
         : "框選／Shift 複選　右鍵移動／攻擊　Q 全隊技能　F 切換隊形　Ctrl+1–3 編隊　WASD 移鏡頭");
-    this.scoreText?.setPosition(36, compact ? 61 : 52).setFontSize(compact ? 19 : 15);
+    this.scoreText
+      ?.setPosition(safeLeft + 36, safeTop + (compact ? 72 : 52))
+      .setFontSize(compact ? 24 : 15)
+      .setWordWrapWidth(Math.max(360, viewportWidth - safeLeft - safeRight - 310));
     this.selectionText
       ?.setPosition(compact ? 288 : 24, compact ? 535 : 640)
       .setFontSize(compact ? 20 : 15)
@@ -1216,23 +1555,34 @@ export class CombatShowcaseScene extends Phaser.Scene {
     const height = this.scale.gameSize.height;
     const profile = getDeviceViewportProfile();
     const compact = this.isCompactLandscape();
-    const bottomInset = profile.mobile ? 48 : 24;
-    const panelY = height - bottomInset - 54;
-    for (const panel of this.touchPanels.values()) panel.setPosition(width / 2, panelY);
+    const touchDevice = profile.touch || profile.coarsePointer;
+    const unitsPerCssX = width / Math.max(1, profile.width);
+    const unitsPerCssY = height / Math.max(1, profile.height);
+    const safeTop = profile.safeArea.top * unitsPerCssY;
+    const safeRight = profile.safeArea.right * unitsPerCssX;
+    const safeBottom = profile.safeArea.bottom * unitsPerCssY;
+    const bottomInset = touchDevice ? Math.max(48, safeBottom + 22) : 24;
+    const dockScale = touchDevice && profile.height >= 760 ? 0.82 : 1;
+    const panelY = height - bottomInset - 54 * dockScale;
+    for (const panel of this.touchPanels.values()) {
+      const availableScale = Math.max(0.72, (width - 40) / Math.max(1, panel.width));
+      panel.setScale(Math.min(dockScale, availableScale)).setPosition(width / 2, panelY);
+    }
 
     const readoutWidth = Math.min(820, Math.max(460, width - 140));
-    const readoutY = panelY - 84;
+    const readoutY = panelY - 84 * dockScale;
     this.touchReadoutPanel?.clear();
     this.touchReadoutPanel?.fillStyle(0x050807, 0.7).fillRect(width / 2 - readoutWidth / 2 + 5, readoutY - 27 + 6, readoutWidth, 54);
     this.touchReadoutPanel?.fillStyle(0x111a17, 0.96).fillRect(width / 2 - readoutWidth / 2, readoutY - 27, readoutWidth - 5, 48);
     this.touchReadoutPanel?.lineStyle(3, 0xe0b866, 0.9).strokeRect(width / 2 - readoutWidth / 2, readoutY - 27, readoutWidth - 5, 48);
     this.touchReadout?.setPosition(width / 2 - 2, readoutY - 3).setWordWrapWidth(readoutWidth - 30);
 
-    const rightInset = profile.mobile ? 110 : 30;
-    const fullscreenScale = profile.mobile && !profile.landscape ? 1.75 : 1;
+    const rightInset = touchDevice ? Math.max(40, safeRight + 24) : 30;
+    const fullscreenScale = touchDevice && !profile.landscape ? 1.75 : 1;
+    const fullscreenY = Math.max(66 * fullscreenScale, safeTop + 44 * fullscreenScale + 16);
     this.fullscreenButton?.container
       .setScale(fullscreenScale)
-      .setPosition(width - rightInset - 100 * fullscreenScale, 66 * fullscreenScale)
+      .setPosition(width - rightInset - 100 * fullscreenScale, fullscreenY)
       .setVisible(true)
       .setActive(true);
 
@@ -1267,8 +1617,12 @@ export class CombatShowcaseScene extends Phaser.Scene {
   private syncFullscreenButton(): void {
     const label = fullscreenButtonLabel(this);
     this.fullscreenButton?.setLabel(label.glyph, label.label);
-    this.touchButtons.get("action:fullscreen")?.setLabel(label.glyph, label.label);
     this.layoutCanvasControls();
+  }
+
+  private onFullscreenFallback(): void {
+    this.setTouchNotice("瀏覽器拒絕全螢幕，已改用最大可用畫面");
+    this.syncFullscreenButton();
   }
 
   private updateSelectionPanel(): void {
@@ -1391,6 +1745,8 @@ export class CombatShowcaseScene extends Phaser.Scene {
     actor.targetId = undefined;
     actor.objectiveId = undefined;
     actor.statuses.clear();
+    actor.statusTicks.clear();
+    actor.lastDamagedBy = undefined;
     actor.actionLockMs = 500;
     actor.visual.container.setVisible(true).setActive(true).setAlpha(1).setScale(1);
     actor.visual.container.setInteractive({ useHandCursor: true }).setData("showcaseActorId", actor.instanceId);
@@ -1398,6 +1754,24 @@ export class CombatShowcaseScene extends Phaser.Scene {
     actor.visual.play("idle", true);
     this.positionActor(actor);
     spawnFloatingText(this, { x: actor.visual.container.x, y: actor.visual.container.y - 82 }, "我方增援", "#a8efd2");
+  }
+
+  private enemyDecisionIntervalMs(): number {
+    return ({ aggressor: 520, guardian: 820, prosperer: 1_050, balanced: 760, raider: 480 } satisfies Record<AiPersonality, number>)[this.aiPersonality];
+  }
+
+  private aiPersonalityTargetBias(id: string, kind: "player" | "beacon" | "monster"): number {
+    if (this.aiPersonality === "aggressor") return kind === "player" ? 34 : kind === "beacon" ? -10 : -18;
+    if (this.aiPersonality === "guardian") return kind === "beacon" ? 38 : kind === "player" ? 8 : -20;
+    if (this.aiPersonality === "prosperer") return kind === "beacon" ? 26 : kind === "monster" ? 16 : -18;
+    if (this.aiPersonality === "raider" && kind === "player") {
+      const target = this.findLivingActor(id);
+      if (!target) return 18;
+      const vulnerable = (1 - target.hitPoints / target.definition.maxHitPoints) * 44;
+      const backline = target.definition.attackRange >= 3 ? 24 : 0;
+      return vulnerable + backline;
+    }
+    return kind === "monster" ? -8 : 0;
   }
 
   private chooseEnemyIntent(actor: ShowcaseActor): void {
@@ -1430,7 +1804,9 @@ export class CombatShowcaseScene extends Phaser.Scene {
         monsterProvokedBy: target.provokedBy,
       })),
     ];
-    const choice = this.director.rankAiTargets(candidates)[0];
+    const choice = this.director.rankAiTargets(candidates)
+      .map((entry) => ({ ...entry, weight: entry.weight + this.aiPersonalityTargetBias(entry.id, entry.kind) }))
+      .sort((left, right) => right.weight - left.weight || left.id.localeCompare(right.id))[0];
     if (!choice) return;
     if (choice.kind === "beacon") {
       const id = choice.id.replace("beacon:", "") as BeaconId;
@@ -1480,10 +1856,15 @@ export class CombatShowcaseScene extends Phaser.Scene {
     const state = this.director.state;
     const phase = ({ preparation: "部署", engagement: "交戰", reinforcement: "增援", showdown: "決戰", finished: "結束" } as const)[state.phase];
     const seconds = Math.ceil(Math.max(0, 10_000 - state.elapsedMs) / 1000);
-    this.scoreText?.setText(
-      `${phase}${state.phase === "preparation" ? ` ${seconds}s` : ""}　勝點 我方 ${state.score.player}：${state.score.enemy} 敵方　` +
-      `西台 ${this.controllerLabel(state.objectives.westBeacon.controller)}　東台 ${this.controllerLabel(state.objectives.eastBeacon.controller)}　敵壓 ${Math.round(state.enemyPressure * 100)}%`,
-    );
+    const matchup = `${this.villageDoctrineLabel().split("・")[0]} vs ${this.aiPersonalityLabel()}`;
+    const playerRewards = this.battleRewards.player;
+    const enemyRewards = this.battleRewards.enemy;
+    const phaseLabel = `${phase}${state.phase === "preparation" ? ` ${seconds}s` : ""}`;
+    this.scoreText?.setText(this.isCompactLandscape()
+      ? `${matchup}｜${phaseLabel}　勝 ${state.score.player}:${state.score.enemy}　戰利 ${playerRewards.food}/${playerRewards.wood}/${playerRewards.stone}　敵壓 ${Math.round(state.enemyPressure * 100)}%`
+      : `${matchup}｜${phaseLabel}　勝點 我方 ${state.score.player}：${state.score.enemy} 敵方　西台 ${this.controllerLabel(state.objectives.westBeacon.controller)}　` +
+        `東台 ${this.controllerLabel(state.objectives.eastBeacon.controller)}　戰利 我 ${playerRewards.food}/${playerRewards.wood}/${playerRewards.stone}・敵 ${enemyRewards.food}/${enemyRewards.wood}/${enemyRewards.stone}　` +
+        `敵壓 ${Math.round(state.enemyPressure * 100)}%`);
     for (const id of BEACON_IDS) {
       const marker = this.objectiveMarkers.get(id);
       const zone = this.getBeaconZone(id);
@@ -1562,6 +1943,36 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.cameras.main.scrollY += vertical * 330 * seconds;
   }
 
+  private onWheel(pointer: Phaser.Input.Pointer, _objects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number): void {
+    this.setCameraZoom(this.cameras.main.zoom - deltaY * 0.001, { x: pointer.x, y: pointer.y });
+  }
+
+  private zoomCameraBy(amount: number): void {
+    this.setCameraZoom(this.cameras.main.zoom + amount, {
+      x: this.scale.gameSize.width / 2,
+      y: this.scale.gameSize.height / 2,
+    });
+  }
+
+  private setCameraZoom(zoom: number, anchor: ScreenPoint): void {
+    const camera = this.cameras.main;
+    const before = camera.getWorldPoint(anchor.x, anchor.y);
+    camera.setZoom(Phaser.Math.Clamp(zoom, 0.72, 1.38));
+    const after = camera.getWorldPoint(anchor.x, anchor.y);
+    camera.scrollX += before.x - after.x;
+    camera.scrollY += before.y - after.y;
+  }
+
+  private toggleBattlePause(): void {
+    if (this.ended) return;
+    this.battlePaused = !this.battlePaused;
+    this.time.paused = this.battlePaused;
+    if (this.battlePaused) this.tweens.pauseAll();
+    else this.tweens.resumeAll();
+    this.setTouchNotice(this.battlePaused ? "戰鬥已暫停｜仍可移動鏡頭" : "戰鬥繼續");
+    this.syncTouchControls();
+  }
+
   private positionActor(actor: ShowcaseActor): void {
     const point = gridToWorld(actor.position, ORIGIN);
     actor.visual.container.setPosition(point.x, point.y).setDepth(Math.floor(point.y * 10 + actor.position.x));
@@ -1591,13 +2002,12 @@ export class CombatShowcaseScene extends Phaser.Scene {
     return this.actors.find((actor) => actor.instanceId === instanceId && !actor.dead);
   }
 
-  private hasStatus(actor: ShowcaseActor, fragment: string): boolean {
-    const needle = fragment.toLowerCase();
-    return [...actor.statuses.keys()].some((status) => status.toLowerCase().includes(needle));
+  private hasStatus(actor: ShowcaseActor, status: string): boolean {
+    return actor.statuses.has(status);
   }
 
   private isRooted(actor: ShowcaseActor): boolean {
-    return this.hasStatus(actor, "root") || this.hasStatus(actor, "stun");
+    return this.hasStatus(actor, "stagger");
   }
 
   private pointBeforeTarget(from: GridPoint, target: GridPoint, distance: number): GridPoint {
@@ -1612,7 +2022,11 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private restartBattle(): void {
-    this.scene.restart({ returnScene: this.returnScene });
+    this.scene.restart({
+      villageId: this.villageId,
+      aiPersonality: this.aiPersonality,
+      returnScene: this.returnScene,
+    });
   }
 
   private leaveShowcase(): void {
@@ -1620,17 +2034,26 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
+    this.load.off(Phaser.Loader.Events.PROGRESS, this.onCombatLoadProgress, this);
+    this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onCombatArtLoadError, this);
     this.input.off("pointerdown", this.onPointerDown, this);
     this.input.off("pointermove", this.onPointerMove, this);
     this.input.off("pointerup", this.onPointerUp, this);
+    this.input.off("wheel", this.onWheel, this);
     this.input.keyboard?.off("keydown-Q", this.onSkillKey, this);
     this.input.keyboard?.off("keydown-R", this.restartBattle, this);
     this.input.keyboard?.off("keydown-ESC", this.leaveShowcase, this);
+    this.input.keyboard?.off("keydown-P", this.toggleBattlePause, this);
     this.input.keyboard?.off("keydown", this.onKeyboardShortcut, this);
     window.removeEventListener("resize", this.onViewportResize);
     this.scale.off(Phaser.Scale.Events.RESIZE, this.applyResponsiveInterface, this);
     this.scale.off(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
     this.scale.off(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
+    this.events.off(GAME_FULLSCREEN_FALLBACK_EVENT, this.onFullscreenFallback, this);
+    this.time.paused = false;
+    this.tweens.resumeAll();
+    for (const button of this.touchButtons.values()) button.destroy();
+    this.touchButtons.clear();
     this.touchControls?.destroy(true);
     this.touchControls = undefined;
     this.touchReadout = undefined;
@@ -1638,13 +2061,15 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.touchBriefing = undefined;
     this.touchBriefingOpen = false;
     this.touchPanels.clear();
-    this.touchButtons.clear();
     this.fullscreenButton?.destroy();
     this.fullscreenButton = undefined;
     this.rotatePrompt?.destroy(true);
     this.rotatePrompt = undefined;
     this.touchCameraDrag = undefined;
     this.touchDidPan = false;
+    this.pinchStartDistance = 0;
+    this.loadingUi?.destroy(true);
+    this.loadingUi = undefined;
     for (const actor of this.actors) actor.visual.destroy();
     this.actors = [];
     this.squadSelection.clearSelection();

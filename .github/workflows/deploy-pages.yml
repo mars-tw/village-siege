@@ -44,6 +44,7 @@ jobs:
         run: |
           rm -rf apps/client/dist/assets/original/source
           find apps/client/dist/assets/original -type f -name 'action-sheet-source.png' -delete
+          find apps/client/dist/assets/original -type f -name 'portrait.png' -delete
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6

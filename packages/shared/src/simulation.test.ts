@@ -48,4 +48,28 @@ describe("deterministic shared simulation", () => {
     expect(validateCommand(accepted.state, envelope(accepted.state, 1, { type: "stop", entityIds: [ownVillager.id] }))).toEqual({ ok: false, code: "STALE_OR_DUPLICATE_SEQUENCE" });
     expect(hashMatchState(initial)).toBe(originalHash);
   });
+
+  it("counts population cost instead of entity count for trained units", () => {
+    const initial = createInitialState({ seed: 19, matchId: "population-cost" });
+    const player = initial.players.find((candidate) => candidate.id === "player-1")!;
+    const unit = initial.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id);
+    expect(unit?.kind).toBe("unit");
+    if (!unit || unit.kind !== "unit") throw new Error("missing player unit");
+
+    const previousUsed = player.population.used;
+    unit.typeId = "batteringRam";
+    const next = stepSimulation(initial, [], 1).state;
+    const nextPlayer = next.players.find((candidate) => candidate.id === player.id)!;
+
+    expect(nextPlayer.population.used).toBe(previousUsed - 1 + 3);
+    nextPlayer.population.capacity = nextPlayer.population.used;
+    const townCenter = next.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    expect(validateCommand(next, envelope(next, 0, {
+      type: "train",
+      producerId: townCenter!.id,
+      unitType: "villager",
+      count: 1,
+    }))).toEqual({ ok: false, code: "ACTION_ON_COOLDOWN" });
+  });
 });

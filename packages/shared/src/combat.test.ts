@@ -82,6 +82,8 @@ describe("calculateDamage", () => {
 
   it("applies armor ignore and armor break without allowing negative armor", () => {
     expect(calculateDamage({ baseDamage: 100, armor: 20, armorIgnore: 0.5 })).toBe(91);
+    expect(calculateDamage({ baseDamage: 100, armor: 20, armorIgnore: 0.35 })).toBe(88);
+    expect(calculateDamage({ baseDamage: 100, armor: 20, armorIgnore: 0.6 })).toBe(93);
     expect(calculateDamage({ baseDamage: 100, armor: 20, armorBreak: 10 })).toBe(91);
     expect(calculateDamage({ baseDamage: 100, armor: 5, armorBreak: 10 })).toBe(100);
   });
