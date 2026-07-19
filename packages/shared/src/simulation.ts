@@ -9,7 +9,16 @@ import {
   UNITS,
   getVillage,
 } from "./content.js";
+import {
+  VILLAGE_ASSAULT_MAP_HEIGHT,
+  VILLAGE_ASSAULT_MAP_ID,
+  VILLAGE_ASSAULT_MAP_WIDTH,
+  getVillageAssaultBuildBlockedCells,
+  getVillageAssaultWalkBlockedCells,
+  isVillageAssaultWalkableCell,
+} from "./battlefield.js";
 import { normalizeSeed } from "./random.js";
+import { findNextPathStep, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import {
   isCommandEnvelope,
   type BuildingType,
@@ -105,7 +114,7 @@ export interface MatchState {
   tick: number;
   ticksPerSecond: 10;
   phase: MatchPhase;
-  map: { width: number; height: number };
+  map: { id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; width: number; height: number };
   players: PlayerState[];
   entities: EntityState[];
   nextEntityNumber: number;
@@ -124,7 +133,7 @@ export interface CreateInitialStateOptions {
   readonly matchId?: MatchId;
   readonly seed?: number;
   readonly players?: readonly InitialPlayer[];
-  readonly map?: { readonly width: number; readonly height: number };
+  readonly map?: { readonly id?: "open" | typeof VILLAGE_ASSAULT_MAP_ID; readonly width: number; readonly height: number };
   readonly spawnOverrides?: Readonly<Partial<Record<PlayerId, GridPoint>>>;
 }
 
@@ -156,12 +165,26 @@ const SPAWNS: Readonly<Record<VillageId, GridPoint>> = {
   sunfield: { x: 25, y: 25 },
 };
 
+const VILLAGE_ASSAULT_SPAWNS: readonly GridPoint[] = [
+  { x: 3, y: 8 },
+  { x: 14, y: 8 },
+  { x: 3, y: 2 },
+  { x: 14, y: 2 },
+  { x: 8, y: 13 },
+];
+
 export function createInitialState(options: CreateInitialStateOptions = {}): MatchState {
   const participants = options.players ?? DEFAULT_PLAYERS;
   if (participants.length < 2 || participants.length > 5) throw new RangeError("A match requires two to five factions");
   if (new Set(participants.map((player) => player.id)).size !== participants.length) throw new Error("Player ids must be unique");
   if (new Set(participants.map((player) => player.villageId)).size !== participants.length) throw new Error("Village ids must be unique");
 
+  const mapId = options.map?.id ?? "open";
+  const mapWidth = options.map?.width ?? 32;
+  const mapHeight = options.map?.height ?? 32;
+  if (mapId === VILLAGE_ASSAULT_MAP_ID && (mapWidth !== VILLAGE_ASSAULT_MAP_WIDTH || mapHeight !== VILLAGE_ASSAULT_MAP_HEIGHT)) {
+    throw new RangeError(`Village assault map must be ${VILLAGE_ASSAULT_MAP_WIDTH}x${VILLAGE_ASSAULT_MAP_HEIGHT}`);
+  }
   const state: MatchState = {
     rulesVersion: RULES_VERSION,
     matchId: options.matchId ?? "local-match",
@@ -170,7 +193,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     tick: 0,
     ticksPerSecond: TICKS_PER_SECOND,
     phase: "playing",
-    map: { width: options.map?.width ?? 32, height: options.map?.height ?? 32 },
+    map: { id: mapId, width: mapWidth, height: mapHeight },
     players: participants.map((participant) => ({
       ...participant,
       resources: { ...STARTING_RESOURCES },
@@ -186,10 +209,11 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     finishReason: null,
   };
 
-  for (const player of state.players) {
-    const center = clampPoint(options.spawnOverrides?.[player.id] ?? SPAWNS[player.villageId], state);
+  for (const [playerIndex, player] of state.players.entries()) {
+    const defaultSpawn = mapId === VILLAGE_ASSAULT_MAP_ID ? VILLAGE_ASSAULT_SPAWNS[playerIndex]! : SPAWNS[player.villageId];
+    const center = clampBuildingOrigin(options.spawnOverrides?.[player.id] ?? defaultSpawn, "townCenter", state);
     state.entities.push(createBuilding(state, player.id, "townCenter", center, true));
-    const villagerOffsets = [{ x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
+    const villagerOffsets = [{ x: -1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }];
     for (const offset of villagerOffsets) {
       state.entities.push(createUnit(state, player.id, "villager", clampPoint({ x: center.x + offset.x, y: center.y + offset.y }, state)));
     }
@@ -281,14 +305,41 @@ export function isEntityVisibleToPlayer(state: MatchState, playerId: PlayerId, t
   });
 }
 
+export function getEntityFootprintCells(entity: EntityState): readonly GridPoint[] {
+  return entity.kind === "building"
+    ? getFootprintCells(entity.position, BUILDINGS[entity.typeId].footprint)
+    : [entity.position];
+}
+
+export function getOccupiedMapCells(state: MatchState): readonly GridPoint[] {
+  return state.entities.flatMap((entity) => entity.kind === "unit" ? [] : getEntityFootprintCells(entity));
+}
+
+export function isBuildLocationAvailable(state: MatchState, buildingType: BuildingType, origin: GridPoint): boolean {
+  const terrainBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultBuildBlockedCells() : [];
+  const occupied = getOccupiedMapCells(state);
+  const placement = validateFootprintPlacement(
+    origin,
+    BUILDINGS[buildingType].footprint,
+    state.map.width,
+    state.map.height,
+    [...occupied, ...terrainBlocked],
+  );
+  if (!placement.ok) return false;
+  const walkBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultWalkBlockedCells() : [];
+  const approachBlocked = new Set([...occupied, ...walkBlocked].map(pointKey));
+  return getFootprintPerimeterCells(origin, BUILDINGS[buildingType].footprint).some((cell) => (
+    isPointInBounds(cell, state) && !approachBlocked.has(pointKey(cell))
+  ));
+}
+
 function validateGameCommand(state: MatchState, player: PlayerState, command: GameCommand): CommandValidation {
   if (command.type === "surrender") return { ok: true };
   if (command.type === "build") {
     const builders = ownedUnits(state, player.id, command.builderIds);
     if (!builders) return rejected("ENTITY_NOT_OWNED");
     if (builders.some((builder) => builder.typeId !== "villager")) return rejected("INVALID_PAYLOAD");
-    if (!isPointInBounds(command.origin, state)) return rejected("TARGET_NOT_REACHABLE");
-    if (state.entities.some((entity) => entity.kind !== "unit" && samePoint(entity.position, command.origin))) return rejected("TARGET_NOT_REACHABLE");
+    if (!isBuildLocationAvailable(state, command.buildingType, command.origin)) return rejected("TARGET_NOT_REACHABLE");
     return canAfford(player.resources, BUILDINGS[command.buildingType].cost) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
   if (command.type === "train") {
@@ -303,8 +354,8 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
   const ids = command.entityIds;
   const units = ownedUnits(state, player.id, ids);
   if (!units) return rejected("ENTITY_NOT_OWNED");
-  if (command.type === "move") return isPointInBounds(command.target, state) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
-  if (command.type === "patrol") return command.waypoints.every((point) => isPointInBounds(point, state)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+  if (command.type === "move") return isPointInBounds(command.target, state) && isMapCellWalkable(state, command.target) && !isMapCellBlocked(state, command.target) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+  if (command.type === "patrol") return command.waypoints.every((point) => isPointInBounds(point, state) && isMapCellWalkable(state, point) && !isMapCellBlocked(state, point)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
   if (command.type === "stop") return { ok: true };
   const target = state.entities.find((entity) => entity.id === command.targetId);
   if (!target) return rejected("INVALID_PAYLOAD");
@@ -397,7 +448,7 @@ function updateUnit(state: MatchState, unit: UnitEntityState): void {
   if (!target) { unit.order = { type: "idle" }; return; }
   if (order.type === "construct") {
     if (target.kind !== "building" || target.complete) { unit.order = { type: "idle" }; return; }
-    if (distanceSquared(unit.position, target.position) > 2) { moveToward(state, unit, target.position); return; }
+    if (distanceSquaredToEntity(unit.position, target) > 2) { moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target)); return; }
     target.constructionRemainingTicks = Math.max(0, target.constructionRemainingTicks - 1);
     target.hitPoints = Math.max(1, Math.floor(target.maxHitPoints * (1 - target.constructionRemainingTicks / BUILDINGS[target.typeId].buildTicks)));
     target.stateRevision += 1;
@@ -406,7 +457,7 @@ function updateUnit(state: MatchState, unit: UnitEntityState): void {
   }
   if (order.type === "gather") {
     if (target.kind !== "resource") { unit.order = { type: "idle" }; return; }
-    if (distanceSquared(unit.position, target.position) > 2) { moveToward(state, unit, target.position); return; }
+    if (distanceSquaredToEntity(unit.position, target) > 2) { moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target)); return; }
     if (unit.workCooldownTicks === 0) {
       const amount = Math.min(target.amount, gatherYield(state, unit, target));
       const player = state.players.find((candidate) => candidate.id === unit.ownerId)!;
@@ -419,7 +470,7 @@ function updateUnit(state: MatchState, unit: UnitEntityState): void {
     return;
   }
   const stats = UNITS[unit.typeId];
-  if (distanceSquared(unit.position, target.position) > stats.attackRange * stats.attackRange) { moveToward(state, unit, target.position); return; }
+  if (distanceSquaredToEntity(unit.position, target) > stats.attackRange * stats.attackRange) { moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target)); return; }
   if (unit.attackCooldownTicks === 0) {
     target.hitPoints = Math.max(0, target.hitPoints - damageAfterVillageTrait(state, target, stats.attackDamage));
     target.stateRevision += 1;
@@ -449,8 +500,10 @@ function updateTraining(state: MatchState, building: BuildingEntityState, events
   const job = building.trainingQueue[0]!;
   job.remainingTicks -= 1;
   if (job.remainingTicks > 0) return;
+  const spawn = buildingSpawnPoint(building, state);
+  if (!spawn) return;
   building.trainingQueue.shift();
-  const unit = createUnit(state, building.ownerId, job.unitType, adjacentPoint(building.position, state));
+  const unit = createUnit(state, building.ownerId, job.unitType, spawn);
   state.entities.push(unit);
   building.stateRevision += 1;
   events.push({ type: "entitySpawned", entity: toPublicEntity(unit) });
@@ -506,12 +559,9 @@ function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint)
   unit.movementProgress += speed;
   if (unit.movementProgress < 1000 * TICKS_PER_SECOND) return false;
   unit.movementProgress -= 1000 * TICKS_PER_SECOND;
-  const dx = target.x - unit.position.x;
-  const dy = target.y - unit.position.y;
-  const next = Math.abs(dx) >= Math.abs(dy)
-    ? { x: unit.position.x + Math.sign(dx), y: unit.position.y }
-    : { x: unit.position.x, y: unit.position.y + Math.sign(dy) };
-  if (!isPointInBounds(next, state)) { unit.order = { type: "idle" }; return true; }
+  const next = findNextPathStep(unit.position, target, state.map.width, state.map.height, getPathBlockedCells(state));
+  if (!next) { unit.order = { type: "idle" }; return true; }
+  if (samePoint(next, unit.position)) return true;
   unit.position = next;
   unit.stateRevision += 1;
   return samePoint(next, target);
@@ -617,9 +667,32 @@ function clampPoint(point: GridPoint, state: MatchState): GridPoint {
   return { x: Math.max(0, Math.min(state.map.width - 1, point.x)), y: Math.max(0, Math.min(state.map.height - 1, point.y)) };
 }
 
-function adjacentPoint(point: GridPoint, state: MatchState): GridPoint {
-  const candidates = [{ x: point.x + 1, y: point.y }, { x: point.x, y: point.y + 1 }, { x: point.x - 1, y: point.y }, { x: point.x, y: point.y - 1 }];
-  return candidates.find((candidate) => isPointInBounds(candidate, state)) ?? point;
+function clampBuildingOrigin(point: GridPoint, type: BuildingType, state: MatchState): GridPoint {
+  const footprint = BUILDINGS[type].footprint;
+  const maxOffsetX = Math.max(...footprint.map((cell) => cell.x));
+  const maxOffsetY = Math.max(...footprint.map((cell) => cell.y));
+  return {
+    x: Math.max(0, Math.min(state.map.width - 1 - maxOffsetX, point.x)),
+    y: Math.max(0, Math.min(state.map.height - 1 - maxOffsetY, point.y)),
+  };
+}
+
+function buildingSpawnPoint(building: BuildingEntityState, state: MatchState): GridPoint | null {
+  const cells = getEntityFootprintCells(building);
+  const footprint = new Set(cells.map(pointKey));
+  const occupied = new Set(state.entities.flatMap((entity) => getEntityFootprintCells(entity)).map(pointKey));
+  const candidates: GridPoint[] = [];
+  const seen = new Set<string>();
+  for (const cell of cells) {
+    for (const offset of [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }]) {
+      const candidate = { x: cell.x + offset.x, y: cell.y + offset.y };
+      const key = pointKey(candidate);
+      if (seen.has(key) || footprint.has(key)) continue;
+      seen.add(key);
+      if (isPointInBounds(candidate, state) && isMapCellWalkable(state, candidate) && !occupied.has(key)) candidates.push(candidate);
+    }
+  }
+  return candidates[0] ?? null;
 }
 
 function samePoint(left: GridPoint, right: GridPoint): boolean {
@@ -630,6 +703,45 @@ function distanceSquared(left: GridPoint, right: GridPoint): number {
   const dx = left.x - right.x;
   const dy = left.y - right.y;
   return dx * dx + dy * dy;
+}
+
+function distanceSquaredToEntity(point: GridPoint, entity: EntityState): number {
+  return Math.min(...getEntityFootprintCells(entity).map((cell) => distanceSquared(point, cell)));
+}
+
+function closestApproachableEntityCell(state: MatchState, point: GridPoint, entity: EntityState): GridPoint {
+  const blocked = new Set(getPathBlockedCells(state).map(pointKey));
+  const approachable = getEntityFootprintCells(entity).filter((cell) => (
+    [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }].some((offset) => {
+      const neighbor = { x: cell.x + offset.x, y: cell.y + offset.y };
+      return isPointInBounds(neighbor, state) && !blocked.has(pointKey(neighbor));
+    })
+  ));
+  const candidates = approachable.length > 0 ? approachable : getEntityFootprintCells(entity);
+  return [...candidates].sort((left, right) => (
+    distanceSquared(point, left) - distanceSquared(point, right)
+    || left.y - right.y
+    || left.x - right.x
+  ))[0]!;
+}
+
+function isMapCellBlocked(state: MatchState, point: GridPoint): boolean {
+  const key = pointKey(point);
+  return getOccupiedMapCells(state).some((cell) => pointKey(cell) === key);
+}
+
+function isMapCellWalkable(state: MatchState, point: GridPoint): boolean {
+  return state.map.id !== VILLAGE_ASSAULT_MAP_ID || isVillageAssaultWalkableCell(point);
+}
+
+function getPathBlockedCells(state: MatchState): readonly GridPoint[] {
+  return state.map.id === VILLAGE_ASSAULT_MAP_ID
+    ? [...getOccupiedMapCells(state), ...getVillageAssaultWalkBlockedCells()]
+    : getOccupiedMapCells(state);
+}
+
+function pointKey(point: GridPoint): string {
+  return `${point.x},${point.y}`;
 }
 
 function stableStringify(value: unknown): string {

@@ -1,6 +1,5 @@
 import Phaser from "phaser";
-import type { GridPoint as SharedGridPoint } from "@village-siege/shared";
-import { BATTLE_MAP_HEIGHT, BATTLE_MAP_WIDTH, getBattleTile } from "./battleMap";
+import { isVillageAssaultBuildableCell, type GridPoint as SharedGridPoint } from "@village-siege/shared";
 import { gridToWorld, type ScreenPoint } from "./isometric";
 
 export const VILLAGE_ASSAULT_ORIGIN: ScreenPoint = { x: 780, y: 70 };
@@ -29,34 +28,39 @@ export function drawSettlementOverlay(scene: Phaser.Scene, origin = VILLAGE_ASSA
 }
 
 export function isSettlementBuildable(point: SharedGridPoint): boolean {
-  if (!Number.isInteger(point.x) || !Number.isInteger(point.y)) return false;
-  if (point.x < 0 || point.y < 0 || point.x >= BATTLE_MAP_WIDTH || point.y >= BATTLE_MAP_HEIGHT) return false;
-  const tile = getBattleTile(point);
-  if (!tile?.walkable || tile.kind === "shallowWater" || tile.kind === "rock") return false;
-  return !(point.x >= 7 && point.x <= 10 && point.y >= 3 && point.y <= 12);
+  return isVillageAssaultBuildableCell(point);
 }
 
-export function drawPlacementTile(
+export function drawPlacementFootprint(
   graphics: Phaser.GameObjects.Graphics,
-  point: SharedGridPoint | null,
-  valid: boolean,
+  cells: readonly SharedGridPoint[],
+  validCells: readonly boolean[],
 ): void {
   graphics.clear();
-  if (!point) return;
-  const world = gridToWorld(point, { x: 0, y: 0 });
-  const color = valid ? 0xa9d18e : 0xf27a64;
-  graphics.fillStyle(color, 0.28).beginPath()
-    .moveTo(world.x, world.y - 24)
-    .lineTo(world.x + 48, world.y)
-    .lineTo(world.x, world.y + 24)
-    .lineTo(world.x - 48, world.y)
-    .closePath().fillPath();
-  graphics.lineStyle(4, color, 0.96).beginPath()
-    .moveTo(world.x, world.y - 24)
-    .lineTo(world.x + 48, world.y)
-    .lineTo(world.x, world.y + 24)
-    .lineTo(world.x - 48, world.y)
-    .closePath().strokePath();
+  cells.forEach((point, index) => {
+    const world = gridToWorld(point, { x: 0, y: 0 });
+    const valid = validCells[index] ?? false;
+    const color = valid ? 0xa9d18e : 0xf27a64;
+    graphics.fillStyle(color, valid ? 0.24 : 0.32).beginPath()
+      .moveTo(world.x, world.y - 24)
+      .lineTo(world.x + 48, world.y)
+      .lineTo(world.x, world.y + 24)
+      .lineTo(world.x - 48, world.y)
+      .closePath().fillPath();
+    graphics.lineStyle(4, color, 0.96).beginPath()
+      .moveTo(world.x, world.y - 24)
+      .lineTo(world.x + 48, world.y)
+      .lineTo(world.x, world.y + 24)
+      .lineTo(world.x - 48, world.y)
+      .closePath().strokePath();
+    graphics.lineStyle(3, color, 0.96);
+    if (valid) {
+      graphics.beginPath().moveTo(world.x - 12, world.y).lineTo(world.x - 3, world.y + 8).lineTo(world.x + 14, world.y - 9).strokePath();
+    } else {
+      graphics.lineBetween(world.x - 11, world.y - 8, world.x + 11, world.y + 8);
+      graphics.lineBetween(world.x + 11, world.y - 8, world.x - 11, world.y + 8);
+    }
+  });
 }
 
 function drawBaseBoundary(g: Phaser.GameObjects.Graphics, center: SharedGridPoint, color: number): void {

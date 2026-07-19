@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { nextUint32 } from "./random";
+import { isVillageAssaultWalkableCell } from "./battlefield";
 import {
   applyCommand,
   createInitialState,
+  getEntityFootprintCells,
   hashMatchState,
   hashReplay,
+  isBuildLocationAvailable,
   stepSimulation,
   validateCommand,
   type MatchState,
@@ -101,9 +104,147 @@ describe("deterministic shared simulation", () => {
     const playerTwoCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter");
 
     expect(playerOneCenter?.position).toEqual({ x: 0, y: 4 });
-    expect(playerTwoCenter?.position).toEqual({ x: 10, y: 9 });
+    expect(playerTwoCenter?.position).toEqual({ x: 10, y: 8 });
     expect(state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1")).toHaveLength(3);
     expect(state.entities.filter((entity) => entity.kind === "resource" && entity.position.x <= 2)).toHaveLength(3);
+  });
+
+  it("uses non-overlapping in-bounds defaults for the village assault map", () => {
+    const state = createInitialState({
+      seed: 231,
+      matchId: "village-assault-spawns",
+      map: { id: "villageAssault", width: 18, height: 16 },
+      players: [
+        { id: "p1", teamId: "t1", villageId: "pinehold" },
+        { id: "p2", teamId: "t2", villageId: "riverstead" },
+        { id: "p3", teamId: "t3", villageId: "highcrag" },
+        { id: "p4", teamId: "t4", villageId: "marshwatch" },
+        { id: "p5", teamId: "t5", villageId: "sunfield" },
+      ],
+    });
+    const staticCells = state.entities
+      .filter((entity) => entity.kind !== "unit")
+      .flatMap((entity) => getEntityFootprintCells(entity));
+    const keys = staticCells.map((cell) => `${cell.x},${cell.y}`);
+
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(staticCells.every((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < 18 && cell.y < 16)).toBe(true);
+  });
+
+  it("rejects multi-cell footprints outside the map or overlapping a resource", () => {
+    const state = createInitialState({
+      seed: 24,
+      matchId: "multi-cell-placement",
+      map: { width: 12, height: 10 },
+      spawnOverrides: {
+        "player-1": { x: 3, y: 3 },
+        "player-2": { x: 9, y: 7 },
+      },
+    });
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
+    const wood = state.entities.find((entity) => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 5)!;
+
+    expect(wood.position).toEqual({ x: 1, y: 3 });
+    expect(isBuildLocationAvailable(state, "siegeWorkshop", { x: 10, y: 7 })).toBe(false);
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "build",
+      builderIds: [villager.id],
+      buildingType: "siegeWorkshop",
+      origin: { x: 10, y: 7 },
+    }))).toEqual({ ok: false, code: "TARGET_NOT_REACHABLE" });
+
+    expect(isBuildLocationAvailable(state, "barracks", wood.position)).toBe(false);
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "build",
+      builderIds: [villager.id],
+      buildingType: "barracks",
+      origin: wood.position,
+    }))).toEqual({ ok: false, code: "TARGET_NOT_REACHABLE" });
+    expect(isBuildLocationAvailable(state, "siegeWorkshop", { x: 6, y: 5 })).toBe(true);
+  });
+
+  it("replays the same deterministic detour around a 2x2 building", () => {
+    const initial = createInitialState({
+      seed: 25,
+      matchId: "building-detour-replay",
+      map: { width: 10, height: 7 },
+      spawnOverrides: {
+        "player-1": { x: 3, y: 1 },
+        "player-2": { x: 8, y: 5 },
+      },
+    });
+    const mover = initial.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
+    const blocker = initial.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    mover.position = { x: 1, y: 2 };
+    initial.entities = initial.entities.filter((entity) => entity.kind === "building" || entity.id === mover.id);
+    blocker.position = { x: 3, y: 1 };
+    const commands = [envelope(initial, 0, { type: "move", entityIds: [mover.id], target: { x: 6, y: 2 } })];
+
+    const first = stepSimulation(initial, commands, 20).state;
+    const second = stepSimulation(initial, commands, 20).state;
+    const firstMover = first.entities.find((entity) => entity.id === mover.id);
+    expect(firstMover?.position).toEqual({ x: 2, y: 3 });
+    expect(first).toEqual(second);
+    expect(hashMatchState(first)).toBe(hashMatchState(second));
+    expect(hashReplay(initial, commands, 20)).toBe(hashReplay(initial, commands, 20));
+  });
+
+  it("spawns queued units on distinct free perimeter cells", () => {
+    const initial = createInitialState({ seed: 26, matchId: "perimeter-spawn" });
+    const townCenter = initial.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    const existingVillagerIds = new Set(initial.entities
+      .filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")
+      .map((entity) => entity.id));
+    const producerFootprint = new Set(getEntityFootprintCells(townCenter).map((point) => `${point.x},${point.y}`));
+    const occupiedBefore = new Set(initial.entities
+      .filter((entity) => entity.kind !== "unit")
+      .flatMap(getEntityFootprintCells)
+      .map((point) => `${point.x},${point.y}`));
+
+    const queued = applyCommand(initial, envelope(initial, 0, {
+      type: "train",
+      producerId: townCenter.id,
+      unitType: "villager",
+      count: 2,
+    }));
+    expect(queued.validation).toEqual({ ok: true });
+    const result = stepSimulation(queued.state, [], 240);
+    const trained = result.state.entities.filter((entity) => (
+      entity.kind === "unit"
+      && entity.ownerId === "player-1"
+      && entity.typeId === "villager"
+      && !existingVillagerIds.has(entity.id)
+    ));
+    const trainedKeys = trained.map((unit) => `${unit.position.x},${unit.position.y}`);
+
+    expect(trained).toHaveLength(2);
+    expect(new Set(trainedKeys).size).toBe(2);
+    expect(trainedKeys.every((key) => !producerFootprint.has(key) && !occupiedBefore.has(key))).toBe(true);
+    expect(trained.every((unit) => getEntityFootprintCells(townCenter).some((cell) => (
+      Math.abs(cell.x - unit.position.x) + Math.abs(cell.y - unit.position.y) === 1
+    )))).toBe(true);
+    expect(result.events.filter((event) => event.type === "entitySpawned" && event.entity.typeId === "villager")).toHaveLength(2);
+  });
+
+  it("skips water and rock cells when choosing a training exit", () => {
+    const initial = createInitialState({
+      seed: 261,
+      matchId: "walkable-training-exit",
+      map: { id: "villageAssault", width: 18, height: 16 },
+      spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
+    });
+    const townCenter = initial.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    if (townCenter.kind !== "building") throw new Error("missing town center");
+    townCenter.position = { x: 8, y: 13 };
+    const existingVillagerIds = new Set(initial.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1").map((entity) => entity.id));
+    const queued = applyCommand(initial, envelope(initial, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 1 }));
+    expect(queued.validation).toEqual({ ok: true });
+
+    const result = stepSimulation(queued.state, [], 120).state;
+    const trained = result.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && !existingVillagerIds.has(entity.id));
+    expect(trained?.kind).toBe("unit");
+    expect(trained && isVillageAssaultWalkableCell(trained.position)).toBe(true);
+    expect(trained?.position).not.toEqual({ x: 8, y: 12 });
   });
 
   it("runs the deterministic gather, build, population, and training loop end to end", () => {

@@ -22,6 +22,8 @@ const TIMBER_LIGHT = 0x8a6748;
 const STONE = 0x7b7b70;
 const STONE_LIGHT = 0xb5af96;
 const COPPER = 0xe0b866;
+const VERDIGRIS = 0x4f8275;
+const EMBER = 0xf08a3c;
 const PLAYER = 0x315e4d;
 const ENEMY = 0x8f3b3a;
 
@@ -32,6 +34,11 @@ const BUILDING_LABELS: Readonly<Record<BuildingType, string>> = {
   farmstead: "糧秣所",
   barracks: "邊軍兵營",
   defenseTower: "守望塔",
+  archeryRange: "射箭庭",
+  mageSanctum: "星火院",
+  gunWorkshop: "火器坊",
+  beastStable: "獠騎圈",
+  siegeWorkshop: "攻城棚",
 };
 
 const RESOURCE_LABELS: Readonly<Record<ResourceKind, string>> = {
@@ -180,12 +187,17 @@ function queueText(queue: BuildingEntityState["trainingQueue"]): string {
 
 function footprintWidth(type: BuildingType): number {
   if (type === "townCenter") return 122;
-  if (type === "barracks" || type === "farmstead") return 104;
+  if (type === "siegeWorkshop") return 118;
+  if (type === "archeryRange" || type === "gunWorkshop" || type === "beastStable") return 108;
+  if (type === "barracks" || type === "farmstead" || type === "mageSanctum") return 104;
   return 82;
 }
 
 function footprintHeight(type: BuildingType): number {
-  return type === "townCenter" ? 47 : type === "barracks" || type === "farmstead" ? 40 : 32;
+  if (type === "townCenter") return 47;
+  if (type === "siegeWorkshop" || type === "beastStable") return 44;
+  if (type === "barracks" || type === "farmstead" || type === "archeryRange" || type === "gunWorkshop" || type === "mageSanctum") return 40;
+  return 32;
 }
 
 function drawBuilding(
@@ -207,6 +219,16 @@ function drawBuilding(
     drawTower(g, accent, completion);
   } else if (type === "townCenter") {
     drawTownCenter(g, accent, completion);
+  } else if (type === "archeryRange") {
+    drawArcheryRange(g, accent, completion);
+  } else if (type === "mageSanctum") {
+    drawMageSanctum(g, accent, completion);
+  } else if (type === "gunWorkshop") {
+    drawGunWorkshop(g, accent, completion);
+  } else if (type === "beastStable") {
+    drawBeastStable(g, accent, completion);
+  } else if (type === "siegeWorkshop") {
+    drawSiegeWorkshop(g, accent, completion);
   } else {
     drawHall(g, type, accent, completion);
   }
@@ -224,6 +246,113 @@ function drawTownCenter(g: Phaser.GameObjects.Graphics, accent: number, completi
   g.fillStyle(INK, 0.9).fillRect(-7, -23, 14, 31);
   g.fillStyle(COPPER, 1).fillCircle(2, -7, 2.5);
   flag(g, 47, -69, accent);
+}
+
+function drawArcheryRange(g: Phaser.GameObjects.Graphics, accent: number, completion: number): void {
+  const rise = 34 * Math.min(1, (completion - 0.22) / 0.58);
+  drawIsoBlock(g, -18, 7, 62, 27, rise, 0xc6b98e, 0x88735a, 0x6e5b47);
+  roof(g, -18, 7 - rise, 70, 31, accent, 0x4d2e2c);
+  timberFrame(g, -18, 8, 54, rise);
+
+  // A pale target and its exposed arrow rack keep the yard readable even at compact zoom.
+  g.lineStyle(5, TIMBER, 1).lineBetween(31, 8, 31, -20).lineBetween(21, 8, 31, -1).lineBetween(41, 8, 31, -1);
+  g.fillStyle(CHALK, 1).fillCircle(31, -24, 12);
+  g.lineStyle(3, accent, 1).strokeCircle(31, -24, 8);
+  g.fillStyle(INK, 1).fillCircle(31, -24, 3);
+  g.lineStyle(3, TIMBER_LIGHT, 1).lineBetween(-48, 11, -39, -9).lineBetween(-30, 11, -39, -9).lineBetween(-48, 3, -30, 3);
+  for (let index = 0; index < 4; index += 1) {
+    const x = -46 + index * 5;
+    g.lineStyle(2, COPPER, 1).lineBetween(x, 1, x + 8, -22);
+    g.fillStyle(accent, 1).fillTriangle(x + 8, -22, x + 3, -17, x + 10, -16);
+  }
+  drawSurveyStakes(g, accent, [[-49, 9], [50, 8], [4, 21]]);
+}
+
+function drawMageSanctum(g: Phaser.GameObjects.Graphics, accent: number, completion: number): void {
+  const rise = 39 * Math.min(1, (completion - 0.22) / 0.58);
+  drawIsoBlock(g, 0, 7, 64, 31, rise, STONE_LIGHT, 0x7b7d73, 0x62665f);
+  drawIsoDiamondAt(g, 0, 7 - rise, 72, 35, VERDIGRIS, 1, INK);
+  g.fillStyle(INK, 0.9).fillRect(-6, 7 - rise, 12, rise);
+  g.fillStyle(COPPER, 0.9).fillCircle(0, -12, 3);
+
+  // Oxidised copper astronomy rings form the sanctum's unmistakable crown.
+  const crownY = -rise - 18;
+  g.lineStyle(4, COPPER, 1).strokeEllipse(0, crownY, 56, 20);
+  g.lineStyle(4, VERDIGRIS, 1).strokeEllipse(0, crownY, 22, 49);
+  g.lineStyle(2, CHALK, 0.9).lineBetween(-24, crownY, 24, crownY).lineBetween(0, crownY - 21, 0, crownY + 21);
+  g.fillStyle(EMBER, 0.32).fillCircle(0, crownY, 11);
+  g.fillStyle(CHALK, 1).fillCircle(0, crownY, 5);
+
+  // The open star-fire kiln anchors the rings to a practical frontier workshop.
+  g.fillStyle(TIMBER, 1).fillRect(25, -5, 20, 14);
+  g.lineStyle(3, COPPER, 1).strokeRect(25, -5, 20, 14);
+  g.fillStyle(EMBER, 0.95).fillTriangle(28, 5, 35, -12, 41, 5);
+  g.fillStyle(CHALK, 0.8).fillCircle(35, -1, 3);
+  drawSurveyStakes(g, accent, [[-45, 8], [46, 8], [-1, 22]]);
+}
+
+function drawGunWorkshop(g: Phaser.GameObjects.Graphics, accent: number, completion: number): void {
+  const rise = 36 * Math.min(1, (completion - 0.22) / 0.58);
+  drawIsoBlock(g, -6, 7, 78, 30, rise, 0xb8aa83, 0x81715b, 0x685947);
+  roof(g, -6, 7 - rise, 88, 35, accent, 0x3f2d2a);
+  timberFrame(g, -6, 8, 69, rise);
+  g.fillStyle(INK, 0.93).fillRect(-12, -20, 16, 28);
+
+  // Twin soot stacks and clustered powder casks establish a low, industrial silhouette.
+  for (const [x, extra] of [[19, 0], [32, 8]] as const) {
+    const top = -rise - 22 - extra;
+    g.fillStyle(0x444942, 1).fillRect(x - 5, top, 10, 31 + extra);
+    g.fillStyle(STONE, 1).fillRect(x - 8, top - 4, 16, 6);
+    if (completion > 0.75) {
+      g.fillStyle(0x343b38, 0.33).fillCircle(x + 2, top - 12, 8).fillCircle(x - 4, top - 23, 6);
+    }
+  }
+  drawPowderBarrel(g, -45, 5, accent);
+  drawPowderBarrel(g, -34, -1, accent);
+  g.lineStyle(4, COPPER, 1).lineBetween(-48, -16, -27, -16).lineBetween(-44, -22, -31, -10);
+  drawSurveyStakes(g, accent, [[-51, 10], [50, 9], [8, 22]]);
+}
+
+function drawBeastStable(g: Phaser.GameObjects.Graphics, accent: number, completion: number): void {
+  const rise = 35 * Math.min(1, (completion - 0.22) / 0.58);
+  drawIsoBlock(g, -23, 6, 58, 29, rise, 0xa98c66, 0x735f4b, 0x5e4e3e);
+  roof(g, -23, 6 - rise, 66, 34, accent, 0x4a3028);
+  timberFrame(g, -23, 8, 50, rise);
+  g.fillStyle(INK, 0.9).fillRect(-30, -19, 17, 27);
+
+  // The open paddock deliberately breaks the roof mass into a stable plus animal yard.
+  drawFenceRun(g, 7, -3, 50, -12);
+  drawFenceRun(g, 7, 8, 50, 17);
+  g.lineStyle(4, TIMBER_LIGHT, 1).lineBetween(50, -12, 50, 17);
+  g.fillStyle(0x6f4a2e, 1).fillEllipse(29, 4, 29, 15);
+  g.fillStyle(0x3c2b22, 1).fillCircle(42, 2, 7);
+  g.fillStyle(CHALK, 1).fillTriangle(44, 2, 53, -2, 46, 7).fillTriangle(40, 5, 49, 11, 42, 0);
+  g.fillStyle(TIMBER, 1).fillRect(9, 6, 25, 7);
+  g.lineStyle(2, COPPER, 0.85).lineBetween(10, 7, 33, 11);
+  drawSurveyStakes(g, accent, [[-51, 10], [53, 17], [6, 20]]);
+}
+
+function drawSiegeWorkshop(g: Phaser.GameObjects.Graphics, accent: number, completion: number): void {
+  const rise = 48 * Math.min(1, (completion - 0.2) / 0.62);
+  drawIsoBlock(g, 0, 10, 86, 31, 10, 0x9c8c6d, 0x706352, 0x5d5143);
+
+  // A broad exposed A-frame, axle and paired wheels read as a machine yard rather than a hall.
+  g.lineStyle(7, TIMBER, 1)
+    .lineBetween(-43, 7, -27, 7 - rise)
+    .lineBetween(-9, 7, -27, 7 - rise)
+    .lineBetween(9, 7, 27, 7 - rise)
+    .lineBetween(44, 7, 27, 7 - rise)
+    .lineBetween(-30, 8 - rise, 30, 8 - rise);
+  g.lineStyle(3, COPPER, 1).lineBetween(-27, 8 - rise, 27, 8 - rise);
+  if (completion > 0.62) roof(g, 0, 8 - rise, 90, 29, accent, 0x4b3328);
+
+  g.lineStyle(7, TIMBER_LIGHT, 1).lineBetween(-32, -5, 34, 6);
+  drawTimberWheel(g, -31, -1, 15, accent);
+  drawTimberWheel(g, 33, 9, 15, accent);
+  g.fillStyle(COPPER, 1).fillCircle(-31, -1, 4).fillCircle(33, 9, 4);
+  g.lineStyle(5, TIMBER_LIGHT, 1).lineBetween(-3, 2 - rise, -3, -14).lineBetween(-3, -14, 14, -8);
+  g.fillStyle(INK, 0.85).fillCircle(14, -8, 4);
+  drawSurveyStakes(g, accent, [[-55, 10], [56, 11], [0, 25]]);
 }
 
 function drawHall(g: Phaser.GameObjects.Graphics, type: BuildingType, accent: number, completion: number): void {
@@ -331,6 +460,46 @@ function drawScaffolding(g: Phaser.GameObjects.Graphics, width: number, y: numbe
   g.lineBetween(-width / 2 + 3, y - height * 0.55, width / 2 - 3, y - height * 0.55);
   g.lineBetween(-width / 2 + 3, y, width / 2 - 3, y - height);
   g.fillStyle(accent, 0.92).fillRect(-17, y - height - 7, 34, 9);
+}
+
+function drawSurveyStakes(
+  g: Phaser.GameObjects.Graphics,
+  accent: number,
+  points: readonly (readonly [number, number])[],
+): void {
+  for (const [x, y] of points) {
+    g.lineStyle(3, TIMBER_LIGHT, 1).lineBetween(x, y + 5, x, y - 11);
+    g.fillStyle(accent, 1).fillRect(x - 4, y - 12, 8, 4);
+    g.lineStyle(1, CHALK, 0.8).lineBetween(x - 3, y - 10, x + 3, y - 10);
+  }
+}
+
+function drawPowderBarrel(g: Phaser.GameObjects.Graphics, x: number, y: number, accent: number): void {
+  g.fillStyle(TIMBER_LIGHT, 1).fillRect(x - 7, y - 14, 14, 17);
+  g.fillStyle(TIMBER, 1).fillEllipse(x, y - 14, 14, 6).fillEllipse(x, y + 3, 14, 6);
+  g.lineStyle(2, COPPER, 1).lineBetween(x - 7, y - 10, x + 7, y - 10).lineBetween(x - 7, y - 1, x + 7, y - 1);
+  g.fillStyle(accent, 0.9).fillCircle(x, y - 6, 2);
+}
+
+function drawFenceRun(g: Phaser.GameObjects.Graphics, x1: number, y1: number, x2: number, y2: number): void {
+  const middleX = (x1 + x2) / 2;
+  const middleY = (y1 + y2) / 2;
+  g.lineStyle(4, TIMBER_LIGHT, 1)
+    .lineBetween(x1, y1 + 5, x1, y1 - 16)
+    .lineBetween(middleX, middleY + 5, middleX, middleY - 16)
+    .lineBetween(x2, y2 + 5, x2, y2 - 16)
+    .lineBetween(x1, y1 - 10, x2, y2 - 10)
+    .lineBetween(x1, y1, x2, y2);
+}
+
+function drawTimberWheel(g: Phaser.GameObjects.Graphics, x: number, y: number, radius: number, accent: number): void {
+  g.lineStyle(5, TIMBER, 1).strokeCircle(x, y, radius);
+  g.lineStyle(2, TIMBER_LIGHT, 1)
+    .lineBetween(x - radius + 3, y, x + radius - 3, y)
+    .lineBetween(x, y - radius + 3, x, y + radius - 3)
+    .lineBetween(x - radius * 0.65, y - radius * 0.65, x + radius * 0.65, y + radius * 0.65)
+    .lineBetween(x + radius * 0.65, y - radius * 0.65, x - radius * 0.65, y + radius * 0.65);
+  g.fillStyle(accent, 1).fillCircle(x, y, 3);
 }
 
 function drawDamage(g: Phaser.GameObjects.Graphics, healthRatio: number): void {

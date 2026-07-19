@@ -1,5 +1,6 @@
 import {
   TICK_MILLISECONDS,
+  VILLAGE_ASSAULT_MAP_ID,
   applyCommand,
   createAiController,
   createInitialState,
@@ -19,7 +20,7 @@ import {
 
 export const VILLAGE_ASSAULT_PLAYER_ID = "player-1";
 export const VILLAGE_ASSAULT_AI_ID = "player-2";
-export const VILLAGE_ASSAULT_MAP_SIZE = { width: 18, height: 16 } as const;
+export const VILLAGE_ASSAULT_MAP_SIZE = { id: VILLAGE_ASSAULT_MAP_ID, width: 18, height: 16 } as const;
 export const VILLAGE_ASSAULT_SPAWNS = {
   player: { x: 3, y: 8 },
   ai: { x: 14, y: 8 },
