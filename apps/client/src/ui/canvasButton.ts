@@ -16,7 +16,7 @@ export interface CanvasButtonControl {
   readonly name: string;
   setActive(active: boolean): void;
   setEnabled(enabled: boolean): void;
-  setLabel(glyph: string, label: string): void;
+  setLabel(glyph: string, label: string, accessibleLabel?: string): void;
   setVisible(visible: boolean): void;
   destroy(): void;
 }
@@ -37,22 +37,20 @@ export function createCanvasButton(
 ): CanvasButtonControl {
   const container = scene.add.container(0, 0).setName(options.name);
   const background = scene.add.graphics();
-  const glyph = scene.add.text(0, options.compact ? -1 : -13, options.glyph, {
+  const glyph = scene.add.text(0, options.compact ? -22 : -13, options.glyph, {
     color: "#f0ebcf",
     fontFamily: 'Georgia, "Noto Serif TC", serif',
-    fontSize: options.compact ? "32px" : "36px",
+    fontSize: options.compact ? "27px" : "36px",
     fontStyle: "bold",
   }).setOrigin(0.5);
-  const label = scene.add.text(0, options.compact ? 0 : 27, options.label, {
+  const label = scene.add.text(0, options.compact ? 19 : 27, options.label, {
     color: "#f0ebcf",
     fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
-    fontSize: options.compact ? "27px" : "28px",
+    fontSize: options.compact ? "16px" : "28px",
     fontStyle: "bold",
+    align: "center",
+    wordWrap: options.compact ? { width: options.width - 14, useAdvancedWrap: true } : undefined,
   }).setOrigin(0.5);
-  if (options.compact) {
-    glyph.setX(-options.width * 0.3);
-    label.setX(options.width * 0.12);
-  }
   const hitZone = scene.add.zone(0, 0, options.width, options.height)
     .setName(`${options.name}:hit-zone`)
     .setScrollFactor(0)
@@ -159,10 +157,10 @@ export function createCanvasButton(
       accessibilityButton.disabled = !value;
       draw();
     },
-    setLabel(nextGlyph: string, nextLabel: string): void {
+    setLabel(nextGlyph: string, nextLabel: string, nextAccessibleLabel?: string): void {
       glyph.setText(nextGlyph);
       label.setText(nextLabel);
-      accessibilityButton.setAttribute("aria-label", nextLabel);
+      accessibilityButton.setAttribute("aria-label", nextAccessibleLabel ?? nextLabel);
       accessibilityButton.textContent = `${nextGlyph} ${nextLabel}`;
       draw();
     },

@@ -1,6 +1,10 @@
 import Phaser from "phaser";
 import {
   BUILDINGS,
+  getEntityFootprintCells,
+  getFootprintCells,
+  getOccupiedMapCells,
+  isBuildLocationAvailable,
   MAX_TRAINING_QUEUE_DEPTH,
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
@@ -26,7 +30,12 @@ import {
 import { DEFAULT_TEAM_PALETTES } from "../game/combatArt";
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
-import { createFrameAnimatedCombatActor, requireFrameAnimatedManifest, type FrameAnimatedCombatActor } from "../game/frameAnimatedCombatActor";
+import {
+  createFrameAnimatedCombatActor,
+  requireFrameAnimatedManifest,
+  validateFrameAnimatedCombatActorManifest,
+  type FrameAnimatedCombatActor,
+} from "../game/frameAnimatedCombatActor";
 import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
 import { gridToWorld, worldToGrid } from "../game/isometric";
 import {
@@ -39,7 +48,7 @@ import {
 import {
   VILLAGE_ASSAULT_BOUNDS,
   VILLAGE_ASSAULT_ORIGIN,
-  drawPlacementTile,
+  drawPlacementFootprint,
   drawSettlementOverlay,
   isSettlementBuildable,
   type SettlementOverlay,
@@ -98,12 +107,16 @@ const UNIT_LABELS: Readonly<Record<UnitType, string>> = {
   batteringRam: "重弩攻城組",
 };
 
-const BUILD_MENU: readonly BuildingType[] = ["house", "lumberCamp", "farmstead", "barracks", "defenseTower"];
-const TRAIN_MENU: readonly UnitType[] = ["militia", "spearman", "archer", "mage", "musketeer", "scout", "batteringRam"];
-const UI_WIDTH = 1100;
-const UI_BUTTON_WIDTH = 140;
-const UI_BUTTON_HEIGHT = 92;
-const UI_GAP = 8;
+const BUILD_PAGES: readonly (readonly BuildingType[])[] = [
+  ["house", "lumberCamp", "farmstead", "barracks"],
+  ["archeryRange", "mageSanctum", "gunWorkshop", "beastStable"],
+  ["siegeWorkshop", "defenseTower"],
+];
+const UI_WIDTH = 900;
+const UI_BUTTON_WIDTH = 118;
+const UI_BUTTON_HEIGHT = 118;
+const UI_GAP = 6;
+const ACTION_PANEL_HEIGHT = 154;
 
 export class VillageAssaultScene extends Phaser.Scene {
   private villageId: VillageId = "pinehold";
@@ -115,9 +128,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   private readonly unitViews = new Map<string, UnitView>();
   private readonly entityViews = new Map<string, AssaultEntityView>();
   private readonly selectedIds = new Set<string>();
+  private buildMenuOpen = false;
+  private buildPage = 0;
   private buildingPlacement: BuildingType | null = null;
   private systemPanelOpen = false;
-  private trainPage: 0 | 1 = 0;
   private hoverGrid: GridPoint | null = null;
   private paused = false;
   private ended = false;
@@ -125,6 +139,11 @@ export class VillageAssaultScene extends Phaser.Scene {
   private notice = "先點工匠，再點木材、糧食或石礦開始採集";
   private noticeUntil = 0;
   private artLoadFailures: string[] = [];
+  private readonly artLoadPromises = new Map<CombatArtId, Promise<void>>();
+  private readonly pendingArtIds = new Set<CombatArtId>();
+  private readonly failedArtIds = new Set<CombatArtId>();
+  private readonly artRetryAt = new Map<CombatArtId, number>();
+  private artLoadGeneration = 0;
   private uiScale = 1;
   private compactUi = false;
   private topRoot?: Phaser.GameObjects.Container;
@@ -154,9 +173,10 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.unitViews.clear();
     this.entityViews.clear();
     this.selectedIds.clear();
+    this.buildMenuOpen = false;
+    this.buildPage = 0;
     this.buildingPlacement = null;
     this.systemPanelOpen = false;
-    this.trainPage = 0;
     this.hoverGrid = null;
     this.paused = false;
     this.ended = false;
@@ -164,13 +184,18 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.notice = "先點工匠，再點木材、糧食或石礦開始採集";
     this.noticeUntil = performance.now() + 5_000;
     this.artLoadFailures = [];
+    this.artLoadPromises.clear();
+    this.pendingArtIds.clear();
+    this.failedArtIds.clear();
+    this.artRetryAt.clear();
+    this.artLoadGeneration += 1;
     this.pointerStart = undefined;
     this.pointerDragged = false;
   }
 
   preload(): void {
     assertCombatAnimationManifestValid();
-    const assets = ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => !this.textures.exists(asset.textureKey));
+    const assets = ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior" && !this.textures.exists(asset.textureKey));
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
     for (const asset of assets) this.load.image(asset.textureKey, asset.path);
   }
@@ -182,6 +207,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.showLoadFailure();
       return;
     }
+    validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, "warrior"), "warrior");
     this.runtime = createVillageAssaultRuntime({
       playerVillageId: this.villageId,
       aiPersonality: this.aiPersonality,
@@ -229,6 +255,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.paused || this.ended || this.orientationBlocked || !this.runtime) return;
     const result = this.runtime.step(Math.min(delta, 250));
     if (result.steps === 0) return;
+    this.prefetchQueuedUnitArt();
     this.syncEntityViews(false);
     this.updateUnitAnimations(result.steps * 100);
     if (result.latestRejection?.source === "ai") {
@@ -263,6 +290,19 @@ export class VillageAssaultScene extends Phaser.Scene {
   private syncUnitView(entity: UnitEntityState, initial: boolean): void {
     let view = this.unitViews.get(entity.id);
     if (!view) {
+      const artId = UNIT_ART[entity.typeId];
+      if (this.failedArtIds.has(artId)) {
+        if (performance.now() < (this.artRetryAt.get(artId) ?? Number.POSITIVE_INFINITY)) return;
+        this.failedArtIds.delete(artId);
+      }
+      if (!this.isArtReady(artId)) {
+        void this.ensureArtLoaded(artId)
+          .then(() => {
+            if (this.sys.isActive()) this.syncEntityViews(false);
+          })
+          .catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
+        return;
+      }
       view = this.createUnitView(entity);
       this.unitViews.set(entity.id, view);
     }
@@ -302,7 +342,9 @@ export class VillageAssaultScene extends Phaser.Scene {
         this.handleEntityTap(entity.id, pointer);
       });
     }
-    const world = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
+    const cells = getEntityFootprintCells(entity);
+    const center = cells.reduce((sum, cell) => ({ x: sum.x + cell.x, y: sum.y + cell.y }), { x: 0, y: 0 });
+    const world = gridToWorld({ x: center.x / cells.length, y: center.y / cells.length }, VILLAGE_ASSAULT_ORIGIN);
     view.container.setPosition(world.x, world.y).setDepth(world.y + (entity.kind === "building" ? 80 : 20));
     view.update(entity, this.selectedIds.has(entity.id));
   }
@@ -378,9 +420,9 @@ export class VillageAssaultScene extends Phaser.Scene {
       if (!additive) this.selectedIds.clear();
       if (additive && this.selectedIds.has(entity.id)) this.selectedIds.delete(entity.id);
       else this.selectedIds.add(entity.id);
+      this.buildMenuOpen = false;
       this.buildingPlacement = null;
       this.systemPanelOpen = false;
-      this.trainPage = 0;
       this.refreshSelectionViews();
       this.refreshInterface(true);
       return;
@@ -403,7 +445,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer): void => {
     if (this.buildingPlacement) {
       this.hoverGrid = this.pointerGrid(pointer);
-      drawPlacementTile(this.settlementOverlay?.placement ?? this.add.graphics(), this.hoverGrid, this.canBuildAt(this.hoverGrid));
+      const cells = getFootprintCells(this.hoverGrid, BUILDINGS[this.buildingPlacement].footprint);
+      const occupied = new Set(getOccupiedMapCells(this.runtime.state).map((cell) => `${cell.x},${cell.y}`));
+      const validCells = cells.map((cell) => isSettlementBuildable(cell) && !occupied.has(`${cell.x},${cell.y}`));
+      drawPlacementFootprint(this.settlementOverlay?.placement ?? this.add.graphics(), cells, validCells);
     }
     if (!pointer.isDown || !this.pointerStart) return;
     const dx = pointer.x - this.pointerStart.x;
@@ -474,12 +519,12 @@ export class VillageAssaultScene extends Phaser.Scene {
       fontSize: "22px",
       fontStyle: "bold",
     }).setResolution(2);
-    this.objectiveText = this.add.text(430, 13, "", {
+    this.objectiveText = this.add.text(330, 13, "", {
       color: "#dce9c6",
       fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
       fontSize: "20px",
       fontStyle: "bold",
-      wordWrap: { width: 440 },
+      wordWrap: { width: 300 },
     }).setResolution(2);
     this.noticeText = this.add.text(UI_WIDTH - 24, 14, "", {
       align: "right",
@@ -487,14 +532,14 @@ export class VillageAssaultScene extends Phaser.Scene {
       fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
       fontSize: "18px",
       fontStyle: "bold",
-      wordWrap: { width: 260 },
+      wordWrap: { width: 220 },
     }).setOrigin(1, 0).setResolution(2);
     this.topRoot = this.add.container(0, 0, [topPanel, this.resourceText, this.objectiveText, this.noticeText]).setScrollFactor(0).setDepth(100_000);
 
     const actionPanel = this.add.graphics();
-    actionPanel.fillStyle(0x0a100e, 0.96).fillRect(0, 0, UI_WIDTH, 136);
-    actionPanel.fillStyle(0x172d28, 0.98).fillRect(7, 7, UI_WIDTH - 14, 122);
-    actionPanel.lineStyle(3, 0xd2c383, 0.9).strokeRect(0, 0, UI_WIDTH, 136);
+    actionPanel.fillStyle(0x0a100e, 0.96).fillRect(0, 0, UI_WIDTH, ACTION_PANEL_HEIGHT);
+    actionPanel.fillStyle(0x172d28, 0.98).fillRect(7, 7, UI_WIDTH - 14, ACTION_PANEL_HEIGHT - 14);
+    actionPanel.lineStyle(3, 0xd2c383, 0.9).strokeRect(0, 0, UI_WIDTH, ACTION_PANEL_HEIGHT);
     this.selectionText = this.add.text(22, 10, "未選取｜點我方工匠或建築", {
       color: "#f0ebcf",
       fontFamily: 'Georgia, "Noto Serif TC", serif',
@@ -511,7 +556,7 @@ export class VillageAssaultScene extends Phaser.Scene {
         name: `assault-action-${index + 1}`,
         compact: true,
       }, () => this.currentActions[index]?.run());
-      button.container.setPosition(22 + UI_BUTTON_WIDTH / 2 + index * (UI_BUTTON_WIDTH + UI_GAP), 83).setScrollFactor(0);
+      button.container.setPosition(22 + UI_BUTTON_WIDTH / 2 + index * (UI_BUTTON_WIDTH + UI_GAP), 94).setScrollFactor(0);
       this.actionRoot.add(button.container);
       this.actionButtons.push(button);
     }
@@ -548,7 +593,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       const spec = this.currentActions[index];
       button.setVisible(Boolean(spec));
       if (!spec) return;
-      button.setLabel(spec.glyph, spec.label);
+      button.setLabel(spec.glyph, spec.label, spec.accessibleLabel);
       button.setEnabled(spec.enabled ?? true);
     });
   }
@@ -573,37 +618,36 @@ export class VillageAssaultScene extends Phaser.Scene {
     const ownBuilding = selected.length === 1 && selected[0]?.kind === "building" && selected[0].ownerId === VILLAGE_ASSAULT_PLAYER_ID ? selected[0] : undefined;
     if (this.buildingPlacement) {
       return [
-        ...BUILD_MENU.map((type) => this.buildAction(type)),
-        { glyph: "×", label: "取消", run: () => this.cancelBuildPlacement("已取消建造") },
-        this.systemAction(),
-      ];
-    }
-    if (ownBuilding?.typeId === "townCenter") {
-      return [
-        this.trainAction(ownBuilding, "villager"),
-        this.selectWorkersAction(),
-        this.selectArmyAction(),
-        { glyph: "⌖", label: "回主城", run: () => this.centerCameraOn(ownBuilding.position) },
+        { glyph: "✓", label: "點地圖放置", enabled: false, run: () => undefined },
+        { glyph: "←", label: "返回建築表", run: () => this.cancelBuildPlacement("請重新選擇建築", true) },
         this.zoomAction(-0.12),
         this.zoomAction(0.12),
         this.systemAction(),
       ];
     }
-    if (ownBuilding?.typeId === "barracks" && ownBuilding.complete) {
-      return this.trainPage === 0
-        ? [
-            ...TRAIN_MENU.slice(0, 5).map((type) => this.trainAction(ownBuilding, type)),
-            { glyph: "→", label: "騎兵攻城", run: () => { this.trainPage = 1; this.refreshInterface(true); } },
-            this.systemAction(),
-          ]
-        : [
-            ...TRAIN_MENU.slice(5).map((type) => this.trainAction(ownBuilding, type)),
-            this.selectArmyAction(),
-            { glyph: "←", label: "基礎遠程", run: () => { this.trainPage = 0; this.refreshInterface(true); } },
-            { glyph: this.paused ? "▶" : "Ⅱ", label: this.paused ? "繼續" : "暫停", run: () => this.togglePause() },
-            this.fullscreenAction(),
-            this.systemAction(),
-          ];
+    if (this.buildMenuOpen) {
+      const entries = [...(BUILD_PAGES[this.buildPage] ?? BUILD_PAGES[0]!).map((type) => this.buildAction(type))];
+      while (entries.length < 4) entries.push({ glyph: "·", label: "預留工位", enabled: false, run: () => undefined });
+      return [
+        ...entries,
+        { glyph: "←", label: "返回指令", run: () => this.closeBuildMenu() },
+        this.buildPage < BUILD_PAGES.length - 1
+          ? { glyph: "→", label: `下一頁 ${this.buildPage + 2}/3`, run: () => { this.buildPage += 1; this.refreshInterface(true); } }
+          : { glyph: "⌂", label: "回首頁 1/3", run: () => { this.buildPage = 0; this.refreshInterface(true); } },
+        this.systemAction(),
+      ];
+    }
+    if (ownBuilding) {
+      const trainable = (Object.keys(UNITS) as UnitType[]).filter((type) => UNITS[type].producers.includes(ownBuilding.typeId));
+      const contextual: ActionSpec[] = [
+        ...trainable.map((type) => this.trainAction(ownBuilding, type)),
+        this.selectWorkersAction(),
+        this.selectArmyAction(),
+        { glyph: "⌖", label: "置中建築", run: () => this.centerCameraOn(ownBuilding.position) },
+        this.zoomAction(-0.12),
+      ];
+      if (contextual.length < 6) contextual.push(this.zoomAction(0.12));
+      return [...contextual.slice(0, 6), this.systemAction()];
     }
     if (ownUnits.length > 0) {
       const hasVillager = ownUnits.some((unit) => unit.typeId === "villager");
@@ -631,12 +675,16 @@ export class VillageAssaultScene extends Phaser.Scene {
   private buildAction(type: BuildingType): ActionSpec {
     const affordable = this.canAfford(BUILDINGS[type].cost);
     return {
-      glyph: ({ house: "屋", lumberCamp: "木", farmstead: "糧", barracks: "兵", defenseTower: "塔", townCenter: "城" } satisfies Record<BuildingType, string>)[type],
+      glyph: ({
+        townCenter: "城", house: "屋", lumberCamp: "木", farmstead: "糧", barracks: "兵", defenseTower: "塔",
+        archeryRange: "弓", mageSanctum: "法", gunWorkshop: "銃", beastStable: "獸", siegeWorkshop: "械",
+      } satisfies Record<BuildingType, string>)[type],
       label: `${this.shortBuildingName(type)} ${this.shortCost(BUILDINGS[type].cost)}`,
       accessibleLabel: `建造 ${buildingDisplayName(type)}`,
       enabled: affordable,
       run: () => {
         this.buildingPlacement = type;
+        this.buildMenuOpen = false;
         this.setNotice(`選擇 ${buildingDisplayName(type)} 的建造位置`, "success");
         this.refreshInterface(true);
       },
@@ -646,13 +694,122 @@ export class VillageAssaultScene extends Phaser.Scene {
   private trainAction(producer: BuildingEntityState, type: UnitType): ActionSpec {
     const definition = UNITS[type];
     const player = this.playerState();
-    const enabled = producer.complete && producer.trainingQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
+    const artId = UNIT_ART[type];
+    const loading = this.pendingArtIds.has(artId);
+    const enabled = !loading && producer.complete && producer.trainingQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
     return {
       glyph: ({ villager: "工", militia: "劍", spearman: "盾", archer: "弓", mage: "法", musketeer: "銃", scout: "豬", batteringRam: "弩" } satisfies Record<UnitType, string>)[type],
-      label: `${this.shortUnitName(type)} ${this.shortCost(definition.cost)}`,
+      label: loading ? `${this.shortUnitName(type)} 載入中` : `${this.shortUnitName(type)} ${this.shortCost(definition.cost)}`,
       enabled,
-      run: () => this.issue({ type: "train", producerId: producer.id, unitType: type, count: 1 }, `${UNIT_LABELS[type]} 已加入訓練佇列`),
+      run: () => this.queueTrainAfterArt(producer.id, type),
     };
+  }
+
+  private queueTrainAfterArt(producerId: string, type: UnitType): void {
+    const artId = UNIT_ART[type];
+    if (this.isArtReady(artId)) {
+      this.issue({ type: "train", producerId, unitType: type, count: 1 }, `${UNIT_LABELS[type]} 已加入訓練佇列`);
+      return;
+    }
+    this.failedArtIds.delete(artId);
+    this.artRetryAt.delete(artId);
+    this.pendingArtIds.add(artId);
+    this.setNotice(`正在整備 ${UNIT_LABELS[type]} 的完整動作素材`, "normal");
+    this.refreshInterface(true);
+    void this.ensureArtLoaded(artId)
+      .then(() => {
+        if (!this.sys.isActive()) return;
+        const currentProducer = this.entityById(producerId);
+        if (currentProducer?.kind === "building") {
+          this.issue({ type: "train", producerId, unitType: type, count: 1 }, `${UNIT_LABELS[type]} 已加入訓練佇列`);
+        }
+      })
+      .catch((error: unknown) => this.handleDynamicArtFailure(artId, error))
+      .finally(() => {
+        this.pendingArtIds.delete(artId);
+        if (this.sys.isActive()) this.refreshInterface(true);
+      });
+  }
+
+  private prefetchQueuedUnitArt(): void {
+    for (const entity of this.runtime.state.entities) {
+      if (entity.kind !== "building") continue;
+      const type = entity.trainingQueue[0]?.unitType;
+      if (!type) continue;
+      const artId = UNIT_ART[type];
+      if (this.isArtReady(artId)) continue;
+      if (this.failedArtIds.has(artId)) {
+        if (performance.now() < (this.artRetryAt.get(artId) ?? Number.POSITIVE_INFINITY)) continue;
+        this.failedArtIds.delete(artId);
+      }
+      void this.ensureArtLoaded(artId).catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
+    }
+  }
+
+  private isArtReady(artId: CombatArtId): boolean {
+    const manifest = requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, artId);
+    if (!this.textures.exists(manifest.textureKey)) return false;
+    try {
+      validateFrameAnimatedCombatActorManifest(this, manifest, artId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private ensureArtLoaded(artId: CombatArtId): Promise<void> {
+    if (this.isArtReady(artId)) return Promise.resolve();
+    const pending = this.artLoadPromises.get(artId);
+    if (pending) return pending;
+    const asset = ANIMATED_UNIT_FRAME_ASSETS.find((candidate) => candidate.artId === artId);
+    if (!asset) return Promise.reject(new Error(`Missing unit art asset for ${artId}`));
+    if (this.textures.exists(asset.textureKey)) this.textures.remove(asset.textureKey);
+    const generation = this.artLoadGeneration;
+    const promise = new Promise<void>((resolve, reject) => {
+      const cleanup = (): void => {
+        this.load.off(Phaser.Loader.Events.FILE_COMPLETE, onComplete);
+        this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
+        this.artLoadPromises.delete(artId);
+      };
+      const onComplete = (key: string): void => {
+        if (key !== asset.textureKey) return;
+        cleanup();
+        if (generation !== this.artLoadGeneration) {
+          reject(new Error(`Scene changed while loading ${artId}`));
+          return;
+        }
+        try {
+          validateFrameAnimatedCombatActorManifest(this, asset.manifest, artId);
+          this.failedArtIds.delete(artId);
+          this.artRetryAt.delete(artId);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      const onError = (file: { readonly key?: unknown }): void => {
+        if (file.key !== asset.textureKey) return;
+        cleanup();
+        reject(new Error(`Failed to load ${asset.textureKey}`));
+      };
+      this.load.on(Phaser.Loader.Events.FILE_COMPLETE, onComplete);
+      this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
+      this.load.image(asset.textureKey, asset.path);
+      if (!this.load.isLoading()) this.load.start();
+    });
+    this.artLoadPromises.set(artId, promise);
+    return promise;
+  }
+
+  private handleDynamicArtFailure(artId: CombatArtId, error: unknown): void {
+    if (!this.sys.isActive() || this.failedArtIds.has(artId)) return;
+    this.failedArtIds.add(artId);
+    this.artRetryAt.set(artId, performance.now() + 5_000);
+    this.pendingArtIds.delete(artId);
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`Unit art load failed for ${artId}: ${detail}`);
+    this.setNotice("角色完整動作載入失敗；5 秒後自動重試", "warning");
+    this.refreshInterface(true);
   }
 
   private selectWorkersAction(): ActionSpec {
@@ -683,14 +840,23 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.setNotice("先選取至少一名工匠再建造", "warning");
       return;
     }
-    this.buildingPlacement = "house";
+    this.buildMenuOpen = true;
+    this.buildPage = 0;
+    this.buildingPlacement = null;
     this.systemPanelOpen = false;
     this.setNotice("建造模式：先選建築，再點地圖位置", "success");
     this.refreshInterface(true);
   }
 
-  private cancelBuildPlacement(message?: string): void {
+  private closeBuildMenu(): void {
+    this.buildMenuOpen = false;
+    this.buildPage = 0;
+    this.refreshInterface(true);
+  }
+
+  private cancelBuildPlacement(message?: string, reopenMenu = false): void {
     this.buildingPlacement = null;
+    this.buildMenuOpen = reopenMenu;
     this.hoverGrid = null;
     this.settlementOverlay?.placement.clear();
     if (message) this.setNotice(message, "normal");
@@ -698,8 +864,9 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private canBuildAt(point: GridPoint | null): boolean {
-    if (!point || !isSettlementBuildable(point)) return false;
-    return !this.runtime.state.entities.some((entity) => entity.kind !== "unit" && entity.position.x === point.x && entity.position.y === point.y);
+    if (!point || !this.buildingPlacement) return false;
+    const cells = getFootprintCells(point, BUILDINGS[this.buildingPlacement].footprint);
+    return cells.every(isSettlementBuildable) && isBuildLocationAvailable(this.runtime.state, this.buildingPlacement, point);
   }
 
   private selectUnitGroup(group: "villager" | "military"): void {
@@ -760,7 +927,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private shortBuildingName(type: BuildingType): string {
-    return ({ townCenter: "主城", house: "家屋", lumberCamp: "木作", farmstead: "糧所", barracks: "兵營", defenseTower: "守塔" } satisfies Record<BuildingType, string>)[type];
+    return ({
+      townCenter: "主城", house: "家屋", lumberCamp: "木作", farmstead: "糧所", barracks: "兵營", defenseTower: "守塔",
+      archeryRange: "射箭場", mageSanctum: "法師所", gunWorkshop: "火器坊", beastStable: "獸欄", siegeWorkshop: "攻城坊",
+    } satisfies Record<BuildingType, string>)[type];
   }
 
   private shortUnitName(type: UnitType): string {
@@ -855,8 +1025,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.compactUi = compact;
     this.uiScale = Math.min(1, availableWidth / UI_WIDTH);
     this.topRoot?.setScale(this.uiScale).setPosition(safeLeft + (availableWidth - UI_WIDTH * this.uiScale) / 2 + 12, safeTop + 10);
-    this.actionRoot?.setScale(this.uiScale).setPosition(safeLeft + (availableWidth - UI_WIDTH * this.uiScale) / 2 + 12, height - safeBottom - 10 - 136 * this.uiScale);
-    this.objectiveText?.setPosition(compact ? 600 : 430, 13).setWordWrapWidth(compact ? 190 : 440);
+    this.actionRoot?.setScale(this.uiScale).setPosition(safeLeft + (availableWidth - UI_WIDTH * this.uiScale) / 2 + 12, height - safeBottom - 10 - ACTION_PANEL_HEIGHT * this.uiScale);
+    this.objectiveText?.setPosition(compact ? 500 : 330, 13).setWordWrapWidth(compact ? 180 : 300);
     this.noticeText?.setVisible(!compact);
     for (const view of this.unitViews.values()) view.label.setVisible(!compact);
     for (const view of this.entityViews.values()) view.setCompact(compact);
@@ -908,7 +1078,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.systemPanelOpen) {
       this.systemPanelOpen = false;
       this.refreshInterface(true);
-    } else if (this.buildingPlacement) this.cancelBuildPlacement("已取消建造");
+    } else if (this.buildingPlacement) this.cancelBuildPlacement("已取消建造", true);
+    else if (this.buildMenuOpen) this.closeBuildMenu();
     else this.leaveBattle();
   }
 
@@ -945,6 +1116,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
+    this.artLoadGeneration += 1;
     this.input.off("pointerdown", this.onPointerDown, this);
     this.input.off("pointermove", this.onPointerMove, this);
     this.input.off("pointerup", this.onPointerUp, this);

@@ -1,6 +1,8 @@
 import { BUILDINGS, MAX_TRAINING_QUEUE_DEPTH, UNITS } from "./content.js";
+import { getVillageAssaultBuildBlockedCells, getVillageAssaultWalkBlockedCells, VILLAGE_ASSAULT_MAP_ID } from "./battlefield.js";
 import { nextUint32, normalizeSeed } from "./random.js";
 import { isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState } from "./simulation.js";
+import { getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import type {
   AiDifficulty,
   AiPersonality,
@@ -27,7 +29,7 @@ export interface AiObservation {
   readonly selfPlayerId: PlayerId;
   readonly wallet: ResourceWallet;
   readonly population: { readonly used: number; readonly capacity: number };
-  readonly map: { readonly width: number; readonly height: number };
+  readonly map: { readonly id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; readonly width: number; readonly height: number };
   readonly ownEntities: readonly PublicEntityState[];
   readonly ownTrainingQueueDepth: Readonly<Record<EntityId, number>>;
   readonly ownIncompleteBuildingIds: readonly EntityId[];
@@ -55,11 +57,11 @@ export interface AiProfile {
 }
 
 export const AI_PROFILES: Readonly<Record<AiPersonality, AiProfile>> = {
-  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "house"], targetPriority: ["townCenter", "military", "villager", "economy"] },
-  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "house", "barracks"], targetPriority: ["military", "townCenter", "villager", "economy"] },
-  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "house"], targetPriority: ["economy", "townCenter", "military", "villager"] },
-  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"] },
-  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"] },
+  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "siegeWorkshop", "house"], targetPriority: ["townCenter", "military", "villager", "economy"] },
+  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "barracks", "archeryRange", "house"], targetPriority: ["military", "townCenter", "villager", "economy"] },
+  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "archeryRange", "siegeWorkshop", "house"], targetPriority: ["economy", "townCenter", "military", "villager"] },
+  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "archeryRange", "mageSanctum", "gunWorkshop", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"] },
+  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["beastStable", "archeryRange", "barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"] },
 };
 
 const DIFFICULTY_INTERVAL: Readonly<Record<AiDifficulty, number>> = { novice: 40, standard: 20, veteran: 10 };
@@ -121,17 +123,14 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
   const townCenterSite = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter");
   const townCenter = townCenterSite && !incompleteIds.has(townCenterSite.id) ? townCenterSite : undefined;
   const incompleteBuilding = incompleteIds.size > 0;
-  const barracksSite = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "barracks");
-  const barracks = barracksSite && !incompleteIds.has(barracksSite.id) ? barracksSite : undefined;
   const visibleTarget = chooseTarget(profile, observation.visibleEnemyEntities, randomValue);
 
   switch (profile.id) {
     case "aggressor":
       if (visibleTarget && military.length >= 2) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
       if (military.length >= 3) return advanceTowardEnemy(observation, military);
-      if (barracks) return affordableTrain(observation, barracks.id, "militia") ?? economyCommand(observation, villagers, randomValue);
-      if (incompleteBuilding || barracksSite) return null;
-      return affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
+      if (incompleteBuilding) return null;
+      return productionCommand(observation, villagers, "militia", 1, randomValue);
     case "guardian": {
       const home = townCenter?.position;
       const closeEnemy = home && [...observation.visibleEnemyEntities]
@@ -140,14 +139,10 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
       if (closeEnemy && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: closeEnemy.id };
       if (incompleteBuilding) return null;
       if (!observation.ownEntities.some((entity) => entity.kind === "building" && entity.typeId === "defenseTower")) return affordableBuild(observation, villagers, "defenseTower", 2);
-      if (barracks && military.length >= 3) return visibleTarget
+      if (military.length >= 3) return visibleTarget
         ? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
         : defensivePatrol(observation, military, home ?? military[0]!.position);
-      return barracks
-        ? affordableTrain(observation, barracks.id, "spearman") ?? economyCommand(observation, villagers, randomValue)
-        : barracksSite
-          ? null
-          : affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
+      return productionCommand(observation, villagers, "spearman", 1, randomValue);
     }
     case "prosperer":
       if (townCenter && villagers.length < 5 && observation.population.used + 1 <= observation.population.capacity) {
@@ -156,8 +151,7 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
         return economyCommand(observation, villagers, randomValue);
       }
       if (incompleteBuilding) return null;
-      if (!barracksSite) return affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
-      if (barracks && military.length < 3) return affordableTrain(observation, barracks.id, "archer") ?? economyCommand(observation, villagers, randomValue);
+      if (military.length < 3) return productionCommand(observation, villagers, "archer", 1, randomValue);
       if (military.length >= 3) return visibleTarget
         ? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
         : advanceTowardEnemy(observation, military);
@@ -167,40 +161,42 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
       if (military.length >= 3) return advanceTowardEnemy(observation, military);
       if (incompleteBuilding) return null;
       if (observation.serverTick === 0) return economyCommand(observation, villagers, randomValue);
-      if (!barracksSite) return affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
-      if (!barracks) return null;
-      return affordableTrain(observation, barracks.id, (["spearman", "archer", "mage", "musketeer"] as const)[randomValue % 4]!)
-        ?? economyCommand(observation, villagers, randomValue);
+      return productionCommand(
+        observation,
+        villagers,
+        (["spearman", "archer", "mage", "musketeer"] as const)[military.length % 4]!,
+        1,
+        randomValue,
+      );
     case "raider":
       if (visibleTarget && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
       if (military.length >= 2) return advanceTowardEnemy(observation, military);
-      if (barracks) return affordableTrain(observation, barracks.id, "scout") ?? economyCommand(observation, villagers, randomValue);
-      if (incompleteBuilding || barracksSite) return null;
+      if (incompleteBuilding) return null;
       if (military.length > 0) return flankPatrol(observation, military[0]!, randomValue);
-      return affordableBuild(observation, villagers, "barracks", -1) ?? economyCommand(observation, villagers, randomValue);
+      return productionCommand(observation, villagers, "scout", -1, randomValue);
   }
 }
 
 function defensivePatrol(observation: AiObservation, military: readonly PublicEntityState[], home: GridPoint): GameCommand {
+  const first = nearestOpenWaypoint(observation, { x: home.x - 3, y: home.y - 2 }) ?? military[0]!.position;
+  const second = nearestOpenWaypoint(observation, { x: home.x + 3, y: home.y + 2 }) ?? military[0]!.position;
   return {
     type: "patrol",
     entityIds: military.map((unit) => unit.id),
-    waypoints: [
-      clamp({ x: home.x - 3, y: home.y - 2 }, observation.map),
-      clamp({ x: home.x + 3, y: home.y + 2 }, observation.map),
-    ],
+    waypoints: [first, second],
   };
 }
 
 function advanceTowardEnemy(observation: AiObservation, military: readonly PublicEntityState[]): GameCommand {
   const home = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? military[0]!.position;
+  const desired = {
+    x: home.x < observation.map.width / 2 ? Math.floor(observation.map.width * 2 / 3) : Math.floor(observation.map.width / 3),
+    y: Math.max(1, Math.min(observation.map.height - 2, home.y)),
+  };
   return {
     type: "move",
     entityIds: military.map((unit) => unit.id),
-    target: {
-      x: home.x < observation.map.width / 2 ? observation.map.width - 2 : 1,
-      y: Math.max(1, Math.min(observation.map.height - 2, home.y)),
-    },
+    target: nearestOpenWaypoint(observation, desired) ?? military[0]!.position,
   };
 }
 
@@ -221,23 +217,65 @@ function affordableTrain(observation: AiObservation, producerId: EntityId, unitT
   return { type: "train", producerId, unitType, count: 1 };
 }
 
+function productionCommand(
+  observation: AiObservation,
+  villagers: readonly PublicEntityState[],
+  unitType: UnitType,
+  direction: number,
+  randomValue: number,
+): GameCommand | null {
+  const producerType = UNITS[unitType].producers[0];
+  if (!producerType) return economyCommand(observation, villagers, randomValue);
+  const producer = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === producerType);
+  if (producer) {
+    if (observation.ownIncompleteBuildingIds.includes(producer.id)) return null;
+    return affordableTrain(observation, producer.id, unitType) ?? economyCommand(observation, villagers, randomValue);
+  }
+  return affordableBuild(observation, villagers, producerType, direction) ?? economyCommand(observation, villagers, randomValue);
+}
+
 function affordableBuild(observation: AiObservation, villagers: readonly PublicEntityState[], buildingType: BuildingType, direction: number): GameCommand | null {
   if (villagers.length === 0 || !canAfford(observation.wallet, BUILDINGS[buildingType].cost)) return null;
   const anchor = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? villagers[0]!.position;
-  const origin = findOpenPoint(observation, anchor, direction);
+  const origin = findOpenPoint(observation, anchor, buildingType, direction);
   return origin ? { type: "build", builderIds: [villagers[0]!.id], buildingType, origin } : null;
 }
 
 function flankPatrol(observation: AiObservation, unit: PublicEntityState, randomValue: number): GameCommand {
   const side = randomValue % 2 === 0 ? 1 : -1;
+  const first = nearestOpenWaypoint(observation, { x: unit.position.x + 5 * side, y: unit.position.y + 3 }) ?? unit.position;
+  const second = nearestOpenWaypoint(observation, { x: unit.position.x + 8 * side, y: unit.position.y - 3 }) ?? unit.position;
   return {
     type: "patrol",
     entityIds: [unit.id],
-    waypoints: [
-      clamp({ x: unit.position.x + 5 * side, y: unit.position.y + 3 }, observation.map),
-      clamp({ x: unit.position.x + 8 * side, y: unit.position.y - 3 }, observation.map),
-    ],
+    waypoints: [first, second],
   };
+}
+
+function nearestOpenWaypoint(observation: AiObservation, desired: GridPoint): GridPoint | null {
+  const blocked = new Set(
+    [...observation.ownEntities, ...observation.visibleEnemyEntities, ...observation.visibleResourceEntities]
+      .filter((entity) => entity.kind !== "unit")
+      .flatMap((entity) => entity.kind === "building"
+        ? getFootprintCells(entity.position, BUILDINGS[entity.typeId as BuildingType].footprint)
+        : [entity.position])
+      .map((cell) => `${cell.x},${cell.y}`),
+  );
+  if (observation.map.id === VILLAGE_ASSAULT_MAP_ID) {
+    for (const cell of getVillageAssaultWalkBlockedCells()) blocked.add(`${cell.x},${cell.y}`);
+  }
+  const center = clamp(desired, observation.map);
+  for (let radius = 0; radius <= 5; radius += 1) {
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (radius > 0 && Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+        const point = { x: center.x + dx, y: center.y + dy };
+        if (point.x < 0 || point.y < 0 || point.x >= observation.map.width || point.y >= observation.map.height) continue;
+        if (!blocked.has(`${point.x},${point.y}`)) return point;
+      }
+    }
+  }
+  return null;
 }
 
 function chooseTarget(profile: AiProfile, visibleEnemies: readonly PublicEntityState[], randomValue: number): PublicEntityState | undefined {
@@ -251,18 +289,49 @@ function chooseTarget(profile: AiProfile, visibleEnemies: readonly PublicEntityS
 function targetClass(entity: PublicEntityState): "townCenter" | "military" | "economy" | "villager" {
   if (entity.typeId === "townCenter") return "townCenter";
   if (entity.typeId === "villager") return "villager";
-  if (entity.kind === "unit" || entity.typeId === "barracks" || entity.typeId === "defenseTower") return "military";
+  if (entity.kind === "unit" || (entity.kind === "building" && !["townCenter", "house", "lumberCamp", "farmstead"].includes(entity.typeId))) return "military";
   return "economy";
 }
 
-function findOpenPoint(observation: AiObservation, anchor: GridPoint, direction: number): GridPoint | null {
-  const occupied = new Set([...observation.ownEntities, ...observation.visibleEnemyEntities, ...observation.visibleResourceEntities].map((entity) => `${entity.position.x},${entity.position.y}`));
-  const offsets = [{ x: 2 * direction, y: 0 }, { x: 0, y: 2 * direction }, { x: 2 * direction, y: 2 * direction }, { x: -2 * direction, y: 0 }];
-  for (const offset of offsets) {
-    const point = { x: anchor.x + offset.x, y: anchor.y + offset.y };
-    if (point.x >= 0 && point.y >= 0 && point.x < observation.map.width && point.y < observation.map.height && !occupied.has(`${point.x},${point.y}`)) return point;
+function findOpenPoint(observation: AiObservation, anchor: GridPoint, buildingType: BuildingType, direction: number): GridPoint | null {
+  const known = [...observation.ownEntities, ...observation.visibleEnemyEntities, ...observation.visibleResourceEntities];
+  const occupied = known.flatMap((entity) => (
+    entity.kind === "building"
+      ? getFootprintCells(entity.position, BUILDINGS[entity.typeId as BuildingType].footprint)
+      : [entity.position]
+  ));
+  const placementBlocked = observation.map.id === VILLAGE_ASSAULT_MAP_ID
+    ? [...occupied, ...getVillageAssaultBuildBlockedCells()]
+    : occupied;
+  const approachBlocked = new Set((observation.map.id === VILLAGE_ASSAULT_MAP_ID
+    ? [...occupied, ...getVillageAssaultWalkBlockedCells()]
+    : occupied).map((cell) => `${cell.x},${cell.y}`));
+  const candidates: GridPoint[] = [];
+  for (let radius = 2; radius <= 7; radius += 1) {
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+        candidates.push({ x: anchor.x + dx, y: anchor.y + dy });
+      }
+    }
   }
-  return null;
+  candidates.sort((left, right) => (
+    Math.abs(left.x - anchor.x) + Math.abs(left.y - anchor.y) - (Math.abs(right.x - anchor.x) + Math.abs(right.y - anchor.y))
+    || direction * (right.x - left.x)
+    || left.y - right.y
+    || left.x - right.x
+  ));
+  return candidates.find((origin) => {
+    const footprint = BUILDINGS[buildingType].footprint;
+    if (!validateFootprintPlacement(origin, footprint, observation.map.width, observation.map.height, placementBlocked).ok) return false;
+    return getFootprintPerimeterCells(origin, footprint).some((cell) => (
+      cell.x >= 0
+      && cell.y >= 0
+      && cell.x < observation.map.width
+      && cell.y < observation.map.height
+      && !approachBlocked.has(`${cell.x},${cell.y}`)
+    ));
+  }) ?? null;
 }
 
 function canAfford(wallet: ResourceWallet, cost: ResourceWallet): boolean {

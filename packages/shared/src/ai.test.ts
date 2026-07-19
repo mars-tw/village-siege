@@ -29,11 +29,11 @@ describe("shared AI personalities", () => {
     const observation = getAiObservation(createInitialState({ seed: 77 }), "player-1");
     const decide = (personality: AiPersonality) => createAiController(personality, "player-1", 1234).decide(observation, 5)[0];
 
-    expect(decide("aggressor")).toMatchObject({ type: "build", buildingType: "barracks", origin: { x: 6, y: 8 } });
-    expect(decide("guardian")).toMatchObject({ type: "build", buildingType: "defenseTower", origin: { x: 10, y: 6 } });
+    expect(decide("aggressor")).toMatchObject({ type: "build", buildingType: "barracks" });
+    expect(decide("guardian")).toMatchObject({ type: "build", buildingType: "defenseTower" });
     expect(decide("prosperer")).toMatchObject({ type: "train", unitType: "villager" });
     expect(decide("balanced")).toMatchObject({ type: "gather" });
-    expect(decide("raider")).toMatchObject({ type: "build", buildingType: "barracks", origin: { x: 4, y: 4 } });
+    expect(decide("raider")).toMatchObject({ type: "build", buildingType: "beastStable" });
   });
 
   it("uses distinct target and production priorities when enemies are visible", () => {
@@ -107,10 +107,30 @@ describe("shared AI personalities", () => {
   });
 
   it("keeps every personality command legal during a deterministic 10,000-tick run", () => {
+    const expectedProduction = {
+      aggressor: { building: "barracks", unit: "militia" },
+      guardian: { building: "barracks", unit: "spearman" },
+      prosperer: { building: "archeryRange", unit: "archer" },
+      balanced: { building: "archeryRange", unit: "archer" },
+      raider: { building: "beastStable", unit: "scout" },
+    } as const;
     for (const personality of PERSONALITIES) {
       const result = runAiForTicks(personality, 10_000);
+      const expected = expectedProduction[personality];
+      const ownedTypes = result.state.entities.filter((entity) => entity.ownerId === "player-1").map((entity) => entity.typeId).sort();
       expect(result.rejections, `${personality} emitted rejected commands`).toEqual([]);
       expect(result.commandCount, `${personality} should exercise at least one decision`).toBeGreaterThan(0);
+      expect(result.state.entities.some((entity) => (
+        entity.kind === "building"
+        && entity.ownerId === "player-1"
+        && entity.typeId === expected.building
+        && entity.complete
+      )), `${personality} should complete ${expected.building}; owns ${ownedTypes.join(",")}`).toBe(true);
+      expect(result.state.entities.some((entity) => (
+        entity.kind === "unit"
+        && entity.ownerId === "player-1"
+        && entity.typeId === expected.unit
+      )), `${personality} should train ${expected.unit}`).toBe(true);
     }
   }, 30_000);
 
@@ -121,6 +141,14 @@ describe("shared AI personalities", () => {
     expect(result.peakMilitary).toBeGreaterThanOrEqual(3);
     expect(result.advancedBeyondHome).toBe(true);
   });
+
+  it("keeps all personalities legal against village terrain and the reserved breach route", () => {
+    for (const personality of PERSONALITIES) {
+      const result = runAiForTicks(personality, 4_000, true);
+      expect(result.rejections, `${personality} rejected a village-map command`).toEqual([]);
+      expect(result.commandCount).toBeGreaterThan(0);
+    }
+  }, 30_000);
 
   it("distinguishes damaged completed buildings from active construction", () => {
     const state = createInitialState({ seed: 171, matchId: "damaged-complete-building" });
@@ -198,7 +226,7 @@ function combatObservation(): AiObservation {
     selfPlayerId: "player-1",
     wallet: { food: 500, wood: 500, stone: 500 },
     population: { used: 4, capacity: 10 },
-    map: { width: 32, height: 32 },
+    map: { id: "open", width: 32, height: 32 },
     ownEntities,
     ownTrainingQueueDepth: { "own-town-center": 0, "own-barracks": 0 },
     ownIncompleteBuildingIds: [],
@@ -223,14 +251,21 @@ function entity(
   return { id, ownerId, kind, typeId, position: { x, y }, hitPoints: 100, maxHitPoints: 100, stateRevision: 0 };
 }
 
-function runAiForTicks(personality: AiPersonality, ticks: number): {
+function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = false): {
   readonly commandCount: number;
   readonly rejections: readonly string[];
   readonly state: MatchState;
   readonly peakMilitary: number;
   readonly advancedBeyondHome: boolean;
 } {
-  let state = createInitialState({ seed: 20260717, matchId: `long-run-${personality}` });
+  let state = createInitialState({
+    seed: 20260717,
+    matchId: `long-run-${personality}`,
+    ...(villageMap ? {
+      map: { id: "villageAssault" as const, width: 18, height: 16 },
+      spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
+    } : {}),
+  });
   const controller = createAiController(personality, "player-1", 20260717, "standard");
   const rejections: string[] = [];
   let sequence = 0;

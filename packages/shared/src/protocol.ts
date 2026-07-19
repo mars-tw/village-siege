@@ -7,7 +7,18 @@ export type ResourceKind = "food" | "wood" | "stone";
 export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" | "raider";
 export type AiDifficulty = "novice" | "standard" | "veteran";
 export type MatchPhase = "lobby" | "loading" | "playing" | "finished" | "disposed";
-export type BuildingType = "townCenter" | "house" | "lumberCamp" | "farmstead" | "barracks" | "defenseTower";
+export type BuildingType =
+  | "townCenter"
+  | "house"
+  | "lumberCamp"
+  | "farmstead"
+  | "barracks"
+  | "defenseTower"
+  | "archeryRange"
+  | "mageSanctum"
+  | "gunWorkshop"
+  | "beastStable"
+  | "siegeWorkshop";
 export type UnitType = "villager" | "militia" | "spearman" | "archer" | "mage" | "musketeer" | "scout" | "batteringRam";
 
 export interface GridPoint {
@@ -111,7 +122,19 @@ export function isCommandEnvelope(value: unknown): value is CommandEnvelope {
 }
 
 export function isBuildingType(value: unknown): value is BuildingType {
-  return typeof value === "string" && (["townCenter", "house", "lumberCamp", "farmstead", "barracks", "defenseTower"] as const).includes(value as BuildingType);
+  return typeof value === "string" && ([
+    "townCenter",
+    "house",
+    "lumberCamp",
+    "farmstead",
+    "barracks",
+    "defenseTower",
+    "archeryRange",
+    "mageSanctum",
+    "gunWorkshop",
+    "beastStable",
+    "siegeWorkshop",
+  ] as const).includes(value as BuildingType);
 }
 
 export function isUnitType(value: unknown): value is UnitType {

@@ -1,5 +1,10 @@
 import Phaser from "phaser";
 import {
+  VILLAGE_ASSAULT_MAP_HEIGHT,
+  VILLAGE_ASSAULT_MAP_ROWS,
+  VILLAGE_ASSAULT_MAP_WIDTH,
+} from "@village-siege/shared";
+import {
   HALF_TILE_HEIGHT,
   HALF_TILE_WIDTH,
   gridToWorld,
@@ -7,8 +12,8 @@ import {
   type ScreenPoint
 } from "./isometric";
 
-export const BATTLE_MAP_WIDTH = 18;
-export const BATTLE_MAP_HEIGHT = 16;
+export const BATTLE_MAP_WIDTH = VILLAGE_ASSAULT_MAP_WIDTH;
+export const BATTLE_MAP_HEIGHT = VILLAGE_ASSAULT_MAP_HEIGHT;
 
 export type BattleTerrain = "grass" | "mud" | "stoneRoad" | "shallowWater" | "rock" | "thicket";
 
@@ -56,7 +61,7 @@ const TERRAIN: Readonly<Record<BattleTerrain, TerrainDefinition>> = {
   grass: { kind: "grass", walkable: true, moveCost: 1, cover: 0, fillColor: 0x71805a, edgeColor: 0x4d5d42 },
   mud: { kind: "mud", walkable: true, moveCost: 1.55, cover: 0.05, fillColor: 0x765d43, edgeColor: 0x513f31 },
   stoneRoad: { kind: "stoneRoad", walkable: true, moveCost: 0.82, cover: 0, fillColor: 0x8c8978, edgeColor: 0x5b5b52 },
-  shallowWater: { kind: "shallowWater", walkable: true, moveCost: 2.15, cover: 0, fillColor: 0x4f8589, edgeColor: 0x315b62 },
+  shallowWater: { kind: "shallowWater", walkable: false, moveCost: Number.POSITIVE_INFINITY, cover: 0, fillColor: 0x4f8589, edgeColor: 0x315b62 },
   rock: { kind: "rock", walkable: false, moveCost: Number.POSITIVE_INFINITY, cover: 0.8, fillColor: 0x59645f, edgeColor: 0x343d3a },
   thicket: { kind: "thicket", walkable: true, moveCost: 1.8, cover: 0.45, fillColor: 0x4f684b, edgeColor: 0x334634 }
 };
@@ -72,24 +77,7 @@ const GLYPH_TERRAIN: Readonly<Record<TileGlyph, BattleTerrain>> = {
 
 // The two horizontal lanes remain readable even without objective overlays:
 // the northern assault route is dressed stone, the southern route is churned mud.
-const MAP_ROWS = [
-  "TTGGGGRRRGGGGGGTTT",
-  "TGGGGGRRRGGGGGGGGT",
-  "GGGMMGGRRGGGMMGGGG",
-  "GGGGSSSWWSSSSGGGGG",
-  "GSSSSSSWWSSSSSSSSG",
-  "GGGGGSSWWSSGGGGGGG",
-  "TRGGGGSSSSGGGGRRGT",
-  "TGGGGGSSSSSSGGGGGT",
-  "TGGGGGSSSSSSGGGGGT",
-  "TRGGGGSSSSGGGGRRGT",
-  "GMMMMMMWWMMMMMMMMG",
-  "GGGGGMMWWMMGGGGGGG",
-  "GGTTGGGWWGGGTTGGGG",
-  "GGGTTGGMMMGGTTGGGG",
-  "TGGGGGGMMGGGGGGGGT",
-  "TTTGGGGMMGGGGGGTTT"
-] as const;
+const MAP_ROWS = VILLAGE_ASSAULT_MAP_ROWS;
 
 for (const [rowIndex, row] of MAP_ROWS.entries()) {
   if (row.length !== BATTLE_MAP_WIDTH) throw new Error(`Battle map row ${rowIndex} must contain ${BATTLE_MAP_WIDTH} tiles`);
