@@ -8,7 +8,7 @@ export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" 
 export type AiDifficulty = "novice" | "standard" | "veteran";
 export type MatchPhase = "lobby" | "loading" | "playing" | "finished" | "disposed";
 export type BuildingType = "townCenter" | "house" | "lumberCamp" | "farmstead" | "barracks" | "defenseTower";
-export type UnitType = "villager" | "militia" | "spearman" | "archer" | "scout" | "batteringRam";
+export type UnitType = "villager" | "militia" | "spearman" | "archer" | "mage" | "musketeer" | "scout" | "batteringRam";
 
 export interface GridPoint {
   readonly x: number;
@@ -115,7 +115,7 @@ export function isBuildingType(value: unknown): value is BuildingType {
 }
 
 export function isUnitType(value: unknown): value is UnitType {
-  return typeof value === "string" && (["villager", "militia", "spearman", "archer", "scout", "batteringRam"] as const).includes(value as UnitType);
+  return typeof value === "string" && (["villager", "militia", "spearman", "archer", "mage", "musketeer", "scout", "batteringRam"] as const).includes(value as UnitType);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
