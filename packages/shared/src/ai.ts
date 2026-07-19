@@ -30,6 +30,7 @@ export interface AiObservation {
   readonly map: { readonly width: number; readonly height: number };
   readonly ownEntities: readonly PublicEntityState[];
   readonly ownTrainingQueueDepth: Readonly<Record<EntityId, number>>;
+  readonly ownIncompleteBuildingIds: readonly EntityId[];
   readonly visibleEnemyEntities: readonly PublicEntityState[];
   readonly visibleResourceEntities: readonly PublicEntityState[];
   readonly rememberedEnemySites: readonly RememberedEnemySite[];
@@ -57,7 +58,7 @@ export const AI_PROFILES: Readonly<Record<AiPersonality, AiProfile>> = {
   aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "house"], targetPriority: ["townCenter", "military", "villager", "economy"] },
   guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "house", "barracks"], targetPriority: ["military", "townCenter", "villager", "economy"] },
   prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "house"], targetPriority: ["economy", "townCenter", "military", "villager"] },
-  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["house", "barracks", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"] },
+  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"] },
   raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"] },
 };
 
@@ -102,6 +103,10 @@ export function getAiObservation(state: MatchState, playerId: PlayerId, remember
         .sort((left, right) => left.id.localeCompare(right.id))
         .map((building) => [building.id, building.trainingQueue.length]),
     ),
+    ownIncompleteBuildingIds: state.entities
+      .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId && !entity.complete)
+      .map((building) => building.id)
+      .sort((left, right) => left.localeCompare(right)),
     visibleEnemyEntities: sortPublicEntities(visible.filter((entity) => entity.ownerId !== null).map(toPublicEntity)),
     visibleResourceEntities: sortPublicEntities(visible.filter((entity) => entity.kind === "resource").map(toPublicEntity)),
     rememberedEnemySites: sanitizeRememberedEnemySites(rememberedEnemySites, state.tick, state.map),
@@ -112,39 +117,91 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
   const ownUnits = observation.ownEntities.filter((entity) => entity.kind === "unit");
   const villagers = ownUnits.filter((entity) => entity.typeId === "villager");
   const military = ownUnits.filter((entity) => entity.typeId !== "villager");
-  const townCenter = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter" && entity.hitPoints === entity.maxHitPoints);
-  const barracks = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "barracks" && entity.hitPoints === entity.maxHitPoints);
+  const incompleteIds = new Set(observation.ownIncompleteBuildingIds);
+  const townCenterSite = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter");
+  const townCenter = townCenterSite && !incompleteIds.has(townCenterSite.id) ? townCenterSite : undefined;
+  const incompleteBuilding = incompleteIds.size > 0;
+  const barracksSite = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "barracks");
+  const barracks = barracksSite && !incompleteIds.has(barracksSite.id) ? barracksSite : undefined;
   const visibleTarget = chooseTarget(profile, observation.visibleEnemyEntities, randomValue);
 
   switch (profile.id) {
     case "aggressor":
       if (visibleTarget && military.length >= 2) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
-      if (barracks) return affordableTrain(observation, barracks.id, "militia");
-      return affordableBuild(observation, villagers, "barracks", 1);
+      if (military.length >= 3) return advanceTowardEnemy(observation, military);
+      if (barracks) return affordableTrain(observation, barracks.id, "militia") ?? economyCommand(observation, villagers, randomValue);
+      if (incompleteBuilding || barracksSite) return null;
+      return affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
     case "guardian": {
       const home = townCenter?.position;
       const closeEnemy = home && [...observation.visibleEnemyEntities]
         .filter((enemy) => distanceSquared(home, enemy.position) <= 64)
         .sort((left, right) => distanceSquared(home, left.position) - distanceSquared(home, right.position) || left.id.localeCompare(right.id))[0];
       if (closeEnemy && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: closeEnemy.id };
+      if (incompleteBuilding) return null;
       if (!observation.ownEntities.some((entity) => entity.kind === "building" && entity.typeId === "defenseTower")) return affordableBuild(observation, villagers, "defenseTower", 2);
-      return barracks ? affordableTrain(observation, barracks.id, "spearman") : affordableBuild(observation, villagers, "barracks", 1);
+      if (barracks && military.length >= 3) return visibleTarget
+        ? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
+        : defensivePatrol(observation, military, home ?? military[0]!.position);
+      return barracks
+        ? affordableTrain(observation, barracks.id, "spearman") ?? economyCommand(observation, villagers, randomValue)
+        : barracksSite
+          ? null
+          : affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
     }
     case "prosperer":
-      if (townCenter && observation.population.used + 1 <= observation.population.capacity) {
+      if (townCenter && villagers.length < 5 && observation.population.used + 1 <= observation.population.capacity) {
         const train = affordableTrain(observation, townCenter.id, "villager");
         if (train) return train;
+        return economyCommand(observation, villagers, randomValue);
       }
+      if (incompleteBuilding) return null;
+      if (!barracksSite) return affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
+      if (barracks && military.length < 3) return affordableTrain(observation, barracks.id, "archer") ?? economyCommand(observation, villagers, randomValue);
+      if (military.length >= 3) return visibleTarget
+        ? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
+        : advanceTowardEnemy(observation, military);
       return economyCommand(observation, villagers, randomValue) ?? affordableBuild(observation, villagers, "lumberCamp", 2);
     case "balanced":
       if (visibleTarget && military.length >= 3) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
-      return economyCommand(observation, villagers, randomValue) ?? (barracks ? affordableTrain(observation, barracks.id, "spearman") : affordableBuild(observation, villagers, "house", 1));
+      if (military.length >= 3) return advanceTowardEnemy(observation, military);
+      if (incompleteBuilding) return null;
+      if (observation.serverTick === 0) return economyCommand(observation, villagers, randomValue);
+      if (!barracksSite) return affordableBuild(observation, villagers, "barracks", 1) ?? economyCommand(observation, villagers, randomValue);
+      if (!barracks) return null;
+      return affordableTrain(observation, barracks.id, (["spearman", "archer", "mage", "musketeer"] as const)[randomValue % 4]!)
+        ?? economyCommand(observation, villagers, randomValue);
     case "raider":
       if (visibleTarget && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
-      if (barracks) return affordableTrain(observation, barracks.id, "scout");
+      if (military.length >= 2) return advanceTowardEnemy(observation, military);
+      if (barracks) return affordableTrain(observation, barracks.id, "scout") ?? economyCommand(observation, villagers, randomValue);
+      if (incompleteBuilding || barracksSite) return null;
       if (military.length > 0) return flankPatrol(observation, military[0]!, randomValue);
-      return affordableBuild(observation, villagers, "barracks", -1);
+      return affordableBuild(observation, villagers, "barracks", -1) ?? economyCommand(observation, villagers, randomValue);
   }
+}
+
+function defensivePatrol(observation: AiObservation, military: readonly PublicEntityState[], home: GridPoint): GameCommand {
+  return {
+    type: "patrol",
+    entityIds: military.map((unit) => unit.id),
+    waypoints: [
+      clamp({ x: home.x - 3, y: home.y - 2 }, observation.map),
+      clamp({ x: home.x + 3, y: home.y + 2 }, observation.map),
+    ],
+  };
+}
+
+function advanceTowardEnemy(observation: AiObservation, military: readonly PublicEntityState[]): GameCommand {
+  const home = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? military[0]!.position;
+  return {
+    type: "move",
+    entityIds: military.map((unit) => unit.id),
+    target: {
+      x: home.x < observation.map.width / 2 ? observation.map.width - 2 : 1,
+      y: Math.max(1, Math.min(observation.map.height - 2, home.y)),
+    },
+  };
 }
 
 function economyCommand(observation: AiObservation, villagers: readonly PublicEntityState[], randomValue: number): GameCommand | null {

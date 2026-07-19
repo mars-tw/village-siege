@@ -50,7 +50,7 @@ export class VillageSelectScene extends Phaser.Scene {
     root.querySelector("[data-start]")?.addEventListener("click", () => {
       const profile = getDeviceViewportProfile();
       if (profile.mobile && !this.scale.isFullscreen) toggleGameFullscreen(this);
-      this.scene.start("CombatShowcaseScene", {
+      this.scene.start("VillageAssaultScene", {
         villageId: this.villageId,
         aiPersonality: this.aiPersonality,
         returnScene: "VillageSelectScene",

@@ -113,6 +113,75 @@ describe("shared AI personalities", () => {
       expect(result.commandCount, `${personality} should exercise at least one decision`).toBeGreaterThan(0);
     }
   }, 30_000);
+
+  it("takes the balanced profile from economy through barracks, production, and an advance", () => {
+    const result = runAiForTicks("balanced", 3_000);
+    expect(result.rejections).toEqual([]);
+    expect(result.state.entities.some((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "barracks" && entity.complete)).toBe(true);
+    expect(result.peakMilitary).toBeGreaterThanOrEqual(3);
+    expect(result.advancedBeyondHome).toBe(true);
+  });
+
+  it("distinguishes damaged completed buildings from active construction", () => {
+    const state = createInitialState({ seed: 171, matchId: "damaged-complete-building" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    townCenter.hitPoints -= 25;
+    const observation = { ...getAiObservation(state, "player-1"), serverTick: 20 };
+    expect(observation.ownIncompleteBuildingIds).toEqual([]);
+    expect(createAiController("balanced", "player-1", 171).decide(observation, 5)[0]).toMatchObject({ type: "build", buildingType: "barracks" });
+  });
+
+  it("gathers when an aggressor cannot afford another trained unit", () => {
+    const state = createInitialState({ seed: 173, matchId: "aggressor-economy-fallback" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    state.entities.push({
+      ...townCenter,
+      id: "completed-barracks",
+      typeId: "barracks",
+      hitPoints: 625,
+      maxHitPoints: 650,
+      trainingQueue: [],
+    });
+    state.players[0]!.resources = { food: 0, wood: 0, stone: 0 };
+    const command = createAiController("aggressor", "player-1", 173).decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(command).toMatchObject({ type: "gather" });
+    expect(validateCommand(state, envelope(state, 0, command!))).toEqual({ ok: true });
+  });
+
+  it("gathers when the balanced profile cannot afford its selected unit", () => {
+    const state = createInitialState({ seed: 174, matchId: "balanced-economy-fallback" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    state.entities.push({
+      ...townCenter,
+      id: "balanced-completed-barracks",
+      typeId: "barracks",
+      hitPoints: 650,
+      maxHitPoints: 650,
+      trainingQueue: [],
+    });
+    state.players[0]!.resources = { food: 0, wood: 0, stone: 0 };
+    state.tick = 20;
+    const command = createAiController("balanced", "player-1", 174).decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(command).toMatchObject({ type: "gather" });
+    expect(validateCommand(state, envelope(state, 0, command!))).toEqual({ ok: true });
+  });
+
+  it("keeps a trained guardian force patrolling its home when no enemy is visible", () => {
+    const observation = combatObservation();
+    const guarded: AiObservation = {
+      ...observation,
+      ownEntities: [...observation.ownEntities, entity("own-tower", "player-1", "building", "defenseTower", 5, 6)],
+      ownTrainingQueueDepth: { ...observation.ownTrainingQueueDepth, "own-tower": 0 },
+      visibleEnemyEntities: [],
+    };
+    expect(createAiController("guardian", "player-1", 175).decide(guarded, 5)[0]).toMatchObject({ type: "patrol" });
+  });
 });
 
 function combatObservation(): AiObservation {
@@ -132,6 +201,7 @@ function combatObservation(): AiObservation {
     map: { width: 32, height: 32 },
     ownEntities,
     ownTrainingQueueDepth: { "own-town-center": 0, "own-barracks": 0 },
+    ownIncompleteBuildingIds: [],
     visibleEnemyEntities: [
       entity("enemy-town-center", "player-2", "building", "townCenter", 12, 6),
       entity("enemy-villager", "player-2", "unit", "villager", 11, 7),
@@ -153,12 +223,20 @@ function entity(
   return { id, ownerId, kind, typeId, position: { x, y }, hitPoints: 100, maxHitPoints: 100, stateRevision: 0 };
 }
 
-function runAiForTicks(personality: AiPersonality, ticks: number): { readonly commandCount: number; readonly rejections: readonly string[] } {
+function runAiForTicks(personality: AiPersonality, ticks: number): {
+  readonly commandCount: number;
+  readonly rejections: readonly string[];
+  readonly state: MatchState;
+  readonly peakMilitary: number;
+  readonly advancedBeyondHome: boolean;
+} {
   let state = createInitialState({ seed: 20260717, matchId: `long-run-${personality}` });
   const controller = createAiController(personality, "player-1", 20260717, "standard");
   const rejections: string[] = [];
   let sequence = 0;
   let commandCount = 0;
+  let peakMilitary = 0;
+  let advancedBeyondHome = false;
 
   for (let index = 0; index < ticks; index += 1) {
     const commands = controller.decide(getAiObservation(state, "player-1"), 5);
@@ -174,9 +252,12 @@ function runAiForTicks(personality: AiPersonality, ticks: number): { readonly co
       commandCount += 1;
     }
     state = stepSimulation(state, [], 1).state;
+    const military = state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId !== "villager");
+    peakMilitary = Math.max(peakMilitary, military.length);
+    advancedBeyondHome ||= military.some((unit) => unit.position.x > 10);
   }
 
-  return { commandCount, rejections };
+  return { commandCount, rejections, state, peakMilitary, advancedBeyondHome };
 }
 
 function envelope(state: MatchState, sequence: number, command: GameCommand) {

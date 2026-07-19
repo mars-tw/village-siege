@@ -1,0 +1,225 @@
+import {
+  TICK_MILLISECONDS,
+  applyCommand,
+  createAiController,
+  createInitialState,
+  getAiObservation,
+  stepSimulation,
+  type AiController,
+  type AiDifficulty,
+  type AiPersonality,
+  type CommandEnvelope,
+  type CommandRejectCode,
+  type DomainEvent,
+  type GameCommand,
+  type GridPoint,
+  type MatchState,
+  type VillageId,
+} from "@village-siege/shared";
+
+export const VILLAGE_ASSAULT_PLAYER_ID = "player-1";
+export const VILLAGE_ASSAULT_AI_ID = "player-2";
+export const VILLAGE_ASSAULT_MAP_SIZE = { width: 18, height: 16 } as const;
+export const VILLAGE_ASSAULT_SPAWNS = {
+  player: { x: 3, y: 8 },
+  ai: { x: 14, y: 8 },
+} as const satisfies Readonly<Record<"player" | "ai", GridPoint>>;
+
+const MAX_CATCH_UP_STEPS = 20;
+export interface VillageAssaultRuntimeOptions {
+  readonly playerVillageId: VillageId;
+  readonly aiPersonality: AiPersonality;
+  readonly aiVillageId?: VillageId;
+  readonly aiDifficulty?: AiDifficulty;
+  readonly aiBudgetMs?: number;
+  readonly matchId?: string;
+  readonly seed?: number;
+}
+
+export interface VillageAssaultRejectedCommand {
+  readonly source: "player" | "ai";
+  readonly sequence: number;
+  readonly code: CommandRejectCode;
+}
+
+export interface VillageAssaultCommandResult {
+  readonly accepted: boolean;
+  readonly sequence: number;
+  readonly rejectCode: CommandRejectCode | null;
+  readonly events: readonly DomainEvent[];
+  readonly state: MatchState;
+}
+
+export interface VillageAssaultStepResult {
+  readonly steps: number;
+  readonly events: readonly DomainEvent[];
+  readonly latestRejection: VillageAssaultRejectedCommand | null;
+  readonly state: MatchState;
+}
+
+/**
+ * Client-side bridge for the deterministic shared rules engine.
+ *
+ * MatchState is the only gameplay source of truth. Phaser scenes should issue
+ * commands here and render the returned state/events instead of mutating unit,
+ * economy, construction, or training state themselves.
+ */
+export class VillageAssaultRuntime {
+  readonly playerId = VILLAGE_ASSAULT_PLAYER_ID;
+  readonly aiPlayerId = VILLAGE_ASSAULT_AI_ID;
+
+  private matchState: MatchState;
+  private readonly aiController: AiController;
+  private readonly aiBudgetMs: number;
+  private playerSequence = 0;
+  private aiSequence = 0;
+  private accumulatorMs = 0;
+  private latestEvents: readonly DomainEvent[] = [];
+  private rejectedCommand: VillageAssaultRejectedCommand | null = null;
+
+  constructor(options: VillageAssaultRuntimeOptions) {
+    const aiVillageId = resolveAiVillage(options.playerVillageId, options.aiVillageId);
+    this.matchState = createInitialState({
+      matchId: options.matchId ?? "village-assault-local",
+      seed: options.seed ?? 1,
+      map: VILLAGE_ASSAULT_MAP_SIZE,
+      players: [
+        { id: this.playerId, teamId: "team-player", villageId: options.playerVillageId },
+        { id: this.aiPlayerId, teamId: "team-ai", villageId: aiVillageId },
+      ],
+      spawnOverrides: {
+        [this.playerId]: VILLAGE_ASSAULT_SPAWNS.player,
+        [this.aiPlayerId]: VILLAGE_ASSAULT_SPAWNS.ai,
+      },
+    });
+    this.aiBudgetMs = normalizeAiBudget(options.aiBudgetMs);
+    this.aiController = createAiController(
+      options.aiPersonality,
+      this.aiPlayerId,
+      options.seed ?? 1,
+      options.aiDifficulty ?? "standard",
+    );
+  }
+
+  get state(): MatchState {
+    return this.matchState;
+  }
+
+  get recentEvents(): readonly DomainEvent[] {
+    return this.latestEvents;
+  }
+
+  get latestRejection(): VillageAssaultRejectedCommand | null {
+    return this.rejectedCommand;
+  }
+
+  issuePlayerCommand(command: GameCommand): VillageAssaultCommandResult {
+    const sequence = this.playerSequence;
+    this.playerSequence += 1;
+    const envelope = this.createEnvelope(this.playerId, sequence, command);
+    const applied = applyCommand(this.matchState, envelope);
+    this.matchState = applied.state;
+    this.latestEvents = applied.events;
+    const rejectCode = applied.validation.ok ? null : applied.validation.code;
+    if (rejectCode) {
+      this.rejectedCommand = { source: "player", sequence, code: rejectCode };
+    }
+    return {
+      accepted: applied.validation.ok,
+      sequence,
+      rejectCode,
+      events: applied.events,
+      state: this.matchState,
+    };
+  }
+
+  step(deltaMs: number): VillageAssaultStepResult {
+    if (!Number.isFinite(deltaMs) || deltaMs < 0) {
+      throw new RangeError("deltaMs must be a finite non-negative number");
+    }
+    if (this.matchState.phase !== "playing") {
+      this.accumulatorMs = 0;
+      this.latestEvents = [];
+      return this.stepResult(0, []);
+    }
+
+    this.accumulatorMs += deltaMs;
+    const events: DomainEvent[] = [];
+    let steps = 0;
+    while (
+      this.accumulatorMs >= TICK_MILLISECONDS
+      && steps < MAX_CATCH_UP_STEPS
+      && this.matchState.phase === "playing"
+    ) {
+      this.runAiDecision(events);
+      const advanced = stepSimulation(this.matchState, [], 1);
+      this.matchState = advanced.state;
+      events.push(...advanced.events);
+      this.accumulatorMs -= TICK_MILLISECONDS;
+      steps += 1;
+    }
+    if (steps === MAX_CATCH_UP_STEPS && this.accumulatorMs >= TICK_MILLISECONDS) {
+      this.accumulatorMs %= TICK_MILLISECONDS;
+    }
+    this.latestEvents = events;
+    return this.stepResult(steps, events);
+  }
+
+  private runAiDecision(events: DomainEvent[]): void {
+    const observation = getAiObservation(this.matchState, this.aiPlayerId);
+    const commands = this.aiController.decide(observation, this.aiBudgetMs);
+    for (const command of commands) {
+      const sequence = this.aiSequence;
+      this.aiSequence += 1;
+      const applied = applyCommand(
+        this.matchState,
+        this.createEnvelope(this.aiPlayerId, sequence, command),
+      );
+      this.matchState = applied.state;
+      events.push(...applied.events);
+      if (!applied.validation.ok) {
+        this.rejectedCommand = {
+          source: "ai",
+          sequence,
+          code: applied.validation.code,
+        };
+      }
+    }
+  }
+
+  private createEnvelope(playerId: string, sequence: number, command: GameCommand): CommandEnvelope {
+    return {
+      matchId: this.matchState.matchId,
+      playerId,
+      sequence,
+      clientTick: this.matchState.tick,
+      command,
+    };
+  }
+
+  private stepResult(steps: number, events: readonly DomainEvent[]): VillageAssaultStepResult {
+    return {
+      steps,
+      events,
+      latestRejection: this.rejectedCommand,
+      state: this.matchState,
+    };
+  }
+}
+
+export function createVillageAssaultRuntime(options: VillageAssaultRuntimeOptions): VillageAssaultRuntime {
+  return new VillageAssaultRuntime(options);
+}
+
+function resolveAiVillage(playerVillageId: VillageId, requestedAiVillageId?: VillageId): VillageId {
+  if (requestedAiVillageId && requestedAiVillageId !== playerVillageId) return requestedAiVillageId;
+  const cycle: readonly VillageId[] = ["pinehold", "riverstead", "highcrag", "marshwatch", "sunfield"];
+  const index = cycle.indexOf(playerVillageId);
+  return cycle[(index + 1 + cycle.length) % cycle.length]!;
+}
+
+function normalizeAiBudget(value: number | undefined): number {
+  if (value === undefined) return 5;
+  if (!Number.isFinite(value) || value <= 0) throw new RangeError("aiBudgetMs must be a finite positive number");
+  return value;
+}

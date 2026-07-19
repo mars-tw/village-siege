@@ -7,6 +7,7 @@ import {
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   UNITS,
+  getVillage,
 } from "./content.js";
 import { normalizeSeed } from "./random.js";
 import {
@@ -124,6 +125,7 @@ export interface CreateInitialStateOptions {
   readonly seed?: number;
   readonly players?: readonly InitialPlayer[];
   readonly map?: { readonly width: number; readonly height: number };
+  readonly spawnOverrides?: Readonly<Partial<Record<PlayerId, GridPoint>>>;
 }
 
 export type CommandValidation =
@@ -185,7 +187,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
   };
 
   for (const player of state.players) {
-    const center = clampPoint(SPAWNS[player.villageId], state);
+    const center = clampPoint(options.spawnOverrides?.[player.id] ?? SPAWNS[player.villageId], state);
     state.entities.push(createBuilding(state, player.id, "townCenter", center, true));
     const villagerOffsets = [{ x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
     for (const offset of villagerOffsets) {
@@ -292,7 +294,7 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
   if (command.type === "train") {
     const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
     if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
-    if (!producer.complete || producer.trainingQueue.length >= MAX_TRAINING_QUEUE_DEPTH) return rejected("ACTION_ON_COOLDOWN");
+    if (!producer.complete || producer.trainingQueue.length + command.count > MAX_TRAINING_QUEUE_DEPTH) return rejected("ACTION_ON_COOLDOWN");
     const definition = UNITS[command.unitType];
     if (!definition.producers.includes(producer.typeId)) return rejected("INVALID_PAYLOAD");
     if (usedPopulation(state, player.id) + queuedPopulation(state, player.id) + definition.population * command.count > player.population.capacity || countUnits(state, player.id) + command.count > MAX_UNITS_PER_PLAYER) return rejected("ACTION_ON_COOLDOWN");
@@ -406,7 +408,7 @@ function updateUnit(state: MatchState, unit: UnitEntityState): void {
     if (target.kind !== "resource") { unit.order = { type: "idle" }; return; }
     if (distanceSquared(unit.position, target.position) > 2) { moveToward(state, unit, target.position); return; }
     if (unit.workCooldownTicks === 0) {
-      const amount = Math.min(target.amount, UNITS[unit.typeId].gatherPerSecond[target.typeId]);
+      const amount = Math.min(target.amount, gatherYield(state, unit, target));
       const player = state.players.find((candidate) => candidate.id === unit.ownerId)!;
       player.resources = { ...player.resources, [target.typeId]: player.resources[target.typeId] + amount };
       target.amount -= amount;
@@ -419,10 +421,27 @@ function updateUnit(state: MatchState, unit: UnitEntityState): void {
   const stats = UNITS[unit.typeId];
   if (distanceSquared(unit.position, target.position) > stats.attackRange * stats.attackRange) { moveToward(state, unit, target.position); return; }
   if (unit.attackCooldownTicks === 0) {
-    target.hitPoints = Math.max(0, target.hitPoints - stats.attackDamage);
+    target.hitPoints = Math.max(0, target.hitPoints - damageAfterVillageTrait(state, target, stats.attackDamage));
     target.stateRevision += 1;
     unit.attackCooldownTicks = stats.attackCooldownTicks;
   }
+}
+
+function gatherYield(state: MatchState, unit: UnitEntityState, target: ResourceEntityState): number {
+  const base = UNITS[unit.typeId].gatherPerSecond[target.typeId];
+  const economicBuilding = target.typeId === "wood" ? "lumberCamp" : target.typeId === "food" ? "farmstead" : null;
+  const boosted = economicBuilding !== null && state.entities.some((entity) => (
+    entity.kind === "building"
+    && entity.ownerId === unit.ownerId
+    && entity.typeId === economicBuilding
+    && entity.complete
+    && entity.hitPoints > 0
+    && distanceSquared(entity.position, target.position) <= 36
+  ));
+  const economyYield = boosted ? base * 1.5 : base;
+  const player = state.players.find((candidate) => candidate.id === unit.ownerId);
+  const trait = player ? getVillage(player.villageId)?.trait : undefined;
+  return trait?.metric === "gatherRate" ? economyYield * trait.multiplierPermille / 1000 : economyYield;
 }
 
 function updateTraining(state: MatchState, building: BuildingEntityState, events: DomainEvent[]): void {
@@ -481,7 +500,10 @@ function evaluateVictory(state: MatchState, events: DomainEvent[]): void {
 
 function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint): boolean {
   if (samePoint(unit.position, target)) return true;
-  unit.movementProgress += UNITS[unit.typeId].speedMilliTilesPerSecond;
+  const player = state.players.find((candidate) => candidate.id === unit.ownerId);
+  const trait = player ? getVillage(player.villageId)?.trait : undefined;
+  const speed = UNITS[unit.typeId].speedMilliTilesPerSecond * (trait?.metric === "unitSpeed" ? trait.multiplierPermille / 1000 : 1);
+  unit.movementProgress += speed;
   if (unit.movementProgress < 1000 * TICKS_PER_SECOND) return false;
   unit.movementProgress -= 1000 * TICKS_PER_SECOND;
   const dx = target.x - unit.position.x;
@@ -493,6 +515,13 @@ function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint)
   unit.position = next;
   unit.stateRevision += 1;
   return samePoint(next, target);
+}
+
+function damageAfterVillageTrait(state: MatchState, target: EntityState, damage: number): number {
+  if (target.kind !== "building" || target.typeId !== "defenseTower") return damage;
+  const player = state.players.find((candidate) => candidate.id === target.ownerId);
+  const trait = player ? getVillage(player.villageId)?.trait : undefined;
+  return trait?.metric === "towerArmor" ? damage * 1000 / trait.multiplierPermille : damage;
 }
 
 function createUnit(state: MatchState, ownerId: PlayerId, typeId: UnitType, position: GridPoint): UnitEntityState {

@@ -72,4 +72,133 @@ describe("deterministic shared simulation", () => {
       count: 1,
     }))).toEqual({ ok: false, code: "ACTION_ON_COOLDOWN" });
   });
+
+  it("rejects a multi-unit training command that would overflow the queue", () => {
+    const state = createInitialState({ seed: 21, matchId: "queue-depth-count" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    townCenter.trainingQueue = Array.from({ length: 4 }, () => ({ unitType: "villager" as const, remainingTicks: 120 }));
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "train",
+      producerId: townCenter.id,
+      unitType: "villager",
+      count: 2,
+    }))).toEqual({ ok: false, code: "ACTION_ON_COOLDOWN" });
+  });
+
+  it("uses clamped per-player spawn overrides without changing the other bootstrap rules", () => {
+    const state = createInitialState({
+      seed: 23,
+      matchId: "spawn-overrides",
+      map: { width: 12, height: 10 },
+      spawnOverrides: {
+        "player-1": { x: -4, y: 4 },
+        "player-2": { x: 10, y: 99 },
+      },
+    });
+    const playerOneCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    const playerTwoCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter");
+
+    expect(playerOneCenter?.position).toEqual({ x: 0, y: 4 });
+    expect(playerTwoCenter?.position).toEqual({ x: 10, y: 9 });
+    expect(state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1")).toHaveLength(3);
+    expect(state.entities.filter((entity) => entity.kind === "resource" && entity.position.x <= 2)).toHaveLength(3);
+  });
+
+  it("runs the deterministic gather, build, population, and training loop end to end", () => {
+    let state = createInitialState({ seed: 29, matchId: "economy-loop" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const wood = state.entities.find((entity) => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 10)!;
+    const startingWood = player.resources.wood;
+    const startingNodeAmount = wood.kind === "resource" ? wood.amount : 0;
+
+    state = applyCommand(state, envelope(state, 0, { type: "gather", entityIds: [villager.id], targetId: wood.id })).state;
+    state = stepSimulation(state, [], 1).state;
+    const gatheredPlayer = state.players.find((candidate) => candidate.id === player.id)!;
+    const gatheredWood = state.entities.find((entity) => entity.id === wood.id);
+    expect(gatheredPlayer.resources.wood).toBeCloseTo(startingWood + 6.18);
+    expect(gatheredWood?.kind).toBe("resource");
+    if (!gatheredWood || gatheredWood.kind !== "resource") throw new Error("wood node depleted unexpectedly");
+    expect(gatheredWood.amount).toBeCloseTo(startingNodeAmount - 6.18);
+
+    state = applyCommand(state, envelope(state, 1, { type: "build", builderIds: [villager.id], buildingType: "house", origin: { x: 9, y: 9 } })).state;
+    state = stepSimulation(state, [], 320).state;
+    const house = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "house");
+    expect(house).toMatchObject({ complete: true, hitPoints: 360, constructionRemainingTicks: 0 });
+    expect(state.players.find((candidate) => candidate.id === player.id)?.population.capacity).toBe(18);
+
+    state = applyCommand(state, envelope(state, 2, { type: "build", builderIds: [villager.id], buildingType: "barracks", origin: { x: 11, y: 9 } })).state;
+    state = stepSimulation(state, [], 340).state;
+    const barracks = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "barracks");
+    expect(barracks?.kind).toBe("building");
+    expect(barracks).toMatchObject({ complete: true, constructionRemainingTicks: 0 });
+    if (!barracks || barracks.kind !== "building") throw new Error("barracks was not constructed");
+
+    const militiaBefore = state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "militia").length;
+    const trained = applyCommand(state, envelope(state, 3, { type: "train", producerId: barracks.id, unitType: "militia", count: 1 }));
+    expect(trained.validation).toEqual({ ok: true });
+    state = stepSimulation(trained.state, [], 150).state;
+    expect(state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "militia")).toHaveLength(militiaBefore + 1);
+    expect(state.players.find((candidate) => candidate.id === player.id)?.population.used).toBe(4);
+  });
+
+  it("makes nearby lumber camps and farmsteads functional economy buildings", () => {
+    let state = createInitialState({ seed: 30, matchId: "economy-building-bonus" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const wood = state.entities.find((entity) => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 10)!;
+
+    state = applyCommand(state, envelope(state, 0, {
+      type: "build",
+      builderIds: [villager.id],
+      buildingType: "lumberCamp",
+      origin: { x: 4, y: 7 },
+    })).state;
+    state = stepSimulation(state, [], 220).state;
+    const camp = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "lumberCamp");
+    expect(camp).toMatchObject({ complete: true, constructionRemainingTicks: 0 });
+
+    const before = state.players.find((candidate) => candidate.id === player.id)!.resources.wood;
+    state = applyCommand(state, envelope(state, 1, { type: "gather", entityIds: [villager.id], targetId: wood.id })).state;
+    state = stepSimulation(state, [], 1).state;
+    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBeCloseTo(before + 9.27);
+  });
+
+  it("applies the selected village movement trait inside the authoritative simulation", () => {
+    let state = createInitialState({
+      seed: 32,
+      matchId: "village-trait-speed",
+      players: [
+        { id: "player-1", teamId: "team-1", villageId: "riverstead" },
+        { id: "player-2", teamId: "team-2", villageId: "pinehold" },
+      ],
+    });
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
+    state = applyCommand(state, envelope(state, 0, { type: "move", entityIds: [villager.id], target: { x: 20, y: 20 } })).state;
+    state = stepSimulation(state, [], 1).state;
+    const moved = state.entities.find((entity) => entity.id === villager.id);
+    expect(moved?.kind).toBe("unit");
+    if (!moved || moved.kind !== "unit") throw new Error("riverstead villager disappeared");
+    expect(moved.movementProgress).toBeCloseTo(1133);
+  });
+
+  it("finishes conquest after an enemy town center is destroyed and its rebuild grace expires", () => {
+    const initial = createInitialState({ seed: 31, matchId: "town-center-conquest" });
+    const attacker = initial.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
+    const enemyCenter = initial.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
+    enemyCenter.position = { x: attacker.position.x, y: attacker.position.y + 1 };
+    enemyCenter.hitPoints = 4;
+
+    const attack = applyCommand(initial, envelope(initial, 0, { type: "attack", entityIds: [attacker.id], targetId: enemyCenter.id }));
+    expect(attack.validation).toEqual({ ok: true });
+    const result = stepSimulation(attack.state, [], 601);
+
+    expect(result.state.phase).toBe("finished");
+    expect(result.state.finishReason).toBe("conquest");
+    expect(result.state.winningTeamIds).toEqual(["team-1"]);
+    expect(result.events).toContainEqual({ type: "entityRemoved", entityId: enemyCenter.id, reason: "destroyed" });
+    expect(result.events).toContainEqual({ type: "matchFinished", winningTeamIds: ["team-1"], reason: "conquest" });
+  });
 });
