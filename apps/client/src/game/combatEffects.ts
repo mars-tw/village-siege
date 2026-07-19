@@ -24,6 +24,10 @@ const EFFECT_COLORS: Readonly<Record<string, number>> = {
   impact: 0xffe3a1,
 };
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export function launchProjectile(scene: Phaser.Scene, options: ProjectileEffectOptions): Phaser.GameObjects.Container {
   const color = options.tint ?? EFFECT_COLORS[options.kind] ?? EFFECT_COLORS.impact!;
   const dx = options.to.x - options.from.x;
@@ -49,6 +53,15 @@ export function launchProjectile(scene: Phaser.Scene, options: ProjectileEffectO
     .setDepth(options.depth ?? 20_000)
     .setRotation(angle);
   const duration = options.durationMs ?? Phaser.Math.Clamp(distance * 1.45, 130, 460);
+  if (prefersReducedMotion()) {
+    projectile.setVisible(false).setPosition(options.to.x, options.to.y);
+    scene.time.delayedCall(duration, () => {
+      projectile.destroy();
+      spawnImpactBurst(scene, options.to, color, options.kind === "musket" ? 12 : 8);
+      options.onImpact?.();
+    });
+    return projectile;
+  }
   scene.tweens.add({
     targets: projectile,
     x: options.to.x,
@@ -72,6 +85,10 @@ export function spawnImpactBurst(
 ): void {
   const ring = scene.add.graphics().setPosition(point.x, point.y).setDepth(20_001);
   ring.lineStyle(3, color, 0.9).strokeCircle(0, 0, 5);
+  if (prefersReducedMotion()) {
+    scene.time.delayedCall(120, () => ring.destroy());
+    return;
+  }
   scene.tweens.add({ targets: ring, scale: 2.4, alpha: 0, duration: 220, onComplete: () => ring.destroy() });
 
   for (let index = 0; index < 7; index += 1) {
@@ -99,6 +116,10 @@ export function spawnSkillTelegraph(
   const telegraph = scene.add.graphics().setPosition(point.x, point.y).setDepth(19_999);
   telegraph.lineStyle(3, color, 0.85).strokeEllipse(0, 0, radius * 2, radius);
   telegraph.lineStyle(1, 0xffffff, 0.55).strokeEllipse(0, 0, radius * 1.55, radius * 0.75);
+  if (prefersReducedMotion()) {
+    scene.time.delayedCall(durationMs, () => telegraph.destroy());
+    return telegraph;
+  }
   scene.tweens.add({
     targets: telegraph,
     scale: 1.4,
@@ -124,6 +145,10 @@ export function spawnFloatingText(
     stroke: "#18201d",
     strokeThickness: 4,
   }).setOrigin(0.5).setDepth(30_000);
+  if (prefersReducedMotion()) {
+    scene.time.delayedCall(720, () => text.destroy());
+    return text;
+  }
   scene.tweens.add({
     targets: text,
     y: point.y - 32,
@@ -136,6 +161,11 @@ export function spawnFloatingText(
 }
 
 export function spawnDeathDust(scene: Phaser.Scene, point: EffectPoint, color = 0x6c5b47): void {
+  if (prefersReducedMotion()) {
+    const mark = scene.add.ellipse(point.x, point.y, 32, 10, color, 0.42).setDepth(19_998);
+    scene.time.delayedCall(240, () => mark.destroy());
+    return;
+  }
   for (let index = 0; index < 9; index += 1) {
     const offset = (index - 4) * 5;
     const dust = scene.add.circle(point.x + offset, point.y + 2, 3 + index % 3, color, 0.5).setDepth(19_998);

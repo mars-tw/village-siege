@@ -27,6 +27,14 @@ body { overflow: hidden; background: var(--charcoal); overscroll-behavior: none;
 button, output { font: inherit; }
 button { color: inherit; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.canvas-control-proxy {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 #game-root,
 #game-root:fullscreen {
@@ -39,6 +47,7 @@ canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; 
   touch-action: none;
 }
 #game-root:fullscreen { width: 100vw; height: 100dvh; }
+#game-root.selection-active { touch-action: pan-x pan-y; }
 html.game-expanded body { width: 100vw; height: var(--game-viewport-height, 100dvh); }
 
 .village-siege-host { position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate; }
@@ -53,6 +62,8 @@ html.game-expanded body { width: 100vw; height: var(--game-viewport-height, 100d
   gap: clamp(20px, 3vw, 46px);
   padding: clamp(28px, 4vw, 64px);
   overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
   color: var(--charcoal);
   background:
     linear-gradient(90deg, rgba(216, 209, 173, 0.96), rgba(216, 209, 173, 0.88)),
@@ -85,7 +96,7 @@ html.game-expanded body { width: 100vw; height: var(--game-viewport-height, 100d
 .map-scrim span:nth-child(2) { left: 45%; top: 10%; }
 .map-scrim span:nth-child(3) { right: 22%; bottom: 18%; }
 
-.select-masthead, .village-route, .ai-roster, .march-actions { position: relative; z-index: 1; }
+.select-masthead, .village-route, .ai-roster, .march-actions { position: relative; z-index: 1; min-width: 0; }
 .select-masthead { grid-column: 1 / -1; max-width: 850px; }
 .select-kicker, .hud-kicker {
   margin: 0 0 8px;
@@ -114,10 +125,11 @@ html.game-expanded body { width: 100vw; height: var(--game-viewport-height, 100d
 .section-heading h2 { margin: 0; font-family: Georgia, serif; font-size: 1.25rem; line-height: 1; }
 .section-heading p { margin: 5px 0 0; color: #434840; font-size: 0.78rem; }
 
-.village-options { position: relative; display: grid; gap: 16px; padding: 8px 0; }
+.village-options { position: relative; display: grid; min-width: 0; gap: 16px; padding: 8px 0; }
 .village-options::before { content: ""; position: absolute; left: 31px; top: 20px; bottom: 20px; width: 7px; background: var(--river); box-shadow: 2px 0 0 var(--charcoal); opacity: 0.72; }
 .village-choice, .ai-choice {
   position: relative;
+  min-width: 0;
   border: 2px solid var(--charcoal);
   border-radius: 0;
   background: rgba(240, 235, 207, 0.82);
@@ -127,7 +139,7 @@ html.game-expanded body { width: 100vw; height: var(--game-viewport-height, 100d
 }
 .village-choice { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; min-height: 82px; padding: 8px 14px 8px 0; text-align: left; clip-path: polygon(1% 1%, 100% 0, 99% 94%, 2% 100%); }
 .choice-mark { position: relative; display: grid; width: 64px; height: 64px; place-items: center; color: var(--chalk); background: var(--pine); font: 900 1.55rem/1 Georgia, serif; }
-.choice-copy { display: grid; gap: 4px; padding-left: 14px; }
+.choice-copy { display: grid; min-width: 0; gap: 4px; padding-left: 14px; }
 .choice-copy strong, .ai-choice strong { font-family: Georgia, serif; font-size: 1rem; }
 .choice-copy small, .ai-choice small { color: #52574e; font-size: 0.75rem; }
 .choice-state { min-width: 52px; color: #575c54; font: 800 0.66rem/1 Consolas, monospace; text-align: right; text-transform: uppercase; }
@@ -135,7 +147,7 @@ html.game-expanded body { width: 100vw; height: var(--game-viewport-height, 100d
 .village-choice.is-selected .choice-mark { background: var(--river); }
 .village-choice.is-selected .choice-state, .ai-choice.is-selected .choice-state { color: var(--charcoal); }
 
-.ai-options { display: grid; grid-template-columns: repeat(5, minmax(95px, 1fr)); gap: 9px; }
+.ai-options { display: grid; min-width: 0; grid-template-columns: repeat(5, minmax(95px, 1fr)); gap: 9px; }
 .ai-choice { display: grid; grid-template-rows: 34px auto 1fr auto; min-height: 156px; gap: 8px; padding: 13px 10px 10px; text-align: left; }
 .ai-mark { display: grid; width: 34px; height: 34px; place-items: center; border: 2px solid var(--river); color: var(--river); font-size: 1.15rem; font-weight: 900; }
 .ai-choice .choice-state { align-self: end; text-align: left; }
@@ -191,7 +203,9 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
 @media (max-width: 620px) {
   .village-select-shell { gap: 26px; padding: 34px 24px; }
   .select-masthead h1 { font-size: 2.65rem; }
-  .march-actions > div { flex-direction: column-reverse; }
+  .ai-options { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(120px, 72vw); max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; }
+  .ai-choice { scroll-snap-align: start; }
+  .march-actions > div { width: 100%; flex-direction: column-reverse; }
   .primary-action, .secondary-action { width: 100%; }
   .hud-resource-bar { top: 8px; width: calc(100vw - 16px); }
   .hud-resource { flex: 1; min-width: 0; padding: 7px 5px; text-align: center; }
@@ -204,7 +218,7 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
   canvas { touch-action: none; }
 
   .village-select-shell {
-    grid-template-columns: minmax(210px, 0.78fr) minmax(360px, 1.22fr);
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
     grid-template-rows: 38px minmax(0, 1fr) 48px;
     gap: 6px 12px;
     overflow: hidden;
@@ -244,11 +258,21 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
   .ai-choice .choice-state { align-self: end; font-size: 0.52rem; }
   .village-choice.is-selected, .ai-choice.is-selected { box-shadow: 3px 3px 0 var(--pine); transform: translate(-1px, -1px); }
   .march-actions { grid-column: 1 / -1; min-width: 0; min-height: 44px; align-items: center; justify-content: space-between; flex-direction: row; gap: 8px; padding-top: 3px; }
-  .march-actions > div { min-width: 0; flex: 0 0 auto; flex-direction: row; gap: 7px; }
+  .march-actions > div { min-width: 0; width: auto; flex: 0 1 auto; flex-direction: row; gap: 7px; }
   .selection-readout { overflow: hidden; font-size: 0.64rem; text-overflow: ellipsis; white-space: nowrap; }
   .primary-action, .secondary-action { width: auto; min-height: 44px; padding: 5px 10px; box-shadow: 2px 2px 0 var(--charcoal); font-size: 0.7rem; white-space: nowrap; }
   .secondary-action small { margin-left: 3px; font-size: 0.5rem; }
 
+}
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 640px) {
+  .village-select-shell { grid-template-columns: minmax(170px, 0.74fr) minmax(0, 1.26fr); }
+  .select-masthead { grid-template-columns: max-content max-content; }
+  .select-masthead > p:last-child, .selection-readout { display: none; }
+  .ai-choice small { display: none; }
+  .march-actions > div { display: grid; width: 100%; grid-template-columns: 0.72fr 1fr 1.15fr; }
+  .primary-action, .secondary-action { width: 100%; min-width: 0; padding-inline: 6px; }
+  .secondary-action small { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

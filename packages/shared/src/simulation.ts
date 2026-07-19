@@ -295,7 +295,7 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     if (!producer.complete || producer.trainingQueue.length >= MAX_TRAINING_QUEUE_DEPTH) return rejected("ACTION_ON_COOLDOWN");
     const definition = UNITS[command.unitType];
     if (!definition.producers.includes(producer.typeId)) return rejected("INVALID_PAYLOAD");
-    if (countUnits(state, player.id) + queuedPopulation(state, player.id) + definition.population * command.count > player.population.capacity || countUnits(state, player.id) + command.count > MAX_UNITS_PER_PLAYER) return rejected("ACTION_ON_COOLDOWN");
+    if (usedPopulation(state, player.id) + queuedPopulation(state, player.id) + definition.population * command.count > player.population.capacity || countUnits(state, player.id) + command.count > MAX_UNITS_PER_PLAYER) return rejected("ACTION_ON_COOLDOWN");
     return canAfford(player.resources, multiplyWallet(definition.cost, command.count)) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
   const ids = command.entityIds;
@@ -542,7 +542,7 @@ function ownedUnits(state: MatchState, ownerId: PlayerId, ids: readonly EntityId
 function syncPopulation(state: MatchState): void {
   for (const player of state.players) {
     player.population = {
-      used: countUnits(state, player.id) + queuedPopulation(state, player.id),
+      used: usedPopulation(state, player.id) + queuedPopulation(state, player.id),
       capacity: state.entities.reduce((sum, entity) => sum + (entity.kind === "building" && entity.ownerId === player.id && entity.complete ? BUILDINGS[entity.typeId].populationCapacity : 0), 0),
     };
   }
@@ -550,6 +550,14 @@ function syncPopulation(state: MatchState): void {
 
 function countUnits(state: MatchState, playerId: PlayerId): number {
   return state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === playerId).length;
+}
+
+function usedPopulation(state: MatchState, playerId: PlayerId): number {
+  return state.entities.reduce((sum, entity) => (
+    entity.kind === "unit" && entity.ownerId === playerId
+      ? sum + UNITS[entity.typeId].population
+      : sum
+  ), 0);
 }
 
 function queuedPopulation(state: MatchState, playerId: PlayerId): number {
