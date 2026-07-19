@@ -46,6 +46,9 @@ import {
   spawnSkillTelegraph,
   type ProjectileVisualKind,
 } from "../game/combatEffects";
+import { getDeviceViewportProfile } from "../game/deviceViewport";
+import { fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
+import { createCanvasButton, type CanvasButtonControl } from "../ui/canvasButton";
 
 type Team = "player" | "enemy" | "monster";
 
@@ -115,6 +118,13 @@ interface SceneData { readonly returnScene?: string }
 type TouchInteractionMode = "smart" | "move" | "attack" | "box" | "pan";
 type TouchControlPanel = "main" | "groups" | "system";
 
+interface TouchButtonSpec {
+  readonly glyph: string;
+  readonly label: string;
+  readonly action?: string;
+  readonly mode?: TouchInteractionMode;
+}
+
 interface TouchCameraDrag {
   readonly pointerX: number;
   readonly pointerY: number;
@@ -127,6 +137,37 @@ const WORLD_BOUNDS = { x: 0, y: 0, width: 1660, height: 920 } as const;
 const PLAYER_COLOR = 0x65c9a4;
 const ENEMY_COLOR = 0xe06f55;
 const MONSTER_COLOR = 0xc59b59;
+
+const TOUCH_PANEL_BUTTONS: Readonly<Record<TouchControlPanel, readonly TouchButtonSpec[]>> = {
+  main: [
+    { glyph: "全", label: "全軍", action: "select-all" },
+    { glyph: "走", label: "移動", mode: "move" },
+    { glyph: "攻", label: "攻擊", mode: "attack" },
+    { glyph: "技", label: "技能", action: "skill" },
+    { glyph: "陣", label: "隊形", action: "formation" },
+    { glyph: "框", label: "框選", mode: "box" },
+    { glyph: "移", label: "移鏡", mode: "pan" },
+    { glyph: "•••", label: "更多", action: "open-system" },
+  ],
+  groups: [
+    { glyph: "存", label: "編隊 1", action: "store-1" },
+    { glyph: "叫", label: "編隊 1", action: "recall-1" },
+    { glyph: "存", label: "編隊 2", action: "store-2" },
+    { glyph: "叫", label: "編隊 2", action: "recall-2" },
+    { glyph: "存", label: "編隊 3", action: "store-3" },
+    { glyph: "叫", label: "編隊 3", action: "recall-3" },
+    { glyph: "返", label: "主命令", action: "open-main" },
+  ],
+  system: [
+    { glyph: "消", label: "取消", action: "clear" },
+    { glyph: "組", label: "編隊", action: "open-groups" },
+    { glyph: "?", label: "說明", action: "open-briefing" },
+    { glyph: "⛶", label: "全螢幕", action: "fullscreen" },
+    { glyph: "重", label: "重開", action: "restart" },
+    { glyph: "退", label: "離開", action: "leave" },
+    { glyph: "返", label: "主命令", action: "open-main" },
+  ],
+};
 
 const UNIT_ART_IDS: Readonly<Record<string, CombatArtId>> = {
   warrior: "warrior",
@@ -171,9 +212,15 @@ export class CombatShowcaseScene extends Phaser.Scene {
   private selectionText?: Phaser.GameObjects.Text;
   private resultText?: Phaser.GameObjects.Text;
   private interfacePanel?: Phaser.GameObjects.Graphics;
-  private touchControls?: HTMLElement;
-  private touchReadout?: HTMLOutputElement;
-  private touchBriefing?: HTMLElement;
+  private touchControls?: Phaser.GameObjects.Container;
+  private touchReadout?: Phaser.GameObjects.Text;
+  private touchReadoutPanel?: Phaser.GameObjects.Graphics;
+  private touchBriefing?: Phaser.GameObjects.Container;
+  private touchBriefingOpen = false;
+  private readonly touchPanels = new Map<TouchControlPanel, Phaser.GameObjects.Container>();
+  private readonly touchButtons = new Map<string, CanvasButtonControl>();
+  private fullscreenButton?: CanvasButtonControl;
+  private rotatePrompt?: Phaser.GameObjects.Container;
   private touchMode: TouchInteractionMode = "smart";
   private touchPanel: TouchControlPanel = "main";
   private touchCameraDrag?: TouchCameraDrag;
@@ -199,6 +246,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.dragClickedId = undefined;
     this.touchMode = "smart";
     this.touchPanel = "main";
+    this.touchBriefingOpen = false;
     this.touchCameraDrag = undefined;
     this.touchDidPan = false;
     this.touchNotice = "";
@@ -284,65 +332,171 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private createTouchControls(): void {
-    const host = this.game.canvas.parentElement ?? document.body;
-    const controls = document.createElement("nav");
-    controls.className = "combat-touch-controls";
-    controls.setAttribute("aria-label", "手機戰鬥操作");
-    controls.innerHTML = `
-      <section class="touch-briefing" role="dialog" aria-modal="true" aria-labelledby="touch-briefing-title" hidden>
-        <p>Mobile command briefing</p>
-        <h2 id="touch-briefing-title">三步開始指揮</h2>
-        <ol>
-          <li><strong>1　選部隊</strong><span>點我軍，或按「全軍」。</span></li>
-          <li><strong>2　下命令</strong><span>點地移動；點敵軍攻擊。</span></li>
-          <li><strong>3　看戰場</strong><span>拖空地移鏡；精準操作用下方模式。</span></li>
-        </ol>
-        <button type="button" data-touch-action="close-briefing"><span>開始指揮</span></button>
-      </section>
-      <output class="touch-mode-readout" aria-live="polite"></output>
-      <section class="touch-control-panel" data-touch-panel-view="main" aria-label="主要命令">
-        <button type="button" data-touch-action="select-all"><span>全</span><small>全軍</small></button>
-        <button type="button" data-touch-mode="move" aria-pressed="false"><span>走</span><small>移動</small></button>
-        <button type="button" data-touch-mode="attack" aria-pressed="false"><span>攻</span><small>攻擊</small></button>
-        <button type="button" data-touch-action="skill"><span>技</span><small>技能</small></button>
-        <button type="button" data-touch-action="formation"><span>陣</span><small>隊形</small></button>
-        <button type="button" data-touch-mode="box" aria-pressed="false"><span>框</span><small>框選</small></button>
-        <button type="button" data-touch-mode="pan" aria-pressed="false"><span>移</span><small>移鏡</small></button>
-        <button type="button" data-touch-action="open-system"><span>•••</span><small>更多</small></button>
-      </section>
-      <section class="touch-control-panel" data-touch-panel-view="groups" aria-label="編隊命令" hidden>
-        <button type="button" data-touch-action="store-1"><span>存</span><small>編隊 1</small></button>
-        <button type="button" data-touch-action="recall-1"><span>叫</span><small>編隊 1</small></button>
-        <button type="button" data-touch-action="store-2"><span>存</span><small>編隊 2</small></button>
-        <button type="button" data-touch-action="recall-2"><span>叫</span><small>編隊 2</small></button>
-        <button type="button" data-touch-action="store-3"><span>存</span><small>編隊 3</small></button>
-        <button type="button" data-touch-action="recall-3"><span>叫</span><small>編隊 3</small></button>
-        <button type="button" data-touch-action="open-main"><span>返</span><small>主命令</small></button>
-      </section>
-      <section class="touch-control-panel" data-touch-panel-view="system" aria-label="其他命令" hidden>
-        <button type="button" data-touch-action="clear"><span>消</span><small>取消選取</small></button>
-        <button type="button" data-touch-action="open-groups"><span>組</span><small>編隊</small></button>
-        <button type="button" data-touch-action="open-briefing"><span>?</span><small>說明</small></button>
-        <button type="button" data-touch-action="restart"><span>重</span><small>重開</small></button>
-        <button type="button" data-touch-action="leave"><span>退</span><small>離開</small></button>
-        <button type="button" data-touch-action="open-main"><span>返</span><small>主命令</small></button>
-      </section>`;
-    controls.addEventListener("pointerdown", (event) => event.stopPropagation());
-    controls.addEventListener("contextmenu", (event) => event.preventDefault());
-    controls.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button");
-      if (!button) return;
-      const mode = button.dataset.touchMode as TouchInteractionMode | undefined;
-      if (mode) this.setTouchMode(this.touchMode === mode ? "smart" : mode);
-      else this.handleTouchAction(button.dataset.touchAction ?? "");
-    });
-    host.append(controls);
+    const controls = this.add.container(0, 0).setScrollFactor(0).setDepth(50_000).setName("combat-canvas-controls");
     this.touchControls = controls;
-    this.touchReadout = controls.querySelector<HTMLOutputElement>(".touch-mode-readout") ?? undefined;
-    this.touchBriefing = controls.querySelector<HTMLElement>(".touch-briefing") ?? undefined;
+    this.touchReadoutPanel = this.add.graphics();
+    this.touchReadout = this.add.text(0, 0, "", {
+      align: "center",
+      color: "#f0ebcf",
+      fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+      fontSize: "21px",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+    controls.add([this.touchReadoutPanel, this.touchReadout]);
+
+    for (const panel of ["main", "groups", "system"] as const) {
+      this.createTouchPanel(panel, TOUCH_PANEL_BUTTONS[panel]);
+    }
+    this.touchBriefing = this.createTouchBriefing();
+    controls.add(this.touchBriefing);
+
+    const fullscreen = fullscreenButtonLabel(this);
+    this.fullscreenButton = createCanvasButton(this, {
+      width: 200,
+      height: 88,
+      glyph: fullscreen.glyph,
+      label: fullscreen.label,
+      name: "combat-fullscreen",
+      compact: true,
+      accent: true,
+    }, () => {
+      const result = toggleGameFullscreen(this);
+      this.setTouchNotice(result === "expanded" ? "已填滿瀏覽器可用畫面" : result === "exited" ? "已離開全螢幕" : "正在進入全螢幕");
+      this.syncFullscreenButton();
+    });
+    this.fullscreenButton.container.setScrollFactor(0).setDepth(80_000);
+    this.rotatePrompt = this.createRotatePrompt();
+    this.rotatePrompt.setScrollFactor(0).setDepth(70_000);
+
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.applyResponsiveInterface, this);
+    this.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
+    this.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
     this.syncTouchControls();
+  }
+
+  private createTouchPanel(panelName: TouchControlPanel, specs: readonly TouchButtonSpec[]): void {
+    if (!this.touchControls) return;
+    const buttonWidth = 104;
+    const buttonHeight = 108;
+    const gap = 8;
+    const panelWidth = specs.length * buttonWidth + Math.max(0, specs.length - 1) * gap + 24;
+    const panel = this.add.container(0, 0).setName(`touch-panel-${panelName}`);
+    const frame = this.add.graphics();
+    frame.fillStyle(0x101917, 0.9).fillRect(-panelWidth / 2 + 7, -64 + 9, panelWidth, 128);
+    frame.fillStyle(0x25483c, 0.98).fillRect(-panelWidth / 2, -64, panelWidth - 7, 119);
+    frame.lineStyle(4, 0xe0b866, 0.96).strokeRect(-panelWidth / 2, -64, panelWidth - 7, 119);
+    frame.lineStyle(2, 0x101917, 0.9).strokeRect(-panelWidth / 2 + 7, -57, panelWidth - 21, 105);
+    panel.add(frame);
+    specs.forEach((spec, index) => {
+      const key = spec.mode ? `mode:${spec.mode}` : `action:${spec.action ?? "unknown"}`;
+      const button = createCanvasButton(this, {
+        width: buttonWidth,
+        height: buttonHeight,
+        glyph: spec.glyph,
+        label: spec.label,
+        name: `combat-${key}`,
+      }, () => {
+        if (spec.mode) this.setTouchMode(this.touchMode === spec.mode ? "smart" : spec.mode);
+        else this.handleTouchAction(spec.action ?? "");
+      });
+      button.container.setPosition(-panelWidth / 2 + 12 + buttonWidth / 2 + index * (buttonWidth + gap), -1);
+      panel.add(button.container);
+      this.touchButtons.set(key, button);
+    });
+    this.touchPanels.set(panelName, panel);
+    this.touchControls.add(panel);
+  }
+
+  private createTouchBriefing(): Phaser.GameObjects.Container {
+    const briefing = this.add.container(0, 0).setName("touch-briefing").setVisible(false);
+    const blocker = this.add.graphics().setName("touch-briefing-blocker");
+    const dialog = this.add.container(0, 0).setName("touch-briefing-dialog");
+    const paper = this.add.graphics();
+    paper.fillStyle(0x050807, 0.78).fillRect(-524, -174, 1060, 360);
+    paper.fillStyle(0xd9cca0, 1).fillRect(-536, -186, 1060, 360);
+    paper.lineStyle(5, 0x101917, 1).strokeRect(-536, -186, 1060, 360);
+    paper.lineStyle(3, 0x356b78, 0.72).strokeRect(-526, -176, 1040, 340);
+    const kicker = this.add.text(-500, -154, "MOBILE COMMAND BRIEFING", {
+      color: "#356b78",
+      fontFamily: "Consolas, monospace",
+      fontSize: "17px",
+      fontStyle: "bold",
+      letterSpacing: 2,
+    });
+    const title = this.add.text(-500, -122, "三步開始指揮", {
+      color: "#101917",
+      fontFamily: 'Georgia, "Noto Serif TC", serif',
+      fontSize: "43px",
+      fontStyle: "bold",
+    });
+    const steps = [
+      ["1　選部隊", "點我軍，或按「全軍」。"],
+      ["2　下命令", "點地移動；點敵軍攻擊。"],
+      ["3　看戰場", "拖空地移鏡；精準操作切換模式。"],
+    ] as const;
+    const stepObjects: Phaser.GameObjects.GameObject[] = [];
+    steps.forEach(([heading, copy], index) => {
+      const x = -500 + index * 334;
+      const panel = this.add.graphics();
+      panel.fillStyle(0xf0ebcf, 0.82).fillRect(x, -48, 310, 94);
+      panel.fillStyle(0x25483c, 1).fillRect(x, -48, 9, 94);
+      const headingText = this.add.text(x + 22, -38, heading, {
+        color: "#101917",
+        fontFamily: 'Georgia, "Noto Serif TC", serif',
+        fontSize: "21px",
+        fontStyle: "bold",
+      });
+      const copyText = this.add.text(x + 22, -6, copy, {
+        color: "#101917",
+        fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+        fontSize: "17px",
+        fontStyle: "bold",
+        wordWrap: { width: 276 },
+      });
+      stepObjects.push(panel, headingText, copyText);
+    });
+    const startButton = createCanvasButton(this, {
+      width: 330,
+      height: 82,
+      glyph: "⚔",
+      label: "開始指揮",
+      name: "combat-action:close-briefing",
+      compact: true,
+      accent: true,
+    }, () => this.closeTouchBriefing());
+    startButton.container.setPosition(346, 112);
+    this.touchButtons.set("action:close-briefing", startButton);
+    dialog.add([paper, kicker, title, ...stepObjects, startButton.container]);
+    briefing.add([blocker, dialog]);
+    return briefing;
+  }
+
+  private createRotatePrompt(): Phaser.GameObjects.Container {
+    const prompt = this.add.container(0, 0).setName("rotate-device-prompt").setVisible(false);
+    const blocker = this.add.graphics().setName("rotate-device-blocker").setScrollFactor(0);
+    blocker.setInteractive(new Phaser.Geom.Rectangle(0, 0, 1280, 720), Phaser.Geom.Rectangle.Contains);
+    blocker.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => event.stopPropagation());
+    blocker.on("pointerup", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => event.stopPropagation());
+    const phone = this.add.graphics().setName("rotate-phone-art");
+    phone.lineStyle(9, 0xe0b866, 1).strokeRoundedRect(-76, -116, 152, 232, 24);
+    phone.fillStyle(0xe0b866, 1).fillCircle(0, 90, 8);
+    const title = this.add.text(0, 154, "請將手機橫放", {
+      align: "center",
+      color: "#f0ebcf",
+      fontFamily: 'Georgia, "Noto Serif TC", serif',
+      fontSize: "48px",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+    const copy = this.add.text(0, 212, "畫面會自動放大並重新排列\n右上角可切換全螢幕", {
+      align: "center",
+      color: "#d9cca0",
+      fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+      fontSize: "40px",
+      fontStyle: "bold",
+      lineSpacing: 8,
+    }).setOrigin(0.5, 0);
+    prompt.add([blocker, phone, title, copy]);
+    return prompt;
   }
 
   private spawnCombatants(): void {
@@ -682,7 +836,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]): void {
-    if (this.ended) return;
+    if (this.ended || this.touchBriefingOpen) return;
     const screenPoint = { x: pointer.x, y: pointer.y };
     const clicked = this.actorAtPointer(over, screenPoint);
     if (pointer.button === 0) {
@@ -706,7 +860,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
-    if (!this.dragStart || !this.selectionBox) return;
+    if (this.touchBriefingOpen || !this.dragStart || !this.selectionBox) return;
     const rectangle = createPointerRectangle(this.dragStart, { x: pointer.x, y: pointer.y });
     if (this.isTouchCommandPointer(pointer) && this.touchCameraDrag) {
       if (rectangle.width <= 11 && rectangle.height <= 11) return;
@@ -724,7 +878,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private onPointerUp(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[] = []): void {
-    if (!this.dragStart || pointer.button !== 0) return;
+    if (this.touchBriefingOpen || !this.dragStart || pointer.button !== 0) return;
     const start = this.dragStart;
     const end = { x: pointer.x, y: pointer.y };
     const rectangle = createPointerRectangle(start, end);
@@ -825,6 +979,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
   }
 
   private onKeyboardShortcut(event: KeyboardEvent): void {
+    if (this.touchBriefingOpen) return;
     const key = event.key.toLowerCase();
     if (key === "f" && !event.ctrlKey) {
       this.toggleFormation();
@@ -856,22 +1011,24 @@ export class CombatShowcaseScene extends Phaser.Scene {
 
   private showTouchBriefing(): void {
     if (!this.isCompactLandscape() || !this.touchBriefing || !this.touchControls) return;
-    this.touchBriefing.hidden = false;
-    this.touchControls.classList.add("is-briefing");
-    this.input.enabled = false;
+    this.touchBriefingOpen = true;
+    this.touchBriefing.setVisible(true).setActive(true);
+    if (this.input.keyboard) this.input.keyboard.enabled = false;
+    this.syncTouchControls();
   }
 
   private closeTouchBriefing(): void {
     if (!this.touchBriefing || !this.touchControls) return;
-    this.touchBriefing.hidden = true;
-    this.touchControls.classList.remove("is-briefing");
+    this.touchBriefingOpen = false;
+    this.touchBriefing.setVisible(false).setActive(false);
     try {
       sessionStorage.setItem("village-siege-touch-briefing-v2", "seen");
     } catch {
       // The game remains playable when session storage is unavailable.
     }
-    this.input.enabled = true;
+    if (this.input.keyboard) this.input.keyboard.enabled = true;
     this.setTouchNotice("點我軍選取，拖空地移鏡");
+    this.syncTouchControls();
   }
 
   private setTouchMode(mode: TouchInteractionMode): void {
@@ -890,14 +1047,19 @@ export class CombatShowcaseScene extends Phaser.Scene {
 
   private syncTouchControls(): void {
     if (!this.touchControls) return;
-    this.touchControls.querySelectorAll<HTMLElement>("[data-touch-panel-view]").forEach((panel) => {
-      panel.hidden = panel.dataset.touchPanelView !== this.touchPanel;
-    });
-    this.touchControls.querySelectorAll<HTMLButtonElement>("[data-touch-mode]").forEach((button) => {
-      const active = button.dataset.touchMode === this.touchMode;
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
+    const compact = this.isCompactLandscape();
+    this.touchControls.setVisible(compact).setActive(compact);
+    for (const [panelName, panel] of this.touchPanels) {
+      const visible = compact && !this.touchBriefingOpen && panelName === this.touchPanel;
+      panel.setVisible(visible).setActive(visible);
+    }
+    this.touchReadout?.setVisible(compact && !this.touchBriefingOpen);
+    this.touchReadoutPanel?.setVisible(compact && !this.touchBriefingOpen);
+    for (const mode of ["move", "attack", "box", "pan"] as const) {
+      this.touchButtons.get(`mode:${mode}`)?.setActive(mode === this.touchMode);
+    }
+    this.touchBriefing?.setVisible(compact && this.touchBriefingOpen).setActive(compact && this.touchBriefingOpen);
+    this.layoutCanvasControls();
     this.updateTouchReadout();
   }
 
@@ -910,7 +1072,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
   private updateTouchReadout(): void {
     if (!this.touchReadout) return;
     if (this.touchNotice && performance.now() < this.touchNoticeUntil) {
-      if (this.touchReadout.value !== this.touchNotice) this.touchReadout.value = this.touchNotice;
+      if (this.touchReadout.text !== this.touchNotice) this.touchReadout.setText(this.touchNotice);
       return;
     }
     this.touchNotice = "";
@@ -924,7 +1086,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
       box: "框選模式｜拖過我軍，放開即完成",
       pan: "移鏡模式｜拖曳戰場；再點一次移鏡可結束",
     } as const)[this.touchMode];
-    if (this.touchReadout.value !== label) this.touchReadout.value = label;
+    if (this.touchReadout.text !== label) this.touchReadout.setText(label);
   }
 
   private handleTouchAction(action: string): void {
@@ -946,6 +1108,12 @@ export class CombatShowcaseScene extends Phaser.Scene {
     }
     if (action === "open-system") {
       this.setTouchPanel("system");
+      return;
+    }
+    if (action === "fullscreen") {
+      const result = toggleGameFullscreen(this);
+      this.setTouchNotice(result === "expanded" ? "已填滿瀏覽器可用畫面" : result === "exited" ? "已離開全螢幕" : "正在進入全螢幕");
+      this.syncFullscreenButton();
       return;
     }
     if (action === "restart") {
@@ -1016,19 +1184,22 @@ export class CombatShowcaseScene extends Phaser.Scene {
   };
 
   private isCompactLandscape(): boolean {
-    return window.matchMedia("(orientation: landscape) and (max-height: 520px)").matches;
+    const profile = getDeviceViewportProfile();
+    return profile.landscape && (profile.mobile || profile.height <= 520);
   }
 
   private applyResponsiveInterface(): void {
     const compact = this.isCompactLandscape();
+    const viewportWidth = this.scale.gameSize.width;
     this.interfacePanel?.clear();
-    this.interfacePanel?.fillStyle(0x111a17, 0.94).fillRect(16, 14, 1248, compact ? 92 : 76);
-    this.interfacePanel?.lineStyle(2, 0xd2c383, 0.75).strokeRect(16, 14, 1248, compact ? 92 : 76);
+    this.interfacePanel?.fillStyle(0x111a17, 0.94).fillRect(16, 14, Math.max(320, viewportWidth - 32), compact ? 92 : 76);
+    this.interfacePanel?.lineStyle(2, 0xd2c383, 0.75).strokeRect(16, 14, Math.max(320, viewportWidth - 32), compact ? 92 : 76);
     this.instructionText
       ?.setPosition(36, 24)
       .setFontSize(compact ? 21 : 16)
+      .setWordWrapWidth(Math.max(360, viewportWidth - 310))
       .setText(compact
-        ? "手機指揮：點我軍選取・點地移動・點敵攻擊・拖空地移鏡　需要精準操作可切換下方模式"
+        ? "手機指揮：點我軍選取・點地移動・點敵攻擊・拖空地移鏡"
         : "框選／Shift 複選　右鍵移動／攻擊　Q 全隊技能　F 切換隊形　Ctrl+1–3 編隊　WASD 移鏡頭");
     this.scoreText?.setPosition(36, compact ? 61 : 52).setFontSize(compact ? 19 : 15);
     this.selectionText
@@ -1037,6 +1208,67 @@ export class CombatShowcaseScene extends Phaser.Scene {
       .setWordWrapWidth(compact ? 410 : 920)
       .setVisible(!compact);
     this.syncTouchControls();
+    this.syncFullscreenButton();
+  }
+
+  private layoutCanvasControls(): void {
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+    const profile = getDeviceViewportProfile();
+    const compact = this.isCompactLandscape();
+    const bottomInset = profile.mobile ? 48 : 24;
+    const panelY = height - bottomInset - 54;
+    for (const panel of this.touchPanels.values()) panel.setPosition(width / 2, panelY);
+
+    const readoutWidth = Math.min(820, Math.max(460, width - 140));
+    const readoutY = panelY - 84;
+    this.touchReadoutPanel?.clear();
+    this.touchReadoutPanel?.fillStyle(0x050807, 0.7).fillRect(width / 2 - readoutWidth / 2 + 5, readoutY - 27 + 6, readoutWidth, 54);
+    this.touchReadoutPanel?.fillStyle(0x111a17, 0.96).fillRect(width / 2 - readoutWidth / 2, readoutY - 27, readoutWidth - 5, 48);
+    this.touchReadoutPanel?.lineStyle(3, 0xe0b866, 0.9).strokeRect(width / 2 - readoutWidth / 2, readoutY - 27, readoutWidth - 5, 48);
+    this.touchReadout?.setPosition(width / 2 - 2, readoutY - 3).setWordWrapWidth(readoutWidth - 30);
+
+    const rightInset = profile.mobile ? 110 : 30;
+    const fullscreenScale = profile.mobile && !profile.landscape ? 1.75 : 1;
+    this.fullscreenButton?.container
+      .setScale(fullscreenScale)
+      .setPosition(width - rightInset - 100 * fullscreenScale, 66 * fullscreenScale)
+      .setVisible(true)
+      .setActive(true);
+
+    if (this.touchBriefing) {
+      const blocker = this.touchBriefing.getByName("touch-briefing-blocker") as Phaser.GameObjects.Graphics | null;
+      const dialog = this.touchBriefing.getByName("touch-briefing-dialog") as Phaser.GameObjects.Container | null;
+      blocker?.clear().fillStyle(0x07110e, 0.76).fillRect(0, 0, width, height);
+      dialog?.setPosition(width / 2, height / 2);
+    }
+
+    if (this.rotatePrompt) {
+      const shouldRotate = profile.mobile && !profile.landscape;
+      this.rotatePrompt.setVisible(shouldRotate).setActive(shouldRotate);
+      const blocker = this.rotatePrompt.getByName("rotate-device-blocker") as Phaser.GameObjects.Graphics | null;
+      const phone = this.rotatePrompt.getByName("rotate-phone-art") as Phaser.GameObjects.Graphics | null;
+      blocker?.clear().fillStyle(0x101917, 0.97).fillRect(0, 0, width, height);
+      if (blocker?.input?.hitArea instanceof Phaser.Geom.Rectangle) blocker.input.hitArea.setTo(0, 0, width, height);
+      phone?.setPosition(width / 2, height / 2 - 190);
+      const title = this.rotatePrompt.list.find((item) => item instanceof Phaser.GameObjects.Text && item.text === "請將手機橫放") as Phaser.GameObjects.Text | undefined;
+      const copy = this.rotatePrompt.list.find((item) => item instanceof Phaser.GameObjects.Text && item.text.startsWith("畫面會自動放大")) as Phaser.GameObjects.Text | undefined;
+      title?.setPosition(width / 2, height / 2 + 42);
+      copy?.setPosition(width / 2, height / 2 + 104);
+    }
+
+    if (!compact) {
+      for (const panel of this.touchPanels.values()) panel.setVisible(false).setActive(false);
+      this.touchReadout?.setVisible(false);
+      this.touchReadoutPanel?.setVisible(false);
+    }
+  }
+
+  private syncFullscreenButton(): void {
+    const label = fullscreenButtonLabel(this);
+    this.fullscreenButton?.setLabel(label.glyph, label.label);
+    this.touchButtons.get("action:fullscreen")?.setLabel(label.glyph, label.label);
+    this.layoutCanvasControls();
   }
 
   private updateSelectionPanel(): void {
@@ -1396,10 +1628,21 @@ export class CombatShowcaseScene extends Phaser.Scene {
     this.input.keyboard?.off("keydown-ESC", this.leaveShowcase, this);
     this.input.keyboard?.off("keydown", this.onKeyboardShortcut, this);
     window.removeEventListener("resize", this.onViewportResize);
-    this.touchControls?.remove();
+    this.scale.off(Phaser.Scale.Events.RESIZE, this.applyResponsiveInterface, this);
+    this.scale.off(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
+    this.scale.off(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
+    this.touchControls?.destroy(true);
     this.touchControls = undefined;
     this.touchReadout = undefined;
+    this.touchReadoutPanel = undefined;
     this.touchBriefing = undefined;
+    this.touchBriefingOpen = false;
+    this.touchPanels.clear();
+    this.touchButtons.clear();
+    this.fullscreenButton?.destroy();
+    this.fullscreenButton = undefined;
+    this.rotatePrompt?.destroy(true);
+    this.rotatePrompt = undefined;
     this.touchCameraDrag = undefined;
     this.touchDidPan = false;
     for (const actor of this.actors) actor.visual.destroy();

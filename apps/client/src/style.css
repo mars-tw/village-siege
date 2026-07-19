@@ -14,18 +14,34 @@
   --charcoal: #1c211f;
   --chalk: #f0ebcf;
   --danger: #8f382f;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   --paper-shadow: 0 12px 0 rgba(11, 18, 16, 0.45), 0 22px 48px rgba(0, 0, 0, 0.28);
 }
 
 * { box-sizing: border-box; }
 html, body, #app { width: 100%; min-width: 320px; height: 100%; margin: 0; }
-body { overflow: hidden; background: var(--charcoal); }
+body { overflow: hidden; background: var(--charcoal); overscroll-behavior: none; touch-action: none; }
 button, output { font: inherit; }
 button { color: inherit; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 
+#game-root,
+#game-root:fullscreen {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  width: var(--game-viewport-width, 100vw);
+  height: var(--game-viewport-height, 100dvh);
+  background: var(--charcoal);
+  touch-action: none;
+}
+#game-root:fullscreen { width: 100vw; height: 100dvh; }
+html.game-expanded body { width: 100vw; height: var(--game-viewport-height, 100dvh); }
+
 .village-siege-host { position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate; }
-.combat-touch-controls { display: none; }
 
 .village-select-shell {
   position: absolute;
@@ -232,112 +248,6 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
   .selection-readout { overflow: hidden; font-size: 0.64rem; text-overflow: ellipsis; white-space: nowrap; }
   .primary-action, .secondary-action { width: auto; min-height: 44px; padding: 5px 10px; box-shadow: 2px 2px 0 var(--charcoal); font-size: 0.7rem; white-space: nowrap; }
   .secondary-action small { margin-left: 3px; font-size: 0.5rem; }
-
-  .combat-touch-controls {
-    position: absolute;
-    right: max(6px, env(safe-area-inset-right));
-    bottom: max(5px, env(safe-area-inset-bottom));
-    left: max(6px, env(safe-area-inset-left));
-    z-index: 60;
-    display: grid;
-    justify-items: center;
-    gap: 4px;
-    pointer-events: none;
-  }
-  .combat-touch-controls.is-briefing .touch-mode-readout,
-  .combat-touch-controls.is-briefing .touch-control-panel { display: none; }
-  .touch-briefing {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    z-index: 2;
-    display: grid;
-    width: min(560px, calc(100vw - 28px));
-    max-height: calc(100dvh - 24px);
-    gap: 8px;
-    overflow: hidden;
-    border: 3px solid var(--charcoal);
-    padding: 13px 15px 14px;
-    color: var(--charcoal);
-    background: linear-gradient(135deg, #e6d9ad, #c9bd91);
-    box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.72), inset 0 0 0 2px rgba(53, 107, 120, 0.42);
-    transform: translate(-50%, -50%);
-    pointer-events: auto;
-  }
-  .touch-briefing[hidden] { display: none; }
-  .touch-briefing > p { margin: 0; color: var(--river); font: 900 0.58rem/1 Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase; }
-  .touch-briefing h2 { margin: 0; font: 900 1.38rem/1 Georgia, "Noto Serif TC", serif; }
-  .touch-briefing ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 0; padding: 0; list-style: none; }
-  .touch-briefing li { display: grid; align-content: start; gap: 4px; min-width: 0; border-left: 5px solid var(--pine); padding: 7px 8px; background: rgba(240, 235, 207, 0.72); }
-  .touch-briefing li strong { font: 900 0.75rem/1.1 Georgia, "Noto Serif TC", serif; }
-  .touch-briefing li span { font-size: 0.65rem; font-weight: 700; line-height: 1.25; }
-  .combat-touch-controls .touch-briefing button {
-    display: grid;
-    width: auto;
-    min-width: 180px;
-    height: 48px;
-    min-height: 48px;
-    justify-self: end;
-    grid-template-rows: 1fr;
-    border: 2px solid var(--charcoal);
-    padding: 7px 18px;
-    color: var(--chalk);
-    background: var(--pine);
-    box-shadow: 3px 3px 0 var(--charcoal);
-  }
-  .combat-touch-controls .touch-briefing button > span { font: 900 0.82rem/1 "Segoe UI", "Noto Sans TC", sans-serif; }
-  .touch-mode-readout {
-    display: block;
-    min-height: 26px;
-    max-width: calc(100vw - 20px);
-    overflow: hidden;
-    border: 1px solid rgba(224, 184, 102, 0.88);
-    padding: 5px 11px;
-    color: var(--chalk);
-    background: rgba(17, 26, 23, 0.94);
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.62);
-    font: 800 0.7rem/1.15 "Segoe UI", "Noto Sans TC", sans-serif;
-    text-align: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    pointer-events: none;
-  }
-  .touch-control-panel {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 54px;
-    gap: 4px;
-    border: 2px solid rgba(224, 184, 102, 0.92);
-    padding: 4px;
-    background: linear-gradient(180deg, rgba(37, 72, 60, 0.97), rgba(16, 31, 27, 0.98));
-    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.72), 0 8px 22px rgba(0, 0, 0, 0.34);
-    pointer-events: auto;
-  }
-  .touch-control-panel[hidden] { display: none; }
-  .combat-touch-controls button {
-    display: grid;
-    width: 54px;
-    min-width: 54px;
-    height: 56px;
-    min-height: 56px;
-    grid-template-rows: 1fr auto;
-    place-items: center;
-    gap: 1px;
-    border: 1px solid rgba(240, 235, 207, 0.66);
-    border-radius: 2px;
-    padding: 4px 2px 3px;
-    color: var(--chalk);
-    background: rgba(17, 26, 23, 0.86);
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45);
-    font-family: "Segoe UI", "Noto Sans TC", sans-serif;
-    touch-action: manipulation;
-    pointer-events: auto;
-  }
-  .combat-touch-controls button > span { font: 900 1rem/1 Georgia, "Noto Serif TC", serif; }
-  .combat-touch-controls button > small { font: 850 0.62rem/1 "Segoe UI", "Noto Sans TC", sans-serif; white-space: nowrap; }
-  .combat-touch-controls button.is-active,
-  .combat-touch-controls button[aria-pressed="true"] { color: var(--charcoal); border-color: var(--chalk); background: var(--copper-light); box-shadow: inset 0 0 0 2px var(--charcoal); }
-  .combat-touch-controls button:active { color: var(--charcoal); background: var(--copper-light); transform: translateY(2px); box-shadow: none; }
 
 }
 
