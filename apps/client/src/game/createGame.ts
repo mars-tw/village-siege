@@ -14,7 +14,12 @@ export function createGame(parent: string | HTMLElement): Phaser.Game {
     height: 720,
     backgroundColor: "#101917",
     render: { antialias: true, roundPixels: true },
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: {
+      mode: Phaser.Scale.EXPAND,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      fullscreenTarget: typeof parent === "string" ? parent : parent.id || null,
+      autoRound: true,
+    },
     scene: [BootScene, VillageSelectScene, MultiplayerLobbyScene, MatchScene, CombatShowcaseScene]
   });
 
