@@ -12,6 +12,7 @@ import {
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   UNITS,
+  getBuildingFootprint,
   getVillage,
 } from "./content.js";
 import {
@@ -68,6 +69,8 @@ import {
   type ResourceKind,
   type ResourceWallet,
   type SettlementTier,
+  type StructureHealthBand,
+  type StructureOrientation,
   type TechnologyType,
   type UnitType,
   type VisibleSnapshot,
@@ -153,6 +156,8 @@ export interface BuildingEntityState {
   statuses: ActiveStatusState[];
   rallyPoint: GridPoint | null;
   productionQueue: ProductionJob[];
+  orientation: StructureOrientation;
+  gateOpen: boolean;
 }
 
 export interface ResourceEntityState {
@@ -168,7 +173,22 @@ export interface ResourceEntityState {
   renewAtTick: number | null;
 }
 
-export type EntityState = UnitEntityState | BuildingEntityState | ResourceEntityState;
+export interface RubbleEntityState {
+  id: EntityId;
+  ownerId: null;
+  kind: "rubble";
+  typeId: BuildingType;
+  position: GridPoint;
+  hitPoints: number;
+  maxHitPoints: number;
+  stateRevision: number;
+  orientation: StructureOrientation;
+  decayAtTick: number;
+}
+
+export type EntityState = UnitEntityState | BuildingEntityState | ResourceEntityState | RubbleEntityState;
+
+export const RUBBLE_DECAY_TICKS = 200;
 
 interface ProjectileDamageSpec {
   sourceUnitType: CombatUnitId;
@@ -405,6 +425,20 @@ export function hashReplay(initialState: MatchState, commands: readonly CommandE
   return fnv1a(stableStringify({ initial: hashMatchState(initialState), commands: ordered, deltaTicks, final: hashMatchState(result.state) }));
 }
 
+export function getStructureHealthBand(entity: BuildingEntityState | RubbleEntityState): StructureHealthBand {
+  if (entity.kind === "rubble" || entity.hitPoints <= 0) return "destroyed";
+  if (entity.hitPoints * 3 <= entity.maxHitPoints) return "critical";
+  if (entity.hitPoints * 3 <= entity.maxHitPoints * 2) return "damaged";
+  return "healthy";
+}
+
+export function doesEntityBlockMovement(entity: EntityState): boolean {
+  if (entity.kind === "unit" || entity.kind === "rubble") return false;
+  if (entity.kind === "resource") return true;
+  if (entity.hitPoints <= 0) return false;
+  return BUILDINGS[entity.typeId].movementBlocking !== "whenClosed" || !entity.complete || !entity.gateOpen;
+}
+
 export function toPublicEntity(entity: EntityState): PublicEntityState {
   const publicEntity: PublicEntityState = {
     id: entity.id,
@@ -449,9 +483,23 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
       },
     };
   }
+  if (entity.kind === "rubble") {
+    return {
+      ...publicEntity,
+      orientation: entity.orientation,
+      healthBand: "destroyed",
+      blocksMovement: false,
+    };
+  }
   return {
     ...publicEntity,
     statuses: entity.statuses.map((status) => ({ id: status.id, expiresAtTick: status.expiresAtTick })),
+    orientation: entity.orientation,
+    gateOpen: entity.typeId === "surveyGate" ? entity.gateOpen : undefined,
+    complete: entity.complete,
+    constructionRemainingTicks: entity.constructionRemainingTicks,
+    healthBand: getStructureHealthBand(entity),
+    blocksMovement: doesEntityBlockMovement(entity),
   };
 }
 
@@ -574,6 +622,7 @@ export function projectDomainEventsForPlayer(
       case "settlementAdvanced":
       case "technologyResearched":
       case "rallyPointChanged":
+      case "gateStateChanged":
       case "productionCancelled":
       case "resourcesDeposited":
         if (event.playerId === playerId) projected.push(event);
@@ -614,8 +663,8 @@ function maskPublicProjectileForPlayer(state: MatchState, playerId: PlayerId, pr
 function isPublicEntityVisibleToPlayer(state: MatchState, playerId: PlayerId, entity: PublicEntityState | undefined): boolean {
   if (!entity) return false;
   if (entity.ownerId !== null && arePlayersAllied(state, playerId, entity.ownerId)) return true;
-  if (entity.kind !== "building") return isTileVisibleToPlayer(state, playerId, entity.position);
-  return getFootprintCells(entity.position, BUILDINGS[entity.typeId as BuildingType].footprint)
+  if (entity.kind !== "building" && entity.kind !== "rubble") return isTileVisibleToPlayer(state, playerId, entity.position);
+  return getFootprintCells(entity.position, getBuildingFootprint(entity.typeId as BuildingType, entity.orientation))
     .some((cell) => isTileVisibleToPlayer(state, playerId, cell));
 }
 
@@ -624,8 +673,8 @@ export function isEntityVisibleToPlayer(state: MatchState, playerId: PlayerId, t
 }
 
 export function getEntityFootprintCells(entity: EntityState): readonly GridPoint[] {
-  return entity.kind === "building"
-    ? getFootprintCells(entity.position, BUILDINGS[entity.typeId].footprint)
+  return entity.kind === "building" || entity.kind === "rubble"
+    ? getFootprintCells(entity.position, getBuildingFootprint(entity.typeId, entity.orientation))
     : [entity.position];
 }
 
@@ -633,12 +682,16 @@ export function getOccupiedMapCells(state: MatchState): readonly GridPoint[] {
   return state.entities.flatMap((entity) => entity.kind === "unit" ? [] : getEntityFootprintCells(entity));
 }
 
-export function isBuildLocationAvailable(state: MatchState, buildingType: BuildingType, origin: GridPoint): boolean {
+export function getNavigationBlockedMapCells(state: MatchState): readonly GridPoint[] {
+  return state.entities.flatMap((entity) => doesEntityBlockMovement(entity) ? getEntityFootprintCells(entity) : []);
+}
+
+export function isBuildLocationAvailable(state: MatchState, buildingType: BuildingType, origin: GridPoint, orientation: StructureOrientation = "ne"): boolean {
   const terrainBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultBuildBlockedCells() : [];
   const occupied = getOccupiedMapCells(state);
   const placement = validateFootprintPlacement(
     origin,
-    BUILDINGS[buildingType].footprint,
+    getBuildingFootprint(buildingType, orientation),
     state.map.width,
     state.map.height,
     [...occupied, ...terrainBlocked],
@@ -646,7 +699,7 @@ export function isBuildLocationAvailable(state: MatchState, buildingType: Buildi
   if (!placement.ok) return false;
   const walkBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultWalkBlockedCells() : [];
   const approachBlocked = new Set([...occupied, ...walkBlocked].map(pointKey));
-  return getFootprintPerimeterCells(origin, BUILDINGS[buildingType].footprint).some((cell) => (
+  return getFootprintPerimeterCells(origin, getBuildingFootprint(buildingType, orientation)).some((cell) => (
     isPointInBounds(cell, state) && !approachBlocked.has(pointKey(cell))
   ));
 }
@@ -656,7 +709,7 @@ export function isRallyPointAvailable(state: MatchState, producerId: EntityId, t
   if (!producer || !isTrainingProducer(producer.typeId) || !producer.complete || producer.hitPoints <= 0) return false;
   if (!isExactWalkTargetAvailable(state, target)) return false;
   const blocked = getPathBlockedCells(state);
-  return getFootprintPerimeterCells(producer.position, BUILDINGS[producer.typeId].footprint).some((start) => (
+  return getFootprintPerimeterCells(producer.position, getBuildingFootprint(producer.typeId, producer.orientation)).some((start) => (
     isPointInBounds(start, state)
     && isMapCellWalkable(state, start)
     && !isMapCellBlocked(state, start)
@@ -682,11 +735,18 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     const builders = ownedUnits(state, player.id, command.builderIds);
     if (!builders) return rejected("ENTITY_NOT_OWNED");
     if (builders.some((builder) => builder.typeId !== "villager")) return rejected("INVALID_PAYLOAD");
-    const footprint = getFootprintCells(command.origin, BUILDINGS[command.buildingType].footprint);
+    const orientation = command.orientation ?? "ne";
+    const footprint = getFootprintCells(command.origin, getBuildingFootprint(command.buildingType, orientation));
     if (!footprint.every((cell) => isPointInBounds(cell, state))) return rejected("TARGET_NOT_REACHABLE");
     if (!meetsTier(player.settlementTier, BUILDINGS[command.buildingType].requiredTier)) return rejected("PREREQUISITE_NOT_MET");
     if (!footprint.every((cell) => isTileVisibleToPlayer(state, player.id, cell))) return rejected("TARGET_NOT_VISIBLE");
-    if (!isBuildLocationAvailable(state, command.buildingType, command.origin)) return rejected("TARGET_NOT_REACHABLE");
+    if (!isBuildLocationAvailable(state, command.buildingType, command.origin, orientation)) return rejected("TARGET_NOT_REACHABLE");
+    const builderIds = new Set(builders.map((builder) => builder.id));
+    if (state.entities.some((entity) => entity.kind === "unit" && entity.hitPoints > 0 && !builderIds.has(entity.id) && footprint.some((cell) => samePoint(cell, entity.position)))) return rejected("TARGET_NOT_REACHABLE");
+    const blocked = [...getPathBlockedCells(state), ...footprint];
+    const approachCells = getFootprintPerimeterCells(command.origin, getBuildingFootprint(command.buildingType, orientation))
+      .filter((cell) => isPointInBounds(cell, state) && isMapCellWalkable(state, cell));
+    if (builders.some((builder) => findPathToAny(builder.position, approachCells, state.map.width, state.map.height, blocked) === null)) return rejected("TARGET_NOT_REACHABLE");
     return canAfford(player.resources, BUILDINGS[command.buildingType].cost) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
   if (command.type === "train") {
@@ -727,6 +787,18 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     return command.target === null || isRallyPointAvailable(state, producer.id, command.target)
       ? { ok: true }
       : rejected("TARGET_NOT_REACHABLE");
+  }
+  if (command.type === "setGateState") {
+    const gate = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.gateId && entity.kind === "building");
+    if (!gate || gate.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
+    if (gate.typeId !== "surveyGate") return rejected("INVALID_PAYLOAD");
+    if (!gate.complete || gate.hitPoints <= 0 || gate.gateOpen === command.open) return rejected("ACTION_ON_COOLDOWN");
+    if (!command.open) {
+      const footprint = getEntityFootprintCells(gate);
+      const occupied = state.entities.some((entity) => entity.kind === "unit" && entity.hitPoints > 0 && footprint.some((cell) => samePoint(cell, entity.position)));
+      if (occupied) return rejected("TARGET_NOT_REACHABLE");
+    }
+    return { ok: true };
   }
   if (command.type === "castAbility") {
     const caster = state.entities.find((entity): entity is UnitEntityState => entity.id === command.casterId && entity.kind === "unit");
@@ -838,7 +910,7 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
       break;
     }
     case "build": {
-      const building = createBuilding(state, player.id, command.buildingType, command.origin, false);
+      const building = createBuilding(state, player.id, command.buildingType, command.origin, false, command.orientation ?? "ne");
       state.entities.push(building);
       subtractWallet(player, BUILDINGS[command.buildingType].cost);
       setOrders(state, command.builderIds, { type: "construct", targetId: building.id }, events);
@@ -903,6 +975,14 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
       events.push({ type: "rallyPointChanged", playerId: player.id, producerId: producer.id, target: producer.rallyPoint ? { ...producer.rallyPoint } : null });
       break;
     }
+    case "setGateState": {
+      const gate = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.gateId && entity.kind === "building")!;
+      gate.gateOpen = command.open;
+      gate.stateRevision += 1;
+      events.push({ type: "gateStateChanged", playerId: player.id, gateId: gate.id, open: gate.gateOpen });
+      events.push({ type: "entityUpdated", entity: toPublicEntity(gate) });
+      break;
+    }
     case "advanceSettlement": {
       const definition = SETTLEMENT_TIERS[command.targetTier];
       subtractWallet(player, definition.cost);
@@ -953,17 +1033,22 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   const removed = state.entities.filter((entity) => (
     entity.kind === "resource"
       ? entity.amount <= 0 && entity.renewAtTick === null
-      : entity.hitPoints <= 0
-  ));
+      : entity.kind === "rubble"
+        ? state.tick >= entity.decayAtTick
+        : entity.hitPoints <= 0
+  )).sort((left, right) => compareText(left.id, right.id));
   if (removed.length > 0) {
     const removedIds = new Set(removed.map((entity) => entity.id));
     state.entities = state.entities.filter((entity) => !removedIds.has(entity.id));
-    for (const entity of removed) events.push({
-      type: "entityRemoved",
-      entityId: entity.id,
-      entity: toPublicEntity(entity),
-      reason: entity.kind === "resource" ? "depleted" : "destroyed",
-    });
+    for (const entity of removed) {
+      const reason = entity.kind === "resource" ? "depleted" : entity.kind === "rubble" ? "despawned" : "destroyed";
+      events.push({ type: "entityRemoved", entityId: entity.id, entity: toPublicEntity(entity), reason });
+      if (entity.kind === "building" && BUILDINGS[entity.typeId].leavesRubble) {
+        const rubble = createRubble(state, entity);
+        state.entities.push(rubble);
+        events.push({ type: "entitySpawned", entity: toPublicEntity(rubble) });
+      }
+    }
   }
   updateSettlementAdvancements(state, events);
   syncPopulation(state);
@@ -1029,13 +1114,16 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
   if (order.type === "construct") {
     if (target.kind !== "building" || target.complete) { unit.order = { type: "idle" }; return; }
     if (!isEntityInteractionCell(unit.position, target)) { moveTowardEntity(state, unit, target); return; }
+    const totalTicks = Math.max(1, BUILDINGS[target.typeId].buildTicks);
+    const previousCap = Math.max(1, Math.floor(target.maxHitPoints * (1 - target.constructionRemainingTicks / totalTicks)));
     target.constructionRemainingTicks = Math.max(0, target.constructionRemainingTicks - 1);
-    target.hitPoints = Math.max(1, Math.floor(target.maxHitPoints * (1 - target.constructionRemainingTicks / BUILDINGS[target.typeId].buildTicks)));
+    const nextCap = Math.max(1, Math.floor(target.maxHitPoints * (1 - target.constructionRemainingTicks / totalTicks)));
+    target.hitPoints = Math.min(nextCap, target.hitPoints + Math.max(0, nextCap - previousCap));
     target.stateRevision += 1;
     if (target.constructionRemainingTicks === 0) {
       target.complete = true;
-      target.hitPoints = target.maxHitPoints;
       unit.order = { type: "idle" };
+      events.push({ type: "entityUpdated", entity: toPublicEntity(target) });
     }
     return;
   }
@@ -1182,7 +1270,7 @@ function commitAbility(state: MatchState, unit: UnitEntityState, events: DomainE
       spawnProjectile(state, unit.ownerId, unit.id, unit.position, candidate, projectileProfileId, damage, [...ability.statusEffects], events, fixedImpactPoint);
     } else {
       applyDamage(state, unit.id, candidate, damage, events);
-      if (candidate.kind !== "resource") {
+      if (candidate.kind === "unit" || candidate.kind === "building") {
         for (const statusId of ability.statusEffects) {
           if (!bracedChargeTargets.has(candidate.id)) applyStatus(state, unit.id, candidate, statusId, events);
         }
@@ -1298,7 +1386,7 @@ function calculateUnitDamage(
   structureMultiplierOverride: number | null = null,
 ): number {
   const targetArmor = entityArmor(target);
-  const armorBreak = target.kind !== "resource" && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
+  const armorBreak = (target.kind === "unit" || target.kind === "building") && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
   const attackerDefinition = attacker.typeId === "villager" ? null : COMBAT_UNITS[attacker.typeId];
   const shieldWallApplies = target.kind === "unit"
     && hasStatus(target, "shieldWall")
@@ -1335,11 +1423,15 @@ function isInFrontArc(unit: UnitEntityState, source: GridPoint): boolean {
 }
 
 function applyDamage(state: MatchState, sourceId: EntityId, target: EntityState, rawDamage: number, events: DomainEvent[]): void {
-  if (target.kind === "resource" || target.hitPoints <= 0) return;
+  if (target.kind === "resource" || target.kind === "rubble" || target.hitPoints <= 0) return;
+  const previousBand = target.kind === "building" ? getStructureHealthBand(target) : null;
   const damage = damageAfterVillageTrait(state, target, Math.max(1, Math.floor(rawDamage)));
   target.hitPoints = Math.max(0, target.hitPoints - damage);
   target.stateRevision += 1;
   events.push({ type: "entityDamaged", sourceId, targetId: target.id, amount: damage, hitPoints: target.hitPoints });
+  if (target.kind === "building" && previousBand !== getStructureHealthBand(target)) {
+    events.push({ type: "entityUpdated", entity: toPublicEntity(target) });
+  }
 }
 
 function spawnGroundAreaProjectiles(
@@ -1535,7 +1627,7 @@ function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
         const priorHits = groupCounts.get(target.id) ?? 0;
         const rawDamage = projectileDamageFromSpec(state, projectile, target, 1);
         applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target, rawDamage), events);
-        if (target.kind !== "resource" && priorHits === 0) {
+        if ((target.kind === "unit" || target.kind === "building") && priorHits === 0) {
           for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
         }
         groupCounts.set(target.id, priorHits + 1);
@@ -1546,7 +1638,7 @@ function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
       const remainsInImpactArea = target !== undefined && distanceSquaredToEntity(projectile.targetPoint, target) <= (projectile.fixedImpact ? 4 : 0);
       if (target && remainsInImpactArea && isValidHostileTarget(state, projectile.ownerId, target)) {
         applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target), events);
-        if (target.kind !== "resource") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
+        if (target.kind === "unit" || target.kind === "building") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
         impacted.push(target.id);
       }
     }
@@ -1578,7 +1670,7 @@ function projectileDamageFromSpec(state: MatchState, projectile: ProjectileState
   if (resolution === null) return projectile.damage;
   const spec = resolution.damage;
   const targetArmor = entityArmor(target);
-  const armorBreak = target.kind !== "resource" && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
+  const armorBreak = (target.kind === "unit" || target.kind === "building") && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
   const counterMultiplier = combatCounterMultiplier(spec.sourceUnitType, target);
   const structureMultiplier = target.kind === "building"
     ? (spec.abilityId === "breachingBolt" ? 1.45 : spec.sourceUnitType === "heavyCrossbowman" ? 1.6 : spec.sourceUnitType === "boarRider" ? 0.8 : 1) * spec.structureMultiplierBonus
@@ -1617,7 +1709,7 @@ function advanceLineProjectile(
     const hitIndex = resolution.hitTargetIds.length;
     const rawDamage = projectileDamageFromSpec(state, projectile, entity, hitIndex === 0 ? 1 : 0.75);
     applyDamage(state, projectile.sourceId, entity, projectileDamageAtImpact(projectile, entity, rawDamage), events);
-    if (entity.kind !== "resource") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, entity, statusId, events);
+    if (entity.kind === "unit" || entity.kind === "building") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, entity, statusId, events);
     resolution.hitTargetIds.push(entity.id);
     if (entity.kind === "building" || resolution.hitTargetIds.length >= resolution.maxTargets) {
       stopDistance = forward;
@@ -1843,9 +1935,9 @@ function recordUnitMovement(state: MatchState, unit: UnitEntityState, tiles: num
 }
 
 function entityArmor(entity: EntityState): number {
-  if (entity.kind === "resource") return 0;
+  if (entity.kind === "resource" || entity.kind === "rubble") return 0;
   if (entity.kind === "unit") return entity.typeId === "villager" ? 0 : COMBAT_UNITS[entity.typeId].armor;
-  return ({ townCenter: 18, house: 6, lumberCamp: 8, farmstead: 8, barracks: 12, defenseTower: 24, archeryRange: 10, mageSanctum: 8, gunWorkshop: 10, beastStable: 10, siegeWorkshop: 16 } satisfies Record<BuildingType, number>)[entity.typeId];
+  return BUILDINGS[entity.typeId].armor;
 }
 
 function statusAdjustedSpeed(state: MatchState, unit: UnitEntityState): number {
@@ -2181,8 +2273,15 @@ function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint)
   unit.movementProgress += speed;
   if (unit.movementProgress < 1000 * TICKS_PER_SECOND) return false;
   unit.movementProgress -= 1000 * TICKS_PER_SECOND;
-  const next = findNextPathStep(unit.position, target, state.map.width, state.map.height, getPathBlockedCells(state));
-  if (!next) { unit.order = { type: "idle" }; return true; }
+  const next = findNextPathStep(unit.position, target, state.map.width, state.map.height, getPlanningPathBlockedCells(state, unit.ownerId));
+  if (!next) {
+    unit.movementProgress = Math.min(unit.movementProgress + 1000 * TICKS_PER_SECOND, 1000 * TICKS_PER_SECOND);
+    return false;
+  }
+  if (isMapCellBlocked(state, next)) {
+    unit.movementProgress = 1000 * TICKS_PER_SECOND;
+    return false;
+  }
   if (samePoint(next, unit.position)) return true;
   const origin = { ...unit.position };
   unit.facing = quantizeFacing(next.x - unit.position.x, next.y - unit.position.y, unit.facing);
@@ -2235,7 +2334,14 @@ function createUnit(state: MatchState, ownerId: PlayerId, typeId: UnitType, posi
   };
 }
 
-function createBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingType, position: GridPoint, complete: boolean): BuildingEntityState {
+function createBuilding(
+  state: MatchState,
+  ownerId: PlayerId,
+  typeId: BuildingType,
+  position: GridPoint,
+  complete: boolean,
+  orientation: StructureOrientation = "ne",
+): BuildingEntityState {
   const definition = BUILDINGS[typeId];
   const maxHitPoints = getEffectiveBuildingMaxHitPoints(state, ownerId, typeId);
   return {
@@ -2253,6 +2359,23 @@ function createBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingTy
     statuses: [],
     rallyPoint: null,
     productionQueue: [],
+    orientation,
+    gateOpen: false,
+  };
+}
+
+function createRubble(state: MatchState, source: BuildingEntityState): RubbleEntityState {
+  return {
+    id: nextId(state, "rubble"),
+    ownerId: null,
+    kind: "rubble",
+    typeId: source.typeId,
+    position: { ...source.position },
+    hitPoints: 0,
+    maxHitPoints: 0,
+    stateRevision: 0,
+    orientation: source.orientation,
+    decayAtTick: state.tick + RUBBLE_DECAY_TICKS,
   };
 }
 
@@ -2325,6 +2448,8 @@ function formationOffset(formation: FormationKind, index: number, count: number,
 
 function formationDestination(state: MatchState, unit: UnitEntityState, desired: GridPoint, fallback: GridPoint, reserved: ReadonlySet<string>): GridPoint {
   const candidates = [desired, fallback];
+  const blockers = getPathBlockedCells(state);
+  const fallbackReachable = findPathRoute(unit.position, fallback, state.map.width, state.map.height, blockers) !== null;
   const maximumRadius = Math.max(state.map.width, state.map.height);
   for (let radius = 1; radius <= maximumRadius; radius += 1) {
     for (let dy = -radius; dy <= radius; dy += 1) {
@@ -2338,7 +2463,7 @@ function formationDestination(state: MatchState, unit: UnitEntityState, desired:
   return candidates.find((candidate) => (
     !reserved.has(pointKey(candidate))
     && isExactWalkTargetAvailable(state, candidate)
-    && findPathRoute(unit.position, candidate, state.map.width, state.map.height, getPathBlockedCells(state)) !== null
+    && (!fallbackReachable || findPathRoute(unit.position, candidate, state.map.width, state.map.height, blockers) !== null)
   )) ?? fallback;
 }
 
@@ -2650,7 +2775,9 @@ function isEntityInteractionCell(point: GridPoint, entity: EntityState): boolean
 
 function findEntityApproachRoute(state: MatchState, start: GridPoint, entity: EntityState): EntityApproachRoute | null {
   if (isEntityInteractionCell(start, entity)) return { target: { ...start }, firstStep: { ...start }, distance: 0 };
-  const footprint = entity.kind === "building" ? BUILDINGS[entity.typeId].footprint : [{ x: 0, y: 0 }];
+  const footprint = entity.kind === "building" || entity.kind === "rubble"
+    ? getBuildingFootprint(entity.typeId, entity.orientation)
+    : [{ x: 0, y: 0 }];
   const blockedCells = getPathBlockedCells(state);
   const blocked = new Set(blockedCells.map(pointKey));
   const targets = getFootprintPerimeterCells(entity.position, footprint)
@@ -2680,7 +2807,7 @@ function isEntityReachable(state: MatchState, start: GridPoint, entity: EntitySt
 
 function isMapCellBlocked(state: MatchState, point: GridPoint): boolean {
   const key = pointKey(point);
-  return getOccupiedMapCells(state).some((cell) => pointKey(cell) === key);
+  return getNavigationBlockedMapCells(state).some((cell) => pointKey(cell) === key);
 }
 
 function isMapCellWalkable(state: MatchState, point: GridPoint): boolean {
@@ -2703,8 +2830,26 @@ function canUnitMoveToExactPoint(state: MatchState, start: GridPoint, target: Gr
 
 function getPathBlockedCells(state: MatchState): readonly GridPoint[] {
   return state.map.id === VILLAGE_ASSAULT_MAP_ID
-    ? [...getOccupiedMapCells(state), ...getVillageAssaultWalkBlockedCells()]
-    : getOccupiedMapCells(state);
+    ? [...getNavigationBlockedMapCells(state), ...getVillageAssaultWalkBlockedCells()]
+    : getNavigationBlockedMapCells(state);
+}
+
+function getPlanningPathBlockedCells(state: MatchState, playerId: PlayerId): readonly GridPoint[] {
+  const live = state.entities.flatMap((entity) => {
+    if (!doesEntityBlockMovement(entity)) return [];
+    if (entity.kind === "resource") return getEntityFootprintCells(entity);
+    if (entity.kind !== "building") return [];
+    return arePlayersAllied(state, playerId, entity.ownerId) || isEntityVisibleToPlayer(state, playerId, entity)
+      ? getEntityFootprintCells(entity)
+      : [];
+  });
+  const remembered = getPlayerVisibilityState(state, playerId).staleEnemySightings.flatMap((sighting) => (
+    sighting.blocksMovement
+      ? getFootprintCells(sighting.position, getBuildingFootprint(sighting.typeId, sighting.orientation))
+      : []
+  ));
+  const terrain = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultWalkBlockedCells() : [];
+  return [...live, ...remembered, ...terrain];
 }
 
 function pointKey(point: GridPoint): string {

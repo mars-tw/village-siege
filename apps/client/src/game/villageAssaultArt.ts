@@ -4,14 +4,16 @@ import {
   type BuildingType,
   type ResourceEntityState,
   type ResourceKind,
+  type RubbleEntityState,
   type StaleEntitySighting,
+  type StructureOrientation,
 } from "@village-siege/shared";
 
 export type AssaultSide = "player" | "enemy";
 
 export interface AssaultEntityView {
   readonly container: Phaser.GameObjects.Container;
-  update(entity: BuildingEntityState | ResourceEntityState, selected?: boolean): void;
+  update(entity: BuildingEntityState | ResourceEntityState | RubbleEntityState, selected?: boolean): void;
   setCompact(compact: boolean): void;
   destroy(): void;
 }
@@ -46,6 +48,9 @@ const BUILDING_LABELS: Readonly<Record<BuildingType, string>> = {
   gunWorkshop: "火器坊",
   beastStable: "獠騎圈",
   siegeWorkshop: "攻城棚",
+  resinPalisade: "樹脂石籠牆",
+  surveyGate: "測界雙葉門",
+  copperLandmark: "拓界銅標",
 };
 
 const RESOURCE_LABELS: Readonly<Record<ResourceKind, string>> = {
@@ -93,11 +98,11 @@ export function createBuildingView(
   let lastRevision = -1;
   let lastSelected = false;
 
-  const update = (next: BuildingEntityState | ResourceEntityState, selected = false): void => {
+  const update = (next: BuildingEntityState | ResourceEntityState | RubbleEntityState, selected = false): void => {
     if (next.kind !== "building") return;
     if (next.stateRevision !== lastRevision) {
       art.clear();
-      drawBuilding(art, next.typeId, side, completionRatio(next), next.hitPoints / next.maxHitPoints);
+      drawBuilding(art, next.typeId, side, completionRatio(next), next.hitPoints / next.maxHitPoints, next.orientation, next.gateOpen);
       const ratio = Phaser.Math.Clamp(next.hitPoints / next.maxHitPoints, 0, 1);
       health.setDisplaySize(88 * ratio, 4);
       lastRevision = next.stateRevision;
@@ -154,7 +159,7 @@ export function createStaleBuildingView(
   const update = (next: StaleEntitySighting, currentTick: number): void => {
     if (next.stateRevision !== lastRevision) {
       art.clear();
-      drawBuilding(art, next.typeId, "enemy", 1, Phaser.Math.Clamp(next.hitPoints / Math.max(1, next.maxHitPoints), 0, 1));
+      drawBuilding(art, next.typeId, "enemy", 1, Phaser.Math.Clamp(next.hitPoints / Math.max(1, next.maxHitPoints), 0, 1), next.orientation, next.gateOpen ?? false);
       lastRevision = next.stateRevision;
     }
     const elapsedSeconds = Math.max(0, Math.floor((currentTick - next.observedAtTick) / 10));
@@ -188,7 +193,7 @@ export function createResourceView(scene: Phaser.Scene, entity: ResourceEntitySt
   let lastSelected = false;
   let compactView = false;
   let fallow = false;
-  const update = (next: BuildingEntityState | ResourceEntityState, selected = false): void => {
+  const update = (next: BuildingEntityState | ResourceEntityState | RubbleEntityState, selected = false): void => {
     if (next.kind !== "resource") return;
     if (next.stateRevision !== lastRevision) {
       art.clear();
@@ -212,6 +217,35 @@ export function createResourceView(scene: Phaser.Scene, entity: ResourceEntitySt
       label.setVisible(!compact);
       amount.setVisible(!compact || fallow);
     },
+    destroy: () => container.destroy(true),
+  };
+}
+
+export function createRubbleView(scene: Phaser.Scene, entity: RubbleEntityState): AssaultEntityView {
+  const shadow = scene.add.ellipse(0, 10, footprintWidth(entity.typeId), footprintHeight(entity.typeId), INK, 0.22);
+  const art = scene.add.graphics();
+  const label = scene.add.text(0, 24, "可通行破口", {
+    color: "#d6c7a5",
+    fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+    fontSize: "11px",
+    fontStyle: "bold",
+    backgroundColor: "#101917b8",
+    padding: { x: 4, y: 2 },
+  }).setOrigin(0.5, 0).setResolution(2);
+  const container = scene.add.container(0, 0, [shadow, art, label]);
+  container.setName(`assault-rubble:${entity.id}`).setSize(92, 62);
+  let lastRevision = -1;
+  const update = (next: BuildingEntityState | ResourceEntityState | RubbleEntityState): void => {
+    if (next.kind !== "rubble" || next.stateRevision === lastRevision) return;
+    art.clear();
+    drawRubble(art, next.typeId, next.orientation);
+    lastRevision = next.stateRevision;
+  };
+  update(entity);
+  return {
+    container,
+    update,
+    setCompact: (compact) => label.setVisible(!compact),
     destroy: () => container.destroy(true),
   };
 }
@@ -240,6 +274,8 @@ function queueText(queue: BuildingEntityState["productionQueue"]): string {
 
 function footprintWidth(type: BuildingType): number {
   if (type === "townCenter") return 122;
+  if (type === "surveyGate" || type === "copperLandmark") return 116;
+  if (type === "resinPalisade") return 76;
   if (type === "siegeWorkshop") return 118;
   if (type === "archeryRange" || type === "gunWorkshop" || type === "beastStable") return 108;
   if (type === "barracks" || type === "farmstead" || type === "mageSanctum") return 104;
@@ -248,6 +284,8 @@ function footprintWidth(type: BuildingType): number {
 
 function footprintHeight(type: BuildingType): number {
   if (type === "townCenter") return 47;
+  if (type === "surveyGate" || type === "copperLandmark") return 46;
+  if (type === "resinPalisade") return 30;
   if (type === "siegeWorkshop" || type === "beastStable") return 44;
   if (type === "barracks" || type === "farmstead" || type === "archeryRange" || type === "gunWorkshop" || type === "mageSanctum") return 40;
   return 32;
@@ -259,6 +297,8 @@ function drawBuilding(
   side: AssaultSide,
   completion: number,
   healthRatio: number,
+  orientation: StructureOrientation,
+  gateOpen = false,
 ): void {
   const accent = side === "player" ? PLAYER : ENEMY;
   const width = footprintWidth(type);
@@ -268,7 +308,13 @@ function drawBuilding(
     drawScaffolding(g, width, -2, 35 * completion + 8, accent);
     return;
   }
-  if (type === "defenseTower") {
+  if (type === "resinPalisade") {
+    drawResinPalisade(g, accent, completion, orientation);
+  } else if (type === "surveyGate") {
+    drawSurveyGate(g, accent, completion, orientation, gateOpen);
+  } else if (type === "copperLandmark") {
+    drawCopperLandmark(g, accent, completion, orientation);
+  } else if (type === "defenseTower") {
     drawTower(g, accent, completion);
   } else if (type === "townCenter") {
     drawTownCenter(g, accent, completion);
@@ -287,6 +333,111 @@ function drawBuilding(
   }
   if (completion < 1) drawScaffolding(g, width, -6, 55 * completion, accent);
   if (healthRatio < 0.58) drawDamage(g, healthRatio);
+}
+
+function drawResinPalisade(g: Phaser.GameObjects.Graphics, accent: number, completion: number, orientation: StructureOrientation): void {
+  const rise = 46 * Math.min(1, (completion - 0.16) / 0.72);
+  const direction = orientation === "ne" ? 1 : -1;
+  g.lineStyle(7, 0x5b3d2c, 1)
+    .lineBetween(-31, 9, 31, -8 * direction)
+    .lineBetween(-31, 16, 31, 0 - 8 * direction);
+  for (let index = 0; index < 6; index += 1) {
+    const x = -29 + index * 12;
+    const y = 10 - index * 3 * direction;
+    const top = y - rise - (index % 2) * 5;
+    g.fillStyle(index % 2 ? 0x745039 : TIMBER_LIGHT, 1).fillTriangle(x - 5, top + 9, x, top, x + 5, top + 9).fillRect(x - 5, top + 8, 10, rise);
+    g.lineStyle(2, INK, 0.68).lineBetween(x - 5, top + 10, x - 5, y);
+    g.fillStyle(0xd4b56b, 0.9).fillCircle(x + 2, top + 18, 2);
+  }
+  // Woven shale gabion and resin lashings are the fortification's original material signature.
+  for (let index = 0; index < 5; index += 1) {
+    const x = -28 + index * 14;
+    const y = 12 - index * 3 * direction;
+    g.fillStyle(index % 2 ? 0x77776d : STONE_LIGHT, 1).fillCircle(x, y, 7);
+    g.lineStyle(1, 0x4e514a, 0.8).strokeCircle(x, y, 7);
+  }
+  g.lineStyle(3, accent, 0.95).lineBetween(-27, -11, 28, -27 * direction);
+}
+
+function drawSurveyGate(
+  g: Phaser.GameObjects.Graphics,
+  accent: number,
+  completion: number,
+  orientation: StructureOrientation,
+  open: boolean,
+): void {
+  const rise = 54 * Math.min(1, (completion - 0.14) / 0.74);
+  const direction = orientation === "ne" ? 1 : -1;
+  for (const side of [-1, 1]) {
+    const x = side * 43;
+    const y = side * -7 * direction + 7;
+    drawIsoBlock(g, x, y, 24, 19, rise, STONE_LIGHT, 0x73746b, 0x5c5e57);
+    g.fillStyle(COPPER, 1).fillRect(x - 10, y - rise - 6, 20, 6);
+    flag(g, x + side * 3, y - rise - 26, side < 0 ? accent : VERDIGRIS);
+  }
+  const leftHinge = { x: -34, y: 2 + 7 * direction };
+  const rightHinge = { x: 34, y: 2 - 7 * direction };
+  if (open) {
+    drawGateLeaf(g, leftHinge.x, leftHinge.y, -1, direction, 27, accent);
+    drawGateLeaf(g, rightHinge.x, rightHinge.y, 1, direction, 27, accent);
+    g.lineStyle(4, CHALK, 0.5).lineBetween(-19, 6, 19, -1 * direction);
+  } else {
+    drawGateLeaf(g, leftHinge.x, leftHinge.y, 1, direction, 58, accent);
+    drawGateLeaf(g, rightHinge.x, rightHinge.y, -1, direction, 58, accent);
+    g.lineStyle(6, 0x513625, 1).lineBetween(-32, -22, 32, -5).lineBetween(-31, -5, 31, -25);
+    g.fillStyle(COPPER, 1).fillCircle(0, -15, 5);
+  }
+}
+
+function drawGateLeaf(g: Phaser.GameObjects.Graphics, x: number, y: number, side: number, direction: number, width: number, accent: number): void {
+  const outerX = x + side * width;
+  const outerY = y - direction * width * 0.24;
+  g.lineStyle(9, TIMBER_LIGHT, 1)
+    .lineBetween(x, y - 7, outerX, outerY - 7)
+    .lineBetween(x, y - 27, outerX, outerY - 27)
+    .lineBetween(x, y - 47, outerX, outerY - 47);
+  g.lineStyle(5, TIMBER, 1).lineBetween(x, y - 51, x, y).lineBetween(outerX, outerY - 49, outerX, outerY - 2);
+  g.lineStyle(3, accent, 0.9).lineBetween(x + side * 5, y - 43, outerX - side * 4, outerY - 10);
+}
+
+function drawCopperLandmark(g: Phaser.GameObjects.Graphics, accent: number, completion: number, orientation: StructureOrientation): void {
+  const rise = 72 * Math.min(1, (completion - 0.13) / 0.77);
+  const direction = orientation === "ne" ? 1 : -1;
+  drawIsoBlock(g, 0, 9, 72, 34, 16, 0x8d8978, 0x6b685d, 0x56544d);
+  g.lineStyle(8, TIMBER, 1)
+    .lineBetween(-29, 5, -8, 5 - rise)
+    .lineBetween(29, 5, 8, 5 - rise)
+    .lineBetween(-3, 12, 0, 1 - rise - 15);
+  g.lineStyle(3, CHALK, 0.86)
+    .lineBetween(-27, -18, 18, -rise + 4)
+    .lineBetween(26, -16, -16, -rise + 1);
+  const discY = 4 - rise;
+  g.fillStyle(0x936f38, 1).fillCircle(0, discY, 25);
+  g.lineStyle(5, COPPER, 1).strokeCircle(0, discY, 25).strokeCircle(0, discY, 15);
+  g.lineStyle(3, INK, 0.85)
+    .lineBetween(-20, discY, 20, discY)
+    .lineBetween(0, discY - 20, 0, discY + 20)
+    .lineBetween(-14, discY - 14, 14, discY + 14 * direction);
+  g.fillStyle(CHALK, 1).fillCircle(0, discY, 5);
+  flag(g, 20, discY - 37, accent);
+  drawSurveyStakes(g, VERDIGRIS, [[-47, 13], [48, 12], [0, 29]]);
+}
+
+function drawRubble(g: Phaser.GameObjects.Graphics, sourceType: BuildingType, orientation: StructureOrientation): void {
+  const direction = orientation === "ne" ? 1 : -1;
+  const scale = sourceType === "copperLandmark" ? 1.25 : sourceType === "surveyGate" ? 1.1 : 0.9;
+  for (let index = 0; index < 7; index += 1) {
+    const x = (-31 + index * 11) * scale;
+    const y = ((index % 3) * 5 - 1 - index * direction) * 0.7;
+    const size = (5 + index % 3 * 2) * scale;
+    g.fillStyle(index % 2 ? STONE_LIGHT : STONE, 0.96)
+      .fillTriangle(x - size, y + size * 0.5, x + size, y + size * 0.4, x + size * 0.2, y - size);
+  }
+  g.lineStyle(7, TIMBER, 1)
+    .lineBetween(-34 * scale, -3, -7 * scale, 8)
+    .lineBetween(10 * scale, 7, 35 * scale, -8 * direction);
+  g.lineStyle(3, 0xc6a55d, 0.86).lineBetween(-19, 9, 18, -7 * direction);
+  g.fillStyle(COPPER, 0.95).fillTriangle(20, 7, 31, 1, 27, 13);
 }
 
 function drawTownCenter(g: Phaser.GameObjects.Graphics, accent: number, completion: number): void {

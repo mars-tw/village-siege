@@ -36,10 +36,15 @@ export type BuildingType =
   | "mageSanctum"
   | "gunWorkshop"
   | "beastStable"
-  | "siegeWorkshop";
+  | "siegeWorkshop"
+  | "resinPalisade"
+  | "surveyGate"
+  | "copperLandmark";
 export type UnitType = "villager" | CombatUnitId;
 export type CombatStance = "aggressive" | "defensive" | "holdGround";
 export type FormationKind = "line" | "wedge" | "box";
+export type StructureOrientation = "ne" | "se";
+export type StructureHealthBand = "healthy" | "damaged" | "critical" | "destroyed";
 
 export interface GridPoint {
   readonly x: number;
@@ -75,11 +80,12 @@ export type GameCommand =
   | { readonly type: "attack"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
   | { readonly type: "gather"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
   | { readonly type: "dropOff"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
-  | { readonly type: "build"; readonly builderIds: readonly EntityId[]; readonly buildingType: BuildingType; readonly origin: GridPoint }
+  | { readonly type: "build"; readonly builderIds: readonly EntityId[]; readonly buildingType: BuildingType; readonly origin: GridPoint; readonly orientation?: StructureOrientation }
   | { readonly type: "train"; readonly producerId: EntityId; readonly unitType: UnitType; readonly count: number }
   | { readonly type: "research"; readonly producerId: EntityId; readonly technologyId: TechnologyType }
   | { readonly type: "cancelProduction"; readonly producerId: EntityId; readonly jobId: ProductionJobId }
   | { readonly type: "setRallyPoint"; readonly producerId: EntityId; readonly target: GridPoint | null }
+  | { readonly type: "setGateState"; readonly gateId: EntityId; readonly open: boolean }
   | { readonly type: "advanceSettlement"; readonly producerId: EntityId; readonly targetTier: SettlementTier }
   | { readonly type: "patrol"; readonly entityIds: readonly EntityId[]; readonly waypoints: readonly GridPoint[] }
   | { readonly type: "repair"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
@@ -116,12 +122,18 @@ export type CommandRejectCode =
 export interface PublicEntityState {
   readonly id: EntityId;
   readonly ownerId: PlayerId | null;
-  readonly kind: "unit" | "building" | "resource";
+  readonly kind: "unit" | "building" | "resource" | "rubble";
   readonly typeId: UnitType | BuildingType | ResourceKind;
   readonly position: GridPoint;
   readonly hitPoints: number;
   readonly maxHitPoints: number;
   readonly stateRevision: number;
+  readonly orientation?: StructureOrientation;
+  readonly gateOpen?: boolean;
+  readonly complete?: boolean;
+  readonly constructionRemainingTicks?: number;
+  readonly healthBand?: StructureHealthBand;
+  readonly blocksMovement?: boolean;
   readonly facing?: Facing;
   readonly stance?: CombatStance;
   readonly formation?: FormationKind;
@@ -162,6 +174,12 @@ export interface StaleEntitySighting {
   readonly hitPoints: number;
   readonly maxHitPoints: number;
   readonly stateRevision: number;
+  readonly orientation: StructureOrientation;
+  readonly gateOpen?: boolean;
+  readonly complete: boolean;
+  readonly constructionRemainingTicks: number;
+  readonly healthBand: StructureHealthBand;
+  readonly blocksMovement: boolean;
   readonly observedAtTick: number;
 }
 
@@ -201,6 +219,7 @@ export type DomainEvent =
   | { readonly type: "settlementAdvanced"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly settlementTier: SettlementTier }
   | { readonly type: "technologyResearched"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly technologyId: TechnologyType }
   | { readonly type: "rallyPointChanged"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly target: GridPoint | null }
+  | { readonly type: "gateStateChanged"; readonly playerId: PlayerId; readonly gateId: EntityId; readonly open: boolean }
   | {
       readonly type: "productionCancelled";
       readonly playerId: PlayerId;
@@ -232,7 +251,13 @@ export function isGameCommand(value: unknown): value is GameCommand {
     case "dropOff":
       return hasOnlyKeys(value, ["type", "entityIds", "targetId"]) && isIdArray(value.entityIds) && typeof value.targetId === "string" && value.targetId.length > 0;
     case "build":
-      return hasOnlyKeys(value, ["type", "builderIds", "buildingType", "origin"]) && isIdArray(value.builderIds) && isBuildingType(value.buildingType) && isGridPoint(value.origin);
+      return (value.orientation === undefined
+        ? hasOnlyKeys(value, ["type", "builderIds", "buildingType", "origin"])
+        : hasOnlyKeys(value, ["type", "builderIds", "buildingType", "origin", "orientation"]))
+        && isIdArray(value.builderIds)
+        && isBuildingType(value.buildingType)
+        && isGridPoint(value.origin)
+        && (value.orientation === undefined || isStructureOrientation(value.orientation));
     case "train":
       return hasOnlyKeys(value, ["type", "producerId", "unitType", "count"]) && typeof value.producerId === "string" && isUnitType(value.unitType) && isSafeInteger(value.count) && value.count >= 1 && value.count <= 5;
     case "research":
@@ -241,6 +266,8 @@ export function isGameCommand(value: unknown): value is GameCommand {
       return hasOnlyKeys(value, ["type", "producerId", "jobId"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isProductionJobId(value.jobId);
     case "setRallyPoint":
       return hasOnlyKeys(value, ["type", "producerId", "target"]) && typeof value.producerId === "string" && value.producerId.length > 0 && (value.target === null || isGridPoint(value.target));
+    case "setGateState":
+      return hasOnlyKeys(value, ["type", "gateId", "open"]) && typeof value.gateId === "string" && value.gateId.length > 0 && typeof value.open === "boolean";
     case "advanceSettlement":
       return hasOnlyKeys(value, ["type", "producerId", "targetTier"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isSettlementTier(value.targetTier);
     case "patrol":
@@ -292,7 +319,14 @@ export function isBuildingType(value: unknown): value is BuildingType {
     "gunWorkshop",
     "beastStable",
     "siegeWorkshop",
+    "resinPalisade",
+    "surveyGate",
+    "copperLandmark",
   ] as const).includes(value as BuildingType);
+}
+
+export function isStructureOrientation(value: unknown): value is StructureOrientation {
+  return value === "ne" || value === "se";
 }
 
 export function isUnitType(value: unknown): value is UnitType {

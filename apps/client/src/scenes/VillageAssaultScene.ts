@@ -4,6 +4,7 @@ import {
   COMBAT_UNITS,
   decodeExploredTilesRle,
   findPathToAny,
+  getBuildingFootprint,
   getEntityFootprintCells,
   getFootprintCells,
   getFootprintPerimeterCells,
@@ -35,9 +36,11 @@ import {
   type ResourceEntityState,
   type ResourceKind,
   type ResourceWallet,
+  type RubbleEntityState,
   type ProductionJobId,
   type PublicProjectileState,
   type SettlementTier,
+  type StructureOrientation,
   type TechnologyType,
   type UnitEntityState,
   type UnitType,
@@ -66,6 +69,7 @@ import {
   buildingDisplayName,
   createBuildingView,
   createResourceView,
+  createRubbleView,
   createStaleBuildingView,
   resourceDisplayName,
   type AssaultEntityView,
@@ -154,6 +158,7 @@ const BUILD_PAGES: readonly (readonly BuildingType[])[] = [
   ["house", "lumberCamp", "farmstead", "barracks"],
   ["archeryRange", "mageSanctum", "gunWorkshop", "beastStable"],
   ["siegeWorkshop", "defenseTower"],
+  ["resinPalisade", "surveyGate", "copperLandmark"],
 ];
 const SETTLEMENT_TIER_LABELS: Readonly<Record<SettlementTier, string>> = {
   frontier: "拓荒期",
@@ -196,6 +201,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private productionUiMode: ProductionUiMode = { kind: "none" };
   private tacticalUiMode: TacticalUiMode = { kind: "none" };
   private buildingPlacement: BuildingType | null = null;
+  private buildingOrientation: StructureOrientation = "ne";
   private systemPanelOpen = false;
   private hoverGrid: GridPoint | null = null;
   private hoverEntityId: string | null = null;
@@ -410,7 +416,7 @@ export class VillageAssaultScene extends Phaser.Scene {
         this.staleBuildingViews.set(sighting.entityId, view);
         this.uiCamera?.ignore(view.container);
       }
-      const cells = getFootprintCells(sighting.position, BUILDINGS[sighting.typeId].footprint);
+      const cells = getFootprintCells(sighting.position, getBuildingFootprint(sighting.typeId, sighting.orientation));
       const center = cells.reduce((sum, cell) => ({ x: sum.x + cell.x, y: sum.y + cell.y }), { x: 0, y: 0 });
       const world = gridToWorld({ x: center.x / cells.length, y: center.y / cells.length }, VILLAGE_ASSAULT_ORIGIN);
       view.container.setPosition(world.x, world.y).setDepth(world.y + 75);
@@ -515,26 +521,30 @@ export class VillageAssaultScene extends Phaser.Scene {
     view.actor.container.setDepth(target.y + 100);
   }
 
-  private syncStaticView(entity: BuildingEntityState | ResourceEntityState): void {
+  private syncStaticView(entity: BuildingEntityState | ResourceEntityState | RubbleEntityState): void {
     let view = this.entityViews.get(entity.id);
     if (!view) {
       view = entity.kind === "building"
         ? createBuildingView(this, entity, entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? "player" : "enemy")
-        : createResourceView(this, entity);
+        : entity.kind === "resource"
+          ? createResourceView(this, entity)
+          : createRubbleView(this, entity);
       this.entityViews.set(entity.id, view);
       view.setCompact(this.compactUi);
       this.uiCamera?.ignore(view.container);
-      view.container.setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
-      view.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
-      view.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
-      view.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
-        event.stopPropagation();
-        this.beginPointerGesture(pointer);
-      });
-      view.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
-        event.stopPropagation();
-        this.completeEntityGesture(entity.id, pointer);
-      });
+      if (entity.kind !== "rubble") {
+        view.container.setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+        view.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
+        view.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
+        view.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+          event.stopPropagation();
+          this.beginPointerGesture(pointer);
+        });
+        view.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+          event.stopPropagation();
+          this.completeEntityGesture(entity.id, pointer);
+        });
+      }
     }
     const cells = getEntityFootprintCells(entity);
     const center = cells.reduce((sum, cell) => ({ x: sum.x + cell.x, y: sum.y + cell.y }), { x: 0, y: 0 });
@@ -799,7 +809,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       );
     } else if (this.buildingPlacement) {
       this.hoverGrid = this.pointerGrid(pointer);
-      const cells = getFootprintCells(this.hoverGrid, BUILDINGS[this.buildingPlacement].footprint);
+      const cells = getFootprintCells(this.hoverGrid, getBuildingFootprint(this.buildingPlacement, this.buildingOrientation));
       const visibleIds = new Set(this.runtime.view.visibleEntityIds);
       const occupied = new Set(this.runtime.state.entities
         .filter((entity) => visibleIds.has(entity.id))
@@ -865,7 +875,7 @@ export class VillageAssaultScene extends Phaser.Scene {
         return;
       }
       const buildingType = this.buildingPlacement;
-      const result = this.issue({ type: "build", builderIds: villagers.map((unit) => unit.id), buildingType, origin: point }, `開始建造 ${buildingDisplayName(buildingType)}`);
+      const result = this.issue({ type: "build", builderIds: villagers.map((unit) => unit.id), buildingType, origin: point, orientation: this.buildingOrientation }, `開始建造 ${buildingDisplayName(buildingType)}`);
       if (result) this.cancelBuildPlacement();
       return;
     }
@@ -1014,8 +1024,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.productionUiMode.kind === "queue") return this.productionQueueActions(this.productionUiMode);
     if (this.productionUiMode.kind === "rally") return this.rallyPlacementActions(this.productionUiMode.producerId);
     if (this.buildingPlacement) {
+      const canRotate = this.buildingPlacement === "surveyGate" || this.buildingPlacement === "resinPalisade" || this.buildingPlacement === "copperLandmark";
       return [
         { glyph: "✓", label: "點地圖放置", enabled: false, run: () => undefined },
+        { glyph: "↻", label: this.buildingOrientation === "ne" ? "轉向 南東" : "轉向 北東", enabled: canRotate, run: () => { this.buildingOrientation = this.buildingOrientation === "ne" ? "se" : "ne"; this.refreshInterface(true); } },
+        { glyph: "軸", label: this.buildingOrientation === "ne" ? "北東軸" : "南東軸", enabled: false, run: () => undefined },
         { glyph: "←", label: "返回建築表", run: () => this.cancelBuildPlacement("請重新選擇建築", true) },
         this.zoomAction(-0.12),
         this.zoomAction(0.12),
@@ -1029,8 +1042,8 @@ export class VillageAssaultScene extends Phaser.Scene {
         ...entries,
         { glyph: "←", label: "返回指令", run: () => this.closeBuildMenu() },
         this.buildPage < BUILD_PAGES.length - 1
-          ? { glyph: "→", label: `下一頁 ${this.buildPage + 2}/3`, run: () => { this.buildPage += 1; this.refreshInterface(true); } }
-          : { glyph: "⌂", label: "回首頁 1/3", run: () => { this.buildPage = 0; this.refreshInterface(true); } },
+          ? { glyph: "→", label: `下一頁 ${this.buildPage + 2}/${BUILD_PAGES.length}`, run: () => { this.buildPage += 1; this.refreshInterface(true); } }
+          : { glyph: "⌂", label: `回首頁 1/${BUILD_PAGES.length}`, run: () => { this.buildPage = 0; this.refreshInterface(true); } },
         this.systemAction(),
       ];
     }
@@ -1054,6 +1067,18 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.researchMenuOpen) {
       this.researchMenuOpen = false;
       this.researchPage = 0;
+    }
+    if (ownBuilding?.typeId === "surveyGate") {
+      const nextOpen = !ownBuilding.gateOpen;
+      return [
+        { glyph: nextOpen ? "開" : "關", label: nextOpen ? "開啟城門" : "關閉城門", accessibleLabel: `${nextOpen ? "開啟" : "關閉"}${buildingDisplayName(ownBuilding.typeId)}`, enabled: ownBuilding.complete && ownBuilding.hitPoints > 0, run: () => this.issue({ type: "setGateState", gateId: ownBuilding.id, open: nextOpen }, nextOpen ? "城門已開啟，部隊可通行" : "城門已關閉，通道已封鎖") },
+        { glyph: ownBuilding.gateOpen ? "通" : "阻", label: ownBuilding.gateOpen ? "目前可通行" : "目前封鎖", enabled: false, run: () => undefined },
+        { glyph: "◎", label: "置中城門", run: () => this.centerCameraOn(ownBuilding.position) },
+        this.selectWorkersAction(),
+        this.zoomAction(-0.12),
+        this.zoomAction(0.12),
+        this.systemAction(),
+      ];
     }
     if (ownBuilding) {
       const trainable = (Object.keys(UNITS) as UnitType[]).filter((type) => UNITS[type].producers.includes(ownBuilding.typeId));
@@ -1264,6 +1289,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       glyph: unlocked ? ({
         townCenter: "城", house: "屋", lumberCamp: "木", farmstead: "糧", barracks: "兵", defenseTower: "塔",
         archeryRange: "弓", mageSanctum: "法", gunWorkshop: "銃", beastStable: "獸", siegeWorkshop: "械",
+        resinPalisade: "牆", surveyGate: "門", copperLandmark: "標",
       } satisfies Record<BuildingType, string>)[type] : "鎖",
       label: unlocked
         ? `${this.shortBuildingName(type)} ${this.shortCost(definition.cost)}`
@@ -1275,6 +1301,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       run: () => {
         this.productionUiMode = { kind: "none" };
         this.buildingPlacement = type;
+        this.buildingOrientation = "ne";
         this.buildMenuOpen = false;
         this.setNotice(`選擇 ${buildingDisplayName(type)} 的建造位置`, "success");
         this.refreshInterface(true);
@@ -1787,6 +1814,7 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private cancelBuildPlacement(message?: string, reopenMenu = false): void {
     this.buildingPlacement = null;
+    this.buildingOrientation = "ne";
     this.buildMenuOpen = reopenMenu;
     this.hoverGrid = null;
     this.settlementOverlay?.placement.clear();
@@ -1796,9 +1824,9 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private canBuildAt(point: GridPoint | null): boolean {
     if (!point || !this.buildingPlacement) return false;
-    const cells = getFootprintCells(point, BUILDINGS[this.buildingPlacement].footprint);
+    const cells = getFootprintCells(point, getBuildingFootprint(this.buildingPlacement, this.buildingOrientation));
     return cells.every((cell) => isSettlementBuildable(cell) && isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, cell))
-      && isBuildLocationAvailable(this.runtime.state, this.buildingPlacement, point);
+      && isBuildLocationAvailable(this.runtime.state, this.buildingPlacement, point, this.buildingOrientation);
   }
 
   private selectUnitGroup(group: "villager" | "military"): void {
@@ -1946,7 +1974,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private entityDisplayName(entity: EntityState): string {
     if (entity.kind === "unit") return UNIT_LABELS[entity.typeId];
     if (entity.kind === "building") return buildingDisplayName(entity.typeId);
-    return resourceDisplayName(entity.typeId);
+    if (entity.kind === "resource") return resourceDisplayName(entity.typeId);
+    return `${buildingDisplayName(entity.typeId)}廢墟`;
   }
 
   private playerState() {
@@ -2046,7 +2075,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     ];
     const blocked = new Set(blockedCells.map((cell) => `${cell.x},${cell.y}`));
     const targets = (entity.kind === "building"
-      ? getFootprintPerimeterCells(entity.position, BUILDINGS[entity.typeId].footprint)
+      ? getFootprintPerimeterCells(entity.position, getBuildingFootprint(entity.typeId, entity.orientation))
       : [
           { x: entity.position.x + 1, y: entity.position.y },
           { x: entity.position.x - 1, y: entity.position.y },
@@ -2088,6 +2117,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     return ({
       townCenter: "主城", house: "家屋", lumberCamp: "木作", farmstead: "糧所", barracks: "兵營", defenseTower: "守塔",
       archeryRange: "射箭場", mageSanctum: "法師所", gunWorkshop: "火器坊", beastStable: "獸欄", siegeWorkshop: "攻城坊",
+      resinPalisade: "石籠牆", surveyGate: "測界門", copperLandmark: "拓界標",
     } satisfies Record<BuildingType, string>)[type];
   }
 

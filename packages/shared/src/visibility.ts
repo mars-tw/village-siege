@@ -1,6 +1,6 @@
-import { BUILDINGS, UNITS } from "./content.js";
+import { BUILDINGS, UNITS, getBuildingFootprint } from "./content.js";
 import { getFootprintCells } from "./spatial.js";
-import type { BuildingEntityState, EntityState, MatchState, UnitEntityState } from "./simulation.js";
+import { doesEntityBlockMovement, getStructureHealthBand, type BuildingEntityState, type EntityState, type MatchState, type UnitEntityState } from "./simulation.js";
 import type { GridPoint, PlayerId, StaleEntitySighting } from "./protocol.js";
 
 export interface PlayerVisibilityState {
@@ -67,7 +67,7 @@ export function updateVisibilityState(state: MatchState): void {
       ))
       .sort((left, right) => compareText(left.id, right.id));
     const sightingRevision = hostileVisibleBuildings
-      .map((building) => `${building.id}:${building.position.x}:${building.position.y}:${building.hitPoints}:${building.maxHitPoints}:${building.stateRevision}`)
+      .map((building) => `${building.id}:${building.position.x}:${building.position.y}:${building.hitPoints}:${building.maxHitPoints}:${building.stateRevision}:${building.orientation}:${building.gateOpen ? 1 : 0}`)
       .join("|");
     if (observerRevision === visibility.observerRevision && sightingRevision === visibility.sightingRevision) {
       const visibleIds = new Set(hostileVisibleBuildings.map((building) => building.id));
@@ -80,7 +80,7 @@ export function updateVisibilityState(state: MatchState): void {
     const staleById = new Map<string, StaleEntitySighting>();
 
     for (const sighting of visibility.staleEnemySightings) {
-      const sightingCells = getFootprintCells(sighting.position, BUILDINGS[sighting.typeId].footprint);
+      const sightingCells = getFootprintCells(sighting.position, getBuildingFootprint(sighting.typeId, sighting.orientation));
       if (sightingCells.some((cell) => visibleSet.has(tileIndex(cell, state.map.width))) && !visibleBuildingIds.has(sighting.entityId)) continue;
       staleById.set(sighting.entityId, cloneSighting(sighting));
     }
@@ -93,6 +93,12 @@ export function updateVisibilityState(state: MatchState): void {
         hitPoints: building.hitPoints,
         maxHitPoints: building.maxHitPoints,
         stateRevision: building.stateRevision,
+        orientation: building.orientation,
+        gateOpen: building.typeId === "surveyGate" ? building.gateOpen : undefined,
+        complete: building.complete,
+        constructionRemainingTicks: building.constructionRemainingTicks,
+        healthBand: getStructureHealthBand(building),
+        blocksMovement: doesEntityBlockMovement(building),
         observedAtTick: state.tick,
       });
     }
@@ -126,16 +132,16 @@ export function isEntityVisibleToPlayerFromFog(state: MatchState, playerId: Play
   if (target.ownerId !== null && arePlayersAllied(state, playerId, target.ownerId)) return true;
   const teamId = state.players.find((player) => player.id === playerId)?.teamId;
   if (!teamId) throw new Error(`Unknown visibility recipient: ${playerId}`);
-  const targetCells = target.kind === "building"
-    ? getFootprintCells(target.position, BUILDINGS[target.typeId].footprint)
+  const targetCells = target.kind === "building" || target.kind === "rubble"
+    ? getFootprintCells(target.position, getBuildingFootprint(target.typeId, target.orientation))
     : [target.position];
   return state.entities.some((observer) => {
-    if (observer.kind === "resource" || observer.hitPoints <= 0) return false;
+    if (observer.kind === "resource" || observer.kind === "rubble" || observer.hitPoints <= 0) return false;
     if (observer.kind === "building" && !observer.complete) return false;
     if (state.players.find((player) => player.id === observer.ownerId)?.teamId !== teamId) return false;
     const radius = observer.kind === "unit" ? UNITS[observer.typeId].sightRadius : BUILDINGS[observer.typeId].sightRadius;
     const origins = observer.kind === "building"
-      ? getFootprintCells(observer.position, BUILDINGS[observer.typeId].footprint)
+      ? getFootprintCells(observer.position, getBuildingFootprint(observer.typeId, observer.orientation))
       : [observer.position];
     return origins.some((origin) => targetCells.some((cell) => {
       const dx = origin.x - cell.x;
@@ -193,6 +199,7 @@ function computeVisibleTileIndices(state: MatchState, playerId: PlayerId): numbe
   const observers = state.entities
     .filter((entity): entity is BuildingEntityState | UnitEntityState => (
       entity.kind !== "resource"
+      && entity.kind !== "rubble"
       && state.players.find((player) => player.id === entity.ownerId)?.teamId === teamId
       && entity.hitPoints > 0
       && (entity.kind === "unit" || entity.complete)
@@ -202,7 +209,7 @@ function computeVisibleTileIndices(state: MatchState, playerId: PlayerId): numbe
   for (const observer of observers) {
     const radius = observer.kind === "unit" ? UNITS[observer.typeId].sightRadius : BUILDINGS[observer.typeId].sightRadius;
     const origins = observer.kind === "building"
-      ? getFootprintCells(observer.position, BUILDINGS[observer.typeId].footprint)
+      ? getFootprintCells(observer.position, getBuildingFootprint(observer.typeId, observer.orientation))
       : [observer.position];
     for (const origin of origins) {
       for (const offset of circleOffsets(radius)) {
@@ -222,6 +229,7 @@ function computeObserverRevision(state: MatchState, playerId: PlayerId): string 
   return state.entities
     .filter((entity): entity is BuildingEntityState | UnitEntityState => (
       entity.kind !== "resource"
+      && entity.kind !== "rubble"
       && entity.hitPoints > 0
       && (entity.kind === "unit" || entity.complete)
       && state.players.find((player) => player.id === entity.ownerId)?.teamId === teamId
@@ -246,8 +254,8 @@ function circleOffsets(radius: number): readonly GridPoint[] {
 }
 
 function entityFootprintVisible(entity: EntityState, visible: ReadonlySet<number>, mapWidth: number): boolean {
-  const cells = entity.kind === "building"
-    ? getFootprintCells(entity.position, BUILDINGS[entity.typeId].footprint)
+  const cells = entity.kind === "building" || entity.kind === "rubble"
+    ? getFootprintCells(entity.position, getBuildingFootprint(entity.typeId, entity.orientation))
     : [entity.position];
   return cells.some((cell) => visible.has(tileIndex(cell, mapWidth)));
 }

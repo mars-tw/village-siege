@@ -1,7 +1,7 @@
-import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, TechnologyType, UnitType, VillageId } from "./protocol.js";
+import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, StructureOrientation, TechnologyType, UnitType, VillageId } from "./protocol.js";
 import { COMBAT_UNITS, type CombatUnitId } from "./combat.js";
 
-export const RULES_VERSION = "village-siege/0.8.0";
+export const RULES_VERSION = "village-siege/0.9.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;
@@ -154,23 +154,34 @@ export interface BuildingDefinition {
   readonly attackDamage: number;
   readonly attackRange: number;
   readonly attackCooldownTicks: number;
+  readonly armor: number;
   readonly footprint: readonly GridPoint[];
   readonly dropOffResources?: readonly ResourceKind[];
+  readonly movementBlocking?: "always" | "whenClosed";
+  readonly leavesRubble?: boolean;
 }
 
 export const BUILDINGS: Readonly<Record<BuildingType, BuildingDefinition>> = {
-  townCenter: { id: "townCenter", requiredTier: "frontier", cost: wallet(0, 275, 225), maxHitPoints: 1200, buildTicks: 600, populationCapacity: 10, sightRadius: 9, attackDamage: 12, attackRange: 6, attackCooldownTicks: 15, footprint: rectangleFootprint(2, 2), dropOffResources: ["food", "wood", "stone"] },
-  house: { id: "house", requiredTier: "frontier", cost: wallet(0, 80, 0), maxHitPoints: 360, buildTicks: 180, populationCapacity: 8, sightRadius: 4, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(1, 1) },
-  lumberCamp: { id: "lumberCamp", requiredTier: "frontier", cost: wallet(0, 110, 0), maxHitPoints: 430, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 1), dropOffResources: ["wood"] },
-  farmstead: { id: "farmstead", requiredTier: "frontier", cost: wallet(0, 85, 20), maxHitPoints: 410, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 1), dropOffResources: ["food"] },
-  barracks: { id: "barracks", requiredTier: "frontier", cost: wallet(0, 150, 35), maxHitPoints: 650, buildTicks: 280, populationCapacity: 0, sightRadius: 6, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 2) },
-  defenseTower: { id: "defenseTower", requiredTier: "stronghold", cost: wallet(0, 90, 125), maxHitPoints: 720, buildTicks: 320, populationCapacity: 0, sightRadius: 9, attackDamage: 18, attackRange: 7, attackCooldownTicks: 12, footprint: rectangleFootprint(1, 1) },
-  archeryRange: { id: "archeryRange", requiredTier: "stronghold", cost: wallet(0, 160, 45), maxHitPoints: 560, buildTicks: 260, populationCapacity: 0, sightRadius: 7, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 2) },
-  mageSanctum: { id: "mageSanctum", requiredTier: "artificer", cost: wallet(0, 130, 130), maxHitPoints: 500, buildTicks: 340, populationCapacity: 0, sightRadius: 8, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 2) },
-  gunWorkshop: { id: "gunWorkshop", requiredTier: "artificer", cost: wallet(0, 185, 85), maxHitPoints: 540, buildTicks: 360, populationCapacity: 0, sightRadius: 6, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 2) },
-  beastStable: { id: "beastStable", requiredTier: "stronghold", cost: wallet(0, 180, 45), maxHitPoints: 590, buildTicks: 300, populationCapacity: 0, sightRadius: 7, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 2) },
-  siegeWorkshop: { id: "siegeWorkshop", requiredTier: "artificer", cost: wallet(0, 240, 140), maxHitPoints: 720, buildTicks: 420, populationCapacity: 0, sightRadius: 6, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(3, 2) },
+  townCenter: { id: "townCenter", requiredTier: "frontier", cost: wallet(0, 275, 225), maxHitPoints: 1200, buildTicks: 600, populationCapacity: 10, sightRadius: 9, attackDamage: 12, attackRange: 6, attackCooldownTicks: 15, armor: 18, footprint: rectangleFootprint(2, 2), dropOffResources: ["food", "wood", "stone"] },
+  house: { id: "house", requiredTier: "frontier", cost: wallet(0, 80, 0), maxHitPoints: 360, buildTicks: 180, populationCapacity: 8, sightRadius: 4, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 6, footprint: rectangleFootprint(1, 1) },
+  lumberCamp: { id: "lumberCamp", requiredTier: "frontier", cost: wallet(0, 110, 0), maxHitPoints: 430, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 8, footprint: rectangleFootprint(2, 1), dropOffResources: ["wood"] },
+  farmstead: { id: "farmstead", requiredTier: "frontier", cost: wallet(0, 85, 20), maxHitPoints: 410, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 8, footprint: rectangleFootprint(2, 1), dropOffResources: ["food"] },
+  barracks: { id: "barracks", requiredTier: "frontier", cost: wallet(0, 150, 35), maxHitPoints: 650, buildTicks: 280, populationCapacity: 0, sightRadius: 6, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 12, footprint: rectangleFootprint(2, 2) },
+  defenseTower: { id: "defenseTower", requiredTier: "stronghold", cost: wallet(0, 90, 125), maxHitPoints: 720, buildTicks: 320, populationCapacity: 0, sightRadius: 9, attackDamage: 18, attackRange: 7, attackCooldownTicks: 12, armor: 24, footprint: rectangleFootprint(1, 1) },
+  archeryRange: { id: "archeryRange", requiredTier: "stronghold", cost: wallet(0, 160, 45), maxHitPoints: 560, buildTicks: 260, populationCapacity: 0, sightRadius: 7, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 10, footprint: rectangleFootprint(2, 2) },
+  mageSanctum: { id: "mageSanctum", requiredTier: "artificer", cost: wallet(0, 130, 130), maxHitPoints: 500, buildTicks: 340, populationCapacity: 0, sightRadius: 8, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 8, footprint: rectangleFootprint(2, 2) },
+  gunWorkshop: { id: "gunWorkshop", requiredTier: "artificer", cost: wallet(0, 185, 85), maxHitPoints: 540, buildTicks: 360, populationCapacity: 0, sightRadius: 6, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 10, footprint: rectangleFootprint(2, 2) },
+  beastStable: { id: "beastStable", requiredTier: "stronghold", cost: wallet(0, 180, 45), maxHitPoints: 590, buildTicks: 300, populationCapacity: 0, sightRadius: 7, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 10, footprint: rectangleFootprint(2, 2) },
+  siegeWorkshop: { id: "siegeWorkshop", requiredTier: "artificer", cost: wallet(0, 240, 140), maxHitPoints: 720, buildTicks: 420, populationCapacity: 0, sightRadius: 6, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 16, footprint: rectangleFootprint(3, 2) },
+  resinPalisade: { id: "resinPalisade", requiredTier: "frontier", cost: wallet(0, 35, 0), maxHitPoints: 320, buildTicks: 90, populationCapacity: 0, sightRadius: 2, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 14, footprint: rectangleFootprint(1, 1), leavesRubble: true },
+  surveyGate: { id: "surveyGate", requiredTier: "frontier", cost: wallet(0, 75, 15), maxHitPoints: 480, buildTicks: 160, populationCapacity: 0, sightRadius: 3, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 18, footprint: rectangleFootprint(2, 1), movementBlocking: "whenClosed", leavesRubble: true },
+  copperLandmark: { id: "copperLandmark", requiredTier: "stronghold", cost: wallet(0, 210, 260), maxHitPoints: 1_350, buildTicks: 520, populationCapacity: 0, sightRadius: 11, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, armor: 22, footprint: rectangleFootprint(2, 2), leavesRubble: true },
 };
+
+export function getBuildingFootprint(type: BuildingType, orientation: StructureOrientation = "ne"): readonly GridPoint[] {
+  const footprint = BUILDINGS[type].footprint;
+  return orientation === "ne" ? footprint : footprint.map((cell) => ({ x: cell.y, y: cell.x }));
+}
 
 export const STARTING_RESOURCES: ResourceWallet = wallet(420, 420, 260);
 

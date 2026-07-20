@@ -50,6 +50,8 @@ function addCompletedBuilding(state: MatchState, ownerId: PlayerId, typeId: Buil
     statuses: [],
     rallyPoint: null,
     productionQueue: [],
+    orientation: "ne",
+    gateOpen: false,
   };
   state.entities.push(building);
   return building;
@@ -90,7 +92,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.8.0");
+    expect(RULES_VERSION).toBe("village-siege/0.9.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -109,6 +111,9 @@ describe("deterministic shared simulation", () => {
       gunWorkshop: "artificer",
       beastStable: "stronghold",
       siegeWorkshop: "artificer",
+      resinPalisade: "frontier",
+      surveyGate: "frontier",
+      copperLandmark: "stronghold",
     });
     expect(Object.fromEntries(Object.entries(UNITS).map(([id, definition]) => [id, definition.requiredTier]))).toEqual({
       villager: "frontier",
