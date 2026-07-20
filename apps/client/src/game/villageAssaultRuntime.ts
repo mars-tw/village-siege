@@ -5,7 +5,9 @@ import {
   createAiController,
   createInitialState,
   getAiObservation,
+  projectDomainEventsForPlayer,
   stepSimulation,
+  toVisibleSnapshot,
   type AiController,
   type AiDifficulty,
   type AiPersonality,
@@ -15,6 +17,7 @@ import {
   type GameCommand,
   type GridPoint,
   type MatchState,
+  type VisibleSnapshot,
   type VillageId,
 } from "@village-siege/shared";
 
@@ -77,6 +80,8 @@ export class VillageAssaultRuntime {
   private accumulatorMs = 0;
   private latestEvents: readonly DomainEvent[] = [];
   private rejectedCommand: VillageAssaultRejectedCommand | null = null;
+  private cachedViewState?: MatchState;
+  private cachedView?: VisibleSnapshot;
 
   constructor(options: VillageAssaultRuntimeOptions) {
     const aiVillageId = resolveAiVillage(options.playerVillageId, options.aiVillageId);
@@ -106,6 +111,14 @@ export class VillageAssaultRuntime {
     return this.matchState;
   }
 
+  get view(): VisibleSnapshot {
+    if (this.cachedViewState !== this.matchState || !this.cachedView) {
+      this.cachedViewState = this.matchState;
+      this.cachedView = toVisibleSnapshot(this.matchState, this.playerId);
+    }
+    return this.cachedView;
+  }
+
   get recentEvents(): readonly DomainEvent[] {
     return this.latestEvents;
   }
@@ -120,7 +133,13 @@ export class VillageAssaultRuntime {
     const envelope = this.createEnvelope(this.playerId, sequence, command);
     const applied = applyCommand(this.matchState, envelope);
     this.matchState = applied.state;
-    this.latestEvents = applied.events;
+    const visibleEvents = projectDomainEventsForPlayer(
+      this.matchState,
+      this.playerId,
+      { serverTick: this.matchState.tick, events: applied.events },
+      [sequence],
+    );
+    this.latestEvents = visibleEvents;
     const rejectCode = applied.validation.ok ? null : applied.validation.code;
     if (rejectCode) {
       this.rejectedCommand = { source: "player", sequence, code: rejectCode };
@@ -129,7 +148,7 @@ export class VillageAssaultRuntime {
       accepted: applied.validation.ok,
       sequence,
       rejectCode,
-      events: applied.events,
+      events: visibleEvents,
       state: this.matchState,
     };
   }
@@ -145,25 +164,31 @@ export class VillageAssaultRuntime {
     }
 
     this.accumulatorMs += deltaMs;
-    const events: DomainEvent[] = [];
+    const visibleEvents: DomainEvent[] = [];
     let steps = 0;
     while (
       this.accumulatorMs >= TICK_MILLISECONDS
       && steps < MAX_CATCH_UP_STEPS
       && this.matchState.phase === "playing"
     ) {
-      this.runAiDecision(events);
+      const tickEvents: DomainEvent[] = [];
+      this.runAiDecision(tickEvents);
       const advanced = stepSimulation(this.matchState, [], 1);
       this.matchState = advanced.state;
-      events.push(...advanced.events);
+      tickEvents.push(...advanced.events);
+      visibleEvents.push(...projectDomainEventsForPlayer(
+        this.matchState,
+        this.playerId,
+        { serverTick: this.matchState.tick, events: tickEvents },
+      ));
       this.accumulatorMs -= TICK_MILLISECONDS;
       steps += 1;
     }
     if (steps === MAX_CATCH_UP_STEPS && this.accumulatorMs >= TICK_MILLISECONDS) {
       this.accumulatorMs %= TICK_MILLISECONDS;
     }
-    this.latestEvents = events;
-    return this.stepResult(steps, events);
+    this.latestEvents = visibleEvents;
+    return this.stepResult(steps, visibleEvents);
   }
 
   private runAiDecision(events: DomainEvent[]): void {

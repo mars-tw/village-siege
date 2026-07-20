@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import {
   BUILDINGS,
   COMBAT_UNITS,
+  decodeExploredTilesRle,
   findPathToAny,
   getEntityFootprintCells,
   getFootprintCells,
@@ -9,6 +10,8 @@ import {
   getOccupiedMapCells,
   getVillageAssaultWalkBlockedCells,
   isBuildLocationAvailable,
+  isEntityVisibleToPlayer,
+  isTileVisibleToPlayer,
   isRallyPointAvailable,
   MAX_TRAINING_QUEUE_DEPTH,
   SETTLEMENT_TIER_ORDER,
@@ -17,7 +20,6 @@ import {
   TECHNOLOGY_ORDER,
   TICK_MILLISECONDS,
   TICKS_PER_SECOND,
-  TOWN_CENTER_REBUILD_GRACE_TICKS,
   UNITS,
   validateCommand,
   type AiPersonality,
@@ -34,10 +36,12 @@ import {
   type ResourceKind,
   type ResourceWallet,
   type ProductionJobId,
+  type PublicProjectileState,
   type SettlementTier,
   type TechnologyType,
   type UnitEntityState,
   type UnitType,
+  type VisibleSnapshot,
   type VillageId,
 } from "@village-siege/shared";
 import { drawBattleMap, type BattleMapView } from "../game/battleMap";
@@ -47,7 +51,7 @@ import {
   assertCombatAnimationManifestValid,
 } from "../game/combatAnimationManifest";
 import { DEFAULT_TEAM_PALETTES } from "../game/combatArt";
-import { launchProjectile, spawnFloatingText, spawnImpactBurst, spawnSkillTelegraph } from "../game/combatEffects";
+import { createProjectileVisual, spawnDeathDust, spawnFloatingText, spawnImpactBurst, spawnSkillTelegraph } from "../game/combatEffects";
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
 import {
@@ -62,12 +66,15 @@ import {
   buildingDisplayName,
   createBuildingView,
   createResourceView,
+  createStaleBuildingView,
   resourceDisplayName,
   type AssaultEntityView,
+  type StaleBuildingView,
 } from "../game/villageAssaultArt";
 import {
   VILLAGE_ASSAULT_BOUNDS,
   VILLAGE_ASSAULT_ORIGIN,
+  drawFogOfWar,
   drawPlacementFootprint,
   drawSettlementOverlay,
   isSettlementBuildable,
@@ -176,8 +183,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   private runtime!: VillageAssaultRuntime;
   private mapView?: BattleMapView;
   private settlementOverlay?: SettlementOverlay;
+  private fogOverlay?: Phaser.GameObjects.Graphics;
   private readonly unitViews = new Map<string, UnitView>();
   private readonly entityViews = new Map<string, AssaultEntityView>();
+  private readonly staleBuildingViews = new Map<string, StaleBuildingView>();
   private readonly projectileEffects = new Map<string, Phaser.GameObjects.Container>();
   private readonly selectedIds = new Set<string>();
   private buildMenuOpen = false;
@@ -193,6 +202,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private paused = false;
   private ended = false;
   private lastUiTick = -1;
+  private lastFogRevision = -1;
   private notice = "先點工匠，再點資源採集；滿載後會自動送回主城或集散建築";
   private noticeUntil = 0;
   private artLoadFailures: string[] = [];
@@ -230,6 +240,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.returnScene = data.returnScene ?? "VillageSelectScene";
     this.unitViews.clear();
     this.entityViews.clear();
+    this.staleBuildingViews.clear();
     this.projectileEffects.clear();
     this.selectedIds.clear();
     this.buildMenuOpen = false;
@@ -245,6 +256,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.paused = false;
     this.ended = false;
     this.lastUiTick = -1;
+    this.lastFogRevision = -1;
     this.notice = "先點工匠，再點木材、糧食或石礦開始採集";
     this.noticeUntil = performance.now() + 5_000;
     this.artLoadFailures = [];
@@ -284,8 +296,12 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.mapView.container.setDepth(-10_000);
     this.settlementOverlay = drawSettlementOverlay(this, VILLAGE_ASSAULT_ORIGIN);
     this.settlementOverlay.container.setDepth(-2_000);
+    this.fogOverlay = this.add.graphics()
+      .setName("village-assault-fog")
+      .setPosition(VILLAGE_ASSAULT_ORIGIN.x, VILLAGE_ASSAULT_ORIGIN.y)
+      .setDepth(90_000);
     this.uiCamera = this.cameras.add(0, 0, this.scale.gameSize.width, this.scale.gameSize.height, false, "assault-ui");
-    this.uiCamera.ignore([this.mapView.container, this.settlementOverlay.container]);
+    this.uiCamera.ignore([this.mapView.container, this.settlementOverlay.container, this.fogOverlay]);
     this.createInterface();
     this.syncEntityViews(true);
     this.centerCameraOn({ x: 5, y: 8 });
@@ -343,25 +359,118 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private syncEntityViews(initial: boolean): void {
-    const alive = new Set(this.runtime.state.entities.map((entity) => entity.id));
+    const snapshot = this.runtime.view;
+    this.syncFogOverlay(snapshot);
+    this.syncProjectileViews(snapshot);
+    const visiblyRemoved = new Set(this.runtime.recentEvents
+      .filter((event): event is Extract<DomainEvent, { type: "entityRemoved" }> => event.type === "entityRemoved")
+      .map((event) => event.entityId));
+    const renderable = new Set(snapshot.visibleEntityIds);
     for (const [id, view] of this.unitViews) {
-      if (alive.has(id)) continue;
-      view.actor.play("death");
-      this.tweens.add({ targets: view.actor.container, alpha: 0, duration: 380, onComplete: () => view.actor.destroy() });
+      if (renderable.has(id)) continue;
+      if (visiblyRemoved.has(id)) {
+        view.actor.play("death");
+        this.tweens.add({ targets: view.actor.container, alpha: 0, duration: 380, onComplete: () => view.actor.destroy() });
+      } else {
+        this.tweens.killTweensOf(view.actor.container);
+        view.actor.destroy();
+      }
       this.unitViews.delete(id);
       this.selectedIds.delete(id);
     }
     for (const [id, view] of this.entityViews) {
-      if (alive.has(id)) continue;
+      if (renderable.has(id)) continue;
       view.destroy();
       this.entityViews.delete(id);
       this.selectedIds.delete(id);
     }
     for (const entity of this.runtime.state.entities) {
+      if (!renderable.has(entity.id)) continue;
       if (entity.kind === "unit") this.syncUnitView(entity, initial);
       else this.syncStaticView(entity);
     }
+    this.syncStaleBuildingViews(snapshot);
     this.sanitizeSelection();
+  }
+
+  private syncStaleBuildingViews(snapshot: VisibleSnapshot): void {
+    const visibleIds = new Set(snapshot.visibleEntityIds);
+    const staleById = new Map(snapshot.staleEnemySightings
+      .filter((sighting) => !visibleIds.has(sighting.entityId))
+      .map((sighting) => [sighting.entityId, sighting]));
+    for (const [id, view] of this.staleBuildingViews) {
+      if (staleById.has(id)) continue;
+      view.destroy();
+      this.staleBuildingViews.delete(id);
+    }
+    for (const sighting of staleById.values()) {
+      let view = this.staleBuildingViews.get(sighting.entityId);
+      if (!view) {
+        view = createStaleBuildingView(this, sighting, snapshot.serverTick);
+        this.staleBuildingViews.set(sighting.entityId, view);
+        this.uiCamera?.ignore(view.container);
+      }
+      const cells = getFootprintCells(sighting.position, BUILDINGS[sighting.typeId].footprint);
+      const center = cells.reduce((sum, cell) => ({ x: sum.x + cell.x, y: sum.y + cell.y }), { x: 0, y: 0 });
+      const world = gridToWorld({ x: center.x / cells.length, y: center.y / cells.length }, VILLAGE_ASSAULT_ORIGIN);
+      view.container.setPosition(world.x, world.y).setDepth(world.y + 75);
+      view.update(sighting, snapshot.serverTick);
+    }
+  }
+
+  private syncProjectileViews(snapshot: VisibleSnapshot): void {
+    const visibleProjectileIds = new Set(snapshot.projectiles.map((projectile) => projectile.id));
+    for (const [id, effect] of this.projectileEffects) {
+      if (visibleProjectileIds.has(id)) continue;
+      this.tweens.killTweensOf(effect);
+      effect.destroy();
+      this.projectileEffects.delete(id);
+    }
+    for (const projectile of snapshot.projectiles) {
+      const effect = this.projectileEffects.get(projectile.id);
+      if (!effect) {
+        this.spawnProjectileEffect(projectile);
+        continue;
+      }
+      const world = gridToWorld(projectile.position, VILLAGE_ASSAULT_ORIGIN);
+      const target = gridToWorld(projectile.targetPoint, VILLAGE_ASSAULT_ORIGIN);
+      const travelDx = world.x - effect.x;
+      const travelDy = world.y - effect.y;
+      const hintDx = target.x - world.x;
+      const hintDy = target.y - world.y;
+      this.tweens.killTweensOf(effect);
+      if (travelDx !== 0 || travelDy !== 0) effect.setRotation(Math.atan2(travelDy, travelDx));
+      else if (hintDx !== 0 || hintDy !== 0) effect.setRotation(Math.atan2(hintDy, hintDx));
+      this.tweens.add({ targets: effect, x: world.x, y: world.y, duration: TICK_MILLISECONDS, ease: "Linear" });
+    }
+  }
+
+  private spawnProjectileEffect(projectile: PublicProjectileState): void {
+    const from = gridToWorld(projectile.position, VILLAGE_ASSAULT_ORIGIN);
+    const to = gridToWorld(projectile.targetPoint, VILLAGE_ASSAULT_ORIGIN);
+    const profile = projectile.profileId.toLowerCase();
+    const kind = profile.includes("musket") ? "musket"
+      : profile.includes("arcane") ? "arcane"
+        : profile.includes("bolt") ? "bolt" : "arrow";
+    const effect = createProjectileVisual(this, {
+      point: from,
+      targetHint: to,
+      kind,
+    });
+    this.projectileEffects.set(projectile.id, effect);
+    this.uiCamera?.ignore(effect);
+  }
+
+  private syncFogOverlay(snapshot = this.runtime.view): void {
+    if (!this.fogOverlay || snapshot.visibilityRevision === this.lastFogRevision) return;
+    drawFogOfWar(
+      this.fogOverlay,
+      snapshot.map.width,
+      snapshot.map.height,
+      snapshot.visibleTileIndices,
+      decodeExploredTilesRle(snapshot.map.width, snapshot.map.height, snapshot.exploredTilesRle),
+    );
+    this.lastFogRevision = snapshot.visibilityRevision;
   }
 
   private syncUnitView(entity: UnitEntityState, initial: boolean): void {
@@ -504,25 +613,14 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private renderCombatEvents(events: readonly DomainEvent[]): void {
+    const removedById = new Map(events
+      .filter((event): event is Extract<DomainEvent, { type: "entityRemoved" }> => event.type === "entityRemoved")
+      .map((event) => [event.entityId, event.entity]));
     for (const event of events) {
       if (event.type === "projectileSpawned") {
-        const from = gridToWorld(event.projectile.position, VILLAGE_ASSAULT_ORIGIN);
-        const to = gridToWorld(event.projectile.targetPoint, VILLAGE_ASSAULT_ORIGIN);
-        const kind = event.projectile.profileId.includes("musket") ? "musket"
-          : event.projectile.profileId.includes("arcane") ? "arcane"
-            : event.projectile.profileId.toLowerCase().includes("bolt") ? "bolt" : "arrow";
-        const durationMs = Math.max(40, (event.projectile.impactTick - this.runtime.state.tick) * TICK_MILLISECONDS);
-        let effect!: Phaser.GameObjects.Container;
-        effect = launchProjectile(this, {
-          from,
-          to,
-          kind,
-          durationMs,
-          spawnImpactOnComplete: false,
-          onImpact: () => this.projectileEffects.delete(event.projectile.id),
-        });
-        this.projectileEffects.set(event.projectile.id, effect);
-        this.uiCamera?.ignore(effect);
+        const publicProjectile = this.runtime.view.projectiles.find((projectile) => projectile.id === event.projectile.id);
+        if (!publicProjectile || this.projectileEffects.has(publicProjectile.id)) continue;
+        this.spawnProjectileEffect(publicProjectile);
       } else if (event.type === "projectileImpacted") {
         const effect = this.projectileEffects.get(event.projectileId);
         if (effect) {
@@ -533,23 +631,39 @@ export class VillageAssaultScene extends Phaser.Scene {
         const world = gridToWorld(event.position, VILLAGE_ASSAULT_ORIGIN);
         spawnImpactBurst(this, world);
       } else if (event.type === "entityDamaged") {
-        const target = this.entityById(event.targetId);
+        const target = this.entityById(event.targetId) ?? removedById.get(event.targetId);
         if (!target) continue;
         const world = gridToWorld(target.position, VILLAGE_ASSAULT_ORIGIN);
         const text = spawnFloatingText(this, { x: world.x, y: world.y - 42 }, `-${event.amount}`, "#ffd0ad");
         this.uiCamera?.ignore(text);
       } else if (event.type === "statusApplied") {
-        const target = this.entityById(event.targetId);
+        const target = this.entityById(event.targetId) ?? removedById.get(event.targetId);
         if (!target) continue;
         const world = gridToWorld(target.position, VILLAGE_ASSAULT_ORIGIN);
         const telegraph = spawnSkillTelegraph(this, world, 0xe0b866, 30, 360);
         this.uiCamera?.ignore(telegraph);
+      } else if (event.type === "entityRemoved" && event.entity.kind !== "resource") {
+        const world = gridToWorld(event.entity.position, VILLAGE_ASSAULT_ORIGIN);
+        spawnDeathDust(this, world, event.entity.kind === "building" ? 0x765844 : 0x6c5b47);
+        if (event.entity.kind === "building") spawnImpactBurst(this, world, 0xd8725f, 16);
+      } else if (event.type === "resourceDepleted") {
+        const resource = this.entityById(event.resourceId) ?? removedById.get(event.resourceId);
+        if (!resource) continue;
+        const world = gridToWorld(resource.position, VILLAGE_ASSAULT_ORIGIN);
+        const text = spawnFloatingText(this, { x: world.x, y: world.y - 34 }, "資源耗盡", "#d2b98b");
+        this.uiCamera?.ignore(text);
+      } else if (event.type === "resourceRenewed") {
+        const resource = this.entityById(event.resourceId);
+        if (!resource) continue;
+        const world = gridToWorld(resource.position, VILLAGE_ASSAULT_ORIGIN);
+        const text = spawnFloatingText(this, { x: world.x, y: world.y - 34 }, "資源再生", "#9ed486");
+        this.uiCamera?.ignore(text);
       }
     }
   }
 
   private handleEntityTap(id: string, pointer: Phaser.Input.Pointer): void {
-    if (this.ended || this.paused) return;
+    if (this.ended || this.paused || this.systemPanelOpen) return;
     const entity = this.entityById(id);
     if (!entity) return;
     if (this.tacticalUiMode.kind !== "none") {
@@ -677,12 +791,25 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.drawTacticalMarker(this.hoverGrid, this.isTacticalTargetValid(this.hoverGrid, hoverEntity));
     } else if (this.productionUiMode.kind === "rally") {
       this.hoverGrid = this.pointerGrid(pointer);
-      this.drawRallyMarker(this.hoverGrid, isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid), true);
+      this.drawRallyMarker(
+        this.hoverGrid,
+        isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, this.hoverGrid)
+          && isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid),
+        true,
+      );
     } else if (this.buildingPlacement) {
       this.hoverGrid = this.pointerGrid(pointer);
       const cells = getFootprintCells(this.hoverGrid, BUILDINGS[this.buildingPlacement].footprint);
-      const occupied = new Set(getOccupiedMapCells(this.runtime.state).map((cell) => `${cell.x},${cell.y}`));
-      const validCells = cells.map((cell) => isSettlementBuildable(cell) && !occupied.has(`${cell.x},${cell.y}`));
+      const visibleIds = new Set(this.runtime.view.visibleEntityIds);
+      const occupied = new Set(this.runtime.state.entities
+        .filter((entity) => visibleIds.has(entity.id))
+        .flatMap((entity) => entity.kind === "unit" ? [] : getEntityFootprintCells(entity))
+        .map((cell) => `${cell.x},${cell.y}`));
+      const validCells = cells.map((cell) => (
+        isSettlementBuildable(cell)
+        && isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, cell)
+        && !occupied.has(`${cell.x},${cell.y}`)
+      ));
       drawPlacementFootprint(this.settlementOverlay?.placement ?? this.add.graphics(), cells, validCells);
     }
     if (!pointer.isDown || !this.pointerStart) return;
@@ -707,7 +834,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private handleGroundCommand(pointer: Phaser.Input.Pointer): void {
-    if (this.ended || this.paused) return;
+    if (this.ended || this.paused || this.systemPanelOpen) return;
     const point = this.pointerGrid(pointer);
     if (this.tacticalUiMode.kind !== "none") {
       this.commitTacticalTarget(point, null);
@@ -715,7 +842,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     if (this.productionUiMode.kind === "rally") {
       const producerId = this.productionUiMode.producerId;
-      if (!isRallyPointAvailable(this.runtime.state, producerId, point)) {
+      if (!isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, point) || !isRallyPointAvailable(this.runtime.state, producerId, point)) {
         this.setNotice("此處無法作為集結點；請選擇可通行且可抵達的空地。", "warning");
         this.drawRallyMarker(point, false, true);
         return;
@@ -836,13 +963,18 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.resourceText?.setFontSize(this.compactUi ? 20 : 22).setText(this.compactUi
       ? `${tierLabel}｜糧${Math.floor(player.resources.food)} 木${Math.floor(player.resources.wood)}\n石${Math.floor(player.resources.stone)} 人${player.population.used}/${player.population.capacity}`
       : `${tierLabel}  糧 ${Math.floor(player.resources.food)}   木 ${Math.floor(player.resources.wood)}   石 ${Math.floor(player.resources.stone)}   人口 ${player.population.used}/${player.population.capacity}`);
-    const enemyTown = this.runtime.state.entities.find((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_AI_ID && entity.typeId === "townCenter");
-    const rebuild = this.runtime.state.teamTownCenterLostAt.find((entry) => entry.teamId === "team-ai");
+    const view = this.runtime.view;
+    const enemyTown = view.entities.find((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_AI_ID && entity.typeId === "townCenter");
+    const staleEnemyTown = view.staleEnemySightings.find((sighting) => sighting.ownerId === VILLAGE_ASSAULT_AI_ID && sighting.typeId === "townCenter");
     this.objectiveText?.setText(enemyTown
       ? this.compactUi
         ? `敵城 ${Math.ceil(enemyTown.hitPoints / enemyTown.maxHitPoints * 100)}%`
         : `目標｜建立經濟與軍隊，摧毀東境議事堂　敵城 ${enemyTown.hitPoints}/${enemyTown.maxHitPoints}`
-      : `敵方主城已毀｜撐過重建期限 ${Math.max(0, Math.ceil((TOWN_CENTER_REBUILD_GRACE_TICKS - (this.runtime.state.tick - (rebuild?.tick ?? this.runtime.state.tick))) / TICKS_PER_SECOND))} 秒`);
+      : staleEnemyTown
+        ? this.compactUi
+          ? `敵城情報 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))}秒前`
+          : `目標｜敵方議事堂已離開視野；最後偵察於 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))} 秒前`
+        : this.compactUi ? "敵城 尚未偵察" : "目標｜先偵察東境，再建立攻城路線摧毀敵方議事堂");
     if (performance.now() > this.noticeUntil) this.notice = "點空地移動｜點資源採集｜滿載自動卸貨｜點敵軍攻擊";
     this.noticeText?.setText(this.compactUi ? "" : this.paused ? "戰局暫停" : this.notice);
     const selected = this.selectedEntities();
@@ -1605,11 +1737,22 @@ export class VillageAssaultScene extends Phaser.Scene {
       glyph: "⋯",
       label: "系統",
       run: () => {
-        if (this.tacticalUiMode.kind !== "none") this.cancelTacticalMode();
+        this.cancelWorldTargetModes();
         this.systemPanelOpen = true;
         this.refreshInterface(true);
       },
     };
+  }
+
+  private cancelWorldTargetModes(): void {
+    this.tacticalUiMode = { kind: "none" };
+    this.productionUiMode = { kind: "none" };
+    this.buildingPlacement = null;
+    this.buildMenuOpen = false;
+    this.researchMenuOpen = false;
+    this.hoverGrid = null;
+    this.hoverEntityId = null;
+    this.settlementOverlay?.placement.clear();
   }
 
   private openBuildMenu(): void {
@@ -1654,7 +1797,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private canBuildAt(point: GridPoint | null): boolean {
     if (!point || !this.buildingPlacement) return false;
     const cells = getFootprintCells(point, BUILDINGS[this.buildingPlacement].footprint);
-    return cells.every(isSettlementBuildable) && isBuildLocationAvailable(this.runtime.state, this.buildingPlacement, point);
+    return cells.every((cell) => isSettlementBuildable(cell) && isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, cell))
+      && isBuildLocationAvailable(this.runtime.state, this.buildingPlacement, point);
   }
 
   private selectUnitGroup(group: "villager" | "military"): void {
@@ -1677,7 +1821,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private sanitizeSelection(): void {
-    const ids = new Set(this.runtime.state.entities.map((entity) => entity.id));
+    const ids = new Set(this.runtime.view.visibleEntityIds);
     for (const id of this.selectedIds) if (!ids.has(id)) this.selectedIds.delete(id);
     if (this.researchMenuOpen && !this.selectedEntities().some((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID)) {
       this.researchMenuOpen = false;
@@ -1748,7 +1892,12 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     if (this.productionUiMode.kind === "rally" && this.hoverGrid) {
-      this.drawRallyMarker(this.hoverGrid, isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid), true);
+      this.drawRallyMarker(
+        this.hoverGrid,
+        isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, this.hoverGrid)
+          && isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid),
+        true,
+      );
       return;
     }
     const selected = this.selectedEntities();
@@ -1790,7 +1939,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private entityById(id: string): EntityState | undefined {
-    return this.runtime.state.entities.find((entity) => entity.id === id);
+    const entity = this.runtime.state.entities.find((candidate) => candidate.id === id);
+    return entity && isEntityVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, entity) ? entity : undefined;
   }
 
   private entityDisplayName(entity: EntityState): string {
@@ -2220,18 +2370,22 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.actionButtons.length = 0;
     for (const view of this.unitViews.values()) view.actor.destroy();
     for (const view of this.entityViews.values()) view.destroy();
+    for (const view of this.staleBuildingViews.values()) view.destroy();
     for (const effect of this.projectileEffects.values()) {
       this.tweens.killTweensOf(effect);
       effect.destroy();
     }
     this.unitViews.clear();
     this.entityViews.clear();
+    this.staleBuildingViews.clear();
     this.projectileEffects.clear();
     this.selectedIds.clear();
     this.mapView?.destroy();
     this.settlementOverlay?.destroy();
+    this.fogOverlay?.destroy();
     this.mapView = undefined;
     this.settlementOverlay = undefined;
+    this.fogOverlay = undefined;
   }
 }
 

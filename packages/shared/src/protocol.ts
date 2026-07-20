@@ -146,12 +146,44 @@ export interface PublicEntityState {
 export interface PublicProjectileState {
   readonly id: EntityId;
   readonly ownerId: PlayerId;
-  readonly sourceId: EntityId;
+  readonly sourceId: EntityId | null;
   readonly profileId: ProjectileProfileId;
   readonly position: GridPoint;
   readonly targetId: EntityId | null;
   readonly targetPoint: GridPoint;
   readonly impactTick: number;
+}
+
+export interface StaleEntitySighting {
+  readonly entityId: EntityId;
+  readonly ownerId: PlayerId;
+  readonly typeId: BuildingType;
+  readonly position: GridPoint;
+  readonly hitPoints: number;
+  readonly maxHitPoints: number;
+  readonly stateRevision: number;
+  readonly observedAtTick: number;
+}
+
+export interface VisibleSnapshot {
+  readonly matchId: MatchId;
+  readonly rulesVersion: string;
+  readonly serverTick: number;
+  readonly recipientPlayerId: PlayerId;
+  readonly phase: MatchPhase;
+  readonly map: { readonly id: string; readonly width: number; readonly height: number };
+  readonly wallet: ResourceWallet;
+  readonly population: { readonly used: number; readonly capacity: number };
+  readonly settlementTier: SettlementTier;
+  readonly completedTechnologyIds: readonly TechnologyType[];
+  readonly entities: readonly PublicEntityState[];
+  readonly projectiles: readonly PublicProjectileState[];
+  readonly staleEnemySightings: readonly StaleEntitySighting[];
+  readonly exploredTilesRle: string;
+  readonly visibilityRevision: number;
+  readonly visibleTileIndices: readonly number[];
+  readonly visibleEntityIds: readonly EntityId[];
+  readonly checksum: string;
 }
 
 export type DomainEvent =
@@ -162,10 +194,10 @@ export type DomainEvent =
   | { readonly type: "combatPhaseChanged"; readonly entityId: EntityId; readonly phase: AbilityPhase; readonly action: "attack" | "ability" | null }
   | { readonly type: "projectileSpawned"; readonly projectile: PublicProjectileState }
   | { readonly type: "projectileImpacted"; readonly projectileId: EntityId; readonly position: GridPoint; readonly targetIds: readonly EntityId[] }
-  | { readonly type: "entityDamaged"; readonly sourceId: EntityId; readonly targetId: EntityId; readonly amount: number; readonly hitPoints: number }
-  | { readonly type: "statusApplied"; readonly sourceId: EntityId; readonly targetId: EntityId; readonly statusId: StatusEffectId; readonly expiresAtTick: number }
+  | { readonly type: "entityDamaged"; readonly sourceId: EntityId | null; readonly targetId: EntityId; readonly amount: number; readonly hitPoints: number }
+  | { readonly type: "statusApplied"; readonly sourceId: EntityId | null; readonly targetId: EntityId; readonly statusId: StatusEffectId; readonly expiresAtTick: number }
   | { readonly type: "statusExpired"; readonly entityId: EntityId; readonly statusId: StatusEffectId }
-  | { readonly type: "entityRemoved"; readonly entityId: EntityId; readonly reason: "destroyed" | "completed" | "depleted" | "despawned" }
+  | { readonly type: "entityRemoved"; readonly entityId: EntityId; readonly entity: PublicEntityState; readonly reason: "destroyed" | "completed" | "depleted" | "despawned" }
   | { readonly type: "settlementAdvanced"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly settlementTier: SettlementTier }
   | { readonly type: "technologyResearched"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly technologyId: TechnologyType }
   | { readonly type: "rallyPointChanged"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly target: GridPoint | null }

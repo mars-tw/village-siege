@@ -90,7 +90,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.7.0");
+    expect(RULES_VERSION).toBe("village-siege/0.8.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -260,7 +260,9 @@ describe("deterministic shared simulation", () => {
     const cancelled = stepSimulation(started.state, [], 1);
     expect(cancelled.state.players[0]).toMatchObject({ settlementTier: "frontier", advancement: null, resources: paidResources });
     expect(cancelled.state.entities.some((entity) => entity.id === townCenter.id)).toBe(false);
-    expect(cancelled.events).toContainEqual({ type: "entityRemoved", entityId: townCenter.id, reason: "destroyed" });
+    expect(cancelled.events).toContainEqual(expect.objectContaining({
+      type: "entityRemoved", entityId: townCenter.id, entity: expect.objectContaining({ id: townCenter.id }), reason: "destroyed",
+    }));
     expect(cancelled.events.some((event) => event.type === "settlementAdvanced")).toBe(false);
   });
 
@@ -1096,7 +1098,9 @@ describe("deterministic shared simulation", () => {
     expect(state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: "wood", amount: 5 }, order: { type: "gather", phase: "toDropOff" } });
     expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before);
     expect(depletionEvents).toContainEqual({ type: "resourceDepleted", resourceId: wood.id, resourceKind: "wood", renewable: false, renewAtTick: null });
-    expect(depletionEvents).toContainEqual({ type: "entityRemoved", entityId: wood.id, reason: "depleted" });
+    expect(depletionEvents).toContainEqual(expect.objectContaining({
+      type: "entityRemoved", entityId: wood.id, entity: expect.objectContaining({ id: wood.id }), reason: "depleted",
+    }));
 
     const deposited = stepSimulation(state, [], 1);
     expect(deposited.state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before + 5);
@@ -1273,6 +1277,26 @@ describe("deterministic shared simulation", () => {
     const impacted = stepSimulation(launched.state, [], 3);
     expect(impacted.events.some((event) => event.type === "projectileImpacted" && event.targetIds.includes(target.id))).toBe(true);
     expect(impacted.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBeLessThan(initialHp);
+  });
+
+  it("keeps ordinary arrows ballistic so a unit can leave the committed cell", () => {
+    let state = createInitialState({ seed: 323, matchId: "ballistic-projectile-miss" });
+    const archer = configureCombatUnit(state, "player-1", 0, "archer", { x: 5, y: 5 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 8, y: 5 });
+    state.entities = [archer, target];
+    const initialHp = target.hitPoints;
+    state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [archer.id], targetId: target.id })).state;
+    const launched = stepSimulation(state, [], 4).state;
+    launched.entities.find((entity) => entity.id === target.id)!.position = { x: 9, y: 5 };
+
+    const impacted = stepSimulation(launched, [], 3);
+    expect(impacted.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBe(initialHp);
+    expect(impacted.events).toContainEqual({
+      type: "projectileImpacted",
+      projectileId: expect.any(String),
+      position: { x: 8, y: 5 },
+      targetIds: [],
+    });
   });
 
   it("fizzles an entity-target ability when the target leaves range during windup", () => {
@@ -1855,7 +1879,9 @@ describe("deterministic shared simulation", () => {
     expect(result.state.phase).toBe("finished");
     expect(result.state.finishReason).toBe("conquest");
     expect(result.state.winningTeamIds).toEqual(["team-1"]);
-    expect(result.events).toContainEqual({ type: "entityRemoved", entityId: enemyCenter.id, reason: "destroyed" });
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: "entityRemoved", entityId: enemyCenter.id, entity: expect.objectContaining({ id: enemyCenter.id }), reason: "destroyed",
+    }));
     expect(result.events).toContainEqual({ type: "matchFinished", winningTeamIds: ["team-1"], reason: "conquest" });
   }, 60_000);
 });

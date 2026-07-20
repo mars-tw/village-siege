@@ -39,6 +39,15 @@ import {
 } from "./combat.js";
 import { findNextPathStep, findPathRoute, findPathToAny, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import {
+  createPlayerVisibilityStates,
+  encodeExploredTilesRle,
+  getPlayerVisibilityState,
+  isEntityVisibleToPlayerFromFog,
+  isTileVisibleToPlayer,
+  updateVisibilityState,
+  type PlayerVisibilityState,
+} from "./visibility.js";
+import {
   isCommandEnvelope,
   type AbilityTarget,
   type BuildingType,
@@ -61,6 +70,7 @@ import {
   type SettlementTier,
   type TechnologyType,
   type UnitType,
+  type VisibleSnapshot,
   type VillageId,
 } from "./protocol.js";
 
@@ -178,6 +188,7 @@ export interface ProjectileState {
   ownerId: PlayerId;
   sourceId: EntityId;
   profileId: ProjectileProfileId;
+  origin: GridPoint;
   position: GridPoint;
   targetId: EntityId | null;
   targetPoint: GridPoint;
@@ -215,6 +226,7 @@ export interface MatchState {
   players: PlayerState[];
   entities: EntityState[];
   projectiles: ProjectileState[];
+  visibilityByPlayer: PlayerVisibilityState[];
   nextEntityNumber: number;
   teamTownCenterLostAt: { teamId: string; tick: number }[];
   winningTeamIds: string[];
@@ -247,6 +259,11 @@ export interface CommandApplication {
 
 export interface SimulationStepResult {
   readonly state: MatchState;
+  readonly events: readonly DomainEvent[];
+}
+
+export interface DomainEventFrame {
+  readonly serverTick: number;
   readonly events: readonly DomainEvent[];
 }
 
@@ -305,6 +322,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     })),
     entities: [],
     projectiles: [],
+    visibilityByPlayer: createPlayerVisibilityStates(participants.map((participant) => participant.id)),
     nextEntityNumber: 1,
     teamTownCenterLostAt: [],
     winningTeamIds: [],
@@ -325,6 +343,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     }
   }
   syncPopulation(state);
+  updateVisibilityState(state);
   return state;
 }
 
@@ -392,7 +411,7 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
     ownerId: entity.ownerId,
     kind: entity.kind,
     typeId: entity.typeId,
-    position: entity.position,
+    position: { ...entity.position },
     hitPoints: entity.hitPoints,
     maxHitPoints: entity.maxHitPoints,
     stateRevision: entity.stateRevision,
@@ -449,13 +468,159 @@ export function toPublicProjectile(projectile: ProjectileState): PublicProjectil
   };
 }
 
+export function toVisibleSnapshot(state: MatchState, playerId: PlayerId): VisibleSnapshot {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  if (!player) throw new Error(`Unknown snapshot recipient: ${playerId}`);
+  const visibility = getPlayerVisibilityState(state, playerId);
+  const entities = state.entities
+    .filter((entity) => isEntityVisibleToPlayer(state, playerId, entity))
+    .sort((left, right) => compareText(left.id, right.id))
+    .map(toPublicEntity);
+  const projectiles = state.projectiles
+    .filter((projectile) => arePlayersAllied(state, playerId, projectile.ownerId) || isTileVisibleToPlayer(state, playerId, projectile.position))
+    .sort((left, right) => compareText(left.id, right.id))
+    .map((projectile) => maskPublicProjectileForPlayer(state, playerId, toPublicProjectile(projectile)));
+  const body: Omit<VisibleSnapshot, "checksum"> = {
+    matchId: state.matchId,
+    rulesVersion: state.rulesVersion,
+    serverTick: state.tick,
+    recipientPlayerId: playerId,
+    phase: state.phase,
+    map: { ...state.map },
+    wallet: { ...player.resources },
+    population: { ...player.population },
+    settlementTier: player.settlementTier,
+    completedTechnologyIds: [...player.completedTechnologyIds],
+    entities,
+    projectiles,
+    staleEnemySightings: visibility.staleEnemySightings.map((sighting) => ({ ...sighting, position: { ...sighting.position } })),
+    exploredTilesRle: encodeExploredTilesRle(state.map.width, state.map.height, visibility.exploredTileIndices),
+    visibilityRevision: visibility.revision,
+    visibleTileIndices: [...visibility.visibleTileIndices],
+    visibleEntityIds: entities.map((entity) => entity.id),
+  };
+  return { ...body, checksum: fnv1a(stableStringify(body)) };
+}
+
+export function projectDomainEventsForPlayer(
+  state: MatchState,
+  playerId: PlayerId,
+  frame: DomainEventFrame,
+  commandSequences: readonly number[] = [],
+): DomainEvent[] {
+  if (frame.serverTick !== state.tick) throw new Error("Domain events must be projected against their single authoritative tick");
+  const events = frame.events;
+  const ownedSequences = new Set(commandSequences);
+  const removedById = new Map(
+    events
+      .filter((event): event is Extract<DomainEvent, { type: "entityRemoved" }> => event.type === "entityRemoved")
+      .map((event) => [event.entityId, event.entity]),
+  );
+  const projected: DomainEvent[] = [];
+  for (const event of events) {
+    switch (event.type) {
+      case "commandAccepted":
+      case "commandRejected":
+        if (ownedSequences.has(event.sequence)) projected.push(event);
+        break;
+      case "entitySpawned":
+      case "entityUpdated": {
+        const entity = state.entities.find((candidate) => candidate.id === event.entity.id);
+        if (entity ? isEntityVisibleToPlayer(state, playerId, entity) : isPublicEntityVisibleToPlayer(state, playerId, event.entity)) projected.push(event);
+        break;
+      }
+      case "combatPhaseChanged":
+      case "statusExpired": {
+        const entity = state.entities.find((candidate) => candidate.id === event.entityId);
+        if (entity && isEntityVisibleToPlayer(state, playerId, entity)) projected.push(event);
+        break;
+      }
+      case "projectileSpawned":
+        if (arePlayersAllied(state, playerId, event.projectile.ownerId) || isTileVisibleToPlayer(state, playerId, event.projectile.position)) {
+          projected.push({ ...event, projectile: maskPublicProjectileForPlayer(state, playerId, event.projectile) });
+        }
+        break;
+      case "projectileImpacted":
+        if (isTileVisibleToPlayer(state, playerId, event.position)) {
+          projected.push({
+            ...event,
+            targetIds: event.targetIds.filter((targetId) => {
+              const target = state.entities.find((candidate) => candidate.id === targetId);
+              return target
+                ? isEntityVisibleToPlayer(state, playerId, target)
+                : isPublicEntityVisibleToPlayer(state, playerId, removedById.get(targetId));
+            }),
+          });
+        }
+        break;
+      case "entityDamaged":
+      case "statusApplied": {
+        const target = state.entities.find((candidate) => candidate.id === event.targetId);
+        const targetVisible = target
+          ? isEntityVisibleToPlayer(state, playerId, target)
+          : isPublicEntityVisibleToPlayer(state, playerId, removedById.get(event.targetId));
+        if (!targetVisible) break;
+        const source = event.sourceId ? state.entities.find((candidate) => candidate.id === event.sourceId) : undefined;
+        const removedSource = event.sourceId ? removedById.get(event.sourceId) : undefined;
+        const sourceVisible = source
+          ? isEntityVisibleToPlayer(state, playerId, source)
+          : isPublicEntityVisibleToPlayer(state, playerId, removedSource);
+        projected.push({ ...event, sourceId: sourceVisible ? event.sourceId : null });
+        break;
+      }
+      case "entityRemoved":
+        if (isPublicEntityVisibleToPlayer(state, playerId, event.entity)) projected.push(event);
+        break;
+      case "settlementAdvanced":
+      case "technologyResearched":
+      case "rallyPointChanged":
+      case "productionCancelled":
+      case "resourcesDeposited":
+        if (event.playerId === playerId) projected.push(event);
+        break;
+      case "resourceDepleted":
+      case "resourceRenewed": {
+        const resource = state.entities.find((candidate) => candidate.id === event.resourceId);
+        const resourceVisible = resource
+          ? isEntityVisibleToPlayer(state, playerId, resource)
+          : isPublicEntityVisibleToPlayer(state, playerId, removedById.get(event.resourceId));
+        if (resourceVisible) projected.push(event);
+        break;
+      }
+      case "matchFinished":
+        projected.push(event);
+        break;
+    }
+  }
+  return projected;
+}
+
+function maskPublicProjectileForPlayer(state: MatchState, playerId: PlayerId, projectile: PublicProjectileState): PublicProjectileState {
+  const source = projectile.sourceId ? state.entities.find((entity) => entity.id === projectile.sourceId) : undefined;
+  const target = projectile.targetId ? state.entities.find((entity) => entity.id === projectile.targetId) : undefined;
+  const targetVisible = Boolean(target && isEntityVisibleToPlayer(state, playerId, target));
+  return {
+    ...projectile,
+    sourceId: source && isEntityVisibleToPlayer(state, playerId, source) ? source.id : null,
+    targetId: targetVisible ? target!.id : null,
+    targetPoint: isTileVisibleToPlayer(state, playerId, projectile.targetPoint)
+      ? projectile.targetPoint
+      : targetVisible
+        ? target!.position
+        : projectile.position,
+  };
+}
+
+function isPublicEntityVisibleToPlayer(state: MatchState, playerId: PlayerId, entity: PublicEntityState | undefined): boolean {
+  if (!entity) return false;
+  if (entity.ownerId !== null && arePlayersAllied(state, playerId, entity.ownerId)) return true;
+  if (entity.kind !== "building") return isTileVisibleToPlayer(state, playerId, entity.position);
+  return getFootprintCells(entity.position, BUILDINGS[entity.typeId as BuildingType].footprint)
+    .some((cell) => isTileVisibleToPlayer(state, playerId, cell));
+}
+
 export function isEntityVisibleToPlayer(state: MatchState, playerId: PlayerId, target: EntityState): boolean {
-  if (target.ownerId === playerId) return true;
-  return state.entities.some((observer) => {
-    if (observer.ownerId !== playerId || observer.hitPoints <= 0) return false;
-    const radius = observer.kind === "unit" ? UNITS[observer.typeId].sightRadius : BUILDINGS[observer.typeId].sightRadius;
-    return distanceSquared(observer.position, target.position) <= radius * radius;
-  });
+  return isEntityVisibleToPlayerFromFog(state, playerId, target);
 }
 
 export function getEntityFootprintCells(entity: EntityState): readonly GridPoint[] {
@@ -517,8 +682,11 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     const builders = ownedUnits(state, player.id, command.builderIds);
     if (!builders) return rejected("ENTITY_NOT_OWNED");
     if (builders.some((builder) => builder.typeId !== "villager")) return rejected("INVALID_PAYLOAD");
-    if (!isBuildLocationAvailable(state, command.buildingType, command.origin)) return rejected("TARGET_NOT_REACHABLE");
+    const footprint = getFootprintCells(command.origin, BUILDINGS[command.buildingType].footprint);
+    if (!footprint.every((cell) => isPointInBounds(cell, state))) return rejected("TARGET_NOT_REACHABLE");
     if (!meetsTier(player.settlementTier, BUILDINGS[command.buildingType].requiredTier)) return rejected("PREREQUISITE_NOT_MET");
+    if (!footprint.every((cell) => isTileVisibleToPlayer(state, player.id, cell))) return rejected("TARGET_NOT_VISIBLE");
+    if (!isBuildLocationAvailable(state, command.buildingType, command.origin)) return rejected("TARGET_NOT_REACHABLE");
     return canAfford(player.resources, BUILDINGS[command.buildingType].cost) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
   if (command.type === "train") {
@@ -555,6 +723,7 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
     if (!isTrainingProducer(producer.typeId)) return rejected("INVALID_PAYLOAD");
     if (!producer.complete || producer.hitPoints <= 0) return rejected("ACTION_ON_COOLDOWN");
+    if (command.target !== null && !isTileVisibleToPlayer(state, player.id, command.target)) return rejected("TARGET_NOT_VISIBLE");
     return command.target === null || isRallyPointAvailable(state, producer.id, command.target)
       ? { ok: true }
       : rejected("TARGET_NOT_REACHABLE");
@@ -571,8 +740,8 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
   const ids = command.entityIds;
   const units = ownedUnits(state, player.id, ids);
   if (!units) return rejected("ENTITY_NOT_OWNED");
-  if (command.type === "move" || command.type === "attackMove") return isPointInBounds(command.target, state) && isMapCellWalkable(state, command.target) && !isMapCellBlocked(state, command.target) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
-  if (command.type === "patrol") return command.waypoints.every((point) => isPointInBounds(point, state) && isMapCellWalkable(state, point) && !isMapCellBlocked(state, point)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+  if (command.type === "move" || command.type === "attackMove") return isMovementTargetAvailableToPlayer(state, player.id, command.target) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+  if (command.type === "patrol") return command.waypoints.every((point) => isMovementTargetAvailableToPlayer(state, player.id, point)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
   if (command.type === "setStance" || command.type === "setFormation") return { ok: true };
   if (command.type === "stop") return { ok: true };
   const target = state.entities.find((entity) => entity.id === command.targetId);
@@ -789,10 +958,16 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   if (removed.length > 0) {
     const removedIds = new Set(removed.map((entity) => entity.id));
     state.entities = state.entities.filter((entity) => !removedIds.has(entity.id));
-    for (const entity of removed) events.push({ type: "entityRemoved", entityId: entity.id, reason: entity.kind === "resource" ? "depleted" : "destroyed" });
+    for (const entity of removed) events.push({
+      type: "entityRemoved",
+      entityId: entity.id,
+      entity: toPublicEntity(entity),
+      reason: entity.kind === "resource" ? "depleted" : "destroyed",
+    });
   }
   updateSettlementAdvancements(state, events);
   syncPopulation(state);
+  updateVisibilityState(state);
   evaluateVictory(state, events);
 }
 
@@ -1252,6 +1427,7 @@ function spawnResolvingProjectile(
     ownerId: unit.ownerId,
     sourceId: unit.id,
     profileId,
+    origin: { ...unit.position },
     position: { ...unit.position },
     targetId: null,
     targetPoint: { ...targetPoint },
@@ -1291,6 +1467,7 @@ function spawnProjectile(
     ownerId,
     sourceId,
     profileId,
+    origin: { ...origin },
     position: { ...origin },
     targetId: terrainImpact ? null : target.id,
     targetPoint: { ...targetPoint },
@@ -1326,6 +1503,7 @@ function firstProjectileTerrainImpact(state: MatchState, origin: GridPoint, targ
 }
 
 function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
+  for (const projectile of state.projectiles) updateProjectilePosition(state, projectile);
   const active = state.projectiles
     .filter((projectile) => projectile.resolution?.kind === "line" || projectile.impactTick <= state.tick)
     .sort((left, right) => compareText(left.id, right.id));
@@ -1365,9 +1543,8 @@ function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
       }
     } else {
       const target = projectile.targetId ? state.entities.find((entity) => entity.id === projectile.targetId) : undefined;
-      const remainsInFixedArea = !projectile.fixedImpact || (target !== undefined && distanceSquaredToEntity(projectile.targetPoint, target) <= 4);
-      if (target && remainsInFixedArea && isValidHostileTarget(state, projectile.ownerId, target)) {
-        if (!projectile.fixedImpact) impactPosition = target.position;
+      const remainsInImpactArea = target !== undefined && distanceSquaredToEntity(projectile.targetPoint, target) <= (projectile.fixedImpact ? 4 : 0);
+      if (target && remainsInImpactArea && isValidHostileTarget(state, projectile.ownerId, target)) {
         applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target), events);
         if (target.kind !== "resource") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
         impacted.push(target.id);
@@ -1379,9 +1556,19 @@ function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
   state.projectiles = state.projectiles.filter((projectile) => !completedIds.has(projectile.id));
 }
 
+function updateProjectilePosition(state: MatchState, projectile: ProjectileState): void {
+  if (projectile.resolution?.kind === "line") return;
+  const duration = Math.max(1, projectile.impactTick - projectile.launchTick);
+  const elapsed = Math.max(0, Math.min(duration, state.tick - projectile.launchTick));
+  projectile.position = {
+    x: Math.round(projectile.origin.x + (projectile.targetPoint.x - projectile.origin.x) * elapsed / duration),
+    y: Math.round(projectile.origin.y + (projectile.targetPoint.y - projectile.origin.y) * elapsed / duration),
+  };
+}
+
 function projectileDamageAtImpact(projectile: ProjectileState, target: EntityState, rawDamage = projectile.damage): number {
   if (target.kind !== "unit" || !hasStatus(target, "shieldWall") || projectile.profileId === "arcaneCinder") return rawDamage;
-  return isInFrontArc(target, projectile.position)
+  return isInFrontArc(target, projectile.origin)
     ? Math.max(1, Math.round(rawDamage * STATUS_EFFECTS.shieldWall.magnitude))
     : rawDamage;
 }
@@ -2502,6 +2689,11 @@ function isMapCellWalkable(state: MatchState, point: GridPoint): boolean {
 
 function isExactWalkTargetAvailable(state: MatchState, point: GridPoint): boolean {
   return isPointInBounds(point, state) && isMapCellWalkable(state, point) && !isMapCellBlocked(state, point);
+}
+
+function isMovementTargetAvailableToPlayer(state: MatchState, playerId: PlayerId, point: GridPoint): boolean {
+  if (!isPointInBounds(point, state) || !isMapCellWalkable(state, point)) return false;
+  return !isTileVisibleToPlayer(state, playerId, point) || !isMapCellBlocked(state, point);
 }
 
 function canUnitMoveToExactPoint(state: MatchState, start: GridPoint, target: GridPoint): boolean {

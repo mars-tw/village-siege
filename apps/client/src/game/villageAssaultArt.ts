@@ -4,6 +4,7 @@ import {
   type BuildingType,
   type ResourceEntityState,
   type ResourceKind,
+  type StaleEntitySighting,
 } from "@village-siege/shared";
 
 export type AssaultSide = "player" | "enemy";
@@ -12,6 +13,12 @@ export interface AssaultEntityView {
   readonly container: Phaser.GameObjects.Container;
   update(entity: BuildingEntityState | ResourceEntityState, selected?: boolean): void;
   setCompact(compact: boolean): void;
+  destroy(): void;
+}
+
+export interface StaleBuildingView {
+  readonly container: Phaser.GameObjects.Container;
+  update(sighting: StaleEntitySighting, serverTick: number): void;
   destroy(): void;
 }
 
@@ -115,6 +122,46 @@ export function createBuildingView(
     setCompact: (compact) => label.setVisible(!compact),
     destroy: () => container.destroy(true),
   };
+}
+
+export function createStaleBuildingView(
+  scene: Phaser.Scene,
+  sighting: StaleEntitySighting,
+  serverTick: number,
+): StaleBuildingView {
+  const shadow = scene.add.ellipse(0, 11, footprintWidth(sighting.typeId), footprintHeight(sighting.typeId), INK, 0.24);
+  const art = scene.add.graphics();
+  const label = scene.add.text(0, 25, BUILDING_LABELS[sighting.typeId], {
+    color: "#c3cbc2",
+    fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+    fontSize: "12px",
+    fontStyle: "bold",
+    backgroundColor: "#101917b8",
+    padding: { x: 5, y: 2 },
+  }).setOrigin(0.5, 0).setResolution(2);
+  const age = scene.add.text(0, -68, "", {
+    color: "#aab8ad",
+    fontFamily: 'Consolas, "Noto Sans TC", monospace',
+    fontSize: "10px",
+    backgroundColor: "#101917b8",
+    padding: { x: 4, y: 2 },
+  }).setOrigin(0.5).setResolution(2);
+  const container = scene.add.container(0, 0, [shadow, art, label, age])
+    .setName(`assault-stale-building:${sighting.entityId}`)
+    .setAlpha(0.52);
+  let lastRevision = -1;
+
+  const update = (next: StaleEntitySighting, currentTick: number): void => {
+    if (next.stateRevision !== lastRevision) {
+      art.clear();
+      drawBuilding(art, next.typeId, "enemy", 1, Phaser.Math.Clamp(next.hitPoints / Math.max(1, next.maxHitPoints), 0, 1));
+      lastRevision = next.stateRevision;
+    }
+    const elapsedSeconds = Math.max(0, Math.floor((currentTick - next.observedAtTick) / 10));
+    age.setText(`最後偵察 ${elapsedSeconds}s`);
+  };
+  update(sighting, serverTick);
+  return { container, update, destroy: () => container.destroy(true) };
 }
 
 export function createResourceView(scene: Phaser.Scene, entity: ResourceEntityState): AssaultEntityView {

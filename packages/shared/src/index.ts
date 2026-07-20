@@ -6,3 +6,4 @@ export * from "./ai.js";
 export * from "./combat.js";
 export * from "./spatial.js";
 export * from "./battlefield.js";
+export * from "./visibility.js";

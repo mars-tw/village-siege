@@ -4,6 +4,7 @@ import { nextUint32, normalizeSeed } from "./random.js";
 import { COMBAT_UNITS, COUNTER_MATRIX, type CombatUnitId } from "./combat.js";
 import { arePlayersHostile, isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState, type ProductionJob } from "./simulation.js";
 import { findPathRoute, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
+import { getPlayerVisibilityState } from "./visibility.js";
 import type {
   AiDifficulty,
   AiPersonality,
@@ -103,11 +104,17 @@ export function createAiController(personality: AiPersonality, playerId: PlayerI
   };
 }
 
-export function getAiObservation(state: MatchState, playerId: PlayerId, rememberedEnemySites: readonly RememberedEnemySite[] = []): AiObservation {
+export function getAiObservation(state: MatchState, playerId: PlayerId, _rememberedEnemySites: readonly RememberedEnemySite[] = []): AiObservation {
   const player = state.players.find((candidate) => candidate.id === playerId);
   if (!player) throw new Error(`Unknown AI player: ${playerId}`);
   const ownEntities = sortPublicEntities(state.entities.filter((entity) => entity.ownerId === playerId).map(toPublicEntity));
   const visible = state.entities.filter((entity) => entity.ownerId !== playerId && isEntityVisibleToPlayer(state, playerId, entity));
+  const authoritativeMemory = getPlayerVisibilityState(state, playerId).staleEnemySightings.map((sighting) => ({
+    entityId: sighting.entityId,
+    typeId: sighting.typeId,
+    lastKnownPosition: { ...sighting.position },
+    observedAtTick: sighting.observedAtTick,
+  }));
   return {
     serverTick: state.tick,
     selfPlayerId: playerId,
@@ -144,7 +151,7 @@ export function getAiObservation(state: MatchState, playerId: PlayerId, remember
     // Keep fallow renewable fields in spatial knowledge so the AI will not try
     // to build over them. Economy selection separately filters empty nodes.
     visibleResourceEntities: sortPublicEntities(visible.filter((entity) => entity.kind === "resource").map(toPublicEntity)),
-    rememberedEnemySites: sanitizeRememberedEnemySites(rememberedEnemySites, state.tick, state.map),
+    rememberedEnemySites: sanitizeRememberedEnemySites(authoritativeMemory, state.tick, state.map),
   };
 }
 

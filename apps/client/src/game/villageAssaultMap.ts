@@ -20,10 +20,8 @@ export function drawSettlementOverlay(scene: Phaser.Scene, origin = VILLAGE_ASSA
   container.setName("village-assault-settlement-overlay");
 
   drawBaseBoundary(zones, { x: 2, y: 7 }, 0x315e4d);
-  drawBaseBoundary(zones, { x: 15, y: 7 }, 0x8f3b3a);
   drawWorksiteProps(props);
   addSign(scene, container, labels, { x: 2, y: 3 }, "西境營造區", "建屋 · 採集 · 徵召", 0x315e4d);
-  addSign(scene, container, labels, { x: 15, y: 11 }, "東境敵寨", "截斷補給 · 摧毀主城", 0x8f3b3a);
   return { container, placement, destroy: () => container.destroy(true) };
 }
 
@@ -61,6 +59,31 @@ export function drawPlacementFootprint(
       graphics.lineBetween(world.x + 11, world.y - 8, world.x - 11, world.y + 8);
     }
   });
+}
+
+export function drawFogOfWar(
+  graphics: Phaser.GameObjects.Graphics,
+  mapWidth: number,
+  mapHeight: number,
+  visibleTileIndices: readonly number[],
+  exploredTileIndices: readonly number[],
+): void {
+  const visible = new Set(visibleTileIndices);
+  const explored = new Set(exploredTileIndices);
+  graphics.clear();
+  for (let y = 0; y < mapHeight; y += 1) {
+    for (let x = 0; x < mapWidth; x += 1) {
+      const index = y * mapWidth + x;
+      if (visible.has(index)) continue;
+      const world = gridToWorld({ x, y }, { x: 0, y: 0 });
+      graphics.fillStyle(explored.has(index) ? 0x13221e : 0x07100e, explored.has(index) ? 0.66 : 0.94).beginPath()
+        .moveTo(world.x, world.y - 24)
+        .lineTo(world.x + 48, world.y)
+        .lineTo(world.x, world.y + 24)
+        .lineTo(world.x - 48, world.y)
+        .closePath().fillPath();
+    }
+  }
 }
 
 function drawBaseBoundary(g: Phaser.GameObjects.Graphics, center: SharedGridPoint, color: number): void {

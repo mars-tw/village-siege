@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AI_PROFILES, createAiController, getAiObservation, type AiObservation } from "./ai";
+import { updateVisibilityState } from "./visibility";
 import { MAX_TRAINING_QUEUE_DEPTH, TECHNOLOGIES, UNITS } from "./content";
 import { isGameCommand, type AiPersonality, type GameCommand, type PublicEntityState, type UnitType } from "./protocol";
 import { applyCommand, cloneMatchState, createInitialState, stepSimulation, validateCommand, type MatchState } from "./simulation";
@@ -56,6 +57,7 @@ describe("shared AI personalities", () => {
         productionQueue: [],
       });
     }
+    updateVisibilityState(base);
     const expected = {
       aggressor: "layeredHarness",
       guardian: "surveyedFoundations",
@@ -251,9 +253,7 @@ describe("shared AI personalities", () => {
     const baseline = getAiObservation(state, "player-1", remembered);
     const reordered = getAiObservation(reversed, "player-1", [...remembered].reverse());
     expect(reordered).toEqual(baseline);
-    expect(baseline.rememberedEnemySites).toEqual([
-      { entityId: "enemy-1", lastKnownPosition: { x: 11, y: 11 }, observedAtTick: 0 },
-    ]);
+    expect(baseline.rememberedEnemySites).toEqual([]);
   });
 
   it("does not train into a saturated town-center queue", () => {

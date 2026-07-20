@@ -28,6 +28,8 @@ Colyseus gateway
 
 The browser never commits resources, damage, training, research, visibility or victory during an online match. `packages/shared` contains deterministic rules used by the server and offline mode. The online client may predict cursors, route previews and presentation timing only.
 
+The current `VillageAssaultRuntime` intentionally owns a complete `MatchState` because it is the offline single-player authority. It is not a secrecy or anti-cheat boundary. The future online transport must never instantiate that authority in a player browser: it may deliver only the recipient's `VisibleSnapshot`, projected events and command acknowledgements.
+
 ## Versioned command envelope
 
 Every online intent shall include:
@@ -52,7 +54,7 @@ The server rejects unsupported protocol or rules versions before joining a match
 - Server simulation target: fixed 20 Hz after the authoritative-room migration.
 - Filtered state deltas: 10 Hz.
 - Full player-filtered snapshot: every 5 seconds and on reconnect.
-- Canonical state hash: every 2 seconds.
+- Canonical state hash: every 2 seconds. The current FNV-1a checksum is a deterministic change/desync hint, not a cryptographic authentication or security proof; authenticated online transport requires a server-held integrity mechanism.
 - Reconnect lease: 120 seconds.
 - Determinism: integer or fixed-point values, seeded random state, stable entity IDs and explicit sorted iteration.
 - Hash mismatch: stop delta application and request a full server snapshot; never accept a client state upload as truth.
@@ -79,7 +81,9 @@ Production queues, job identities and rally points are owner-only state. They ar
 
 ## Tactical combat contract
 
-Rules version `village-siege/0.7.0` has one canonical combat roster: `villager` plus `warrior`, `shieldBearer`, `archer`, `mage`, `musketeer`, `boarRider` and `heavyCrossbowman`. Formal unit content derives combat hit points, damage, cadence, range, speed, cost, population and training time from that roster rather than maintaining a second simulation table.
+Rules version `village-siege/0.8.0` has one canonical combat roster: `villager` plus `warrior`, `shieldBearer`, `archer`, `mage`, `musketeer`, `boarRider` and `heavyCrossbowman`. Formal unit content derives combat hit points, damage, cadence, range, speed, cost, population and training time from that roster rather than maintaining a second simulation table.
+
+Per-player visibility is deterministic shared state. Living units and completed allied buildings reveal circular tile ranges; teammates share current vision, while explored tiles remain permanently known. Moving hostile units disappear outside current vision. Hostile buildings retain a copied last-sighting record that never references or updates from hidden live state, and revisiting any cell of an empty remembered footprint removes the stale record. `toVisibleSnapshot()` filters entities and projectiles before serialization, masks hidden source/target identifiers and target points, and publishes only the recipient wallet, technology state, RLE exploration mask and stable checksum. `projectDomainEventsForPlayer()` accepts a same-tick `DomainEventFrame`, rejects tick mismatches and applies the same boundary to battle events; command acknowledgement routing remains explicitly recipient-owned. The client draws stale buildings as non-interactive translucent observations and moves projectile effects only from successive public snapshot positions.
 
 Move, attack, attack-move, patrol, stop, repair, stance, formation and active-ability intents are strictly parsed and validated by the shared simulation. Attack-move acquires only currently visible hostile targets and resumes its deterministic formation destination after contact. Formation cells are assigned in stable entity-ID order. Repair accepts living completed allied buildings, charges one wood per ten repaired hit points and stops at full durability or an empty wallet.
 
@@ -87,7 +91,7 @@ Combat advances through fixed windup, commit, recovery and ready phases. Unit-ta
 
 Every combat role also owns an authoritative passive transition. Warrior rhythm resets on a target switch or a twenty-tick miss window; shield bearers brace after eight stationary ticks and reverse frontal boar charges for a sixty-tick lockout; rested musketeers gain one range and twenty-percent shorter recovery for one basic shot; boar riders consume three moved tiles for a twenty-percent basic-hit bonus; and heavy crossbow crews emplace after twenty stationary ticks, gaining one range and twenty-percent building damage until movement or forced displacement. Archer gap-hunter bonus applies to heavy crossbows only while they are emplaced, while mage armor ignore remains part of the common damage formula. Public unit state exposes deterministic passive progress without exposing hidden orders.
 
-Projectile kind controls collision authority. Locked arrows retain their commit target, ground-area skills scan the target circle at impact, and the three-arrow volley caps one target at two hits. Line bolts advance along their segment every simulation tick, remember already-hit targets, stop after two hits or the first building footprint, and terminate early at blocked terrain. A unit entering a segment after the bolt has passed is not retroactively hit. Projectile impact events report the real terminal cell, not an unrelated endpoint.
+Projectile kind controls collision authority. Ordinary arrows are ballistic: they retain the committed target cell, follow their launch-time terrain-checked segment and miss a unit that leaves that exact cell before impact. Ground-area skills scan the target circle at impact, and the three-arrow volley caps one target at two hits. Line bolts advance along their segment every simulation tick, remember already-hit targets, stop after two hits or the first building footprint, and terminate early at blocked terrain. A unit entering a segment after the bolt has passed is not retroactively hit. Projectile impact events report the real terminal cell, not an unrelated endpoint.
 
 Diplomacy uses team IDs in direct attacks, automatic acquisition, towers, projectiles and AI observations. Same-team entities are never valid hostile targets. AI uses only visible hostile composition to score canonical counter units and submits the same validated ability commands as a player.
 

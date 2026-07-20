@@ -15,6 +15,14 @@ export interface ProjectileEffectOptions {
   readonly onImpact?: () => void;
 }
 
+export interface ProjectileVisualOptions {
+  readonly point: EffectPoint;
+  readonly targetHint: EffectPoint;
+  readonly kind: ProjectileVisualKind | string;
+  readonly tint?: number;
+  readonly depth?: number;
+}
+
 const EFFECT_COLORS: Readonly<Record<string, number>> = {
   arrow: 0xe6d18f,
   bolt: 0xd9e0d2,
@@ -24,6 +32,28 @@ const EFFECT_COLORS: Readonly<Record<string, number>> = {
   ember: 0xff7047,
   impact: 0xffe3a1,
 };
+
+export function createProjectileVisual(scene: Phaser.Scene, options: ProjectileVisualOptions): Phaser.GameObjects.Container {
+  const color = options.tint ?? EFFECT_COLORS[options.kind] ?? EFFECT_COLORS.impact!;
+  const dx = options.targetHint.x - options.point.x;
+  const dy = options.targetHint.y - options.point.y;
+  const body = scene.add.graphics();
+  if (options.kind === "arrow" || options.kind === "bolt") {
+    body.lineStyle(options.kind === "bolt" ? 3 : 2, color, 1).lineBetween(-13, 0, 10, 0);
+    body.fillStyle(color, 1).fillTriangle(13, 0, 6, -4, 6, 4);
+    body.lineStyle(2, 0x6c4a31, 0.9).lineBetween(-13, 0, -18, -5).lineBetween(-13, 0, -18, 5);
+  } else if (options.kind === "musket") {
+    body.lineStyle(3, color, 0.95).lineBetween(-22, 0, 8, 0);
+    body.fillStyle(0xfff2bd, 1).fillCircle(10, 0, 3);
+  } else {
+    body.fillStyle(color, 0.2).fillCircle(0, 0, 12);
+    body.fillStyle(color, 0.75).fillCircle(0, 0, 7);
+    body.fillStyle(0xffffff, 0.9).fillCircle(-2, -2, 2);
+  }
+  return scene.add.container(options.point.x, options.point.y, [body])
+    .setDepth(options.depth ?? 20_000)
+    .setRotation(dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx));
+}
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
