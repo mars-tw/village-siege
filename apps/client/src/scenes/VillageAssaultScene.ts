@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import {
   BUILDINGS,
   COMBAT_UNITS,
+  MONSTER_BOONS,
+  MONSTERS,
   decodeExploredTilesRle,
   findPathToAny,
   getBuildingFootprint,
@@ -33,6 +35,7 @@ import {
   type FormationKind,
   type GameCommand,
   type GridPoint,
+  type MonsterEntityState,
   type ResourceEntityState,
   type ResourceKind,
   type ResourceWallet,
@@ -49,6 +52,7 @@ import {
 } from "@village-siege/shared";
 import { drawBattleMap, type BattleMapView } from "../game/battleMap";
 import {
+  ANIMATED_MONSTER_FRAME_ASSETS,
   ANIMATED_UNIT_FRAME_ASSETS,
   COMBAT_ANIMATION_MANIFEST,
   assertCombatAnimationManifestValid,
@@ -61,7 +65,7 @@ import {
   createFrameAnimatedCombatActor,
   requireFrameAnimatedManifest,
   validateFrameAnimatedCombatActorManifest,
-  type FrameAnimatedCombatActor,
+  type FrameAnimatedCombatActorView,
 } from "../game/frameAnimatedCombatActor";
 import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
 import { gridToWorld, worldToGrid } from "../game/isometric";
@@ -90,6 +94,10 @@ import {
   createVillageAssaultRuntime,
   type VillageAssaultRuntime,
 } from "../game/villageAssaultRuntime";
+import {
+  createVillageWorkerActor,
+  type VillageWorkerPose,
+} from "../game/villageWorkerActor";
 import { createCanvasButton, type CanvasButtonControl } from "../ui/canvasButton";
 
 interface VillageAssaultSceneData {
@@ -99,7 +107,7 @@ interface VillageAssaultSceneData {
 }
 
 interface UnitView {
-  readonly actor: FrameAnimatedCombatActor;
+  readonly actor: UnitActorView;
   readonly selection: Phaser.GameObjects.Graphics;
   readonly health: Phaser.GameObjects.Graphics;
   readonly label: Phaser.GameObjects.Text;
@@ -119,6 +127,21 @@ interface ActionSpec {
   readonly run: () => void;
 }
 
+interface MonsterView {
+  readonly actor: FrameAnimatedCombatActorView;
+  readonly selection: Phaser.GameObjects.Graphics;
+  readonly health: Phaser.GameObjects.Graphics;
+  readonly label: Phaser.GameObjects.Text;
+  grid: GridPoint;
+  hitPoints: number;
+  attackCooldownTicks: number;
+  action: CombatAction;
+}
+
+interface UnitActorView extends FrameAnimatedCombatActorView {
+  setWorkerPose?(pose: VillageWorkerPose): UnitActorView;
+}
+
 type ProductionUiMode =
   | { readonly kind: "none" }
   | { readonly kind: "queue"; readonly producerId: string; readonly page: number }
@@ -132,8 +155,7 @@ type TacticalUiMode =
   | { readonly kind: "repair"; readonly entityIds: readonly string[] }
   | { readonly kind: "ability"; readonly casterId: string; readonly abilityId: string; readonly targeting: "unit" | "ground" | "direction" };
 
-const UNIT_ART: Readonly<Record<UnitType, CombatArtId>> = {
-  villager: "warrior",
+const UNIT_ART: Readonly<Record<CombatUnitId, CombatArtId>> = {
   warrior: "warrior",
   shieldBearer: "shieldbearer",
   archer: "archer",
@@ -176,6 +198,7 @@ const SETTLEMENT_ADVANCEMENT_NOTICES: Readonly<Record<SettlementTier, string>> =
   artificer: "爐火與齒輪照亮工坊｜聚落邁入工藝期",
 };
 const UI_WIDTH = 900;
+const TOP_PANEL_HEIGHT = 80;
 const UI_BUTTON_WIDTH = 118;
 const UI_BUTTON_HEIGHT = 118;
 const UI_GAP = 6;
@@ -190,9 +213,11 @@ export class VillageAssaultScene extends Phaser.Scene {
   private settlementOverlay?: SettlementOverlay;
   private fogOverlay?: Phaser.GameObjects.Graphics;
   private readonly unitViews = new Map<string, UnitView>();
+  private readonly monsterViews = new Map<string, MonsterView>();
   private readonly entityViews = new Map<string, AssaultEntityView>();
   private readonly staleBuildingViews = new Map<string, StaleBuildingView>();
   private readonly projectileEffects = new Map<string, Phaser.GameObjects.Container>();
+  private readonly retiringActors = new Set<FrameAnimatedCombatActorView>();
   private readonly selectedIds = new Set<string>();
   private buildMenuOpen = false;
   private buildPage = 0;
@@ -216,6 +241,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private readonly pendingArtIds = new Set<CombatArtId>();
   private readonly failedArtIds = new Set<CombatArtId>();
   private readonly artRetryAt = new Map<CombatArtId, number>();
+  private readonly dynamicArtIds = new Set<CombatArtId>();
   private artLoadGeneration = 0;
   private uiScale = 1;
   private compactUi = false;
@@ -245,9 +271,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.aiPersonality = data.aiPersonality ?? "balanced";
     this.returnScene = data.returnScene ?? "VillageSelectScene";
     this.unitViews.clear();
+    this.monsterViews.clear();
     this.entityViews.clear();
     this.staleBuildingViews.clear();
     this.projectileEffects.clear();
+    this.retiringActors.clear();
     this.selectedIds.clear();
     this.buildMenuOpen = false;
     this.buildPage = 0;
@@ -270,6 +298,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.pendingArtIds.clear();
     this.failedArtIds.clear();
     this.artRetryAt.clear();
+    this.dynamicArtIds.clear();
     this.artLoadGeneration += 1;
     this.pointerStart = undefined;
     this.pointerDragged = false;
@@ -277,7 +306,10 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   preload(): void {
     assertCombatAnimationManifestValid();
-    const assets = ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior" && !this.textures.exists(asset.textureKey));
+    const assets = [
+      ...ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior"),
+      ...ANIMATED_MONSTER_FRAME_ASSETS,
+    ].filter((asset) => !this.textures.exists(asset.textureKey));
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
     for (const asset of assets) this.load.image(asset.textureKey, asset.path);
   }
@@ -290,6 +322,9 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, "warrior"), "warrior");
+    for (const asset of ANIMATED_MONSTER_FRAME_ASSETS) {
+      validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, asset.artId), asset.artId);
+    }
     this.runtime = createVillageAssaultRuntime({
       playerVillageId: this.villageId,
       aiPersonality: this.aiPersonality,
@@ -298,7 +333,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     });
     this.cameras.main.setBackgroundColor("#17241f");
     this.cameras.main.setBounds(VILLAGE_ASSAULT_BOUNDS.x, VILLAGE_ASSAULT_BOUNDS.y, VILLAGE_ASSAULT_BOUNDS.width, VILLAGE_ASSAULT_BOUNDS.height);
-    this.mapView = drawBattleMap(this, VILLAGE_ASSAULT_ORIGIN);
+    this.mapView = drawBattleMap(this, VILLAGE_ASSAULT_ORIGIN, this.runtime.state.map.layoutId);
     this.mapView.container.setDepth(-10_000);
     this.settlementOverlay = drawSettlementOverlay(this, VILLAGE_ASSAULT_ORIGIN);
     this.settlementOverlay.container.setDepth(-2_000);
@@ -338,6 +373,7 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     this.updateCamera(delta);
+    for (const actor of this.retiringActors) actor.update(delta);
     if (this.paused || this.ended || this.orientationBlocked || !this.runtime) return;
     const result = this.runtime.step(Math.min(delta, 250));
     if (result.steps === 0) return;
@@ -375,13 +411,24 @@ export class VillageAssaultScene extends Phaser.Scene {
     for (const [id, view] of this.unitViews) {
       if (renderable.has(id)) continue;
       if (visiblyRemoved.has(id)) {
-        view.actor.play("death");
-        this.tweens.add({ targets: view.actor.container, alpha: 0, duration: 380, onComplete: () => view.actor.destroy() });
+        const removed = this.runtime.recentEvents.find((event): event is Extract<DomainEvent, { type: "entityRemoved" }> => event.type === "entityRemoved" && event.entityId === id)?.entity;
+        this.retireActor(view.actor, removed?.kind === "unit" && removed.typeId === "villager" ? 850 : 700);
       } else {
         this.tweens.killTweensOf(view.actor.container);
         view.actor.destroy();
       }
       this.unitViews.delete(id);
+      this.selectedIds.delete(id);
+    }
+    for (const [id, view] of this.monsterViews) {
+      if (renderable.has(id)) continue;
+      if (visiblyRemoved.has(id)) {
+        this.retireActor(view.actor, 700);
+      } else {
+        this.tweens.killTweensOf(view.actor.container);
+        view.actor.destroy();
+      }
+      this.monsterViews.delete(id);
       this.selectedIds.delete(id);
     }
     for (const [id, view] of this.entityViews) {
@@ -393,10 +440,26 @@ export class VillageAssaultScene extends Phaser.Scene {
     for (const entity of this.runtime.state.entities) {
       if (!renderable.has(entity.id)) continue;
       if (entity.kind === "unit") this.syncUnitView(entity, initial);
+      else if (entity.kind === "monster") this.syncMonsterView(entity, initial);
       else this.syncStaticView(entity);
     }
     this.syncStaleBuildingViews(snapshot);
     this.sanitizeSelection();
+  }
+
+  private retireActor(actor: FrameAnimatedCombatActorView, holdDuration: number): void {
+    actor.play("death");
+    this.retiringActors.add(actor);
+    this.tweens.add({
+      targets: actor.container,
+      alpha: 0,
+      delay: holdDuration,
+      duration: 220,
+      onComplete: () => {
+        this.retiringActors.delete(actor);
+        actor.destroy();
+      },
+    });
   }
 
   private syncStaleBuildingViews(snapshot: VisibleSnapshot): void {
@@ -482,18 +545,20 @@ export class VillageAssaultScene extends Phaser.Scene {
   private syncUnitView(entity: UnitEntityState, initial: boolean): void {
     let view = this.unitViews.get(entity.id);
     if (!view) {
-      const artId = UNIT_ART[entity.typeId];
-      if (this.failedArtIds.has(artId)) {
-        if (performance.now() < (this.artRetryAt.get(artId) ?? Number.POSITIVE_INFINITY)) return;
-        this.failedArtIds.delete(artId);
-      }
-      if (!this.isArtReady(artId)) {
-        void this.ensureArtLoaded(artId)
-          .then(() => {
-            if (this.sys.isActive()) this.syncEntityViews(false);
-          })
-          .catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
-        return;
+      if (entity.typeId !== "villager") {
+        const artId = UNIT_ART[entity.typeId];
+        if (this.failedArtIds.has(artId)) {
+          if (performance.now() < (this.artRetryAt.get(artId) ?? Number.POSITIVE_INFINITY)) return;
+          this.failedArtIds.delete(artId);
+        }
+        if (!this.isArtReady(artId)) {
+          void this.ensureArtLoaded(artId)
+            .then(() => {
+              if (this.sys.isActive()) this.syncEntityViews(false);
+            })
+            .catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
+          return;
+        }
       }
       view = this.createUnitView(entity);
       this.unitViews.set(entity.id, view);
@@ -506,6 +571,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     } else {
       view.actor.setPosition(target.x, target.y);
     }
+    if (entity.typeId === "villager") view.actor.setWorkerPose?.(this.workerPose(entity));
     const action = this.actionForUnit(entity, view);
     if (action !== view.action) {
       view.actor.play(action, action !== "idle" && action !== "walk");
@@ -519,6 +585,90 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.drawCargoPack(view.cargoPack, entity.cargo.kind, entity.cargo.amount, UNITS[entity.typeId].carryCapacity);
     view.cargoLabel.setText(entity.cargo.amount > 0 ? `${cargoGlyph}${entity.cargo.amount}/${UNITS[entity.typeId].carryCapacity}` : "").setVisible(entity.cargo.amount > 0);
     view.actor.container.setDepth(target.y + 100);
+  }
+
+  private syncMonsterView(entity: MonsterEntityState, initial: boolean): void {
+    let view = this.monsterViews.get(entity.id);
+    if (!view) {
+      view = this.createMonsterView(entity);
+      this.monsterViews.set(entity.id, view);
+    }
+    const target = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
+    const moved = view.grid.x !== entity.position.x || view.grid.y !== entity.position.y;
+    if (!initial && moved) {
+      view.actor.faceVector(entity.position.x - view.grid.x, entity.position.y - view.grid.y);
+      this.tweens.killTweensOf(view.actor.container);
+      this.tweens.add({ targets: view.actor.container, x: target.x, y: target.y, duration: 170, ease: "Sine.Out" });
+    } else {
+      view.actor.setPosition(target.x, target.y).setFacing(entity.facing);
+    }
+    const action: CombatAction = entity.hitPoints < view.hitPoints
+      ? "hurt"
+      : entity.combat.phase === "windup" && entity.combat.action === "ability"
+        ? "cast"
+        : entity.combat.phase === "commit" && entity.combat.action === "ability"
+          ? "attack"
+      : entity.attackCooldownTicks > view.attackCooldownTicks
+        ? "attack"
+        : moved
+          ? "walk"
+          : "idle";
+    if (action !== view.action || action === "attack" || action === "hurt") {
+      view.actor.play(action, action !== "idle" && action !== "walk");
+      view.action = action;
+    }
+    view.grid = { ...entity.position };
+    view.hitPoints = entity.hitPoints;
+    view.attackCooldownTicks = entity.attackCooldownTicks;
+    view.selection.setVisible(this.selectedIds.has(entity.id));
+    this.drawUnitHealth(view.health, entity);
+    view.actor.container.setDepth(target.y + 112);
+  }
+
+  private createMonsterView(entity: MonsterEntityState): MonsterView {
+    const world = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
+    const actor = createFrameAnimatedCombatActor(this, {
+      id: entity.typeId,
+      x: world.x,
+      y: world.y,
+      facing: entity.facing,
+      action: "idle",
+      teamPalette: DEFAULT_TEAM_PALETTES.neutral,
+    }, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, entity.typeId));
+    const selection = this.add.graphics().lineStyle(3, 0xf0c96b, 1).strokeEllipse(0, 4, entity.typeId === "rootback" ? 84 : 64, entity.typeId === "rootback" ? 34 : 26).setVisible(false);
+    const health = this.add.graphics();
+    const label = this.add.text(0, 15, `◆ ${MONSTERS[entity.typeId].displayName}`, {
+      color: "#f4d58c",
+      fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+      fontSize: "11px",
+      fontStyle: "bold",
+      stroke: "#101917",
+      strokeThickness: 4,
+    }).setOrigin(0.5, 0).setResolution(2).setVisible(!this.compactUi);
+    actor.container.addAt(selection, 0);
+    actor.container.add([health, label]);
+    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+      event.stopPropagation();
+      this.beginPointerGesture(pointer);
+    });
+    actor.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+      event.stopPropagation();
+      this.completeEntityGesture(entity.id, pointer);
+    });
+    this.uiCamera?.ignore(actor.container);
+    return {
+      actor,
+      selection,
+      health,
+      label,
+      grid: { ...entity.position },
+      hitPoints: entity.hitPoints,
+      attackCooldownTicks: entity.attackCooldownTicks,
+      action: "idle",
+    };
   }
 
   private syncStaticView(entity: BuildingEntityState | ResourceEntityState | RubbleEntityState): void {
@@ -554,17 +704,22 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private createUnitView(entity: UnitEntityState): UnitView {
-    const artId = UNIT_ART[entity.typeId];
     const world = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
-    const actor = createFrameAnimatedCombatActor(this, {
-      id: artId,
-      x: world.x,
-      y: world.y,
-      facing: entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? "ne" : "sw",
-      action: "idle",
-      teamPalette: entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? this.playerPalette() : DEFAULT_TEAM_PALETTES.enemy,
-    }, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, artId));
-    const selection = this.add.graphics().lineStyle(3, 0xffdf83, 1).strokeEllipse(0, 2, artId === "boar_rider" ? 64 : 48, artId === "boar_rider" ? 26 : 20).setVisible(false);
+    const facing = entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? "ne" : "sw";
+    const teamPalette = entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? this.playerPalette() : DEFAULT_TEAM_PALETTES.enemy;
+    const actor: UnitActorView = entity.typeId === "villager"
+      ? createVillageWorkerActor(this, { x: world.x, y: world.y, facing, action: "idle", teamPalette })
+      : createFrameAnimatedCombatActor(this, {
+          id: UNIT_ART[entity.typeId],
+          x: world.x,
+          y: world.y,
+          facing,
+          action: "idle",
+          teamPalette,
+        }, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, UNIT_ART[entity.typeId]));
+    if (entity.typeId === "villager") actor.setWorkerPose?.(this.workerPose(entity));
+    const largeSelection = entity.typeId === "boarRider";
+    const selection = this.add.graphics().lineStyle(3, 0xffdf83, 1).strokeEllipse(0, 2, largeSelection ? 64 : 48, largeSelection ? 26 : 20).setVisible(false);
     const health = this.add.graphics();
     const cargoPack = this.add.graphics().setPosition(23, -25).setVisible(false);
     const roleMark = entity.typeId === "villager" ? "⚒" : entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? "Ⅰ" : "Ⅱ";
@@ -587,7 +742,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     }).setOrigin(0.5).setResolution(2).setVisible(false);
     actor.container.addAt(selection, 0);
     actor.container.add([health, cargoPack, label, cargoLabel]);
-    actor.container.setSize(112, 136).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
     actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
@@ -607,19 +762,39 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (entity.combat.phase === "windup" && entity.combat.action === "ability") return "cast";
     if (entity.combat.phase === "windup" && entity.combat.action === "attack") return "attack";
     if (entity.order.type === "attack") return "attack";
-    if (entity.order.type === "construct") return "cast";
+    if (entity.order.type === "construct" || entity.order.type === "repair") {
+      const target = this.entityById(entity.order.targetId);
+      return target && this.isAdjacentToEntity(entity.position, target) ? "cast" : "walk";
+    }
     if (entity.order.type === "gather") {
       if (entity.order.phase === "toDropOff") return "walk";
       const target = this.entityById(entity.order.targetId);
       if (target?.kind === "resource" && target.amount <= 0) return "idle";
       return target && this.isAdjacentToEntity(entity.position, target) ? "attack" : "walk";
     }
-    if (entity.order.type === "deliver" || entity.order.type === "move" || entity.order.type === "attackMove" || entity.order.type === "patrol" || entity.order.type === "repair") return "walk";
+    if (entity.order.type === "deliver" || entity.order.type === "move" || entity.order.type === "attackMove" || entity.order.type === "patrol") return "walk";
     return "idle";
+  }
+
+  private workerPose(entity: UnitEntityState): VillageWorkerPose {
+    if (entity.cargo.amount > 0) {
+      if (entity.cargo.kind === "wood") return "carryWood";
+      if (entity.cargo.kind === "food") return "carryFood";
+      if (entity.cargo.kind === "stone") return "carryStone";
+    }
+    if (entity.order.type === "construct") return "construction";
+    if (entity.order.type === "repair") return "repair";
+    if (entity.order.type === "gather") {
+      if (entity.order.resourceKind === "wood") return "harvestWood";
+      if (entity.order.resourceKind === "food") return "harvestFood";
+      return "harvestStone";
+    }
+    return "fieldReady";
   }
 
   private updateUnitAnimations(deltaMs: number): void {
     for (const view of this.unitViews.values()) view.actor.update(deltaMs);
+    for (const view of this.monsterViews.values()) view.actor.update(deltaMs);
   }
 
   private renderCombatEvents(events: readonly DomainEvent[]): void {
@@ -652,6 +827,8 @@ export class VillageAssaultScene extends Phaser.Scene {
         const world = gridToWorld(target.position, VILLAGE_ASSAULT_ORIGIN);
         const telegraph = spawnSkillTelegraph(this, world, 0xe0b866, 30, 360);
         this.uiCamera?.ignore(telegraph);
+      } else if (event.type === "breachCreated") {
+        this.spawnBreachEffect(event.position);
       } else if (event.type === "entityRemoved" && event.entity.kind !== "resource") {
         const world = gridToWorld(event.entity.position, VILLAGE_ASSAULT_ORIGIN);
         spawnDeathDust(this, world, event.entity.kind === "building" ? 0x765844 : 0x6c5b47);
@@ -668,8 +845,48 @@ export class VillageAssaultScene extends Phaser.Scene {
         const world = gridToWorld(resource.position, VILLAGE_ASSAULT_ORIGIN);
         const text = spawnFloatingText(this, { x: world.x, y: world.y - 34 }, "資源再生", "#9ed486");
         this.uiCamera?.ignore(text);
+      } else if (event.type === "monsterRewardGranted" && event.playerId === VILLAGE_ASSAULT_PLAYER_ID) {
+        const monster = removedById.get(event.monsterId);
+        const reward = [
+          event.reward.food > 0 ? `糧${event.reward.food}` : "",
+          event.reward.wood > 0 ? `木${event.reward.wood}` : "",
+          event.reward.stone > 0 ? `石${event.reward.stone}` : "",
+        ].filter(Boolean).join(" ");
+        const boon = event.boon ? MONSTER_BOONS[event.boon.id] : null;
+        const boonSeconds = event.boon ? Math.max(0, Math.ceil((event.boon.expiresAtTick - this.runtime.view.serverTick) / TICKS_PER_SECOND)) : 0;
+        const message = `${MONSTERS[event.monsterTypeId].displayName}討伐成功｜${reward}${boon ? `｜${boon.displayName} ${boonSeconds}秒` : ""}`;
+        this.setNotice(message, "success");
+        if (monster) {
+          const world = gridToWorld(monster.position, VILLAGE_ASSAULT_ORIGIN);
+          const text = spawnFloatingText(this, { x: world.x, y: world.y - 54 }, `+${reward}${boon ? `  ${boon.displayName}` : ""}`, "#f3d47a");
+          this.uiCamera?.ignore(text);
+        }
       }
     }
+  }
+
+  private spawnBreachEffect(position: GridPoint): void {
+    const world = gridToWorld(position, VILLAGE_ASSAULT_ORIGIN);
+    spawnImpactBurst(this, world, 0xe58a52, 24);
+    const smoke = this.add.graphics();
+    for (let index = 0; index < 7; index += 1) {
+      const x = (index % 3 - 1) * 9 + (index % 2 === 0 ? -3 : 4);
+      const y = -8 - Math.floor(index / 3) * 9;
+      smoke.fillStyle(index % 3 === 0 ? 0x332d28 : 0x61574d, 0.72 - index * 0.045).fillCircle(x, y, 8 + index % 3 * 2);
+    }
+    smoke.fillStyle(0xf0a34b, 0.9).fillCircle(-8, 2, 2.5).fillCircle(9, -2, 2);
+    const container = this.add.container(world.x, world.y - 3, [smoke]).setDepth(world.y + 190);
+    this.uiCamera?.ignore(container);
+    this.tweens.add({
+      targets: container,
+      y: world.y - 34,
+      alpha: 0,
+      scaleX: 1.35,
+      scaleY: 1.45,
+      duration: 2_500,
+      ease: "Sine.Out",
+      onComplete: () => container.destroy(true),
+    });
   }
 
   private handleEntityTap(id: string, pointer: Phaser.Input.Pointer): void {
@@ -764,6 +981,11 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer): void => {
+    if (!this.isPointerInPlayViewport(pointer)) {
+      this.pointerStart = undefined;
+      this.pointerDragged = false;
+      return;
+    }
     if (pointer.rightButtonDown()) {
       this.handleGroundCommand(pointer);
       return;
@@ -792,6 +1014,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[] = []): void => {
+    if (!this.isPointerInPlayViewport(pointer)) return;
     if (this.tacticalUiMode.kind !== "none") {
       this.hoverGrid = this.pointerGrid(pointer);
       this.hoverEntityId = currentlyOver
@@ -816,7 +1039,7 @@ export class VillageAssaultScene extends Phaser.Scene {
         .flatMap((entity) => entity.kind === "unit" ? [] : getEntityFootprintCells(entity))
         .map((cell) => `${cell.x},${cell.y}`));
       const validCells = cells.map((cell) => (
-        isSettlementBuildable(cell)
+        isSettlementBuildable(cell, this.runtime.state.map.layoutId)
         && isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, cell)
         && !occupied.has(`${cell.x},${cell.y}`)
       ));
@@ -833,6 +1056,11 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer): void => {
+    if (!this.isPointerInPlayViewport(pointer)) {
+      this.pointerStart = undefined;
+      this.pointerDragged = false;
+      return;
+    }
     if (pointer.rightButtonReleased()) return;
     if (!this.pointerStart) {
       this.pointerDragged = false;
@@ -844,7 +1072,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private handleGroundCommand(pointer: Phaser.Input.Pointer): void {
-    if (this.ended || this.paused || this.systemPanelOpen) return;
+    if (this.ended || this.paused || this.systemPanelOpen || !this.isPointerInPlayViewport(pointer)) return;
     const point = this.pointerGrid(pointer);
     if (this.tacticalUiMode.kind !== "none") {
       this.commitTacticalTarget(point, null);
@@ -909,9 +1137,9 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.noticeLiveRegion.setAttribute("aria-live", "polite");
     (this.game.canvas.parentElement ?? document.body).append(this.noticeLiveRegion);
     const topPanel = this.add.graphics();
-    topPanel.fillStyle(0x0b1311, 0.94).fillRect(0, 0, UI_WIDTH, 80);
+    topPanel.fillStyle(0x0b1311, 0.94).fillRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT);
     topPanel.fillStyle(0x25483c, 0.98).fillRect(6, 6, UI_WIDTH - 12, 68);
-    topPanel.lineStyle(3, 0xe0b866, 0.92).strokeRect(0, 0, UI_WIDTH, 80);
+    topPanel.lineStyle(3, 0xe0b866, 0.92).strokeRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT);
     this.resourceText = this.add.text(24, 15, "", {
       color: "#f0ebcf",
       fontFamily: "Consolas, monospace",
@@ -970,13 +1198,13 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.sanitizeProductionMode();
     const player = this.playerState();
     const tierLabel = SETTLEMENT_TIER_LABELS[player.settlementTier];
-    this.resourceText?.setFontSize(this.compactUi ? 20 : 22).setText(this.compactUi
+    this.resourceText?.setFontSize(this.compactUi ? 26 : 22).setText(this.compactUi
       ? `${tierLabel}｜糧${Math.floor(player.resources.food)} 木${Math.floor(player.resources.wood)}\n石${Math.floor(player.resources.stone)} 人${player.population.used}/${player.population.capacity}`
       : `${tierLabel}  糧 ${Math.floor(player.resources.food)}   木 ${Math.floor(player.resources.wood)}   石 ${Math.floor(player.resources.stone)}   人口 ${player.population.used}/${player.population.capacity}`);
     const view = this.runtime.view;
     const enemyTown = view.entities.find((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_AI_ID && entity.typeId === "townCenter");
     const staleEnemyTown = view.staleEnemySightings.find((sighting) => sighting.ownerId === VILLAGE_ASSAULT_AI_ID && sighting.typeId === "townCenter");
-    this.objectiveText?.setText(enemyTown
+    const objective = enemyTown
       ? this.compactUi
         ? `敵城 ${Math.ceil(enemyTown.hitPoints / enemyTown.maxHitPoints * 100)}%`
         : `目標｜建立經濟與軍隊，摧毀東境議事堂　敵城 ${enemyTown.hitPoints}/${enemyTown.maxHitPoints}`
@@ -984,12 +1212,31 @@ export class VillageAssaultScene extends Phaser.Scene {
         ? this.compactUi
           ? `敵城情報 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))}秒前`
           : `目標｜敵方議事堂已離開視野；最後偵察於 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))} 秒前`
-        : this.compactUi ? "敵城 尚未偵察" : "目標｜先偵察東境，再建立攻城路線摧毀敵方議事堂");
+        : this.compactUi ? "敵城 尚未偵察" : "目標｜先偵察東境，再建立攻城路線摧毀敵方議事堂";
+    const boonLabels = view.activeMonsterBoons
+      .map((boon) => ({
+        label: ({ scoutingRations: "巡野", ashwingDraft: "順風", cinderStandard: "戰旗" } as const)[boon.id],
+        seconds: Math.max(0, Math.ceil((boon.expiresAtTick - view.serverTick) / TICKS_PER_SECOND)),
+      }))
+      .filter((boon) => boon.seconds > 0)
+      .map((boon) => `${boon.label} ${boon.seconds}秒`);
+    const firstBoon = boonLabels[0];
+    const shortObjective = enemyTown
+      ? `敵城｜${Math.ceil(enemyTown.hitPoints / enemyTown.maxHitPoints * 100)}%`
+      : staleEnemyTown
+        ? `敵城情報｜${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))}秒前`
+        : "敵城｜尚未偵察";
+    const boonLine = firstBoon ? `增益｜${firstBoon}${boonLabels.length > 1 ? ` +${boonLabels.length - 1}` : ""}` : "";
+    this.objectiveText
+      ?.setFontSize(this.compactUi ? 26 : 20)
+      .setWordWrapWidth(boonLine ? 0 : this.compactUi ? 180 : 300)
+      .setText(boonLine ? `${shortObjective}\n${boonLine}` : objective);
     if (performance.now() > this.noticeUntil) this.notice = "點空地移動｜點資源採集｜滿載自動卸貨｜點敵軍攻擊";
     this.noticeText?.setText(this.compactUi ? "" : this.paused ? "戰局暫停" : this.notice);
     const selected = this.selectedEntities();
     const selectionLabel = this.selectionLabel(selected);
-    this.selectionText?.setText(this.compactUi && performance.now() <= this.noticeUntil ? this.compactNotice(this.notice) : selectionLabel);
+    this.selectionText?.setFontSize(this.compactUi ? 26 : 20)
+      .setText(this.compactUi && performance.now() <= this.noticeUntil ? this.compactNotice(this.notice) : selectionLabel);
     this.currentActions = this.actionsForSelection(selected);
     this.actionButtons.forEach((button, index) => {
       const spec = this.currentActions[index];
@@ -1312,8 +1559,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private trainAction(producer: BuildingEntityState, type: UnitType): ActionSpec {
     const definition = UNITS[type];
     const player = this.playerState();
-    const artId = UNIT_ART[type];
-    const loading = this.pendingArtIds.has(artId);
+    const artId = type === "villager" ? null : UNIT_ART[type];
+    const loading = artId !== null && this.pendingArtIds.has(artId);
     const unlocked = this.hasReachedTier(definition.requiredTier);
     const enabled = unlocked && !loading && producer.complete && player.advancement?.producerId !== producer.id && producer.productionQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
     return {
@@ -1455,6 +1702,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private queueTrainAfterArt(producerId: string, type: UnitType): void {
+    if (type === "villager") {
+      this.issue({ type: "train", producerId, unitType: type, count: 1 }, `${UNIT_LABELS[type]} 已加入訓練佇列`);
+      return;
+    }
     const artId = UNIT_ART[type];
     if (this.isArtReady(artId)) {
       this.issue({ type: "train", producerId, unitType: type, count: 1 }, `${UNIT_LABELS[type]} 已加入訓練佇列`);
@@ -1486,6 +1737,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       const job = entity.productionQueue[0];
       const type = job?.kind === "train" ? job.unitType : undefined;
       if (!type) continue;
+      if (type === "villager") continue;
       const artId = UNIT_ART[type];
       if (this.isArtReady(artId)) continue;
       if (this.failedArtIds.has(artId)) {
@@ -1525,11 +1777,13 @@ export class VillageAssaultScene extends Phaser.Scene {
         if (key !== asset.textureKey) return;
         cleanup();
         if (generation !== this.artLoadGeneration) {
+          if (this.textures.exists(asset.textureKey)) this.textures.remove(asset.textureKey);
           reject(new Error(`Scene changed while loading ${artId}`));
           return;
         }
         try {
           validateFrameAnimatedCombatActorManifest(this, asset.manifest, artId);
+          this.dynamicArtIds.add(artId);
           this.failedArtIds.delete(artId);
           this.artRetryAt.delete(artId);
           resolve();
@@ -1744,7 +1998,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private isHostileTarget(entity: EntityState): boolean {
-    if (entity.kind === "resource" || entity.ownerId === null) return false;
+    if (entity.kind === "monster") return true;
+    if (entity.kind === "resource" || entity.kind === "rubble" || entity.ownerId === null) return false;
     const player = this.runtime.state.players.find((candidate) => candidate.id === VILLAGE_ASSAULT_PLAYER_ID);
     const owner = this.runtime.state.players.find((candidate) => candidate.id === entity.ownerId);
     return Boolean(player && owner && player.teamId !== owner.teamId);
@@ -1825,7 +2080,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private canBuildAt(point: GridPoint | null): boolean {
     if (!point || !this.buildingPlacement) return false;
     const cells = getFootprintCells(point, getBuildingFootprint(this.buildingPlacement, this.buildingOrientation));
-    return cells.every((cell) => isSettlementBuildable(cell) && isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, cell))
+    return cells.every((cell) => isSettlementBuildable(cell, this.runtime.state.map.layoutId) && isTileVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, cell))
       && isBuildLocationAvailable(this.runtime.state, this.buildingPlacement, point, this.buildingOrientation);
   }
 
@@ -1842,8 +2097,9 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private refreshSelectionViews(): void {
     for (const [id, view] of this.unitViews) view.selection.setVisible(this.selectedIds.has(id));
+    for (const [id, view] of this.monsterViews) view.selection.setVisible(this.selectedIds.has(id));
     for (const entity of this.runtime.state.entities) {
-      if (entity.kind === "unit") continue;
+      if (entity.kind === "unit" || entity.kind === "monster") continue;
       this.entityViews.get(entity.id)?.update(entity, this.selectedIds.has(entity.id));
     }
   }
@@ -1975,6 +2231,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (entity.kind === "unit") return UNIT_LABELS[entity.typeId];
     if (entity.kind === "building") return buildingDisplayName(entity.typeId);
     if (entity.kind === "resource") return resourceDisplayName(entity.typeId);
+    if (entity.kind === "monster") return ({ miremaw: "泥沼獠口", ashwing: "灰燼翼獸", rootback: "根甲巨獸" } as const)[entity.typeId];
     return `${buildingDisplayName(entity.typeId)}廢墟`;
   }
 
@@ -2071,7 +2328,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private approachDistance(position: GridPoint, entity: BuildingEntityState | ResourceEntityState): number | null {
     const blockedCells = [
       ...getOccupiedMapCells(this.runtime.state),
-      ...(this.runtime.state.map.id === "villageAssault" ? getVillageAssaultWalkBlockedCells() : []),
+      ...(this.runtime.state.map.id === "villageAssault" ? getVillageAssaultWalkBlockedCells(this.runtime.state.map.layoutId) : []),
     ];
     const blocked = new Set(blockedCells.map((cell) => `${cell.x},${cell.y}`));
     const targets = (entity.kind === "building"
@@ -2155,7 +2412,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.noticeLiveRegion) this.noticeLiveRegion.textContent = message;
   }
 
-  private drawUnitHealth(graphics: Phaser.GameObjects.Graphics, entity: UnitEntityState): void {
+  private drawUnitHealth(graphics: Phaser.GameObjects.Graphics, entity: Pick<EntityState, "id" | "ownerId" | "hitPoints" | "maxHitPoints">): void {
     graphics.clear();
     if (entity.hitPoints === entity.maxHitPoints && !this.selectedIds.has(entity.id)) return;
     const ratio = Phaser.Math.Clamp(entity.hitPoints / entity.maxHitPoints, 0, 1);
@@ -2234,17 +2491,26 @@ export class VillageAssaultScene extends Phaser.Scene {
     };
   }
 
+  private isPointerInPlayViewport(pointer: Phaser.Input.Pointer): boolean {
+    const camera = this.cameras.main;
+    return pointer.x >= camera.x
+      && pointer.x < camera.x + camera.width
+      && pointer.y >= camera.y
+      && pointer.y < camera.y + camera.height;
+  }
+
   private centerCameraOn(point: GridPoint): void {
     const world = gridToWorld(point, VILLAGE_ASSAULT_ORIGIN);
     this.cameras.main.centerOn(world.x, world.y);
   }
 
   private zoomCamera(amount: number): void {
-    this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom + amount, 0.42, 1.25));
+    this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom + amount, this.compactUi ? 0.62 : 0.42, 1.25));
     this.setNotice(`鏡頭 ${Math.round(this.cameras.main.zoom * 100)}%`);
   }
 
-  private readonly onWheel = (_pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number): void => {
+  private readonly onWheel = (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number): void => {
+    if (!this.isPointerInPlayViewport(pointer)) return;
     this.zoomCamera(deltaY > 0 ? -0.08 : 0.08);
   };
 
@@ -2260,6 +2526,9 @@ export class VillageAssaultScene extends Phaser.Scene {
   private readonly layoutInterface = (): void => {
     const width = this.scale.gameSize.width;
     const height = this.scale.gameSize.height;
+    const worldCamera = this.cameras.main;
+    const focusX = worldCamera.scrollX + worldCamera.width / Math.max(0.01, worldCamera.zoom) / 2;
+    const focusY = worldCamera.scrollY + worldCamera.height / Math.max(0.01, worldCamera.zoom) / 2;
     const profile = getDeviceViewportProfile();
     const unitsPerCssX = width / Math.max(1, profile.width);
     const unitsPerCssY = height / Math.max(1, profile.height);
@@ -2272,13 +2541,26 @@ export class VillageAssaultScene extends Phaser.Scene {
     const compact = profile.landscape && (profile.mobile || profile.height <= 520);
     this.compactUi = compact;
     this.uiScale = Math.min(1, availableWidth / UI_WIDTH);
-    this.topRoot?.setScale(this.uiScale).setPosition(safeLeft + (availableWidth - UI_WIDTH * this.uiScale) / 2 + 12, safeTop + 10);
-    this.actionRoot?.setScale(this.uiScale).setPosition(safeLeft + (availableWidth - UI_WIDTH * this.uiScale) / 2 + 12, height - safeBottom - 10 - ACTION_PANEL_HEIGHT * this.uiScale);
+    const uiX = safeLeft + (availableWidth - UI_WIDTH * this.uiScale) / 2 + 12;
+    const topY = safeTop + 10;
+    const actionY = height - safeBottom - 10 - ACTION_PANEL_HEIGHT * this.uiScale;
+    this.topRoot?.setScale(this.uiScale).setPosition(uiX, topY);
+    this.actionRoot?.setScale(this.uiScale).setPosition(uiX, actionY);
     this.objectiveText?.setPosition(compact ? 500 : 330, 13).setWordWrapWidth(compact ? 180 : 300);
     this.noticeText?.setVisible(!compact);
     for (const view of this.unitViews.values()) view.label.setVisible(!compact);
+    for (const view of this.monsterViews.values()) view.label.setVisible(!compact);
     for (const view of this.entityViews.values()) view.setCompact(compact);
-    this.cameras.main.setZoom(compact ? Phaser.Math.Clamp(0.55 + width / 2500, 0.55, 0.78) : Phaser.Math.Clamp(width / 1500, 0.72, 1));
+    const worldZoom = compact ? Phaser.Math.Clamp(0.55 + width / 2500, 0.55, 0.78) : Phaser.Math.Clamp(width / 1500, 0.72, 1);
+    if (compact) {
+      const playTop = topY + TOP_PANEL_HEIGHT * this.uiScale + 6;
+      const playBottom = actionY - 6;
+      const playHeight = Math.max(96, playBottom - playTop);
+      worldCamera.setViewport(safeLeft, playTop, Math.max(1, width - safeLeft - safeRight), playHeight);
+    } else {
+      worldCamera.setViewport(0, 0, width, height);
+    }
+    worldCamera.setZoom(worldZoom).centerOn(focusX, focusY);
     this.orientationBlocked = profile.mobile && !profile.landscape;
     this.rotateBlocker?.setSize(width * 2, height * 2).setDisplaySize(width * 2, height * 2);
     this.rotateRoot?.setPosition(width / 2, height / 2).setVisible(this.orientationBlocked).setActive(this.orientationBlocked);
@@ -2357,7 +2639,7 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private readonly onArtLoadError = (file: { readonly key?: unknown }): void => {
     const key = typeof file.key === "string" ? file.key : "unknown-unit-art";
-    if (key.startsWith("unit-action-sheet-") && !this.artLoadFailures.includes(key)) this.artLoadFailures.push(key);
+    if ((key.startsWith("unit-action-sheet-") || key.startsWith("monster-action-sheet-")) && !this.artLoadFailures.includes(key)) this.artLoadFailures.push(key);
   };
 
   private showLoadFailure(): void {
@@ -2399,6 +2681,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.noticeLiveRegion = undefined;
     this.actionButtons.length = 0;
     for (const view of this.unitViews.values()) view.actor.destroy();
+    for (const view of this.monsterViews.values()) view.actor.destroy();
+    for (const actor of this.retiringActors) {
+      this.tweens.killTweensOf(actor.container);
+      actor.destroy();
+    }
     for (const view of this.entityViews.values()) view.destroy();
     for (const view of this.staleBuildingViews.values()) view.destroy();
     for (const effect of this.projectileEffects.values()) {
@@ -2406,10 +2693,26 @@ export class VillageAssaultScene extends Phaser.Scene {
       effect.destroy();
     }
     this.unitViews.clear();
+    this.monsterViews.clear();
+    this.retiringActors.clear();
     this.entityViews.clear();
     this.staleBuildingViews.clear();
     this.projectileEffects.clear();
     this.selectedIds.clear();
+    const battleScopedArtIds = new Set<CombatArtId>([
+      ...this.dynamicArtIds,
+      "warrior",
+      ...ANIMATED_MONSTER_FRAME_ASSETS.map((asset) => asset.artId),
+    ]);
+    for (const artId of battleScopedArtIds) {
+      const textureKey = requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, artId).textureKey;
+      if (this.textures.exists(textureKey)) this.textures.remove(textureKey);
+    }
+    this.dynamicArtIds.clear();
+    this.artLoadPromises.clear();
+    this.pendingArtIds.clear();
+    this.failedArtIds.clear();
+    this.artRetryAt.clear();
     this.mapView?.destroy();
     this.settlementOverlay?.destroy();
     this.fogOverlay?.destroy();

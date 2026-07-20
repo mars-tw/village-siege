@@ -1,13 +1,20 @@
 import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, StructureOrientation, TechnologyType, UnitType, VillageId } from "./protocol.js";
 import { COMBAT_UNITS, type CombatUnitId } from "./combat.js";
 
-export const RULES_VERSION = "village-siege/0.9.0";
+export const RULES_VERSION = "village-siege/0.10.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;
 export const MAX_UNITS_PER_PLAYER = 128;
 export const MAX_TRAINING_QUEUE_DEPTH = 5;
 export const TOWN_CENTER_REBUILD_GRACE_TICKS = 60 * TICKS_PER_SECOND;
+
+export type VillageTraitMetric = "gatherRate" | "unitSpeed" | "towerArmor" | "buildingDurability" | "carryCapacity";
+
+export interface VillageTraitDefinition {
+  readonly metric: VillageTraitMetric;
+  readonly multiplierPermille: number;
+}
 
 export interface VillageDefinition {
   readonly id: PlayableVillageId;
@@ -16,18 +23,25 @@ export interface VillageDefinition {
   readonly emblemAssetId: string;
   readonly paletteId: string;
   readonly spawn: { readonly x: number; readonly y: number };
-  readonly trait: {
-    readonly metric: "gatherRate" | "unitSpeed" | "towerArmor";
-    readonly multiplierPermille: number;
-  };
+  /** Every playable village changes two authoritative rules, not only its label or palette. */
+  readonly traits: readonly [VillageTraitDefinition, VillageTraitDefinition];
 }
 
 export const VILLAGE_IDS = ["pinehold", "riverstead", "highcrag", "marshwatch", "sunfield"] as const satisfies readonly VillageId[];
 
 export const VILLAGES = [
-  { id: "pinehold", displayName: "松林堡", artSetId: "pinehold", emblemAssetId: "emblem-pine", paletteId: "pine", spawn: { x: 6, y: 6 }, trait: { metric: "gatherRate", multiplierPermille: 1030 } },
-  { id: "riverstead", displayName: "河谷鎮", artSetId: "riverstead", emblemAssetId: "emblem-river", paletteId: "river", spawn: { x: 25, y: 6 }, trait: { metric: "unitSpeed", multiplierPermille: 1030 } },
-  { id: "highcrag", displayName: "高地寨", artSetId: "highcrag", emblemAssetId: "emblem-crag", paletteId: "crag", spawn: { x: 15, y: 25 }, trait: { metric: "towerArmor", multiplierPermille: 1040 } },
+  {
+    id: "pinehold", displayName: "松林堡", artSetId: "pinehold", emblemAssetId: "emblem-pine", paletteId: "pine", spawn: { x: 6, y: 6 },
+    traits: [{ metric: "gatherRate", multiplierPermille: 1030 }, { metric: "buildingDurability", multiplierPermille: 1060 }],
+  },
+  {
+    id: "riverstead", displayName: "河谷鎮", artSetId: "riverstead", emblemAssetId: "emblem-river", paletteId: "river", spawn: { x: 25, y: 6 },
+    traits: [{ metric: "unitSpeed", multiplierPermille: 1030 }, { metric: "carryCapacity", multiplierPermille: 1100 }],
+  },
+  {
+    id: "highcrag", displayName: "高地寨", artSetId: "highcrag", emblemAssetId: "emblem-crag", paletteId: "crag", spawn: { x: 15, y: 25 },
+    traits: [{ metric: "towerArmor", multiplierPermille: 1040 }, { metric: "buildingDurability", multiplierPermille: 1100 }],
+  },
 ] as const satisfies readonly VillageDefinition[];
 
 export interface SettlementTierDefinition {

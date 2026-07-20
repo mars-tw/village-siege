@@ -211,6 +211,32 @@ describe("deterministic player visibility", () => {
     ]);
   });
 
+  it("keeps a same-tick fatal monster provocation visible without leaking its hidden source team", () => {
+    const state = createInitialState({
+      seed: 81,
+      matchId: "fatal-monster-provocation-visibility",
+      map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+    });
+    const ownUnit = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    const hiddenEnemy = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-2")!;
+    const monster = state.entities.find((entity) => entity.kind === "monster" && entity.typeId === "miremaw")!;
+    ownUnit.position = { x: 2, y: 7 };
+    hiddenEnemy.position = { x: 17, y: 15 };
+    monster.position = { x: 3, y: 7 };
+    const removedMonster = { ...toPublicEntity(monster), hitPoints: 0 };
+    state.entities = state.entities.filter((entity) => entity.id !== monster.id);
+    updateVisibilityState(state);
+
+    expect(isEntityVisibleToPlayer(state, "player-1", hiddenEnemy)).toBe(false);
+    expect(projectDomainEventsForPlayer(state, "player-1", { serverTick: state.tick, events: [
+      { type: "monsterProvoked", monsterId: monster.id, monsterTypeId: monster.typeId, teamId: "team-2", sourceId: hiddenEnemy.id },
+      { type: "entityRemoved", entityId: monster.id, entity: removedMonster, reason: "destroyed" },
+    ] })).toEqual([
+      { type: "monsterProvoked", monsterId: monster.id, monsterTypeId: monster.typeId, teamId: null, sourceId: null },
+      { type: "entityRemoved", entityId: monster.id, entity: removedMonster, reason: "destroyed" },
+    ]);
+  });
+
   it("filters hidden impact target ids and never exposes an old hidden target point", () => {
     const state = createSeparatedMatch();
     const ownUnit = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1")!;

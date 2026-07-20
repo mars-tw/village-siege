@@ -136,7 +136,7 @@ export function isEntityVisibleToPlayerFromFog(state: MatchState, playerId: Play
     ? getFootprintCells(target.position, getBuildingFootprint(target.typeId, target.orientation))
     : [target.position];
   return state.entities.some((observer) => {
-    if (observer.kind === "resource" || observer.kind === "rubble" || observer.hitPoints <= 0) return false;
+    if (observer.kind === "resource" || observer.kind === "rubble" || observer.kind === "monster" || observer.hitPoints <= 0) return false;
     if (observer.kind === "building" && !observer.complete) return false;
     if (state.players.find((player) => player.id === observer.ownerId)?.teamId !== teamId) return false;
     const radius = observer.kind === "unit" ? UNITS[observer.typeId].sightRadius : BUILDINGS[observer.typeId].sightRadius;
@@ -198,8 +198,7 @@ function computeVisibleTileIndices(state: MatchState, playerId: PlayerId): numbe
   const visible = new Set<number>();
   const observers = state.entities
     .filter((entity): entity is BuildingEntityState | UnitEntityState => (
-      entity.kind !== "resource"
-      && entity.kind !== "rubble"
+      (entity.kind === "unit" || entity.kind === "building")
       && state.players.find((player) => player.id === entity.ownerId)?.teamId === teamId
       && entity.hitPoints > 0
       && (entity.kind === "unit" || entity.complete)
@@ -228,8 +227,7 @@ function computeObserverRevision(state: MatchState, playerId: PlayerId): string 
   if (!teamId) throw new Error(`Unknown visibility recipient: ${playerId}`);
   return state.entities
     .filter((entity): entity is BuildingEntityState | UnitEntityState => (
-      entity.kind !== "resource"
-      && entity.kind !== "rubble"
+      (entity.kind === "unit" || entity.kind === "building")
       && entity.hitPoints > 0
       && (entity.kind === "unit" || entity.complete)
       && state.players.find((player) => player.id === entity.ownerId)?.teamId === teamId

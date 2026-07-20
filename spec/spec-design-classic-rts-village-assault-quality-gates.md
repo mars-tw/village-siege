@@ -2,7 +2,7 @@
 title: Village Siege Classic RTS Village Assault Quality Gates
 version: 1.0.0
 date_created: 2026-07-18
-last_updated: 2026-07-18
+last_updated: 2026-07-21
 owner: Village Siege production team
 tags: [design, rts, village-assault, mobile-landscape, art, animation, qa]
 ---
@@ -10,6 +10,8 @@ tags: [design, rts, village-assault, mobile-landscape, art, animation, qa]
 # Introduction
 
 This specification defines the release bar for turning Village Siege from a combat showcase into an original, high-quality village-assault RTS. “Classic RTS” means the genre's functional pillars—economy, construction, scouting, formations, counters, base assault and strategic AI—not copied Age of Empires II assets, UI, sounds, names, layouts or trade dress.
+
+TASK-012 acceptance on 2026-07-21 covers three distinct data-driven terrain layouts, two fortified authored starts, terrain-safe fallback placement for three to five participants, visible civilian work, three authoritative neutral threats with active skills and team rewards, and breach feedback. Strategic defender reactions, complete animation coverage and final release QA remain separate gates.
 
 ## 1. Purpose & Scope
 

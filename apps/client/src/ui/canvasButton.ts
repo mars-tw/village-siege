@@ -40,13 +40,13 @@ export function createCanvasButton(
   const glyph = scene.add.text(0, options.compact ? -22 : -13, options.glyph, {
     color: "#f0ebcf",
     fontFamily: 'Georgia, "Noto Serif TC", serif',
-    fontSize: options.compact ? "27px" : "36px",
+    fontSize: options.compact ? "31px" : "36px",
     fontStyle: "bold",
   }).setOrigin(0.5);
   const label = scene.add.text(0, options.compact ? 19 : 27, options.label, {
     color: "#f0ebcf",
     fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
-    fontSize: options.compact ? "20px" : "28px",
+    fontSize: options.compact ? "26px" : "28px",
     fontStyle: "bold",
     align: "center",
     wordWrap: options.compact ? { width: options.width - 14, useAdvancedWrap: true } : undefined,

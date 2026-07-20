@@ -9,6 +9,7 @@ export const COMBAT_UNIT_IDS = [
 ] as const;
 
 export const MONSTER_IDS = ["miremaw", "ashwing", "rootback"] as const;
+export const MONSTER_BOON_IDS = ["scoutingRations", "ashwingDraft", "cinderStandard"] as const;
 export const FACING_DIRECTIONS = ["e", "ne", "nw", "w", "sw", "se"] as const;
 export const ANIMATION_STATES = ["idle", "walk", "attack", "hurt", "death", "cast"] as const;
 export const STATUS_EFFECT_IDS = [
@@ -32,6 +33,7 @@ export const PROJECTILE_PROFILE_IDS = [
 
 export type CombatUnitId = (typeof COMBAT_UNIT_IDS)[number];
 export type MonsterId = (typeof MONSTER_IDS)[number];
+export type MonsterBoonId = (typeof MONSTER_BOON_IDS)[number];
 export type Facing = (typeof FACING_DIRECTIONS)[number];
 export type AnimationState = (typeof ANIMATION_STATES)[number];
 export type StatusEffectId = (typeof STATUS_EFFECT_IDS)[number];
@@ -118,8 +120,16 @@ export interface CombatUnitDefinition {
 }
 
 export interface MonsterRewardDefinition extends ResourceCost {
-  readonly buffId?: string;
+  readonly buffId?: MonsterBoonId;
   readonly buffDurationMs?: number;
+}
+
+export interface MonsterBoonDefinition {
+  readonly id: MonsterBoonId;
+  readonly displayName: string;
+  readonly description: string;
+  readonly metric: "gatherRate" | "unitSpeed" | "unitAttack";
+  readonly multiplierPermille: number;
 }
 
 export interface MonsterDefinition {
@@ -272,6 +282,31 @@ export const MONSTERS = {
   }),
 } as const satisfies Readonly<Record<MonsterId, MonsterDefinition>>;
 
+/** Team-wide, time-limited rewards resolved only by the authoritative simulation. */
+export const MONSTER_BOONS = {
+  scoutingRations: {
+    id: "scoutingRations",
+    displayName: "巡野口糧",
+    description: "村民採集速度提高 15%。",
+    metric: "gatherRate",
+    multiplierPermille: 1_150,
+  },
+  ashwingDraft: {
+    id: "ashwingDraft",
+    displayName: "燼翼順風",
+    description: "全體單位移動速度提高 12%。",
+    metric: "unitSpeed",
+    multiplierPermille: 1_120,
+  },
+  cinderStandard: {
+    id: "cinderStandard",
+    displayName: "赤燼戰旗",
+    description: "全體單位攻擊傷害提高 15%。",
+    metric: "unitAttack",
+    multiplierPermille: 1_150,
+  },
+} as const satisfies Readonly<Record<MonsterBoonId, MonsterBoonDefinition>>;
+
 /** Deterministic authoritative damage. Multipliers are capped before armor. */
 export function calculateDamage(input: DamageInput): number {
   requireSafeInteger(input.baseDamage, "baseDamage", 1);
@@ -321,6 +356,7 @@ export function validateCombatData(): CombatDataValidationResult {
   const errors: string[] = [];
   validateExactRegistry("combat unit", COMBAT_UNIT_IDS, COMBAT_UNITS, errors);
   validateExactRegistry("monster", MONSTER_IDS, MONSTERS, errors);
+  validateExactRegistry("monster boon", MONSTER_BOON_IDS, MONSTER_BOONS, errors);
   validateExactRegistry("status", STATUS_EFFECT_IDS, STATUS_EFFECTS, errors);
   validateExactRegistry("projectile", PROJECTILE_PROFILE_IDS, PROJECTILE_PROFILES, errors);
   validateUniqueValues("facing", FACING_DIRECTIONS, errors);
@@ -360,7 +396,22 @@ export function validateCombatData(): CombatDataValidationResult {
     validatePassive(definition.passive, `monster.${monsterId}.passive`, errors);
     validateProjectileReference(definition.projectileProfileId, `monster.${monsterId}.projectileProfileId`, errors);
     validateCost(definition.reward, `monster.${monsterId}.reward`, errors);
+    if (definition.reward.buffId === undefined !== (definition.reward.buffDurationMs === undefined)) {
+      errors.push(`monster.${monsterId}.reward must define buffId and buffDurationMs together`);
+    }
+    if (definition.reward.buffId !== undefined && !MONSTER_BOON_IDS.includes(definition.reward.buffId)) {
+      errors.push(`monster.${monsterId}.reward.buffId is unknown`);
+    }
     if (definition.reward.buffDurationMs !== undefined) validateTickDuration(definition.reward.buffDurationMs, `monster.${monsterId}.reward.buffDurationMs`, errors, false);
+  }
+
+  for (const boonId of MONSTER_BOON_IDS) {
+    const boon = MONSTER_BOONS[boonId];
+    if (boon.id !== boonId) errors.push(`monster boon.${boonId}.id must match its registry key`);
+    if (boon.displayName.length === 0 || boon.description.length === 0) errors.push(`monster boon.${boonId} requires displayName and description`);
+    if (!Number.isSafeInteger(boon.multiplierPermille) || boon.multiplierPermille < 1_000 || boon.multiplierPermille > 2_000) {
+      errors.push(`monster boon.${boonId}.multiplierPermille must be a safe integer within 1000..2000`);
+    }
   }
 
   for (const statusId of STATUS_EFFECT_IDS) {
@@ -428,7 +479,7 @@ function cost(food: number, wood: number, stone: number): ResourceCost {
   return { food, wood, stone };
 }
 
-function reward(food: number, wood: number, stone: number, buffId?: string, buffDurationMs?: number): MonsterRewardDefinition {
+function reward(food: number, wood: number, stone: number, buffId?: MonsterBoonId, buffDurationMs?: number): MonsterRewardDefinition {
   return { food, wood, stone, buffId, buffDurationMs };
 }
 

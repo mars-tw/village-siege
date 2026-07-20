@@ -719,11 +719,11 @@ export class CombatShowcaseScene extends Phaser.Scene {
     const playerSpawns: readonly GridPoint[] = [
       { x: 0, y: 7 }, { x: 2, y: 7 }, { x: 1, y: 9 }, { x: 3, y: 9 },
       { x: 0, y: 11 }, { x: 2, y: 11 }, { x: 3, y: 13 },
-    ].map(clampToWalkable);
+    ].map((point) => clampToWalkable(point));
     const enemySpawns: readonly GridPoint[] = [
       { x: 17, y: 5 }, { x: 15, y: 5 }, { x: 16, y: 7 }, { x: 14, y: 7 },
       { x: 17, y: 9 }, { x: 15, y: 9 }, { x: 14, y: 11 },
-    ].map(clampToWalkable);
+    ].map((point) => clampToWalkable(point));
     unitDefinitions.forEach((definition, index) => {
       this.spawnActor("player", this.applyVillageDoctrine(definition), playerSpawns[index]!, `p-${definition.id}`);
       const enemy = this.spawnActor("enemy", definition, enemySpawns[index]!, `e-${definition.id}`);

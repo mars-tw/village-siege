@@ -20,12 +20,17 @@ import {
   VILLAGE_ASSAULT_MAP_ID,
   VILLAGE_ASSAULT_MAP_WIDTH,
   getVillageAssaultBuildBlockedCells,
+  getVillageAssaultLayout,
   getVillageAssaultWalkBlockedCells,
+  isVillageAssaultBuildableCell,
+  isVillageAssaultLayoutId,
   isVillageAssaultWalkableCell,
 } from "./battlefield.js";
 import { normalizeSeed } from "./random.js";
 import {
   COMBAT_UNITS,
+  MONSTER_BOONS,
+  MONSTERS,
   PROJECTILE_PROFILES,
   STATUS_EFFECTS,
   calculateDamage,
@@ -34,6 +39,8 @@ import {
   type AbilityTargeting,
   type CombatUnitId,
   type Facing,
+  type MonsterBoonId,
+  type MonsterId,
   type ProjectileProfileId,
   type StatusEffectDefinition,
   type StatusEffectId,
@@ -51,6 +58,7 @@ import {
 import {
   isCommandEnvelope,
   type AbilityTarget,
+  type ActiveMonsterBoon,
   type BuildingType,
   type CombatStance,
   type CommandEnvelope,
@@ -63,6 +71,7 @@ import {
   type MatchId,
   type MatchPhase,
   type PlayerId,
+  type PlayableVillageId,
   type ProductionJobId,
   type PublicEntityState,
   type PublicProjectileState,
@@ -91,6 +100,7 @@ export type UnitOrder =
 export interface ActiveStatusState {
   id: StatusEffectId;
   sourceId: EntityId;
+  sourceOwnerId?: PlayerId | null;
   expiresAtTick: number;
   nextTickAt: number | null;
 }
@@ -134,6 +144,7 @@ export interface UnitEntityState {
   passive: UnitPassiveState;
   statuses: ActiveStatusState[];
   cargo: { kind: ResourceKind | null; amount: number };
+  cargoCapacity: number;
   gatherRemainderMilli: ResourceWallet;
 }
 
@@ -186,7 +197,39 @@ export interface RubbleEntityState {
   decayAtTick: number;
 }
 
-export type EntityState = UnitEntityState | BuildingEntityState | ResourceEntityState | RubbleEntityState;
+export interface MonsterEntityState {
+  id: EntityId;
+  ownerId: null;
+  kind: "monster";
+  typeId: MonsterId;
+  position: GridPoint;
+  home: GridPoint;
+  hitPoints: number;
+  maxHitPoints: number;
+  stateRevision: number;
+  facing: Facing;
+  statuses: ActiveStatusState[];
+  combat: UnitCombatState;
+  movementProgress: number;
+  attackCooldownTicks: number;
+  abilityReadyTick: number;
+  camouflageReady: boolean;
+  camouflageSpeedUntilTick: number;
+  leashRadius: number;
+  provokedByTeamId: string | null;
+  provokedAtTick: number | null;
+  targetId: EntityId | null;
+  contributions: {
+    playerId: PlayerId;
+    teamId: string;
+    actualDamage: number;
+    firstHitTick: number;
+    lastHitTick: number;
+  }[];
+  rewardGranted: boolean;
+}
+
+export type EntityState = UnitEntityState | BuildingEntityState | ResourceEntityState | RubbleEntityState | MonsterEntityState;
 
 export const RUBBLE_DECAY_TICKS = 200;
 
@@ -229,6 +272,7 @@ export interface PlayerState {
   settlementTier: SettlementTier;
   advancement: { producerId: EntityId; targetTier: SettlementTier; remainingTicks: number } | null;
   completedTechnologyIds: TechnologyType[];
+  activeMonsterBoons: ActiveMonsterBoon[];
   lastSequence: number;
   surrendered: boolean;
   eliminated: boolean;
@@ -242,7 +286,7 @@ export interface MatchState {
   tick: number;
   ticksPerSecond: 10;
   phase: MatchPhase;
-  map: { id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; width: number; height: number };
+  map: { id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; width: number; height: number; layoutId?: PlayableVillageId };
   players: PlayerState[];
   entities: EntityState[];
   projectiles: ProjectileState[];
@@ -263,7 +307,7 @@ export interface CreateInitialStateOptions {
   readonly matchId?: MatchId;
   readonly seed?: number;
   readonly players?: readonly InitialPlayer[];
-  readonly map?: { readonly id?: "open" | typeof VILLAGE_ASSAULT_MAP_ID; readonly width: number; readonly height: number };
+  readonly map?: { readonly id?: "open" | typeof VILLAGE_ASSAULT_MAP_ID; readonly width: number; readonly height: number; readonly layoutId?: PlayableVillageId };
   readonly spawnOverrides?: Readonly<Partial<Record<PlayerId, GridPoint>>>;
 }
 
@@ -320,6 +364,8 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
   if (mapId === VILLAGE_ASSAULT_MAP_ID && (mapWidth !== VILLAGE_ASSAULT_MAP_WIDTH || mapHeight !== VILLAGE_ASSAULT_MAP_HEIGHT)) {
     throw new RangeError(`Village assault map must be ${VILLAGE_ASSAULT_MAP_WIDTH}x${VILLAGE_ASSAULT_MAP_HEIGHT}`);
   }
+  const requestedAssaultLayoutId: unknown = options.map?.layoutId ?? participants[0]?.villageId;
+  const assaultLayoutId: PlayableVillageId = isVillageAssaultLayoutId(requestedAssaultLayoutId) ? requestedAssaultLayoutId : "pinehold";
   const state: MatchState = {
     rulesVersion: RULES_VERSION,
     matchId: options.matchId ?? "local-match",
@@ -328,7 +374,14 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     tick: 0,
     ticksPerSecond: TICKS_PER_SECOND,
     phase: "playing",
-    map: { id: mapId, width: mapWidth, height: mapHeight },
+    map: {
+      id: mapId,
+      width: mapWidth,
+      height: mapHeight,
+      ...(mapId === VILLAGE_ASSAULT_MAP_ID
+        ? { layoutId: assaultLayoutId }
+        : {}),
+    },
     players: participants.map((participant) => ({
       ...participant,
       resources: { ...STARTING_RESOURCES },
@@ -336,6 +389,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
       settlementTier: "frontier",
       advancement: null,
       completedTechnologyIds: [],
+      activeMonsterBoons: [],
       lastSequence: -1,
       surrendered: false,
       eliminated: false,
@@ -349,22 +403,110 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     finishReason: null,
   };
 
+  const fortifiedLayout = mapId === VILLAGE_ASSAULT_MAP_ID && participants.length === 2 && options.spawnOverrides === undefined
+    ? getVillageAssaultLayout(state.map.layoutId ?? "pinehold")
+    : null;
   for (const [playerIndex, player] of state.players.entries()) {
+    if (fortifiedLayout) {
+      const slot = fortifiedLayout.startSlots[playerIndex]!;
+      const buildingByPlacementId = new Map<string, BuildingEntityState>();
+      for (const placement of slot.placements) {
+        const building = createBuilding(state, player.id, placement.buildingType, placement.origin, true, placement.orientation);
+        if (building.typeId === "surveyGate") building.gateOpen = playerIndex === 0;
+        state.entities.push(building);
+        buildingByPlacementId.set(placement.id, building);
+      }
+      const resourceByAnchorId = new Map<string, ResourceEntityState>();
+      for (const anchor of slot.resourceAnchors) {
+        const resource = createResource(state, anchor.resourceKind, anchor.position);
+        state.entities.push(resource);
+        resourceByAnchorId.set(anchor.id, resource);
+      }
+      for (const activity of slot.civilianActivities) {
+        const villager = createUnit(state, player.id, "villager", activity.spawn);
+        const source = resourceByAnchorId.get(activity.resourceAnchorId);
+        const dropOff = buildingByPlacementId.get(activity.dropOffPlacementId);
+        if (source && dropOff) {
+          villager.order = {
+            type: "gather",
+            targetId: source.id,
+            resourceKind: source.typeId,
+            phase: "toSource",
+            dropOffId: dropOff.id,
+          };
+        }
+        state.entities.push(villager);
+      }
+      continue;
+    }
     const defaultSpawn = mapId === VILLAGE_ASSAULT_MAP_ID ? VILLAGE_ASSAULT_SPAWNS[playerIndex]! : SPAWNS[player.villageId];
-    const center = clampBuildingOrigin(options.spawnOverrides?.[player.id] ?? defaultSpawn, "townCenter", state);
+    const preferredCenter = options.spawnOverrides?.[player.id] ?? defaultSpawn;
+    const center = mapId === VILLAGE_ASSAULT_MAP_ID
+      ? findNearestLegacyAssaultBuildingOrigin(state, "townCenter", preferredCenter)
+      : clampBuildingOrigin(preferredCenter, "townCenter", state);
     state.entities.push(createBuilding(state, player.id, "townCenter", center, true));
     const villagerOffsets = [{ x: -1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }];
     for (const offset of villagerOffsets) {
-      state.entities.push(createUnit(state, player.id, "villager", clampPoint({ x: center.x + offset.x, y: center.y + offset.y }, state)));
+      const preferred = clampPoint({ x: center.x + offset.x, y: center.y + offset.y }, state);
+      const spawn = mapId === VILLAGE_ASSAULT_MAP_ID ? findNearestLegacyAssaultFreeCell(state, preferred) : preferred;
+      state.entities.push(createUnit(state, player.id, "villager", spawn));
     }
     const resources: readonly [ResourceKind, number, number][] = [["wood", -2, 0], ["food", 2, 0], ["stone", 0, -2]];
     for (const [kind, dx, dy] of resources) {
-      state.entities.push(createResource(state, kind, clampPoint({ x: center.x + dx, y: center.y + dy }, state)));
+      const preferred = clampPoint({ x: center.x + dx, y: center.y + dy }, state);
+      const spawn = mapId === VILLAGE_ASSAULT_MAP_ID ? findNearestLegacyAssaultFreeCell(state, preferred, true) : preferred;
+      state.entities.push(createResource(state, kind, spawn));
+    }
+  }
+  if (fortifiedLayout) {
+    for (const camp of fortifiedLayout.neutralCamps) {
+      state.entities.push(createMonster(state, camp.monsterTypeId, camp.position, camp.leashRadius));
     }
   }
   syncPopulation(state);
   updateVisibilityState(state);
   return state;
+}
+
+function findNearestLegacyAssaultBuildingOrigin(state: MatchState, buildingType: BuildingType, preferred: GridPoint): GridPoint {
+  const occupied = new Set(state.entities.flatMap(getEntityFootprintCells).map(pointKey));
+  const candidates: GridPoint[] = [];
+  for (let y = 0; y < state.map.height; y += 1) {
+    for (let x = 0; x < state.map.width; x += 1) {
+      const candidate = { x, y };
+      const footprintIsFree = getFootprintCells(candidate, getBuildingFootprint(buildingType)).every((cell) => !occupied.has(pointKey(cell)));
+      if (footprintIsFree && isBuildLocationAvailable(state, buildingType, candidate)) candidates.push(candidate);
+    }
+  }
+  const resolved = candidates.sort((left, right) => (
+    distanceSquared(left, preferred) - distanceSquared(right, preferred)
+    || left.y - right.y
+    || left.x - right.x
+  ))[0];
+  if (!resolved) throw new Error(`No valid ${buildingType} origin remains on the village-assault layout`);
+  return resolved;
+}
+
+function findNearestLegacyAssaultFreeCell(state: MatchState, preferred: GridPoint, requireBuildable = false): GridPoint {
+  const occupied = new Set(state.entities.flatMap(getEntityFootprintCells).map(pointKey));
+  const candidates: GridPoint[] = [];
+  for (let y = 0; y < state.map.height; y += 1) {
+    for (let x = 0; x < state.map.width; x += 1) {
+      const candidate = { x, y };
+      if (
+        isMapCellWalkable(state, candidate)
+        && (!requireBuildable || isVillageAssaultBuildableCell(candidate, state.map.layoutId))
+        && !occupied.has(pointKey(candidate))
+      ) candidates.push(candidate);
+    }
+  }
+  const resolved = candidates.sort((left, right) => (
+    distanceSquared(left, preferred) - distanceSquared(right, preferred)
+    || left.y - right.y
+    || left.x - right.x
+  ))[0];
+  if (!resolved) throw new Error(`No free ${requireBuildable ? "buildable" : "walkable"} cell remains on the village-assault layout`);
+  return resolved;
 }
 
 export const createMatchState = createInitialState;
@@ -433,7 +575,7 @@ export function getStructureHealthBand(entity: BuildingEntityState | RubbleEntit
 }
 
 export function doesEntityBlockMovement(entity: EntityState): boolean {
-  if (entity.kind === "unit" || entity.kind === "rubble") return false;
+  if (entity.kind === "unit" || entity.kind === "monster" || entity.kind === "rubble") return false;
   if (entity.kind === "resource") return true;
   if (entity.hitPoints <= 0) return false;
   return BUILDINGS[entity.typeId].movementBlocking !== "whenClosed" || !entity.complete || !entity.gateOpen;
@@ -469,7 +611,23 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
       cargo: {
         kind: entity.cargo.kind,
         amount: entity.cargo.amount,
-        capacity: UNITS[entity.typeId].carryCapacity,
+        capacity: entity.cargoCapacity,
+      },
+      civilianActivity: entity.typeId === "villager" ? civilianActivityForOrder(entity) : undefined,
+    };
+  }
+  if (entity.kind === "monster") {
+    return {
+      ...publicEntity,
+      facing: entity.facing,
+      combatPhase: entity.combat.phase,
+      abilityReadyTick: entity.abilityReadyTick,
+      statuses: entity.statuses.map((status) => ({ id: status.id, expiresAtTick: status.expiresAtTick })),
+      monsterState: {
+        home: { ...entity.home },
+        leashRadius: entity.leashRadius,
+        disposition: entity.provokedByTeamId === null ? "neutral" : entity.targetId === null ? "returning" : "retaliating",
+        attackCooldownTicks: entity.attackCooldownTicks,
       },
     };
   }
@@ -501,6 +659,15 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
     healthBand: getStructureHealthBand(entity),
     blocksMovement: doesEntityBlockMovement(entity),
   };
+}
+
+function civilianActivityForOrder(unit: UnitEntityState): NonNullable<PublicEntityState["civilianActivity"]> {
+  if (unit.order.type === "construct") return "constructing";
+  if (unit.order.type === "repair") return "repairing";
+  if (unit.order.type === "gather") return unit.order.phase === "toDropOff" || unit.cargo.amount > 0 ? "hauling" : "gathering";
+  if (unit.order.type === "deliver") return "hauling";
+  if (unit.order.type === "move" || unit.order.type === "attackMove" || unit.order.type === "patrol") return "walking";
+  return "idle";
 }
 
 export function toPublicProjectile(projectile: ProjectileState): PublicProjectileState {
@@ -539,6 +706,7 @@ export function toVisibleSnapshot(state: MatchState, playerId: PlayerId): Visibl
     population: { ...player.population },
     settlementTier: player.settlementTier,
     completedTechnologyIds: [...player.completedTechnologyIds],
+    activeMonsterBoons: player.activeMonsterBoons.map((boon) => ({ ...boon })),
     entities,
     projectiles,
     staleEnemySightings: visibility.staleEnemySightings.map((sighting) => ({ ...sighting, position: { ...sighting.position } })),
@@ -636,6 +804,36 @@ export function projectDomainEventsForPlayer(
         if (resourceVisible) projected.push(event);
         break;
       }
+      case "monsterProvoked": {
+        const monster = state.entities.find((candidate) => candidate.id === event.monsterId);
+        const removedMonster = removedById.get(event.monsterId);
+        const monsterVisible = monster
+          ? isEntityVisibleToPlayer(state, playerId, monster)
+          : isPublicEntityVisibleToPlayer(state, playerId, removedMonster);
+        if (!monsterVisible) break;
+        const source = event.sourceId ? state.entities.find((candidate) => candidate.id === event.sourceId) : undefined;
+        const removedSource = event.sourceId ? removedById.get(event.sourceId) : undefined;
+        const sourceVisible = source
+          ? isEntityVisibleToPlayer(state, playerId, source)
+          : isPublicEntityVisibleToPlayer(state, playerId, removedSource);
+        projected.push({
+          ...event,
+          teamId: sourceVisible ? event.teamId : null,
+          sourceId: sourceVisible ? event.sourceId : null,
+        });
+        break;
+      }
+      case "monsterDefeated": {
+        const removed = removedById.get(event.monsterId);
+        if (isPublicEntityVisibleToPlayer(state, playerId, removed)) projected.push(event);
+        break;
+      }
+      case "monsterRewardGranted":
+        if (event.playerId === playerId) projected.push(event);
+        break;
+      case "breachCreated":
+        if (arePlayersAllied(state, playerId, event.ownerId) || isTileVisibleToPlayer(state, playerId, event.position)) projected.push(event);
+        break;
       case "matchFinished":
         projected.push(event);
         break;
@@ -679,7 +877,7 @@ export function getEntityFootprintCells(entity: EntityState): readonly GridPoint
 }
 
 export function getOccupiedMapCells(state: MatchState): readonly GridPoint[] {
-  return state.entities.flatMap((entity) => entity.kind === "unit" ? [] : getEntityFootprintCells(entity));
+  return state.entities.flatMap((entity) => entity.kind === "unit" || entity.kind === "monster" ? [] : getEntityFootprintCells(entity));
 }
 
 export function getNavigationBlockedMapCells(state: MatchState): readonly GridPoint[] {
@@ -687,7 +885,7 @@ export function getNavigationBlockedMapCells(state: MatchState): readonly GridPo
 }
 
 export function isBuildLocationAvailable(state: MatchState, buildingType: BuildingType, origin: GridPoint, orientation: StructureOrientation = "ne"): boolean {
-  const terrainBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultBuildBlockedCells() : [];
+  const terrainBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultBuildBlockedCells(state.map.layoutId) : [];
   const occupied = getOccupiedMapCells(state);
   const placement = validateFootprintPlacement(
     origin,
@@ -697,7 +895,7 @@ export function isBuildLocationAvailable(state: MatchState, buildingType: Buildi
     [...occupied, ...terrainBlocked],
   );
   if (!placement.ok) return false;
-  const walkBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultWalkBlockedCells() : [];
+  const walkBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultWalkBlockedCells(state.map.layoutId) : [];
   const approachBlocked = new Set([...occupied, ...walkBlocked].map(pointKey));
   return getFootprintPerimeterCells(origin, getBuildingFootprint(buildingType, orientation)).some((cell) => (
     isPointInBounds(cell, state) && !approachBlocked.has(pointKey(cell))
@@ -824,7 +1022,7 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     if (!resourceKind || gatherSourceAmount(target) <= 0 || units.some((unit) => unit.typeId !== "villager")) return rejected("INVALID_PAYLOAD");
     if (units.some((unit) => !isEntityReachable(state, unit.position, target))) return rejected("TARGET_NOT_REACHABLE");
     if (units.some((unit) => {
-      const capacity = UNITS[unit.typeId].carryCapacity;
+      const capacity = unit.cargoCapacity;
       const depositKind = unit.cargo.amount > 0 && (unit.cargo.kind !== resourceKind || unit.cargo.amount >= capacity)
         ? unit.cargo.kind
         : resourceKind;
@@ -843,7 +1041,8 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     if (player.resources.wood < 1) return rejected("INSUFFICIENT_RESOURCES");
     return units.every((unit) => isEntityReachable(state, unit.position, target)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
   }
-  if (target.kind === "resource" || target.ownerId === null || !arePlayersHostile(state, player.id, target.ownerId)) return rejected("INVALID_PAYLOAD");
+  if (target.kind === "resource" || target.kind === "rubble") return rejected("INVALID_PAYLOAD");
+  if (target.kind !== "monster" && (target.ownerId === null || !arePlayersHostile(state, player.id, target.ownerId))) return rejected("INVALID_PAYLOAD");
   return { ok: true };
 }
 
@@ -864,7 +1063,7 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
       for (const id of command.entityIds) {
         const unit = state.entities.find((entity): entity is UnitEntityState => entity.id === id && entity.kind === "unit")!;
         if (unit.order.type === "gather" && unit.order.targetId === command.targetId && unit.order.resourceKind === resourceKind) continue;
-        const capacity = UNITS[unit.typeId].carryCapacity;
+        const capacity = unit.cargoCapacity;
         const mustDeposit = unit.cargo.amount > 0 && (unit.cargo.kind !== resourceKind || unit.cargo.amount >= capacity);
         unit.order = {
           type: "gather",
@@ -1004,6 +1203,7 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
 
 function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   state.tick += 1;
+  expirePlayerMonsterBoons(state);
   const resources = state.entities
     .filter((entity): entity is ResourceEntityState => entity.kind === "resource")
     .sort((left, right) => compareText(left.id, right.id));
@@ -1017,6 +1217,14 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
     updateStatuses(state, unit, events);
     if (unit.hitPoints <= 0) continue;
     updateUnit(state, unit, events);
+  }
+  const monsters = state.entities
+    .filter((entity): entity is MonsterEntityState => entity.kind === "monster")
+    .sort((left, right) => compareText(left.id, right.id));
+  for (const monster of monsters) {
+    monster.attackCooldownTicks = Math.max(0, monster.attackCooldownTicks - 1);
+    updateStatuses(state, monster, events);
+    if (monster.hitPoints > 0) updateMonster(state, monster, events);
   }
   const buildings = state.entities
     .filter((entity): entity is BuildingEntityState => entity.kind === "building")
@@ -1047,13 +1255,29 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
         const rubble = createRubble(state, entity);
         state.entities.push(rubble);
         events.push({ type: "entitySpawned", entity: toPublicEntity(rubble) });
+        events.push({
+          type: "breachCreated",
+          structureId: entity.id,
+          rubbleId: rubble.id,
+          ownerId: entity.ownerId,
+          position: { ...entity.position },
+          createdTick: state.tick,
+          effectExpiresAtTick: state.tick + 25,
+        });
       }
+      if (entity.kind === "monster") resolveMonsterReward(state, entity, events);
     }
   }
   updateSettlementAdvancements(state, events);
   syncPopulation(state);
   updateVisibilityState(state);
   evaluateVictory(state, events);
+}
+
+function expirePlayerMonsterBoons(state: MatchState): void {
+  for (const player of state.players) {
+    player.activeMonsterBoons = player.activeMonsterBoons.filter((boon) => boon.expiresAtTick > state.tick);
+  }
 }
 
 function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
@@ -1128,6 +1352,250 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
     return;
   }
   updateAttackOrder(state, unit, target, events);
+}
+
+/** Deterministic neutral retaliation: a camp only hunts the team that first damaged it. */
+function updateMonster(state: MatchState, monster: MonsterEntityState, events: DomainEvent[]): void {
+  if (hasStatus(monster, "stagger")) {
+    if (monster.combat.phase !== "ready") setMonsterCombatPhase(monster, "ready", null, events);
+    return;
+  }
+  if (progressMonsterAbility(state, monster, events)) return;
+  if (monster.provokedAtTick !== null && state.tick <= monster.provokedAtTick) return;
+  const definition = MONSTERS[monster.typeId];
+  const candidates = monster.provokedByTeamId === null
+    ? []
+    : state.entities
+      .filter((entity): entity is UnitEntityState | BuildingEntityState => (
+        (entity.kind === "unit" || entity.kind === "building")
+        && entity.hitPoints > 0
+        && state.players.find((player) => player.id === entity.ownerId)?.teamId === monster.provokedByTeamId
+        && distanceSquaredToEntity(monster.home, entity) <= monster.leashRadius * monster.leashRadius
+      ))
+      .sort((left, right) => compareMonsterTargets(monster, left, right));
+  const target = candidates.find((candidate) => candidate.id === monster.targetId) ?? candidates[0];
+  if (!target) {
+    monster.targetId = null;
+    if (samePoint(monster.position, monster.home)) {
+      if (monster.provokedByTeamId !== null) {
+        monster.provokedByTeamId = null;
+        monster.provokedAtTick = null;
+        monster.camouflageReady = monster.typeId === "miremaw";
+        monster.camouflageSpeedUntilTick = 0;
+        monster.stateRevision += 1;
+      }
+      return;
+    }
+    moveMonsterToward(state, monster, monster.home);
+    return;
+  }
+  if (monster.targetId !== target.id) {
+    monster.targetId = target.id;
+    monster.stateRevision += 1;
+  }
+  monster.facing = quantizeFacing(target.position.x - monster.position.x, target.position.y - monster.position.y, monster.facing);
+  const abilityRange = monster.typeId === "ashwing" ? 4 : 3;
+  if (state.tick >= monster.abilityReadyTick && distanceSquaredToEntity(monster.position, target) <= abilityRange * abilityRange) {
+    beginMonsterAbility(state, monster, target, events);
+    return;
+  }
+  if (distanceSquaredToEntity(monster.position, target) > definition.attackRange * definition.attackRange) {
+    moveMonsterToward(state, monster, closestApproachableEntityCell(state, monster.position, target));
+    return;
+  }
+  if (monster.attackCooldownTicks > 0) return;
+  const enraged = monster.typeId === "rootback" && monster.hitPoints * 100 <= monster.maxHitPoints * 40;
+  const damage = calculateDamage({ baseDamage: definition.baseDamage, armor: entityArmor(target), skillMultiplier: enraged ? 1.25 : 1 });
+  applyDamage(state, monster.id, target, damage, events);
+  monster.attackCooldownTicks = millisecondsToTicks(Math.floor(definition.attackIntervalMs * (enraged ? 0.75 : 1)));
+  monster.stateRevision += 1;
+}
+
+function compareMonsterTargets(monster: MonsterEntityState, left: UnitEntityState | BuildingEntityState, right: UnitEntityState | BuildingEntityState): number {
+  if (monster.typeId === "ashwing") {
+    const leftRange = left.kind === "unit" ? UNITS[left.typeId].attackRange : 0;
+    const rightRange = right.kind === "unit" ? UNITS[right.typeId].attackRange : 0;
+    const rangedPriority = rightRange - leftRange;
+    if (rangedPriority !== 0) return rangedPriority;
+    const healthPriority = left.hitPoints * right.maxHitPoints - right.hitPoints * left.maxHitPoints;
+    if (healthPriority !== 0) return healthPriority;
+  }
+  if (monster.typeId === "rootback" && left.kind !== right.kind) return left.kind === "building" ? -1 : 1;
+  return distanceSquaredToEntity(monster.position, left) - distanceSquaredToEntity(monster.position, right)
+    || compareText(left.id, right.id);
+}
+
+function beginMonsterAbility(
+  state: MatchState,
+  monster: MonsterEntityState,
+  target: UnitEntityState | BuildingEntityState,
+  events: DomainEvent[],
+): void {
+  const ability = MONSTERS[monster.typeId].activeAbility;
+  const targetPoint = monster.typeId === "ashwing"
+    ? closestApproachableEntityCell(state, monster.position, target)
+    : { ...target.position };
+  monster.combat = {
+    phase: "windup",
+    action: "ability",
+    abilityId: ability.id,
+    target: { kind: "ground", point: targetPoint },
+    commitTick: state.tick + millisecondsToTicks(ability.windupMs),
+    readyTick: state.tick + millisecondsToTicks(ability.windupMs + ability.recoveryMs),
+  };
+  monster.abilityReadyTick = state.tick + millisecondsToTicks(ability.cooldownMs);
+  monster.stateRevision += 1;
+  events.push({ type: "combatPhaseChanged", entityId: monster.id, phase: "windup", action: "ability" });
+}
+
+function progressMonsterAbility(state: MatchState, monster: MonsterEntityState, events: DomainEvent[]): boolean {
+  const combat = monster.combat;
+  if (combat.phase === "ready") return false;
+  if (combat.phase === "windup" && combat.commitTick !== null && state.tick >= combat.commitTick) {
+    setMonsterCombatPhase(monster, "commit", "ability", events);
+    resolveMonsterAbility(state, monster, events);
+    return true;
+  }
+  if (combat.phase === "commit") {
+    setMonsterCombatPhase(monster, "recovery", "ability", events);
+    return true;
+  }
+  if (combat.phase === "recovery" && state.tick >= combat.readyTick) {
+    setMonsterCombatPhase(monster, "ready", null, events);
+    return false;
+  }
+  return true;
+}
+
+function setMonsterCombatPhase(
+  monster: MonsterEntityState,
+  phase: AbilityPhase,
+  action: "ability" | null,
+  events: DomainEvent[],
+): void {
+  if (monster.combat.phase === phase && monster.combat.action === action) return;
+  monster.combat.phase = phase;
+  monster.combat.action = action;
+  if (phase === "ready") {
+    monster.combat.abilityId = null;
+    monster.combat.target = null;
+    monster.combat.commitTick = null;
+    monster.combat.readyTick = 0;
+  }
+  monster.stateRevision += 1;
+  events.push({ type: "combatPhaseChanged", entityId: monster.id, phase, action });
+}
+
+function resolveMonsterAbility(state: MatchState, monster: MonsterEntityState, events: DomainEvent[]): void {
+  const target = monster.combat.target;
+  if (target?.kind !== "ground") return;
+  const ability = MONSTERS[monster.typeId].activeAbility;
+  if (monster.typeId === "ashwing" && isMapCellWalkable(state, target.point) && !isMapCellBlocked(state, target.point)) {
+    monster.facing = quantizeFacing(target.point.x - monster.position.x, target.point.y - monster.position.y, monster.facing);
+    monster.position = { ...target.point };
+    monster.movementProgress = 0;
+    monster.stateRevision += 1;
+  }
+  const radiusSquared = monster.typeId === "rootback" ? 4 : 3;
+  const enraged = monster.typeId === "rootback" && monster.hitPoints * 100 <= monster.maxHitPoints * 40;
+  const victims = state.entities
+    .filter((entity): entity is UnitEntityState | BuildingEntityState => (
+      (entity.kind === "unit" || entity.kind === "building")
+      && entity.ownerId !== null
+      && entity.hitPoints > 0
+      && distanceSquaredToEntity(target.point, entity) <= radiusSquared
+    ))
+    .sort((left, right) => compareText(left.id, right.id));
+  for (const victim of victims) {
+    const damage = calculateDamage({
+      baseDamage: MONSTERS[monster.typeId].baseDamage,
+      armor: entityArmor(victim),
+      skillMultiplier: (ability.damageMultiplier ?? 1) * (enraged ? 1.25 : 1),
+    });
+    applyDamage(state, monster.id, victim, damage, events);
+    for (const statusId of ability.statusEffects) applyStatus(state, monster.id, victim, statusId, events);
+  }
+}
+
+function resolveMonsterReward(state: MatchState, monster: MonsterEntityState, events: DomainEvent[]): void {
+  if (monster.rewardGranted) return;
+  monster.rewardGranted = true;
+  const byTeam = new Map<string, { damage: number; firstHitTick: number }>();
+  for (const contribution of monster.contributions) {
+    const current = byTeam.get(contribution.teamId);
+    if (current) {
+      current.damage += contribution.actualDamage;
+      current.firstHitTick = Math.min(current.firstHitTick, contribution.firstHitTick);
+    } else {
+      byTeam.set(contribution.teamId, { damage: contribution.actualDamage, firstHitTick: contribution.firstHitTick });
+    }
+  }
+  const creditedTeamId = [...byTeam.entries()]
+    .sort((left, right) => right[1].damage - left[1].damage || left[1].firstHitTick - right[1].firstHitTick || compareText(left[0], right[0]))[0]?.[0] ?? null;
+  events.push({ type: "monsterDefeated", monsterId: monster.id, monsterTypeId: monster.typeId, creditedTeamId });
+  if (creditedTeamId === null) return;
+  const recipients = state.players
+    .filter((player) => player.teamId === creditedTeamId && !player.eliminated && !player.surrendered)
+    .sort((left, right) => compareText(left.id, right.id));
+  if (recipients.length === 0) return;
+  const definition = MONSTERS[monster.typeId];
+  const total = { food: definition.reward.food, wood: definition.reward.wood, stone: definition.reward.stone };
+  const shares = recipients.map((player, index) => ({
+    player,
+    reward: {
+      food: Math.floor(total.food / recipients.length) + (index < total.food % recipients.length ? 1 : 0),
+      wood: Math.floor(total.wood / recipients.length) + (index < total.wood % recipients.length ? 1 : 0),
+      stone: Math.floor(total.stone / recipients.length) + (index < total.stone % recipients.length ? 1 : 0),
+    },
+  }));
+  for (const { player, reward } of shares) {
+    addWallet(player, reward);
+    const boon = grantMonsterBoon(player, definition.reward.buffId, definition.reward.buffDurationMs, state.tick);
+    events.push({
+      type: "monsterRewardGranted",
+      monsterId: monster.id,
+      monsterTypeId: monster.typeId,
+      playerId: player.id,
+      reward,
+      boon,
+    });
+  }
+}
+
+function grantMonsterBoon(
+  player: PlayerState,
+  boonId: MonsterBoonId | undefined,
+  durationMs: number | undefined,
+  currentTick: number,
+): ActiveMonsterBoon | null {
+  if (boonId === undefined || durationMs === undefined) return null;
+  const granted = { id: boonId, expiresAtTick: currentTick + millisecondsToTicks(durationMs) } satisfies ActiveMonsterBoon;
+  const existing = player.activeMonsterBoons.find((boon) => boon.id === boonId);
+  const resolved = existing
+    ? { id: boonId, expiresAtTick: Math.max(existing.expiresAtTick, granted.expiresAtTick) }
+    : granted;
+  player.activeMonsterBoons = player.activeMonsterBoons.filter((boon) => boon.id !== boonId);
+  player.activeMonsterBoons.push({ ...resolved });
+  player.activeMonsterBoons.sort((left, right) => compareText(left.id, right.id));
+  return { ...resolved };
+}
+
+function moveMonsterToward(state: MatchState, monster: MonsterEntityState, target: GridPoint): void {
+  const camouflageBurst = monster.typeId === "miremaw" && state.tick < monster.camouflageSpeedUntilTick ? 1.35 : 1;
+  const speedMilliTilesPerSecond = Math.max(1, Math.floor(MONSTERS[monster.typeId].moveSpeed * 1_000 * camouflageBurst));
+  const stepCost = 1_000 * TICKS_PER_SECOND;
+  monster.movementProgress += speedMilliTilesPerSecond;
+  if (monster.movementProgress < stepCost) return;
+  const next = findNextPathStep(monster.position, target, state.map.width, state.map.height, getPathBlockedCells(state));
+  if (!next) {
+    monster.movementProgress = stepCost;
+    return;
+  }
+  monster.movementProgress -= stepCost;
+  if (samePoint(next, monster.position)) return;
+  monster.facing = quantizeFacing(next.x - monster.position.x, next.y - monster.position.y, monster.facing);
+  monster.position = next;
+  monster.stateRevision += 1;
 }
 
 function updateAttackOrder(state: MatchState, unit: UnitEntityState, target: EntityState, events: DomainEvent[]): void {
@@ -1270,7 +1738,7 @@ function commitAbility(state: MatchState, unit: UnitEntityState, events: DomainE
       spawnProjectile(state, unit.ownerId, unit.id, unit.position, candidate, projectileProfileId, damage, [...ability.statusEffects], events, fixedImpactPoint);
     } else {
       applyDamage(state, unit.id, candidate, damage, events);
-      if (candidate.kind === "unit" || candidate.kind === "building") {
+      if (candidate.kind === "unit" || candidate.kind === "building" || candidate.kind === "monster") {
         for (const statusId of ability.statusEffects) {
           if (!bracedChargeTargets.has(candidate.id)) applyStatus(state, unit.id, candidate, statusId, events);
         }
@@ -1325,7 +1793,7 @@ function abilityCandidates(state: MatchState, unit: UnitEntityState, target: Exc
   if (target.kind === "entity") {
     const entity = state.entities.find((candidate) => candidate.id === target.entityId);
     return entity
-      && entity.kind === "unit"
+      && (entity.kind === "unit" || entity.kind === "monster")
       && isValidHostileTarget(state, unit.ownerId, entity)
       && isEntityVisibleToPlayer(state, unit.ownerId, entity)
       && distanceSquaredToEntity(unit.position, entity) <= UNITS[unit.typeId].attackRange ** 2
@@ -1386,7 +1854,7 @@ function calculateUnitDamage(
   structureMultiplierOverride: number | null = null,
 ): number {
   const targetArmor = entityArmor(target);
-  const armorBreak = (target.kind === "unit" || target.kind === "building") && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
+  const armorBreak = (target.kind === "unit" || target.kind === "building" || target.kind === "monster") && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
   const attackerDefinition = attacker.typeId === "villager" ? null : COMBAT_UNITS[attacker.typeId];
   const shieldWallApplies = target.kind === "unit"
     && hasStatus(target, "shieldWall")
@@ -1422,11 +1890,52 @@ function isInFrontArc(unit: UnitEntityState, source: GridPoint): boolean {
   return length > 0 && (facing.x * dx + facing.y * dy) / length >= 0.5;
 }
 
-function applyDamage(state: MatchState, sourceId: EntityId, target: EntityState, rawDamage: number, events: DomainEvent[]): void {
+function applyDamage(
+  state: MatchState,
+  sourceId: EntityId,
+  target: EntityState,
+  rawDamage: number,
+  events: DomainEvent[],
+  sourceOwnerId?: PlayerId,
+): void {
   if (target.kind === "resource" || target.kind === "rubble" || target.hitPoints <= 0) return;
   const previousBand = target.kind === "building" ? getStructureHealthBand(target) : null;
   const damage = damageAfterVillageTrait(state, target, Math.max(1, Math.floor(rawDamage)));
+  const actualDamage = Math.min(target.hitPoints, damage);
   target.hitPoints = Math.max(0, target.hitPoints - damage);
+  if (target.kind === "monster" && actualDamage > 0) {
+    const source = state.entities.find((entity) => entity.id === sourceId);
+    const resolvedOwnerId = source?.ownerId ?? sourceOwnerId ?? null;
+    if (resolvedOwnerId !== null) {
+      const attacker = state.players.find((player) => player.id === resolvedOwnerId);
+      if (attacker) {
+        const contribution = target.contributions.find((entry) => entry.playerId === attacker.id);
+        if (contribution) {
+          contribution.actualDamage += actualDamage;
+          contribution.lastHitTick = state.tick;
+        } else {
+          target.contributions.push({
+            playerId: attacker.id,
+            teamId: attacker.teamId,
+            actualDamage,
+            firstHitTick: state.tick,
+            lastHitTick: state.tick,
+          });
+          target.contributions.sort((left, right) => compareText(left.playerId, right.playerId));
+        }
+        if (target.provokedByTeamId === null) {
+          target.provokedByTeamId = attacker.teamId;
+          target.provokedAtTick = state.tick;
+          target.targetId = source?.id ?? null;
+          if (target.typeId === "miremaw" && target.camouflageReady) {
+            target.camouflageReady = false;
+            target.camouflageSpeedUntilTick = state.tick + 20;
+          }
+          events.push({ type: "monsterProvoked", monsterId: target.id, monsterTypeId: target.typeId, teamId: attacker.teamId, sourceId });
+        }
+      }
+    }
+  }
   target.stateRevision += 1;
   events.push({ type: "entityDamaged", sourceId, targetId: target.id, amount: damage, hitPoints: target.hitPoints });
   if (target.kind === "building" && previousBand !== getStructureHealthBand(target)) {
@@ -1576,7 +2085,7 @@ function spawnProjectile(
 
 function firstProjectileTerrainImpact(state: MatchState, origin: GridPoint, target: GridPoint): GridPoint | null {
   if (state.map.id !== VILLAGE_ASSAULT_MAP_ID) return null;
-  const blocked = new Set(getVillageAssaultWalkBlockedCells().map(pointKey));
+  const blocked = new Set(getVillageAssaultWalkBlockedCells(state.map.layoutId).map(pointKey));
   let x = origin.x;
   let y = origin.y;
   const dx = Math.abs(target.x - origin.x);
@@ -1626,9 +2135,9 @@ function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
       for (const target of targets) {
         const priorHits = groupCounts.get(target.id) ?? 0;
         const rawDamage = projectileDamageFromSpec(state, projectile, target, 1);
-        applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target, rawDamage), events);
-        if ((target.kind === "unit" || target.kind === "building") && priorHits === 0) {
-          for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
+        applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target, rawDamage), events, projectile.ownerId);
+        if ((target.kind === "unit" || target.kind === "building" || target.kind === "monster") && priorHits === 0) {
+          for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events, projectile.ownerId);
         }
         groupCounts.set(target.id, priorHits + 1);
         impacted.push(target.id);
@@ -1637,8 +2146,8 @@ function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
       const target = projectile.targetId ? state.entities.find((entity) => entity.id === projectile.targetId) : undefined;
       const remainsInImpactArea = target !== undefined && distanceSquaredToEntity(projectile.targetPoint, target) <= (projectile.fixedImpact ? 4 : 0);
       if (target && remainsInImpactArea && isValidHostileTarget(state, projectile.ownerId, target)) {
-        applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target), events);
-        if (target.kind === "unit" || target.kind === "building") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
+        applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target), events, projectile.ownerId);
+        if (target.kind === "unit" || target.kind === "building" || target.kind === "monster") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events, projectile.ownerId);
         impacted.push(target.id);
       }
     }
@@ -1670,7 +2179,7 @@ function projectileDamageFromSpec(state: MatchState, projectile: ProjectileState
   if (resolution === null) return projectile.damage;
   const spec = resolution.damage;
   const targetArmor = entityArmor(target);
-  const armorBreak = (target.kind === "unit" || target.kind === "building") && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
+  const armorBreak = (target.kind === "unit" || target.kind === "building" || target.kind === "monster") && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
   const counterMultiplier = combatCounterMultiplier(spec.sourceUnitType, target);
   const structureMultiplier = target.kind === "building"
     ? (spec.abilityId === "breachingBolt" ? 1.45 : spec.sourceUnitType === "heavyCrossbowman" ? 1.6 : spec.sourceUnitType === "boarRider" ? 0.8 : 1) * spec.structureMultiplierBonus
@@ -1708,8 +2217,8 @@ function advanceLineProjectile(
     if (resolution.hitTargetIds.includes(entity.id)) continue;
     const hitIndex = resolution.hitTargetIds.length;
     const rawDamage = projectileDamageFromSpec(state, projectile, entity, hitIndex === 0 ? 1 : 0.75);
-    applyDamage(state, projectile.sourceId, entity, projectileDamageAtImpact(projectile, entity, rawDamage), events);
-    if (entity.kind === "unit" || entity.kind === "building") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, entity, statusId, events);
+    applyDamage(state, projectile.sourceId, entity, projectileDamageAtImpact(projectile, entity, rawDamage), events, projectile.ownerId);
+    if (entity.kind === "unit" || entity.kind === "building" || entity.kind === "monster") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, entity, statusId, events, projectile.ownerId);
     resolution.hitTargetIds.push(entity.id);
     if (entity.kind === "building" || resolution.hitTargetIds.length >= resolution.maxTargets) {
       stopDistance = forward;
@@ -1755,7 +2264,14 @@ function lineProjectileTargetsBetween(
     .sort((left, right) => left.forward - right.forward || compareText(left.entity.id, right.entity.id));
 }
 
-function applyStatus(state: MatchState, sourceId: EntityId, target: UnitEntityState | BuildingEntityState, statusId: StatusEffectId, events: DomainEvent[]): void {
+function applyStatus(
+  state: MatchState,
+  sourceId: EntityId,
+  target: UnitEntityState | BuildingEntityState | MonsterEntityState,
+  statusId: StatusEffectId,
+  events: DomainEvent[],
+  sourceOwnerId?: PlayerId,
+): void {
   target.statuses ??= [];
   if (statusId === "stagger" && hasStatus(target, "tenacity")) return;
   const definition: StatusEffectDefinition = STATUS_EFFECTS[statusId];
@@ -1763,12 +2279,14 @@ function applyStatus(state: MatchState, sourceId: EntityId, target: UnitEntitySt
   const expiresAtTick = durationTicks === 0 ? Number.MAX_SAFE_INTEGER : state.tick + durationTicks;
   const existing = target.statuses.find((status) => status.id === statusId);
   const nextTickAt = definition.tickIntervalMs === undefined ? null : state.tick + millisecondsToTicks(definition.tickIntervalMs);
+  const resolvedSourceOwnerId = state.entities.find((entity) => entity.id === sourceId)?.ownerId ?? sourceOwnerId ?? null;
   if (existing) {
     existing.sourceId = sourceId;
+    existing.sourceOwnerId = resolvedSourceOwnerId;
     existing.expiresAtTick = expiresAtTick;
     existing.nextTickAt = nextTickAt;
   } else {
-    target.statuses.push({ id: statusId, sourceId, expiresAtTick, nextTickAt });
+    target.statuses.push({ id: statusId, sourceId, sourceOwnerId: resolvedSourceOwnerId, expiresAtTick, nextTickAt });
     target.statuses.sort((left, right) => compareText(left.id, right.id) || compareText(left.sourceId, right.sourceId));
   }
   target.stateRevision += 1;
@@ -1778,12 +2296,12 @@ function applyStatus(state: MatchState, sourceId: EntityId, target: UnitEntitySt
   }
 }
 
-function updateStatuses(state: MatchState, target: UnitEntityState | BuildingEntityState, events: DomainEvent[]): void {
+function updateStatuses(state: MatchState, target: UnitEntityState | BuildingEntityState | MonsterEntityState, events: DomainEvent[]): void {
   target.statuses ??= [];
   for (const status of target.statuses) {
     const definition: StatusEffectDefinition = STATUS_EFFECTS[status.id];
     if (status.id === "burn" && status.nextTickAt !== null && status.nextTickAt <= state.tick && target.hitPoints > 0) {
-      applyDamage(state, status.sourceId, target, Math.max(1, Math.floor(definition.magnitude)), events);
+      applyDamage(state, status.sourceId, target, Math.max(1, Math.floor(definition.magnitude)), events, status.sourceOwnerId ?? undefined);
       status.nextTickAt += millisecondsToTicks(definition.tickIntervalMs ?? 1_000);
     }
   }
@@ -1795,7 +2313,7 @@ function updateStatuses(state: MatchState, target: UnitEntityState | BuildingEnt
   for (const status of expired) {
     events.push({ type: "statusExpired", entityId: target.id, statusId: status.id });
     const granted = (STATUS_EFFECTS[status.id] as StatusEffectDefinition).grantsStatusId;
-    if (granted) applyStatus(state, status.sourceId, target, granted, events);
+    if (granted) applyStatus(state, status.sourceId, target, granted, events, status.sourceOwnerId ?? undefined);
   }
 }
 
@@ -1826,19 +2344,27 @@ function findAutomaticTarget(state: MatchState, unit: UnitEntityState, force = f
   const sight = UNITS[unit.typeId].sightRadius;
   const radius = !force && unit.stance === "defensive" ? Math.max(1, Math.floor(sight / 2)) : sight;
   return state.entities
-    .filter((entity) => isValidHostileTarget(state, unit.ownerId, entity) && isEntityVisibleToPlayer(state, unit.ownerId, entity) && distanceSquaredToEntity(unit.position, entity) <= radius * radius)
+    .filter((entity) => isAutomaticHostileTarget(state, unit.ownerId, entity) && isEntityVisibleToPlayer(state, unit.ownerId, entity) && distanceSquaredToEntity(unit.position, entity) <= radius * radius)
     .sort((left, right) => distanceSquaredToEntity(unit.position, left) - distanceSquaredToEntity(unit.position, right) || compareText(left.id, right.id))[0];
 }
 
 function isValidHostileTarget(state: MatchState, ownerId: PlayerId, target: EntityState): boolean {
-  return target.kind !== "resource" && target.ownerId !== null && target.hitPoints > 0 && arePlayersHostile(state, ownerId, target.ownerId);
+  if (target.hitPoints <= 0 || target.kind === "resource" || target.kind === "rubble") return false;
+  if (target.kind === "monster") return true;
+  return target.ownerId !== null && arePlayersHostile(state, ownerId, target.ownerId);
 }
 
-function hasStatus(entity: UnitEntityState | BuildingEntityState, statusId: StatusEffectId): boolean {
+function isAutomaticHostileTarget(state: MatchState, ownerId: PlayerId, target: EntityState): boolean {
+  if (target.kind !== "monster") return isValidHostileTarget(state, ownerId, target);
+  const teamId = state.players.find((player) => player.id === ownerId)?.teamId;
+  return target.hitPoints > 0 && teamId !== undefined && target.provokedByTeamId === teamId;
+}
+
+function hasStatus(entity: UnitEntityState | BuildingEntityState | MonsterEntityState, statusId: StatusEffectId): boolean {
   return (entity.statuses ?? []).some((status) => status.id === statusId);
 }
 
-function removeStatus(entity: UnitEntityState | BuildingEntityState, statusId: StatusEffectId, events?: DomainEvent[]): void {
+function removeStatus(entity: UnitEntityState | BuildingEntityState | MonsterEntityState, statusId: StatusEffectId, events?: DomainEvent[]): void {
   if (!hasStatus(entity, statusId)) return;
   entity.statuses = entity.statuses.filter((status) => status.id !== statusId);
   entity.stateRevision += 1;
@@ -1936,6 +2462,7 @@ function recordUnitMovement(state: MatchState, unit: UnitEntityState, tiles: num
 
 function entityArmor(entity: EntityState): number {
   if (entity.kind === "resource" || entity.kind === "rubble") return 0;
+  if (entity.kind === "monster") return MONSTERS[entity.typeId].armor;
   if (entity.kind === "unit") return entity.typeId === "villager" ? 0 : COMBAT_UNITS[entity.typeId].armor;
   return BUILDINGS[entity.typeId].armor;
 }
@@ -1964,7 +2491,7 @@ function updateGatherOrder(
   order: Extract<UnitOrder, { type: "gather" }>,
   events: DomainEvent[],
 ): void {
-  const capacity = UNITS[unit.typeId].carryCapacity;
+  const capacity = unit.cargoCapacity;
   if (capacity <= 0) { unit.order = { type: "idle" }; return; }
 
   if (order.phase === "toDropOff") {
@@ -2229,7 +2756,11 @@ function updateTower(state: MatchState, building: BuildingEntityState, events: D
   const stats = BUILDINGS[building.typeId];
   if (stats.attackDamage <= 0) return;
   const enemies = state.entities
-    .filter((entity): entity is UnitEntityState => entity.kind === "unit" && arePlayersHostile(state, building.ownerId, entity.ownerId) && distanceSquared(entity.position, building.position) <= stats.attackRange * stats.attackRange)
+    .filter((entity): entity is UnitEntityState | MonsterEntityState => (
+      (entity.kind === "unit" || entity.kind === "monster")
+      && isAutomaticHostileTarget(state, building.ownerId, entity)
+      && distanceSquared(entity.position, building.position) <= stats.attackRange * stats.attackRange
+    ))
     .sort((left, right) => distanceSquared(left.position, building.position) - distanceSquared(right.position, building.position) || compareText(left.id, right.id));
   const target = enemies[0];
   if (!target) return;
@@ -2316,9 +2847,8 @@ function moveTowardEntity(state: MatchState, unit: UnitEntityState, entity: Enti
 
 function damageAfterVillageTrait(state: MatchState, target: EntityState, damage: number): number {
   if (target.kind !== "building" || target.typeId !== "defenseTower") return damage;
-  const player = state.players.find((candidate) => candidate.id === target.ownerId);
-  const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  return trait?.metric === "towerArmor" ? Math.max(1, Math.floor(damage * 1000 / trait.multiplierPermille)) : damage;
+  const multiplier = villageTraitMultiplier(state, target.ownerId, "towerArmor");
+  return multiplier === 1_000 ? damage : Math.max(1, Math.floor(damage * 1_000 / multiplier));
 }
 
 function createUnit(state: MatchState, ownerId: PlayerId, typeId: UnitType, position: GridPoint): UnitEntityState {
@@ -2330,7 +2860,7 @@ function createUnit(state: MatchState, ownerId: PlayerId, typeId: UnitType, posi
     combat: { phase: "ready", action: null, abilityId: null, target: null, commitTick: null, readyTick: 0 },
     abilityReadyTick: 0,
     passive: { stationarySinceTick: state.tick, movedTilesSinceAttack: 0, rhythmTargetId: null, rhythmStacks: 0, rhythmLastHitTick: 0, braceCooldownUntilTick: 0 },
-    statuses: [], cargo: { kind: null, amount: 0 }, gatherRemainderMilli: { food: 0, wood: 0, stone: 0 },
+    statuses: [], cargo: { kind: null, amount: 0 }, cargoCapacity: getEffectiveCarryCapacity(state, ownerId, typeId), gatherRemainderMilli: { food: 0, wood: 0, stone: 0 },
   };
 }
 
@@ -2382,6 +2912,35 @@ function createRubble(state: MatchState, source: BuildingEntityState): RubbleEnt
 function createResource(state: MatchState, typeId: ResourceKind, position: GridPoint): ResourceEntityState {
   const amount = RESOURCE_NODES[typeId].maxAmount;
   return { id: nextId(state, "resource"), ownerId: null, kind: "resource", typeId, position, hitPoints: amount, maxHitPoints: amount, stateRevision: 0, amount, renewAtTick: null };
+}
+
+function createMonster(state: MatchState, typeId: MonsterId, position: GridPoint, leashRadius = 6): MonsterEntityState {
+  const definition = MONSTERS[typeId];
+  return {
+    id: nextId(state, "monster"),
+    ownerId: null,
+    kind: "monster",
+    typeId,
+    position: { ...position },
+    home: { ...position },
+    hitPoints: definition.maxHitPoints,
+    maxHitPoints: definition.maxHitPoints,
+    stateRevision: 0,
+    facing: "se",
+    statuses: [],
+    combat: { phase: "ready", action: null, abilityId: null, target: null, commitTick: null, readyTick: 0 },
+    movementProgress: 0,
+    attackCooldownTicks: 0,
+    abilityReadyTick: 0,
+    camouflageReady: typeId === "miremaw",
+    camouflageSpeedUntilTick: 0,
+    leashRadius,
+    provokedByTeamId: null,
+    provokedAtTick: null,
+    targetId: null,
+    contributions: [],
+    rewardGranted: false,
+  };
 }
 
 function nextId(state: MatchState, prefix: string): EntityId {
@@ -2512,7 +3071,7 @@ function validateAbilityTarget(state: MatchState, playerId: PlayerId, caster: Un
   }
   const entity = state.entities.find((candidate) => candidate.id === target.entityId);
   if (!entity || !isEntityVisibleToPlayer(state, playerId, entity)) return rejected("TARGET_NOT_VISIBLE");
-  if (entity.kind !== "unit") return rejected("INVALID_PAYLOAD");
+  if (entity.kind !== "unit" && entity.kind !== "monster") return rejected("INVALID_PAYLOAD");
   if (!isValidHostileTarget(state, playerId, entity)) return rejected("INVALID_PAYLOAD");
   return distanceSquaredToEntity(caster.position, entity) <= UNITS[caster.typeId].attackRange ** 2
     ? { ok: true }
@@ -2563,9 +3122,9 @@ function completeTechnology(state: MatchState, playerId: PlayerId, producerId: E
 
 export function getEffectiveGatherRatePermille(state: MatchState, playerId: PlayerId, unitType: UnitType, resourceKind: ResourceKind): number {
   const player = state.players.find((candidate) => candidate.id === playerId);
-  const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  let multiplier = trait?.metric === "gatherRate" ? trait.multiplierPermille : 1_000;
+  let multiplier = villageTraitMultiplier(state, playerId, "gatherRate");
   if (!player) return multiplier;
+  multiplier = Math.floor(multiplier * activeMonsterBoonMultiplier(state, playerId, "gatherRate") / 1_000);
   for (const technologyId of TECHNOLOGY_ORDER) {
     if (!player.completedTechnologyIds.includes(technologyId)) continue;
     const effect = TECHNOLOGIES[technologyId].effect;
@@ -2577,7 +3136,8 @@ export function getEffectiveGatherRatePermille(state: MatchState, playerId: Play
 }
 
 export function getEffectiveUnitAttackDamage(state: MatchState, playerId: PlayerId, unitType: UnitType): number {
-  return effectiveUnitStat(state, playerId, unitType, UNITS[unitType].attackDamage, "unitAttack");
+  const value = effectiveUnitStat(state, playerId, unitType, UNITS[unitType].attackDamage, "unitAttack");
+  return Math.floor(value * activeMonsterBoonMultiplier(state, playerId, "unitAttack") / 1_000);
 }
 
 export function getEffectiveUnitMaxHitPoints(state: MatchState, playerId: PlayerId, unitType: UnitType): number {
@@ -2585,16 +3145,15 @@ export function getEffectiveUnitMaxHitPoints(state: MatchState, playerId: Player
 }
 
 export function getEffectiveUnitSpeedMilliTilesPerSecond(state: MatchState, playerId: PlayerId, unitType: UnitType): number {
-  const player = state.players.find((candidate) => candidate.id === playerId);
-  const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  const villageMultiplierPermille = trait?.metric === "unitSpeed" ? trait.multiplierPermille : 1_000;
-  const base = Math.floor(UNITS[unitType].speedMilliTilesPerSecond * villageMultiplierPermille / 1_000);
+  const villageMultiplierPermille = villageTraitMultiplier(state, playerId, "unitSpeed");
+  const boonMultiplierPermille = activeMonsterBoonMultiplier(state, playerId, "unitSpeed");
+  const base = Math.floor(UNITS[unitType].speedMilliTilesPerSecond * villageMultiplierPermille / 1_000 * boonMultiplierPermille / 1_000);
   return effectiveUnitStat(state, playerId, unitType, base, "unitSpeed");
 }
 
 export function getEffectiveBuildingMaxHitPoints(state: MatchState, playerId: PlayerId, buildingType: BuildingType): number {
   const player = state.players.find((candidate) => candidate.id === playerId);
-  let value = BUILDINGS[buildingType].maxHitPoints;
+  let value = Math.floor(BUILDINGS[buildingType].maxHitPoints * villageTraitMultiplier(state, playerId, "buildingDurability") / 1_000);
   if (!player) return value;
   for (const technologyId of TECHNOLOGY_ORDER) {
     if (!player.completedTechnologyIds.includes(technologyId)) continue;
@@ -2604,6 +3163,31 @@ export function getEffectiveBuildingMaxHitPoints(state: MatchState, playerId: Pl
     }
   }
   return value;
+}
+
+export function getEffectiveCarryCapacity(state: MatchState, playerId: PlayerId, unitType: UnitType): number {
+  return Math.floor(UNITS[unitType].carryCapacity * villageTraitMultiplier(state, playerId, "carryCapacity") / 1_000);
+}
+
+function villageTraitMultiplier(
+  state: MatchState,
+  playerId: PlayerId,
+  metric: "gatherRate" | "unitSpeed" | "towerArmor" | "buildingDurability" | "carryCapacity",
+): number {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  return (player ? getVillage(player.villageId)?.traits.find((trait) => trait.metric === metric)?.multiplierPermille : undefined) ?? 1_000;
+}
+
+function activeMonsterBoonMultiplier(
+  state: MatchState,
+  playerId: PlayerId,
+  metric: "gatherRate" | "unitSpeed" | "unitAttack",
+): number {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  if (!player) return 1_000;
+  return player.activeMonsterBoons
+    .filter((boon) => boon.expiresAtTick > state.tick && MONSTER_BOONS[boon.id].metric === metric)
+    .reduce((multiplier, boon) => Math.floor(multiplier * MONSTER_BOONS[boon.id].multiplierPermille / 1_000), 1_000);
 }
 
 function effectiveUnitStat(
@@ -2811,7 +3395,7 @@ function isMapCellBlocked(state: MatchState, point: GridPoint): boolean {
 }
 
 function isMapCellWalkable(state: MatchState, point: GridPoint): boolean {
-  return state.map.id !== VILLAGE_ASSAULT_MAP_ID || isVillageAssaultWalkableCell(point);
+  return state.map.id !== VILLAGE_ASSAULT_MAP_ID || isVillageAssaultWalkableCell(point, state.map.layoutId);
 }
 
 function isExactWalkTargetAvailable(state: MatchState, point: GridPoint): boolean {
@@ -2830,7 +3414,7 @@ function canUnitMoveToExactPoint(state: MatchState, start: GridPoint, target: Gr
 
 function getPathBlockedCells(state: MatchState): readonly GridPoint[] {
   return state.map.id === VILLAGE_ASSAULT_MAP_ID
-    ? [...getNavigationBlockedMapCells(state), ...getVillageAssaultWalkBlockedCells()]
+    ? [...getNavigationBlockedMapCells(state), ...getVillageAssaultWalkBlockedCells(state.map.layoutId)]
     : getNavigationBlockedMapCells(state);
 }
 
@@ -2848,7 +3432,7 @@ function getPlanningPathBlockedCells(state: MatchState, playerId: PlayerId): rea
       ? getFootprintCells(sighting.position, getBuildingFootprint(sighting.typeId, sighting.orientation))
       : []
   ));
-  const terrain = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultWalkBlockedCells() : [];
+  const terrain = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultWalkBlockedCells(state.map.layoutId) : [];
   return [...live, ...remembered, ...terrain];
 }
 

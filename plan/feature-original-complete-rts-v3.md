@@ -2,7 +2,7 @@
 goal: Original Complete RTS and Fully Open-Source Multiplayer
 version: 3.0
 date_created: 2026-07-20
-last_updated: 2026-07-20
+last_updated: 2026-07-21
 owner: Village Siege production team
 status: 'In progress'
 tags: [feature, game, rts, multiplayer, self-hosting, originality]
@@ -71,7 +71,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 | TASK-009 | Implement attack-move, repair, stance, formation, active abilities, per-role passives and deterministic locked, area and line-projectile commands in shared simulation and client input. | Yes | 2026-07-20 |
 | TASK-010 | Implement explored/visible fog grids, stale sightings and per-player filtered public snapshots in `packages/shared/src/visibility.ts`. | Yes | 2026-07-20 |
 | TASK-011 | Add wall, gate, landmark and rubble entities with open, closed, damaged and destroyed pathing transitions. | Yes | 2026-07-20 |
-| TASK-012 | Add original continuous terrain, fortified village layouts, neutral monsters, civilian activity and breach effects for three to five map starts. |  |  |
+| TASK-012 | Add original continuous terrain, fortified village layouts, neutral monsters, civilian activity and breach effects for three to five map starts. | Yes | 2026-07-21 |
 | TASK-013 | Complete six-facing idle, walk, attack, hurt, death and cast runtime animation coverage and retain asset/license verification evidence. |  |  |
 
 ### Implementation Phase 4 - Strategic AI, victory, save and replay

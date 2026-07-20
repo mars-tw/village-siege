@@ -89,6 +89,14 @@ Destroying a configured fortification removes it in stable entity-ID order and c
 
 Construction durability grows only by the newly unlocked hit-point cap per work tick. Damage taken during construction remains damage at completion instead of being healed by a presentation transition. Armor, movement blocking and rubble behavior come from shared building content rather than client tables or type-specific simulation constants.
 
+## Authored world and neutral-threat contract
+
+Rules version `village-siege/0.10.0` registers Pinehold, Riverstead and Highcrag as distinct 18×16 authoritative layouts. Each layout owns its terrain glyph grid, reserved construction corridor, two fortified start slots, resource and civilian activity anchors, and three neutral camp anchors. The shared validator rejects repeated terrain, repeated reserved-cell topology, duplicate start slots, illegal footprints and overlapping anchors. Two-player matches use the complete authored fortifications; three-to-five-player compatibility uses deterministic nearest legal placement and requires buildings/resources to remain on buildable cells and units on walkable cells.
+
+Miremaw, Ashwing and Rootback remain neutral until damaged, then retaliate only against the provoking team within their leash. Their target priority, windup, commit, recovery, area damage, status effects, cooldowns and passives are shared-simulation state. Miremaw gains a one-time opening speed burst, Ashwing hunts ranged or wounded rear-line units, and Rootback prioritizes buildings and enrages below forty-percent health. Damage contributions survive delayed projectile and damage-over-time resolution after the original source leaves the world.
+
+Defeat rewards are deterministic and divided across active members of the credited team. The temporary rewards—gather rate, movement speed or attack damage—are stored on player state, expire by server tick and appear in filtered snapshots. Fatal same-tick provocation and removal events may publish the visible monster, but a hidden attacker ID and team are masked. The client only renders terrain, workers, monsters, breach effects and reward timers from those authoritative contracts.
+
 ## Tactical combat contract
 
 Rules version `village-siege/0.9.0` has one canonical combat roster: `villager` plus `warrior`, `shieldBearer`, `archer`, `mage`, `musketeer`, `boarRider` and `heavyCrossbowman`. Formal unit content derives combat hit points, damage, cadence, range, speed, cost, population and training time from that roster rather than maintaining a second simulation table.

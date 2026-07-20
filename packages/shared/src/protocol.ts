@@ -3,6 +3,8 @@ import {
   type AbilityPhase,
   type CombatUnitId,
   type Facing,
+  type MonsterBoonId,
+  type MonsterId,
   type ProjectileProfileId,
   type StatusEffectId,
 } from "./combat.js";
@@ -61,6 +63,11 @@ export interface ResourceCargo {
   readonly kind: ResourceKind | null;
   readonly amount: number;
   readonly capacity: number;
+}
+
+export interface ActiveMonsterBoon {
+  readonly id: MonsterBoonId;
+  readonly expiresAtTick: number;
 }
 
 export interface ProductionJobId {
@@ -122,8 +129,8 @@ export type CommandRejectCode =
 export interface PublicEntityState {
   readonly id: EntityId;
   readonly ownerId: PlayerId | null;
-  readonly kind: "unit" | "building" | "resource" | "rubble";
-  readonly typeId: UnitType | BuildingType | ResourceKind;
+  readonly kind: "unit" | "building" | "resource" | "rubble" | "monster";
+  readonly typeId: UnitType | BuildingType | ResourceKind | MonsterId;
   readonly position: GridPoint;
   readonly hitPoints: number;
   readonly maxHitPoints: number;
@@ -148,10 +155,17 @@ export interface PublicEntityState {
     readonly braceCooldownUntilTick: number;
   };
   readonly cargo?: ResourceCargo;
+  readonly civilianActivity?: "idle" | "walking" | "gathering" | "hauling" | "constructing" | "repairing";
   readonly resourceNode?: {
     readonly amount: number;
     readonly maxAmount: number;
     readonly renewAtTick: number | null;
+  };
+  readonly monsterState?: {
+    readonly home: GridPoint;
+    readonly leashRadius: number;
+    readonly disposition: "neutral" | "retaliating" | "returning";
+    readonly attackCooldownTicks: number;
   };
 }
 
@@ -189,11 +203,12 @@ export interface VisibleSnapshot {
   readonly serverTick: number;
   readonly recipientPlayerId: PlayerId;
   readonly phase: MatchPhase;
-  readonly map: { readonly id: string; readonly width: number; readonly height: number };
+  readonly map: { readonly id: string; readonly width: number; readonly height: number; readonly layoutId?: PlayableVillageId };
   readonly wallet: ResourceWallet;
   readonly population: { readonly used: number; readonly capacity: number };
   readonly settlementTier: SettlementTier;
   readonly completedTechnologyIds: readonly TechnologyType[];
+  readonly activeMonsterBoons: readonly ActiveMonsterBoon[];
   readonly entities: readonly PublicEntityState[];
   readonly projectiles: readonly PublicProjectileState[];
   readonly staleEnemySightings: readonly StaleEntitySighting[];
@@ -233,6 +248,10 @@ export type DomainEvent =
   | { readonly type: "resourcesDeposited"; readonly playerId: PlayerId; readonly unitId: EntityId; readonly dropOffId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
   | { readonly type: "resourceDepleted"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly renewable: boolean; readonly renewAtTick: number | null }
   | { readonly type: "resourceRenewed"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
+  | { readonly type: "monsterProvoked"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly teamId: string | null; readonly sourceId: EntityId | null }
+  | { readonly type: "monsterDefeated"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly creditedTeamId: string | null }
+  | { readonly type: "monsterRewardGranted"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly playerId: PlayerId; readonly reward: ResourceWallet; readonly boon: ActiveMonsterBoon | null }
+  | { readonly type: "breachCreated"; readonly structureId: EntityId; readonly rubbleId: EntityId; readonly ownerId: PlayerId; readonly position: GridPoint; readonly createdTick: number; readonly effectExpiresAtTick: number }
   | { readonly type: "matchFinished"; readonly winningTeamIds: readonly string[]; readonly reason: "conquest" | "surrender" | "disconnect" };
 
 export function isGridPoint(value: unknown): value is GridPoint {

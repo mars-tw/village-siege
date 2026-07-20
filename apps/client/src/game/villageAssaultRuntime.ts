@@ -88,15 +88,11 @@ export class VillageAssaultRuntime {
     this.matchState = createInitialState({
       matchId: options.matchId ?? "village-assault-local",
       seed: options.seed ?? 1,
-      map: VILLAGE_ASSAULT_MAP_SIZE,
+      map: { ...VILLAGE_ASSAULT_MAP_SIZE, layoutId: getPlayableLayoutId(options.playerVillageId) },
       players: [
         { id: this.playerId, teamId: "team-player", villageId: options.playerVillageId },
         { id: this.aiPlayerId, teamId: "team-ai", villageId: aiVillageId },
       ],
-      spawnOverrides: {
-        [this.playerId]: VILLAGE_ASSAULT_SPAWNS.player,
-        [this.aiPlayerId]: VILLAGE_ASSAULT_SPAWNS.ai,
-      },
     });
     this.aiBudgetMs = normalizeAiBudget(options.aiBudgetMs);
     this.aiController = createAiController(
@@ -231,6 +227,10 @@ export class VillageAssaultRuntime {
       state: this.matchState,
     };
   }
+}
+
+function getPlayableLayoutId(villageId: VillageId): "pinehold" | "riverstead" | "highcrag" {
+  return villageId === "riverstead" || villageId === "highcrag" ? villageId : "pinehold";
 }
 
 export function createVillageAssaultRuntime(options: VillageAssaultRuntimeOptions): VillageAssaultRuntime {

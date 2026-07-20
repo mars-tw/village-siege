@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextUint32 } from "./random";
-import { isVillageAssaultWalkableCell } from "./battlefield";
+import { VILLAGE_ASSAULT_LAYOUT_IDS, isVillageAssaultBuildableCell, isVillageAssaultWalkableCell } from "./battlefield";
 import { BUILDINGS, RESOURCE_NODES, RULES_VERSION, SETTLEMENT_TIERS, TECHNOLOGIES, TECHNOLOGY_ORDER, UNITS } from "./content";
 import { COMBAT_UNIT_IDS, COMBAT_UNITS, COUNTER_MATRIX, calculateDamage, type CombatUnitId } from "./combat";
 import { getAiObservation } from "./ai";
@@ -10,6 +10,7 @@ import {
   createInitialState,
   getEntityFootprintCells,
   getEffectiveBuildingMaxHitPoints,
+  getEffectiveCarryCapacity,
   getEffectiveGatherRatePermille,
   getEffectiveUnitAttackDamage,
   getEffectiveUnitMaxHitPoints,
@@ -24,6 +25,8 @@ import {
   validateCommand,
   type BuildingEntityState,
   type MatchState,
+  type MonsterEntityState,
+  type ProjectileState,
   type ResourceEntityState,
   type UnitEntityState,
 } from "./simulation";
@@ -92,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.9.0");
+    expect(RULES_VERSION).toBe("village-siege/0.10.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -344,8 +347,8 @@ describe("deterministic shared simulation", () => {
     const completed = stepSimulation(almost.state, [], 1);
     const upgradedCenter = completed.state.entities.find((entity): entity is BuildingEntityState => entity.id === townCenter.id && entity.kind === "building")!;
     expect(completed.state.players[0]!.completedTechnologyIds).toEqual(["surveyedFoundations"]);
-    expect(upgradedCenter.maxHitPoints).toBe(1_320);
-    expect(upgradedCenter.hitPoints).toBe(1_320);
+    expect(upgradedCenter.maxHitPoints).toBe(1_399);
+    expect(upgradedCenter.hitPoints).toBe(1_399);
     expect(upgradedCenter.productionQueue[0]).toEqual({
       jobId: { commandSequence: 2, itemIndex: 0 },
       kind: "train",
@@ -578,7 +581,7 @@ describe("deterministic shared simulation", () => {
     expect(getEffectiveUnitMaxHitPoints(state, opponent.id, "warrior")).toBe(150);
     expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, player.id, "boarRider")).toBe(2_012);
     expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, opponent.id, "boarRider")).toBe(1_802);
-    expect(getEffectiveBuildingMaxHitPoints(state, player.id, "townCenter")).toBe(1_320);
+    expect(getEffectiveBuildingMaxHitPoints(state, player.id, "townCenter")).toBe(1_399);
     expect(getEffectiveBuildingMaxHitPoints(state, opponent.id, "townCenter")).toBe(1_200);
 
     const replayInitial = createInitialState({ seed: 65, matchId: "research-replay" });
@@ -690,25 +693,198 @@ describe("deterministic shared simulation", () => {
   });
 
   it("uses non-overlapping in-bounds defaults for the village assault map", () => {
-    const state = createInitialState({
-      seed: 231,
-      matchId: "village-assault-spawns",
-      map: { id: "villageAssault", width: 18, height: 16 },
-      players: [
-        { id: "p1", teamId: "t1", villageId: "pinehold" },
-        { id: "p2", teamId: "t2", villageId: "riverstead" },
-        { id: "p3", teamId: "t3", villageId: "highcrag" },
-        { id: "p4", teamId: "t4", villageId: "marshwatch" },
-        { id: "p5", teamId: "t5", villageId: "sunfield" },
-      ],
-    });
-    const staticCells = state.entities
-      .filter((entity) => entity.kind !== "unit")
-      .flatMap((entity) => getEntityFootprintCells(entity));
-    const keys = staticCells.map((cell) => `${cell.x},${cell.y}`);
+    for (const layoutId of VILLAGE_ASSAULT_LAYOUT_IDS) {
+      const state = createInitialState({
+        seed: 231,
+        matchId: `village-assault-spawns-${layoutId}`,
+        map: { id: "villageAssault", width: 18, height: 16, layoutId },
+        players: [
+          { id: "p1", teamId: "t1", villageId: "pinehold" },
+          { id: "p2", teamId: "t2", villageId: "riverstead" },
+          { id: "p3", teamId: "t3", villageId: "highcrag" },
+          { id: "p4", teamId: "t4", villageId: "marshwatch" },
+          { id: "p5", teamId: "t5", villageId: "sunfield" },
+        ],
+      });
+      const staticCells = state.entities
+        .filter((entity) => entity.kind !== "unit")
+        .flatMap((entity) => getEntityFootprintCells(entity));
+      const keys = staticCells.map((cell) => `${cell.x},${cell.y}`);
 
-    expect(new Set(keys).size).toBe(keys.length);
-    expect(staticCells.every((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < 18 && cell.y < 16)).toBe(true);
+      expect(new Set(keys).size, `${layoutId} static entities must not overlap`).toBe(keys.length);
+      expect(staticCells.every((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < 18 && cell.y < 16)).toBe(true);
+      for (const entity of state.entities) {
+        if (entity.kind === "building" || entity.kind === "resource") {
+          expect(getEntityFootprintCells(entity).every((cell) => isVillageAssaultBuildableCell(cell, layoutId)), `${layoutId}.${entity.id} must use buildable terrain`).toBe(true);
+        } else if (entity.kind === "unit" || entity.kind === "monster") {
+          expect(isVillageAssaultWalkableCell(entity.position, layoutId), `${layoutId}.${entity.id} must use walkable terrain`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("keeps overlapping legacy spawn overrides clear of previously placed civilians", () => {
+    for (const layoutId of VILLAGE_ASSAULT_LAYOUT_IDS) {
+      const players = [
+        { id: "p1", teamId: "t1", villageId: "pinehold" as const },
+        { id: "p2", teamId: "t2", villageId: "riverstead" as const },
+        { id: "p3", teamId: "t3", villageId: "highcrag" as const },
+        { id: "p4", teamId: "t4", villageId: "marshwatch" as const },
+        { id: "p5", teamId: "t5", villageId: "sunfield" as const },
+      ];
+      const state = createInitialState({
+        seed: 2311,
+        matchId: `overlapping-overrides-${layoutId}`,
+        map: { id: "villageAssault", width: 18, height: 16, layoutId },
+        players,
+        spawnOverrides: Object.fromEntries(players.map((player) => [player.id, { x: 3, y: 8 }])),
+      });
+      const occupiedCells = state.entities.flatMap((entity) => getEntityFootprintCells(entity).map((cell) => `${cell.x},${cell.y}`));
+      expect(new Set(occupiedCells).size, `${layoutId} custom overrides must not overlap any entity`).toBe(occupiedCells.length);
+    }
+  });
+
+  it("bootstraps a deterministic fortified assault with working civilians and three neutral monsters", () => {
+    const initial = createInitialState({
+      seed: 232,
+      matchId: "fortified-assault-bootstrap",
+      map: { id: "villageAssault", width: 18, height: 16, layoutId: "riverstead" },
+    });
+    const replay = createInitialState({
+      seed: 232,
+      matchId: "fortified-assault-bootstrap",
+      map: { id: "villageAssault", width: 18, height: 16, layoutId: "riverstead" },
+    });
+    expect(hashMatchState(initial)).toBe(hashMatchState(replay));
+
+    for (const [index, player] of initial.players.entries()) {
+      const buildings = initial.entities.filter((entity) => entity.kind === "building" && entity.ownerId === player.id);
+      expect(buildings.filter((building) => building.typeId === "townCenter")).toHaveLength(1);
+      expect(buildings.filter((building) => building.typeId === "surveyGate")).toHaveLength(1);
+      expect(buildings.filter((building) => building.typeId === "defenseTower")).toHaveLength(2);
+      expect(buildings.filter((building) => building.typeId === "resinPalisade").length).toBeGreaterThanOrEqual(8);
+      expect(buildings.some((building) => building.typeId === "barracks")).toBe(true);
+      expect(buildings.find((building) => building.typeId === "surveyGate")?.gateOpen).toBe(index === 0);
+      const civilians = initial.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager");
+      expect(civilians).toHaveLength(3);
+      expect(civilians.every((civilian) => civilian.order.type === "gather")).toBe(true);
+    }
+
+    const monsters = initial.entities.filter((entity) => entity.kind === "monster");
+    expect(monsters.map((monster) => monster.typeId).sort()).toEqual(["ashwing", "miremaw", "rootback"]);
+    expect(monsters.every((monster) => monster.ownerId === null && monster.provokedByTeamId === null)).toBe(true);
+    const beforeAmounts = initial.entities.filter((entity): entity is ResourceEntityState => entity.kind === "resource").map((resource) => resource.amount);
+    const active = stepSimulation(initial, [], 120).state;
+    const afterAmounts = active.entities.filter((entity): entity is ResourceEntityState => entity.kind === "resource").map((resource) => resource.amount);
+    expect(afterAmounts.some((amount, index) => amount < beforeAmounts[index]!)).toBe(true);
+  });
+
+  it("allows an explicit neutral-monster attack, delays retaliation, and grants contribution-based rewards once", () => {
+    let state = createInitialState({
+      seed: 233,
+      matchId: "neutral-monster-combat",
+      map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+    });
+    const player = state.players[0]!;
+    const villager = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const monster = state.entities.find((entity) => entity.kind === "monster" && entity.typeId === "miremaw")!;
+    monster.position = { ...villager.position };
+    monster.home = { ...villager.position };
+    monster.hitPoints = 1;
+    monster.maxHitPoints = 1;
+    const wallet = { ...player.resources };
+
+    const ordered = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [villager.id], targetId: monster.id }));
+    expect(ordered.validation).toEqual({ ok: true });
+    const resolved = stepSimulation(ordered.state, [], 8);
+    state = resolved.state;
+    expect(state.entities.some((entity) => entity.id === monster.id)).toBe(false);
+    expect(resolved.events.filter((event) => event.type === "monsterProvoked" && event.monsterId === monster.id)).toHaveLength(1);
+    expect(resolved.events.filter((event) => event.type === "monsterDefeated" && event.monsterId === monster.id)).toHaveLength(1);
+    expect(resolved.events.filter((event) => event.type === "monsterRewardGranted" && event.monsterId === monster.id)).toHaveLength(1);
+    expect(player.resources).toEqual(wallet);
+    expect(state.players[0]!.resources).toEqual({
+      food: wallet.food + 120,
+      wood: wallet.wood + 60,
+      stone: wallet.stone,
+    });
+    const rewardEvent = resolved.events.find((event): event is Extract<DomainEvent, { type: "monsterRewardGranted" }> => event.type === "monsterRewardGranted");
+    expect(rewardEvent?.boon?.id).toBe("scoutingRations");
+    expect(rewardEvent?.boon?.expiresAtTick).toBeGreaterThan(state.tick);
+    expect(state.players[0]!.activeMonsterBoons).toEqual(rewardEvent?.boon ? [rewardEvent.boon] : []);
+    expect(getEffectiveGatherRatePermille(state, player.id, "villager", "wood")).toBe(Math.floor(1_030 * 1_150 / 1_000));
+
+    const expired = stepSimulation(state, [], (rewardEvent?.boon?.expiresAtTick ?? state.tick) - state.tick).state;
+    expect(expired.players[0]!.activeMonsterBoons).toEqual([]);
+    expect(getEffectiveGatherRatePermille(expired, player.id, "villager", "wood")).toBe(1_030);
+  });
+
+  it("executes every neutral monster ability and its authored target passive authoritatively", () => {
+    const run = (typeId: MonsterEntityState["typeId"]): { state: MatchState; monster: MonsterEntityState; events: DomainEvent[]; primary: UnitEntityState | BuildingEntityState } => {
+      const state = createInitialState({
+        seed: 234,
+        matchId: `monster-ability-${typeId}`,
+        map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+      });
+      const player = state.players[0]!;
+      const monster = state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.typeId === typeId)!;
+      const units = state.entities.filter((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === player.id);
+      const primary = typeId === "rootback"
+        ? state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!
+        : configureCombatUnit(state, player.id, 0, typeId === "ashwing" ? "archer" : "warrior", { x: 5, y: 7 });
+      primary.position = { x: 5, y: 7 };
+      if (typeId === "ashwing") configureCombatUnit(state, player.id, 1, "warrior", { x: 6, y: 7 });
+      for (const unit of units.slice(typeId === "ashwing" ? 2 : 1)) unit.position = { x: 1, y: 14 };
+      monster.position = { x: 7, y: 7 };
+      monster.home = { x: 7, y: 7 };
+      monster.provokedByTeamId = player.teamId;
+      monster.provokedAtTick = state.tick - 1;
+      monster.abilityReadyTick = 0;
+      if (typeId === "rootback") monster.hitPoints = Math.floor(monster.maxHitPoints * 0.4);
+      const beforeHitPoints = primary.hitPoints;
+      const result = stepSimulation(state, [], 12);
+      const resolvedMonster = result.state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.id === monster.id)!;
+      expect(result.events.some((event) => event.type === "combatPhaseChanged" && event.entityId === monster.id && event.action === "ability" && event.phase === "windup")).toBe(true);
+      expect(result.events.some((event) => event.type === "combatPhaseChanged" && event.entityId === monster.id && event.action === "ability" && event.phase === "commit")).toBe(true);
+      expect(result.events.some((event) => event.type === "statusApplied" && event.sourceId === monster.id && event.targetId === primary.id)).toBe(true);
+      const resolvedPrimary = result.state.entities.find((entity) => entity.id === primary.id)!;
+      expect(resolvedPrimary.hitPoints).toBeLessThan(beforeHitPoints);
+      return { state: result.state, monster: resolvedMonster, events: result.events, primary: resolvedPrimary as UnitEntityState | BuildingEntityState };
+    };
+
+    const miremaw = run("miremaw");
+    expect(miremaw.primary.statuses.some((status) => status.id === "slow")).toBe(true);
+    const ashwing = run("ashwing");
+    expect(ashwing.monster.targetId).toBe(ashwing.primary.id);
+    expect(ashwing.primary.statuses.some((status) => status.id === "stagger")).toBe(true);
+    const rootback = run("rootback");
+    expect(rootback.monster.targetId).toBe(rootback.primary.id);
+
+    const rootbackStrike = (enraged: boolean): { damage: number; cooldown: number } => {
+      const state = createInitialState({
+        seed: 235,
+        matchId: `rootback-strike-${enraged}`,
+        map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+      });
+      const player = state.players[0]!;
+      const monster = state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.typeId === "rootback")!;
+      const target = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+      target.position = { x: 5, y: 7 };
+      monster.position = { x: 7, y: 7 };
+      monster.home = { ...monster.position };
+      monster.provokedByTeamId = player.teamId;
+      monster.provokedAtTick = state.tick - 1;
+      monster.abilityReadyTick = Number.MAX_SAFE_INTEGER;
+      if (enraged) monster.hitPoints = Math.floor(monster.maxHitPoints * 0.4);
+      const result = stepSimulation(state, [], 1);
+      const damage = result.events.find((event): event is Extract<DomainEvent, { type: "entityDamaged" }> => event.type === "entityDamaged" && event.sourceId === monster.id)?.amount ?? 0;
+      const resolved = result.state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.id === monster.id)!;
+      return { damage, cooldown: resolved.attackCooldownTicks };
+    };
+    const ordinaryStrike = rootbackStrike(false);
+    const enragedStrike = rootbackStrike(true);
+    expect(enragedStrike.damage).toBeGreaterThan(ordinaryStrike.damage);
+    expect(enragedStrike.cooldown).toBeLessThan(ordinaryStrike.cooldown);
   });
 
   it("rejects multi-cell footprints outside the map or overlapping a resource", () => {
@@ -874,7 +1050,7 @@ describe("deterministic shared simulation", () => {
     state = applyCommand(state, envelope(state, 1, { type: "build", builderIds: [villager.id], buildingType: "house", origin: { x: 9, y: 9 } })).state;
     state = stepSimulation(state, [], 320).state;
     const house = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "house");
-    expect(house).toMatchObject({ complete: true, hitPoints: 360, constructionRemainingTicks: 0 });
+    expect(house).toMatchObject({ complete: true, hitPoints: 381, constructionRemainingTicks: 0 });
     expect(state.players.find((candidate) => candidate.id === player.id)?.population.capacity).toBe(18);
 
     state = applyCommand(state, envelope(state, 2, { type: "build", builderIds: [villager.id], buildingType: "barracks", origin: { x: 11, y: 9 } })).state;
@@ -1204,6 +1380,27 @@ describe("deterministic shared simulation", () => {
     expect(moved.movementProgress).toBeCloseTo(1133);
   });
 
+  it("applies two authoritative gameplay parameters for every playable village", () => {
+    const pineAndRiver = createInitialState({ seed: 33, matchId: "dual-village-traits" });
+    const pine = pineAndRiver.players[0]!;
+    const river = pineAndRiver.players[1]!;
+    expect(getEffectiveGatherRatePermille(pineAndRiver, pine.id, "villager", "wood")).toBe(1_030);
+    expect(getEffectiveBuildingMaxHitPoints(pineAndRiver, pine.id, "townCenter")).toBe(1_272);
+    expect(getEffectiveUnitSpeedMilliTilesPerSecond(pineAndRiver, river.id, "boarRider")).toBe(1_802);
+    expect(getEffectiveCarryCapacity(pineAndRiver, river.id, "villager")).toBe(13);
+
+    const highcrag = createInitialState({
+      seed: 34,
+      matchId: "highcrag-dual-traits",
+      players: [
+        { id: "player-1", teamId: "team-1", villageId: "highcrag" },
+        { id: "player-2", teamId: "team-2", villageId: "pinehold" },
+      ],
+    });
+    expect(getEffectiveBuildingMaxHitPoints(highcrag, "player-1", "townCenter")).toBe(1_320);
+    expect(getEffectiveBuildingMaxHitPoints(highcrag, "player-1", "defenseTower")).toBe(Math.floor(BUILDINGS.defenseTower.maxHitPoints * 1.1));
+  });
+
   it("strictly parses tactical, formation, repair, and ability commands", () => {
     expect(isGameCommand({ type: "attackMove", entityIds: ["unit-1"], target: { x: 4, y: 5 } })).toBe(true);
     expect(isGameCommand({ type: "repair", entityIds: ["unit-1"], targetId: "building-1" })).toBe(true);
@@ -1282,6 +1479,45 @@ describe("deterministic shared simulation", () => {
     const impacted = stepSimulation(launched.state, [], 3);
     expect(impacted.events.some((event) => event.type === "projectileImpacted" && event.targetIds.includes(target.id))).toBe(true);
     expect(impacted.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBeLessThan(initialHp);
+  });
+
+  it("preserves projectile and burn ownership after the source unit has been removed", () => {
+    let state = createInitialState({
+      seed: 3221,
+      matchId: "delayed-monster-attribution",
+      map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+    });
+    const player = state.players[0]!;
+    const source = configureCombatUnit(state, player.id, 0, "mage", { x: 5, y: 5 });
+    const monster = state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.typeId === "miremaw")!;
+    monster.position = { x: 6, y: 5 };
+    monster.home = { ...monster.position };
+    const projectile: ProjectileState = {
+      id: "orphaned-burn-projectile",
+      ownerId: player.id,
+      sourceId: source.id,
+      profileId: "arcaneCinder",
+      origin: { ...source.position },
+      position: { ...source.position },
+      targetId: monster.id,
+      targetPoint: { ...monster.position },
+      fixedImpact: false,
+      launchTick: state.tick,
+      impactTick: state.tick + 1,
+      damage: 1,
+      statusEffects: ["burn"],
+      resolution: null,
+    };
+    state.projectiles.push(projectile);
+    state = stepSimulation(state, [], 1).state;
+    const burningMonster = state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.id === monster.id)!;
+    expect(burningMonster.statuses.find((status) => status.id === "burn")?.sourceOwnerId).toBe(player.id);
+    burningMonster.contributions = [];
+    burningMonster.hitPoints = 1;
+    state.entities = state.entities.filter((entity) => entity.id !== source.id);
+
+    const burnedOut = stepSimulation(state, [], 10);
+    expect(burnedOut.events.some((event) => event.type === "monsterRewardGranted" && event.playerId === player.id)).toBe(true);
   });
 
   it("keeps ordinary arrows ballistic so a unit can leave the committed cell", () => {

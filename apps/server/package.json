@@ -1,6 +1,6 @@
 {
   "name": "@village-siege/server",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,7 @@
     "@colyseus/core": "0.17.44",
     "@colyseus/schema": "4.0.27",
     "@colyseus/ws-transport": "0.17.13",
-    "@village-siege/shared": "0.9.0",
+    "@village-siege/shared": "0.10.0",
     "express": "5.2.1"
   },
   "devDependencies": {
