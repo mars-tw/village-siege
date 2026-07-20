@@ -59,6 +59,14 @@ The server rejects unsupported protocol or rules versions before joining a match
 
 Snapshots include player/team state, resources, population, settlement tier, research, visibility, entities, orders, queues, projectiles, AI seed/state, victory state, server tick and PRNG state. Fog filtering occurs before serialization, so hidden live enemy data never reaches the browser.
 
+## Technology research contract
+
+Version `village-siege/0.5.0` defines seven original technologies in shared content. A `research` command names the producing building and technology; the server or offline shared simulation validates ownership, building completion and survival, settlement tier, prerequisite technologies, player-global duplicate state, resources and the five-slot queue limit before charging once. Pending or completed duplicates return the explicit `DUPLICATE_RESEARCH` rejection instead of being conflated with a missing prerequisite.
+
+Training and research share one FIFO production lane per building. Production is lost without refund if the building is destroyed. A completed technology emits `technologyResearched`, enters the player's canonical sorted completion list and affects actions beginning on the following simulation tick. Economy, attack, maximum hit points, unit speed and building durability are computed through pure derived-stat functions so current entities, future entities, AI, replay and canonical hashes use the same values.
+
+The fixed seven-slot client dock is presentation only. It may show locked reasons, queue position, progress and completion notices, but it never grants a technology locally. AI personalities submit the same command and use distinct deterministic priority lists and research intervals.
+
 ## Server validation
 
 Every command validates membership, ownership, entity life, resource balance, population, settlement tier, research, cooldown, visibility, diplomacy, range, footprint, terrain, route, rate limit, payload size and sequence. Client timestamps, positions, damage, resources and completion times are untrusted.

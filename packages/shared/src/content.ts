@@ -1,6 +1,6 @@
-import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, UnitType, VillageId } from "./protocol.js";
+import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, TechnologyType, UnitType, VillageId } from "./protocol.js";
 
-export const RULES_VERSION = "village-siege/0.4.0";
+export const RULES_VERSION = "village-siege/0.5.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;
@@ -42,6 +42,76 @@ export const SETTLEMENT_TIERS: Readonly<Record<SettlementTier, SettlementTierDef
   frontier: { id: "frontier", cost: wallet(0, 0, 0), advanceTicks: 0, prerequisites: [] },
   stronghold: { id: "stronghold", cost: wallet(500, 300, 100), advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
   artificer: { id: "artificer", cost: wallet(750, 500, 300), advanceTicks: 600, prerequisites: ["archeryRange", "beastStable"] },
+};
+
+export type TechnologyCategory = "economy" | "defense" | "offense" | "mobility" | "siege";
+
+export type TechnologyEffect =
+  | { readonly kind: "gatherRate"; readonly resourceKinds: readonly ResourceKind[]; readonly multiplierPermille: number }
+  | { readonly kind: "unitAttack"; readonly unitTypes: readonly UnitType[]; readonly multiplierPermille: number }
+  | { readonly kind: "unitMaxHitPoints"; readonly unitTypes: readonly UnitType[]; readonly multiplierPermille: number }
+  | { readonly kind: "unitSpeed"; readonly unitTypes: readonly UnitType[]; readonly multiplierPermille: number }
+  | { readonly kind: "buildingMaxHitPoints"; readonly buildingTypes: readonly BuildingType[] | "all"; readonly multiplierPermille: number };
+
+export interface TechnologyDefinition {
+  readonly id: TechnologyType;
+  readonly displayName: string;
+  readonly shortName: string;
+  readonly category: TechnologyCategory;
+  readonly producer: BuildingType;
+  readonly requiredTier: SettlementTier;
+  readonly cost: ResourceWallet;
+  readonly researchTicks: number;
+  readonly prerequisites: readonly TechnologyType[];
+  readonly effect: TechnologyEffect;
+}
+
+export const TECHNOLOGY_ORDER = [
+  "hearthlandAlmanac",
+  "resinboundKits",
+  "layeredHarness",
+  "surveyedFoundations",
+  "windspurRigging",
+  "starfireBores",
+  "torsionCradles",
+] as const satisfies readonly TechnologyType[];
+
+export const TECHNOLOGIES: Readonly<Record<TechnologyType, TechnologyDefinition>> = {
+  hearthlandAlmanac: {
+    id: "hearthlandAlmanac", displayName: "爐原節候錄", shortName: "節候錄", category: "economy",
+    producer: "farmstead", requiredTier: "stronghold", cost: wallet(220, 80, 0), researchTicks: 280, prerequisites: [],
+    effect: { kind: "gatherRate", resourceKinds: ["food"], multiplierPermille: 1_150 },
+  },
+  resinboundKits: {
+    id: "resinboundKits", displayName: "樹脂固柄術", shortName: "固柄術", category: "economy",
+    producer: "lumberCamp", requiredTier: "stronghold", cost: wallet(0, 240, 80), researchTicks: 300, prerequisites: [],
+    effect: { kind: "gatherRate", resourceKinds: ["wood", "stone"], multiplierPermille: 1_150 },
+  },
+  layeredHarness: {
+    id: "layeredHarness", displayName: "疊革戰具", shortName: "疊革具", category: "offense",
+    producer: "barracks", requiredTier: "stronghold", cost: wallet(250, 120, 80), researchTicks: 360, prerequisites: [],
+    effect: { kind: "unitMaxHitPoints", unitTypes: ["militia", "spearman"], multiplierPermille: 1_120 },
+  },
+  surveyedFoundations: {
+    id: "surveyedFoundations", displayName: "方繩基準法", shortName: "基準法", category: "defense",
+    producer: "townCenter", requiredTier: "stronghold", cost: wallet(180, 240, 140), researchTicks: 400, prerequisites: [],
+    effect: { kind: "buildingMaxHitPoints", buildingTypes: "all", multiplierPermille: 1_100 },
+  },
+  windspurRigging: {
+    id: "windspurRigging", displayName: "逐風鞍索", shortName: "逐風索", category: "mobility",
+    producer: "beastStable", requiredTier: "stronghold", cost: wallet(240, 150, 40), researchTicks: 340, prerequisites: [],
+    effect: { kind: "unitSpeed", unitTypes: ["scout"], multiplierPermille: 1_150 },
+  },
+  starfireBores: {
+    id: "starfireBores", displayName: "星火膛鑽", shortName: "星火鑽", category: "offense",
+    producer: "gunWorkshop", requiredTier: "artificer", cost: wallet(300, 220, 180), researchTicks: 420, prerequisites: ["layeredHarness"],
+    effect: { kind: "unitAttack", unitTypes: ["mage", "musketeer"], multiplierPermille: 1_150 },
+  },
+  torsionCradles: {
+    id: "torsionCradles", displayName: "絞索衝架", shortName: "絞索架", category: "siege",
+    producer: "siegeWorkshop", requiredTier: "artificer", cost: wallet(200, 300, 220), researchTicks: 450, prerequisites: ["surveyedFoundations"],
+    effect: { kind: "unitAttack", unitTypes: ["batteringRam"], multiplierPermille: 1_250 },
+  },
 };
 
 export interface UnitDefinition {

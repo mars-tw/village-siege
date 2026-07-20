@@ -59,7 +59,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 | TASK-006 | Replace instant gathering with deterministic carry and drop-off flow, renewable farms and resource exhaustion in `packages/shared/src/simulation.ts`. | Yes | 2026-07-20 |
 | TASK-007 | Expose settlement tier, requirements, progress and locked content in `VillageAssaultScene.ts` without exceeding the seven-slot mobile dock. | Yes | 2026-07-20 |
 | TASK-008 | Teach all five AI profiles legal prerequisite building and distinct deterministic settlement-advance timing in `packages/shared/src/ai.ts`. | Yes | 2026-07-20 |
-| TASK-027 | Add data-driven technology research contracts, queues, duplicate checks, effects, AI priorities and fixed-dock presentation. |  |  |
+| TASK-027 | Add data-driven technology research contracts, queues, duplicate checks, effects, AI priorities and fixed-dock presentation. | Yes | 2026-07-20 |
 | TASK-028 | Add rally points, production queue cancellation and their deterministic shared/client contracts. |  |  |
 
 ### Implementation Phase 3 - Tactical combat, fog and fortified villages

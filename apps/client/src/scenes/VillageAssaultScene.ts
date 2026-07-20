@@ -11,6 +11,8 @@ import {
   MAX_TRAINING_QUEUE_DEPTH,
   SETTLEMENT_TIER_ORDER,
   SETTLEMENT_TIERS,
+  TECHNOLOGIES,
+  TECHNOLOGY_ORDER,
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   UNITS,
@@ -24,6 +26,7 @@ import {
   type ResourceKind,
   type ResourceWallet,
   type SettlementTier,
+  type TechnologyType,
   type UnitEntityState,
   type UnitType,
   type VillageId,
@@ -154,6 +157,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private readonly selectedIds = new Set<string>();
   private buildMenuOpen = false;
   private buildPage = 0;
+  private researchMenuOpen = false;
+  private researchPage = 0;
   private buildingPlacement: BuildingType | null = null;
   private systemPanelOpen = false;
   private hoverGrid: GridPoint | null = null;
@@ -199,6 +204,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.selectedIds.clear();
     this.buildMenuOpen = false;
     this.buildPage = 0;
+    this.researchMenuOpen = false;
+    this.researchPage = 0;
     this.buildingPlacement = null;
     this.systemPanelOpen = false;
     this.hoverGrid = null;
@@ -284,6 +291,12 @@ export class VillageAssaultScene extends Phaser.Scene {
     ));
     if (advancement?.type === "settlementAdvanced") {
       this.setNotice(SETTLEMENT_ADVANCEMENT_NOTICES[advancement.settlementTier], "success");
+    }
+    const completedResearch = result.events.find((event) => (
+      event.type === "technologyResearched" && event.playerId === VILLAGE_ASSAULT_PLAYER_ID
+    ));
+    if (completedResearch?.type === "technologyResearched") {
+      this.setNotice(`${TECHNOLOGIES[completedResearch.technologyId].displayName}研究完成`, "success");
     }
     this.prefetchQueuedUnitArt();
     this.syncEntityViews(false);
@@ -509,6 +522,8 @@ export class VillageAssaultScene extends Phaser.Scene {
       if (additive && this.selectedIds.has(entity.id)) this.selectedIds.delete(entity.id);
       else this.selectedIds.add(entity.id);
       this.buildMenuOpen = false;
+      this.researchMenuOpen = false;
+      this.researchPage = 0;
       this.buildingPlacement = null;
       this.systemPanelOpen = false;
       this.refreshSelectionViews();
@@ -722,11 +737,34 @@ export class VillageAssaultScene extends Phaser.Scene {
         this.systemAction(),
       ];
     }
+    if (this.researchMenuOpen && ownBuilding) {
+      const technologies = TECHNOLOGY_ORDER.filter((technologyId) => TECHNOLOGIES[technologyId].producer === ownBuilding.typeId);
+      const pageCount = Math.max(1, Math.ceil(technologies.length / 4));
+      this.researchPage = Math.min(this.researchPage, pageCount - 1);
+      const entries: ActionSpec[] = technologies
+        .slice(this.researchPage * 4, this.researchPage * 4 + 4)
+        .map((technologyId) => this.researchAction(ownBuilding, technologyId));
+      while (entries.length < 4) entries.push({ glyph: "·", label: "無研究", enabled: false, run: () => undefined });
+      return [
+        ...entries,
+        { glyph: "←", label: "返回指令", run: () => this.closeResearchMenu() },
+        pageCount > 1
+          ? { glyph: "→", label: `下一頁 ${(this.researchPage + 1) % pageCount + 1}/${pageCount}`, run: () => { this.researchPage = (this.researchPage + 1) % pageCount; this.refreshInterface(true); } }
+          : { glyph: "頁", label: "研究 1/1", enabled: false, run: () => undefined },
+        this.systemAction(),
+      ];
+    }
+    if (this.researchMenuOpen) {
+      this.researchMenuOpen = false;
+      this.researchPage = 0;
+    }
     if (ownBuilding) {
       const trainable = (Object.keys(UNITS) as UnitType[]).filter((type) => UNITS[type].producers.includes(ownBuilding.typeId));
+      const researchable = TECHNOLOGY_ORDER.filter((technologyId) => TECHNOLOGIES[technologyId].producer === ownBuilding.typeId);
       const contextual: ActionSpec[] = [
         ...trainable.map((type) => this.trainAction(ownBuilding, type)),
         ...(ownBuilding.typeId === "townCenter" ? [this.advanceSettlementAction(ownBuilding)] : []),
+        ...(researchable.length > 0 ? [this.openResearchAction(ownBuilding, researchable)] : []),
         this.selectWorkersAction(),
         this.selectArmyAction(),
         { glyph: "⌖", label: "置中建築", run: () => this.centerCameraOn(ownBuilding.position) },
@@ -791,7 +829,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     const artId = UNIT_ART[type];
     const loading = this.pendingArtIds.has(artId);
     const unlocked = this.hasReachedTier(definition.requiredTier);
-    const enabled = unlocked && !loading && producer.complete && producer.trainingQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
+    const enabled = unlocked && !loading && producer.complete && player.advancement?.producerId !== producer.id && producer.productionQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
     return {
       glyph: unlocked ? ({ villager: "工", militia: "劍", spearman: "盾", archer: "弓", mage: "法", musketeer: "銃", scout: "豬", batteringRam: "弩" } satisfies Record<UnitType, string>)[type] : "鎖",
       label: !unlocked
@@ -802,6 +840,83 @@ export class VillageAssaultScene extends Phaser.Scene {
         : `${UNIT_LABELS[type]}尚未解鎖，需要${SETTLEMENT_TIER_LABELS[definition.requiredTier]}`,
       enabled,
       run: () => this.queueTrainAfterArt(producer.id, type),
+    };
+  }
+
+  private openResearchAction(producer: BuildingEntityState, technologyIds: readonly TechnologyType[]): ActionSpec {
+    const completed = technologyIds.filter((technologyId) => this.playerState().completedTechnologyIds.includes(technologyId)).length;
+    const queuedIndex = producer.productionQueue.findIndex((job) => job.kind === "research" && technologyIds.includes(job.technologyId));
+    const queued = queuedIndex >= 0 ? producer.productionQueue[queuedIndex] : undefined;
+    const queuedTechnology = queued?.kind === "research" ? TECHNOLOGIES[queued.technologyId] : undefined;
+    const progress = queuedIndex === 0 && queued?.kind === "research" && queuedTechnology
+      ? Math.round(Phaser.Math.Clamp(1 - queued.remainingTicks / queuedTechnology.researchTicks, 0, 1) * 100)
+      : null;
+    return {
+      glyph: queuedTechnology ? queuedIndex === 0 ? "◴" : `${queuedIndex + 1}` : completed === technologyIds.length ? "✓" : "研",
+      label: queuedTechnology ? queuedIndex === 0 ? `研究 ${progress}%` : `研究 佇列${queuedIndex + 1}` : `研究 ${completed}/${technologyIds.length}`,
+      accessibleLabel: queuedTechnology
+        ? queuedIndex === 0
+          ? `${queuedTechnology.displayName}研究進度百分之${progress}`
+          : `${queuedTechnology.displayName}位於生產佇列第${queuedIndex + 1}項`
+        : `開啟研究選單，已完成${completed}項，共${technologyIds.length}項`,
+      run: () => {
+        this.researchMenuOpen = true;
+        this.researchPage = 0;
+        this.buildMenuOpen = false;
+        this.systemPanelOpen = false;
+        this.refreshInterface(true);
+      },
+    };
+  }
+
+  private researchAction(producer: BuildingEntityState, technologyId: TechnologyType): ActionSpec {
+    const definition = TECHNOLOGIES[technologyId];
+    const player = this.playerState();
+    const queued = this.runtime.state.entities
+      .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID)
+      .flatMap((entity) => entity.productionQueue.map((job, index) => ({ entity, job, index })))
+      .find((entry) => entry.job.kind === "research" && entry.job.technologyId === technologyId);
+    const completed = player.completedTechnologyIds.includes(technologyId);
+    const missingPrerequisites = definition.prerequisites.filter((prerequisite) => !player.completedTechnologyIds.includes(prerequisite));
+    const unlocked = this.hasReachedTier(definition.requiredTier);
+    const affordable = this.canAfford(definition.cost);
+    const queueAvailable = producer.productionQueue.length < MAX_TRAINING_QUEUE_DEPTH;
+
+    if (completed) return this.researchInfoAction("✓", `${definition.shortName} 已完成`, `${definition.displayName}已完成`);
+    if (queued) {
+      const queuedDefinition = TECHNOLOGIES[technologyId];
+      const progress = queued.index === 0
+        ? Math.round(Phaser.Math.Clamp(1 - queued.job.remainingTicks / queuedDefinition.researchTicks, 0, 1) * 100)
+        : null;
+      return this.researchInfoAction(
+        progress === null ? `${queued.index + 1}` : "◴",
+        progress === null ? `${definition.shortName} 佇列${queued.index + 1}` : `${definition.shortName} ${progress}%`,
+        progress === null ? `${definition.displayName}位於生產佇列第${queued.index + 1}項` : `${definition.displayName}研究進度百分之${progress}`,
+      );
+    }
+    if (!producer.complete || producer.hitPoints <= 0) return this.researchInfoAction("鎖", `${definition.shortName} 建築未完`, `${definition.displayName}需要完整可用的${buildingDisplayName(definition.producer)}`);
+    if (player.advancement?.producerId === producer.id) return this.researchInfoAction("忙", `${definition.shortName} 升階中`, `${buildingDisplayName(producer.typeId)}正在提升聚落階段`);
+    if (!unlocked) return this.researchInfoAction("鎖", `${definition.shortName} 缺${SETTLEMENT_TIER_SHORT_LABELS[definition.requiredTier]}`, `${definition.displayName}需要${SETTLEMENT_TIER_LABELS[definition.requiredTier]}`);
+    if (missingPrerequisites.length > 0) return this.researchInfoAction("鎖", `${definition.shortName} 缺前置`, `${definition.displayName}需要先完成${missingPrerequisites.map((id) => TECHNOLOGIES[id].displayName).join("、")}`);
+    if (!queueAvailable) return this.researchInfoAction("滿", `${definition.shortName} 佇列滿`, `${buildingDisplayName(producer.typeId)}的生產佇列已滿`);
+    if (!affordable) return this.researchInfoAction("缺", `${definition.shortName} 缺資源`, `${definition.displayName}資源不足，需要${this.spokenCost(definition.cost)}`);
+    return {
+      glyph: "研",
+      label: `${definition.shortName} 可研究`,
+      accessibleLabel: `研究${definition.displayName}，需要${this.spokenCost(definition.cost)}`,
+      run: () => this.issue(
+        { type: "research", producerId: producer.id, technologyId },
+        `${definition.displayName}已加入生產佇列`,
+      ),
+    };
+  }
+
+  private researchInfoAction(glyph: string, label: string, accessibleLabel: string): ActionSpec {
+    return {
+      glyph,
+      label,
+      accessibleLabel,
+      run: () => this.setNotice(accessibleLabel, "normal"),
     };
   }
 
@@ -835,7 +950,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       .map((entity) => entity.typeId));
     const missingPrerequisites = definition.prerequisites.filter((type) => !completedBuildings.has(type));
     const prerequisitesReady = missingPrerequisites.length === 0;
-    const enabled = producer.complete && prerequisitesReady && this.canAfford(definition.cost);
+    const enabled = producer.complete && producer.productionQueue.length === 0 && prerequisitesReady && this.canAfford(definition.cost);
     return {
       glyph: prerequisitesReady ? "升" : "鎖",
       label: prerequisitesReady
@@ -881,7 +996,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private prefetchQueuedUnitArt(): void {
     for (const entity of this.runtime.state.entities) {
       if (entity.kind !== "building") continue;
-      const type = entity.trainingQueue[0]?.unitType;
+      const job = entity.productionQueue[0];
+      const type = job?.kind === "train" ? job.unitType : undefined;
       if (!type) continue;
       const artId = UNIT_ART[type];
       if (this.isArtReady(artId)) continue;
@@ -989,6 +1105,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     this.buildMenuOpen = true;
     this.buildPage = 0;
+    this.researchMenuOpen = false;
+    this.researchPage = 0;
     this.buildingPlacement = null;
     this.systemPanelOpen = false;
     this.setNotice("建造模式：先選建築，再點地圖位置", "success");
@@ -998,6 +1116,12 @@ export class VillageAssaultScene extends Phaser.Scene {
   private closeBuildMenu(): void {
     this.buildMenuOpen = false;
     this.buildPage = 0;
+    this.refreshInterface(true);
+  }
+
+  private closeResearchMenu(): void {
+    this.researchMenuOpen = false;
+    this.researchPage = 0;
     this.refreshInterface(true);
   }
 
@@ -1038,6 +1162,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   private sanitizeSelection(): void {
     const ids = new Set(this.runtime.state.entities.map((entity) => entity.id));
     for (const id of this.selectedIds) if (!ids.has(id)) this.selectedIds.delete(id);
+    if (this.researchMenuOpen && !this.selectedEntities().some((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID)) {
+      this.researchMenuOpen = false;
+      this.researchPage = 0;
+    }
   }
 
   private selectedEntities(): EntityState[] {
@@ -1216,6 +1344,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       TARGET_NOT_REACHABLE: "目的地無法到達或已被占用",
       ENTITY_NOT_OWNED: "只能指揮自己的單位",
       INVALID_PAYLOAD: "此建築無法生產該單位，或指令不適用",
+      DUPLICATE_RESEARCH: "這項科技已完成或已在研究佇列中",
       PREREQUISITE_NOT_MET: "聚落階段或前置建築尚未達成",
       MATCH_NOT_PLAYING: "戰局目前沒有進行",
       NOT_ROOM_MEMBER: "玩家不在這場戰局",
@@ -1404,6 +1533,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.refreshInterface(true);
     } else if (this.buildingPlacement) this.cancelBuildPlacement("已取消建造", true);
     else if (this.buildMenuOpen) this.closeBuildMenu();
+    else if (this.researchMenuOpen) this.closeResearchMenu();
     else this.leaveBattle();
   }
 

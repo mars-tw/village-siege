@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { nextUint32 } from "./random";
 import { isVillageAssaultWalkableCell } from "./battlefield";
-import { BUILDINGS, RESOURCE_NODES, RULES_VERSION, SETTLEMENT_TIERS, UNITS } from "./content";
+import { BUILDINGS, RESOURCE_NODES, RULES_VERSION, SETTLEMENT_TIERS, TECHNOLOGIES, TECHNOLOGY_ORDER, UNITS } from "./content";
 import {
   applyCommand,
   cloneMatchState,
   createInitialState,
   getEntityFootprintCells,
+  getEffectiveBuildingMaxHitPoints,
+  getEffectiveGatherRatePermille,
+  getEffectiveUnitAttackDamage,
+  getEffectiveUnitMaxHitPoints,
+  getEffectiveUnitSpeedMilliTilesPerSecond,
   hashMatchState,
   hashReplay,
   isBuildLocationAvailable,
@@ -15,7 +20,7 @@ import {
   type BuildingEntityState,
   type MatchState,
 } from "./simulation";
-import type { BuildingType, CommandEnvelope, DomainEvent, GridPoint, PlayerId } from "./protocol";
+import { isGameCommand, type BuildingType, type CommandEnvelope, type DomainEvent, type GridPoint, type PlayerId } from "./protocol";
 
 function envelope(state: MatchState, sequence: number, command: CommandEnvelope["command"]): CommandEnvelope {
   return { matchId: state.matchId, playerId: "player-1", sequence, clientTick: state.tick, command };
@@ -35,7 +40,7 @@ function addCompletedBuilding(state: MatchState, ownerId: PlayerId, typeId: Buil
     complete: true,
     constructionRemainingTicks: 0,
     attackCooldownTicks: 0,
-    trainingQueue: [],
+    productionQueue: [],
   };
   state.entities.push(building);
   return building;
@@ -55,7 +60,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.4.0");
+    expect(RULES_VERSION).toBe("village-siege/0.5.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -241,6 +246,139 @@ describe("deterministic shared simulation", () => {
     expect(hashReplay(initial, commands, 450)).toBe(hashReplay(initial, commands, 450));
   });
 
+  it("defines original technology contracts and strictly parses research commands", () => {
+    expect(TECHNOLOGY_ORDER).toEqual([
+      "hearthlandAlmanac",
+      "resinboundKits",
+      "layeredHarness",
+      "surveyedFoundations",
+      "windspurRigging",
+      "starfireBores",
+      "torsionCradles",
+    ]);
+    expect(Object.keys(TECHNOLOGIES)).toEqual(TECHNOLOGY_ORDER);
+    expect(Object.values(TECHNOLOGIES).every((technology) => technology.researchTicks > 0 && Number.isSafeInteger(technology.researchTicks))).toBe(true);
+    expect(isGameCommand({ type: "research", producerId: "forge-1", technologyId: "starfireBores" })).toBe(true);
+    expect(isGameCommand({ type: "research", producerId: "", technologyId: "starfireBores" })).toBe(false);
+    expect(isGameCommand({ type: "research", producerId: "forge-1", technologyId: "unknown" })).toBe(false);
+    expect(isGameCommand({ type: "research", producerId: "forge-1", technologyId: "starfireBores", extra: true })).toBe(false);
+  });
+
+  it("shares one deterministic production queue between training and research", () => {
+    const state = createInitialState({ seed: 61, matchId: "research-shared-lane" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    player.settlementTier = "stronghold";
+
+    const firstTrain = applyCommand(state, envelope(state, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 1 }));
+    const research = applyCommand(firstTrain.state, envelope(firstTrain.state, 1, { type: "research", producerId: townCenter.id, technologyId: "surveyedFoundations" }));
+    const secondTrain = applyCommand(research.state, envelope(research.state, 2, { type: "train", producerId: townCenter.id, unitType: "villager", count: 1 }));
+    expect(secondTrain.validation).toEqual({ ok: true });
+    const queuedCenter = secondTrain.state.entities.find((entity): entity is BuildingEntityState => entity.id === townCenter.id && entity.kind === "building")!;
+    expect(queuedCenter.productionQueue.map((job) => job.kind)).toEqual(["train", "research", "train"]);
+
+    const firstDone = stepSimulation(secondTrain.state, [], UNITS.villager.trainTicks);
+    const afterFirst = firstDone.state.entities.find((entity): entity is BuildingEntityState => entity.id === townCenter.id && entity.kind === "building")!;
+    expect(afterFirst.productionQueue[0]).toEqual({ kind: "research", technologyId: "surveyedFoundations", remainingTicks: TECHNOLOGIES.surveyedFoundations.researchTicks });
+
+    const almost = stepSimulation(firstDone.state, [], TECHNOLOGIES.surveyedFoundations.researchTicks - 1);
+    expect(almost.state.players[0]!.completedTechnologyIds).toEqual([]);
+    expect(almost.events.some((event) => event.type === "technologyResearched")).toBe(false);
+
+    const completed = stepSimulation(almost.state, [], 1);
+    const upgradedCenter = completed.state.entities.find((entity): entity is BuildingEntityState => entity.id === townCenter.id && entity.kind === "building")!;
+    expect(completed.state.players[0]!.completedTechnologyIds).toEqual(["surveyedFoundations"]);
+    expect(upgradedCenter.maxHitPoints).toBe(1_320);
+    expect(upgradedCenter.hitPoints).toBe(1_320);
+    expect(upgradedCenter.productionQueue[0]).toEqual({ kind: "train", unitType: "villager", remainingTicks: UNITS.villager.trainTicks });
+    expect(completed.events).toContainEqual({ type: "technologyResearched", playerId: player.id, producerId: townCenter.id, technologyId: "surveyedFoundations" });
+  });
+
+  it("rejects illegal and player-global duplicate research without mutation", () => {
+    const state = createInitialState({ seed: 62, matchId: "research-validation" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const foreignCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
+    const farmA = addCompletedBuilding(state, player.id, "farmstead", "research-farm-a", { x: 18, y: 18 });
+    const farmB = addCompletedBuilding(state, player.id, "farmstead", "research-farm-b", { x: 21, y: 18 });
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const originalHash = hashMatchState(state);
+
+    expect(validateCommand(state, envelope(state, 0, { type: "research", producerId: foreignCenter.id, technologyId: "surveyedFoundations" }))).toEqual({ ok: false, code: "ENTITY_NOT_OWNED" });
+    expect(validateCommand(state, envelope(state, 0, { type: "research", producerId: farmA.id, technologyId: "hearthlandAlmanac" }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+    expect(hashMatchState(state)).toBe(originalHash);
+
+    player.settlementTier = "stronghold";
+    expect(validateCommand(state, envelope(state, 0, { type: "research", producerId: farmA.id, technologyId: "surveyedFoundations" }))).toEqual({ ok: false, code: "INVALID_PAYLOAD" });
+    farmA.complete = false;
+    expect(validateCommand(state, envelope(state, 0, { type: "research", producerId: farmA.id, technologyId: "hearthlandAlmanac" }))).toEqual({ ok: false, code: "ACTION_ON_COOLDOWN" });
+    farmA.complete = true;
+    farmA.hitPoints = 0;
+    expect(validateCommand(state, envelope(state, 0, { type: "research", producerId: farmA.id, technologyId: "hearthlandAlmanac" }))).toEqual({ ok: false, code: "ACTION_ON_COOLDOWN" });
+    farmA.hitPoints = farmA.maxHitPoints;
+    player.resources = { food: 219, wood: 80, stone: 0 };
+    expect(validateCommand(state, envelope(state, 0, { type: "research", producerId: farmA.id, technologyId: "hearthlandAlmanac" }))).toEqual({ ok: false, code: "INSUFFICIENT_RESOURCES" });
+
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const started = applyCommand(state, envelope(state, 0, { type: "research", producerId: farmA.id, technologyId: "hearthlandAlmanac" }));
+    expect(started.validation).toEqual({ ok: true });
+    expect(started.state.players[0]!.resources).toEqual({ food: 4_780, wood: 4_920, stone: 5_000 });
+    const duplicateHash = hashMatchState(started.state);
+    expect(validateCommand(started.state, envelope(started.state, 1, { type: "research", producerId: farmB.id, technologyId: "hearthlandAlmanac" }))).toEqual({ ok: false, code: "DUPLICATE_RESEARCH" });
+    expect(hashMatchState(started.state)).toBe(duplicateHash);
+
+    const completed = stepSimulation(started.state, [], TECHNOLOGIES.hearthlandAlmanac.researchTicks).state;
+    expect(validateCommand(completed, envelope(completed, 1, { type: "research", producerId: farmB.id, technologyId: "hearthlandAlmanac" }))).toEqual({ ok: false, code: "DUPLICATE_RESEARCH" });
+    const gunWorkshop = addCompletedBuilding(completed, player.id, "gunWorkshop", "research-gun-workshop", { x: 24, y: 18 });
+    completed.players[0]!.settlementTier = "artificer";
+    expect(validateCommand(completed, envelope(completed, 1, { type: "research", producerId: gunWorkshop.id, technologyId: "starfireBores" }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+  });
+
+  it("cancels destroyed-producer research without refund or completion", () => {
+    const initial = createInitialState({ seed: 63, matchId: "research-destroyed" });
+    const player = initial.players[0]!;
+    player.settlementTier = "stronghold";
+    player.resources = { food: 1_000, wood: 1_000, stone: 1_000 };
+    const farm = addCompletedBuilding(initial, player.id, "farmstead", "doomed-research-farm", { x: 18, y: 18 });
+    const started = applyCommand(initial, envelope(initial, 0, { type: "research", producerId: farm.id, technologyId: "hearthlandAlmanac" }));
+    const paidWallet = { ...started.state.players[0]!.resources };
+    started.state.entities.find((entity) => entity.id === farm.id)!.hitPoints = 0;
+
+    const result = stepSimulation(started.state, [], TECHNOLOGIES.hearthlandAlmanac.researchTicks);
+    expect(result.state.entities.some((entity) => entity.id === farm.id)).toBe(false);
+    expect(result.state.players[0]!.completedTechnologyIds).toEqual([]);
+    expect(result.state.players[0]!.resources).toEqual(paidWallet);
+    expect(result.events.some((event) => event.type === "technologyResearched")).toBe(false);
+  });
+
+  it("derives isolated economy, combat, mobility, durability, and future-unit effects", () => {
+    const state = createInitialState({ seed: 64, matchId: "research-effects" });
+    const player = state.players[0]!;
+    const opponent = state.players[1]!;
+    player.completedTechnologyIds = [...TECHNOLOGY_ORDER];
+
+    expect(getEffectiveGatherRatePermille(state, player.id, "villager", "food")).toBe(1_184);
+    expect(getEffectiveGatherRatePermille(state, opponent.id, "villager", "food")).toBe(1_000);
+    expect(getEffectiveUnitAttackDamage(state, player.id, "musketeer")).toBe(27);
+    expect(getEffectiveUnitAttackDamage(state, opponent.id, "musketeer")).toBe(24);
+    expect(getEffectiveUnitMaxHitPoints(state, player.id, "militia")).toBe(95);
+    expect(getEffectiveUnitMaxHitPoints(state, opponent.id, "militia")).toBe(85);
+    expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, player.id, "scout")).toBe(2_070);
+    expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, opponent.id, "scout")).toBe(1_854);
+    expect(getEffectiveBuildingMaxHitPoints(state, player.id, "townCenter")).toBe(1_320);
+    expect(getEffectiveBuildingMaxHitPoints(state, opponent.id, "townCenter")).toBe(1_200);
+
+    const replayInitial = createInitialState({ seed: 65, matchId: "research-replay" });
+    replayInitial.players[0]!.settlementTier = "stronghold";
+    replayInitial.players[0]!.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const farm = addCompletedBuilding(replayInitial, replayInitial.players[0]!.id, "farmstead", "replay-research-farm", { x: 18, y: 18 });
+    const commands = [envelope(replayInitial, 0, { type: "research", producerId: farm.id, technologyId: "hearthlandAlmanac" })];
+    const first = stepSimulation(replayInitial, commands, TECHNOLOGIES.hearthlandAlmanac.researchTicks).state;
+    const second = stepSimulation(replayInitial, commands, TECHNOLOGIES.hearthlandAlmanac.researchTicks).state;
+    expect(hashMatchState(first)).toBe(hashMatchState(second));
+    expect(hashReplay(replayInitial, commands, TECHNOLOGIES.hearthlandAlmanac.researchTicks)).toBe(hashReplay(replayInitial, commands, TECHNOLOGIES.hearthlandAlmanac.researchTicks));
+  });
+
   it("repeats seeded random values and replay hashes", () => {
     const randomA = nextUint32(20260717);
     const randomB = nextUint32(20260717);
@@ -303,7 +441,7 @@ describe("deterministic shared simulation", () => {
     const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
     expect(townCenter?.kind).toBe("building");
     if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
-    townCenter.trainingQueue = Array.from({ length: 4 }, () => ({ unitType: "villager" as const, remainingTicks: 120 }));
+    townCenter.productionQueue = Array.from({ length: 4 }, () => ({ kind: "train" as const, unitType: "villager" as const, remainingTicks: 120 }));
     expect(validateCommand(state, envelope(state, 0, {
       type: "train",
       producerId: townCenter.id,

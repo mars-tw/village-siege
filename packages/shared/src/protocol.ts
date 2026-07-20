@@ -8,6 +8,14 @@ export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" 
 export type AiDifficulty = "novice" | "standard" | "veteran";
 export type MatchPhase = "lobby" | "loading" | "playing" | "finished" | "disposed";
 export type SettlementTier = "frontier" | "stronghold" | "artificer";
+export type TechnologyType =
+  | "hearthlandAlmanac"
+  | "resinboundKits"
+  | "layeredHarness"
+  | "surveyedFoundations"
+  | "windspurRigging"
+  | "starfireBores"
+  | "torsionCradles";
 export type BuildingType =
   | "townCenter"
   | "house"
@@ -46,6 +54,7 @@ export type GameCommand =
   | { readonly type: "dropOff"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
   | { readonly type: "build"; readonly builderIds: readonly EntityId[]; readonly buildingType: BuildingType; readonly origin: GridPoint }
   | { readonly type: "train"; readonly producerId: EntityId; readonly unitType: UnitType; readonly count: number }
+  | { readonly type: "research"; readonly producerId: EntityId; readonly technologyId: TechnologyType }
   | { readonly type: "advanceSettlement"; readonly producerId: EntityId; readonly targetTier: SettlementTier }
   | { readonly type: "patrol"; readonly entityIds: readonly EntityId[]; readonly waypoints: readonly GridPoint[] }
   | { readonly type: "stop"; readonly entityIds: readonly EntityId[] }
@@ -67,6 +76,7 @@ export type CommandRejectCode =
   | "INVALID_PAYLOAD"
   | "ENTITY_NOT_OWNED"
   | "INSUFFICIENT_RESOURCES"
+  | "DUPLICATE_RESEARCH"
   | "PREREQUISITE_NOT_MET"
   | "ACTION_ON_COOLDOWN"
   | "TARGET_NOT_VISIBLE"
@@ -96,6 +106,7 @@ export type DomainEvent =
   | { readonly type: "entityUpdated"; readonly entity: PublicEntityState }
   | { readonly type: "entityRemoved"; readonly entityId: EntityId; readonly reason: "destroyed" | "completed" | "depleted" | "despawned" }
   | { readonly type: "settlementAdvanced"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly settlementTier: SettlementTier }
+  | { readonly type: "technologyResearched"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly technologyId: TechnologyType }
   | { readonly type: "resourcesDeposited"; readonly playerId: PlayerId; readonly unitId: EntityId; readonly dropOffId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
   | { readonly type: "resourceDepleted"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly renewable: boolean; readonly renewAtTick: number | null }
   | { readonly type: "resourceRenewed"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
@@ -119,6 +130,8 @@ export function isGameCommand(value: unknown): value is GameCommand {
       return hasOnlyKeys(value, ["type", "builderIds", "buildingType", "origin"]) && isIdArray(value.builderIds) && isBuildingType(value.buildingType) && isGridPoint(value.origin);
     case "train":
       return hasOnlyKeys(value, ["type", "producerId", "unitType", "count"]) && typeof value.producerId === "string" && isUnitType(value.unitType) && isSafeInteger(value.count) && value.count >= 1 && value.count <= 5;
+    case "research":
+      return hasOnlyKeys(value, ["type", "producerId", "technologyId"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isTechnologyType(value.technologyId);
     case "advanceSettlement":
       return hasOnlyKeys(value, ["type", "producerId", "targetTier"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isSettlementTier(value.targetTier);
     case "patrol":
@@ -166,6 +179,18 @@ export function isUnitType(value: unknown): value is UnitType {
 
 export function isSettlementTier(value: unknown): value is SettlementTier {
   return typeof value === "string" && (["frontier", "stronghold", "artificer"] as const).includes(value as SettlementTier);
+}
+
+export function isTechnologyType(value: unknown): value is TechnologyType {
+  return typeof value === "string" && ([
+    "hearthlandAlmanac",
+    "resinboundKits",
+    "layeredHarness",
+    "surveyedFoundations",
+    "windspurRigging",
+    "starfireBores",
+    "torsionCradles",
+  ] as const).includes(value as TechnologyType);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -80,3 +80,28 @@ The two initial P2 observations were closed before handoff. Resource clicks now 
 - A separate read-only client/AI auditor returned P0 `0`, P1 `0`, P2 `0` after checking disconnected same-resource carrier grouping, mixed-resource delivery, all three cargo drawing paths, client typecheck, 77 shared tests and 667×375 layout behavior.
 
 Verdict: **TASK-006 PASS**. This completes only the economy carry/drop-off slice. Technology research, fog of war, walls and gates, complete combat integration, save/replay and server-owned multiplayer battles remain open work and are not claimed complete.
+
+## Technology research slice final review
+
+TASK-027 adds seven original Village Siege technologies, strict research commands, player-global duplicate protection, a single FIFO lane shared with training, deterministic derived effects, distinct five-profile AI priorities and a fixed seven-slot research dock. This is an original classic-RTS system category under MIT; it does not copy another title's names, balance table, interface or assets, and it does not make the unfinished full RTS or server-owned online battle a completed claim.
+
+### Grok CLI evidence
+
+- CLI/version: `C:\Users\digimkt\.grok\bin\grok.exe`, `grok 0.2.106 (bde89716f6)`
+- Requested model: `grok-4.5`; actual model: `grok-4.5-build`
+- Permission: read-only review instructions; web and memory disabled; Codex verified identical Git status before and after the audit
+- Accepted session: `019f7ed5-a760-7d42-8b6c-50c890e2e689`
+- Full evidence review: request `87576fde-8f82-4d4f-9508-09d5ac762030`, exit `0`, `EndTurn`, verdict `PASS WITH P2`, P0 `0`, P1 `0`, P2 `3`
+- Targeted closure: request `df790bd2-c4ff-45e4-a8c2-4f142aab1e07`, exit `0`, `EndTurn`, verdict **PASS**, P0 `0`, P1 `0`, P2 `0`
+
+The first three P2 findings were all closed before handoff: duplicate research now returns `DUPLICATE_RESEARCH` with a specific client message; a five-profile AI may continue strategic research under visible pressure after fielding at least three military units; and the canonical fallback producer is explicitly sorted by entity ID. The closure added an authoritative-valid pressure regression test and increased the shared suite to 84 passing tests.
+
+### Codex and delegated-auditor evidence
+
+- Final `npm run verify`: PASS with all workspace typechecks, 5 files / 84 tests and client/server production builds.
+- `npm run smoke:multiplayer:local`: PASS for two-player room, host/readiness/invalid-payload rejection, reconnect and authoritative tick.
+- `npm audit --omit=dev`: PASS, 0 known production vulnerabilities.
+- Playwright production-preview QA: 844×390, 667×375 and 568×320 all keep document and canvas within the viewport, expose seven building controls and seven research controls, return with Escape and report zero console or page errors. Visual inspection of the 568×320 research dock found no label overlap.
+- Independent shared-rules, AI/test and mobile-UX auditors were used before finalization; their mobile label, queued-research status, completion-notice and cyclic page-number findings were fixed. The final mobile closure reports P0 `0`, P1 `0`, P2 `0`.
+
+Verdict: **TASK-027 PASS**. This completes only the technology research slice. Fog of war, walls and gates, remaining combat commands, save/replay product flow and server-owned multiplayer battles remain open and are not claimed complete.

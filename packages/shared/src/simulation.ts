@@ -7,6 +7,8 @@ import {
   SETTLEMENT_TIERS,
   SETTLEMENT_TIER_ORDER,
   STARTING_RESOURCES,
+  TECHNOLOGIES,
+  TECHNOLOGY_ORDER,
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   UNITS,
@@ -38,6 +40,7 @@ import {
   type ResourceKind,
   type ResourceWallet,
   type SettlementTier,
+  type TechnologyType,
   type UnitType,
   type VillageId,
 } from "./protocol.js";
@@ -68,10 +71,9 @@ export interface UnitEntityState {
   gatherRemainderMilli: ResourceWallet;
 }
 
-export interface TrainingJob {
-  unitType: UnitType;
-  remainingTicks: number;
-}
+export type ProductionJob =
+  | { kind: "train"; unitType: UnitType; remainingTicks: number }
+  | { kind: "research"; technologyId: TechnologyType; remainingTicks: number };
 
 export interface BuildingEntityState {
   id: EntityId;
@@ -85,7 +87,7 @@ export interface BuildingEntityState {
   complete: boolean;
   constructionRemainingTicks: number;
   attackCooldownTicks: number;
-  trainingQueue: TrainingJob[];
+  productionQueue: ProductionJob[];
 }
 
 export interface ResourceEntityState {
@@ -111,6 +113,7 @@ export interface PlayerState {
   population: { used: number; capacity: number };
   settlementTier: SettlementTier;
   advancement: { producerId: EntityId; targetTier: SettlementTier; remainingTicks: number } | null;
+  completedTechnologyIds: TechnologyType[];
   lastSequence: number;
   surrendered: boolean;
   eliminated: boolean;
@@ -210,6 +213,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
       population: { used: 0, capacity: 0 },
       settlementTier: "frontier",
       advancement: null,
+      completedTechnologyIds: [],
       lastSequence: -1,
       surrendered: false,
       eliminated: false,
@@ -372,7 +376,7 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
     if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
     if (producer.typeId !== "townCenter") return rejected("INVALID_PAYLOAD");
-    if (!producer.complete || player.advancement !== null) return rejected("ACTION_ON_COOLDOWN");
+    if (!producer.complete || producer.hitPoints <= 0 || producer.productionQueue.length > 0 || player.advancement !== null) return rejected("ACTION_ON_COOLDOWN");
     const currentIndex = SETTLEMENT_TIER_ORDER.indexOf(player.settlementTier);
     const targetIndex = SETTLEMENT_TIER_ORDER.indexOf(command.targetTier);
     if (targetIndex !== currentIndex + 1) return rejected("PREREQUISITE_NOT_MET");
@@ -391,12 +395,23 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
   if (command.type === "train") {
     const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
     if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
-    if (!producer.complete || producer.trainingQueue.length + command.count > MAX_TRAINING_QUEUE_DEPTH) return rejected("ACTION_ON_COOLDOWN");
+    if (!producer.complete || producer.hitPoints <= 0 || producer.productionQueue.length + command.count > MAX_TRAINING_QUEUE_DEPTH || player.advancement?.producerId === producer.id) return rejected("ACTION_ON_COOLDOWN");
     const definition = UNITS[command.unitType];
     if (!definition.producers.includes(producer.typeId)) return rejected("INVALID_PAYLOAD");
     if (!meetsTier(player.settlementTier, definition.requiredTier)) return rejected("PREREQUISITE_NOT_MET");
     if (usedPopulation(state, player.id) + queuedPopulation(state, player.id) + definition.population * command.count > player.population.capacity || countUnits(state, player.id) + command.count > MAX_UNITS_PER_PLAYER) return rejected("ACTION_ON_COOLDOWN");
     return canAfford(player.resources, multiplyWallet(definition.cost, command.count)) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
+  }
+  if (command.type === "research") {
+    const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
+    if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
+    const definition = TECHNOLOGIES[command.technologyId];
+    if (producer.typeId !== definition.producer) return rejected("INVALID_PAYLOAD");
+    if (!producer.complete || producer.hitPoints <= 0 || producer.productionQueue.length >= MAX_TRAINING_QUEUE_DEPTH || player.advancement?.producerId === producer.id) return rejected("ACTION_ON_COOLDOWN");
+    if (!meetsTier(player.settlementTier, definition.requiredTier)) return rejected("PREREQUISITE_NOT_MET");
+    if (player.completedTechnologyIds.includes(command.technologyId) || hasQueuedTechnology(state, player.id, command.technologyId)) return rejected("DUPLICATE_RESEARCH");
+    if (!definition.prerequisites.every((technologyId) => player.completedTechnologyIds.includes(technologyId))) return rejected("PREREQUISITE_NOT_MET");
+    return canAfford(player.resources, definition.cost) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
   const ids = command.entityIds;
   const units = ownedUnits(state, player.id, ids);
@@ -478,7 +493,15 @@ function applyGameCommand(state: MatchState, player: PlayerState, command: GameC
       const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building")!;
       const definition = UNITS[command.unitType];
       subtractWallet(player, multiplyWallet(definition.cost, command.count));
-      for (let index = 0; index < command.count; index += 1) producer.trainingQueue.push({ unitType: command.unitType, remainingTicks: definition.trainTicks });
+      for (let index = 0; index < command.count; index += 1) producer.productionQueue.push({ kind: "train", unitType: command.unitType, remainingTicks: definition.trainTicks });
+      producer.stateRevision += 1;
+      break;
+    }
+    case "research": {
+      const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building")!;
+      const definition = TECHNOLOGIES[command.technologyId];
+      subtractWallet(player, definition.cost);
+      producer.productionQueue.push({ kind: "research", technologyId: command.technologyId, remainingTicks: definition.researchTicks });
       producer.stateRevision += 1;
       break;
     }
@@ -520,9 +543,11 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
     .sort((left, right) => left.id.localeCompare(right.id));
   for (const building of buildings) {
     building.attackCooldownTicks = Math.max(0, building.attackCooldownTicks - 1);
-    updateTraining(state, building, events);
     updateTower(state, building);
   }
+  // Resolve every production job only after unit and tower actions. A research
+  // completion therefore benefits all entities uniformly from the next action tick.
+  for (const building of buildings) updateProduction(state, building, events);
   const removed = state.entities.filter((entity) => (
     entity.kind === "resource"
       ? entity.amount <= 0 && entity.renewAtTick === null
@@ -577,7 +602,7 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
   const stats = UNITS[unit.typeId];
   if (distanceSquaredToEntity(unit.position, target) > stats.attackRange * stats.attackRange) { moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target)); return; }
   if (unit.attackCooldownTicks === 0) {
-    target.hitPoints = Math.max(0, target.hitPoints - damageAfterVillageTrait(state, target, stats.attackDamage));
+    target.hitPoints = Math.max(0, target.hitPoints - damageAfterVillageTrait(state, target, getEffectiveUnitAttackDamage(state, unit.ownerId, unit.typeId)));
     target.stateRevision += 1;
     unit.attackCooldownTicks = stats.attackCooldownTicks;
   }
@@ -817,9 +842,7 @@ function updateRenewableResourceNode(state: MatchState, resource: ResourceEntity
 
 function gatherYield(state: MatchState, unit: UnitEntityState, resourceKind: ResourceKind): number {
   const base = UNITS[unit.typeId].gatherPerSecond[resourceKind];
-  const player = state.players.find((candidate) => candidate.id === unit.ownerId);
-  const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  const multiplierPermille = trait?.metric === "gatherRate" ? trait.multiplierPermille : 1_000;
+  const multiplierPermille = getEffectiveGatherRatePermille(state, unit.ownerId, unit.typeId, resourceKind);
   const accumulatedMilli = unit.gatherRemainderMilli[resourceKind] + base * multiplierPermille;
   const gathered = Math.floor(accumulatedMilli / 1_000);
   unit.gatherRemainderMilli = {
@@ -829,17 +852,22 @@ function gatherYield(state: MatchState, unit: UnitEntityState, resourceKind: Res
   return gathered;
 }
 
-function updateTraining(state: MatchState, building: BuildingEntityState, events: DomainEvent[]): void {
-  if (!building.complete || building.trainingQueue.length === 0) return;
-  const job = building.trainingQueue[0]!;
+function updateProduction(state: MatchState, building: BuildingEntityState, events: DomainEvent[]): void {
+  if (!building.complete || building.hitPoints <= 0 || building.productionQueue.length === 0) return;
+  const job = building.productionQueue[0]!;
   job.remainingTicks -= 1;
+  building.stateRevision += 1;
   if (job.remainingTicks > 0) return;
+  if (job.kind === "research") {
+    building.productionQueue.shift();
+    completeTechnology(state, building.ownerId, building.id, job.technologyId, events);
+    return;
+  }
   const spawn = buildingSpawnPoint(building, state);
   if (!spawn) return;
-  building.trainingQueue.shift();
+  building.productionQueue.shift();
   const unit = createUnit(state, building.ownerId, job.unitType, spawn);
   state.entities.push(unit);
-  building.stateRevision += 1;
   events.push({ type: "entitySpawned", entity: toPublicEntity(unit) });
 }
 
@@ -887,9 +915,7 @@ function evaluateVictory(state: MatchState, events: DomainEvent[]): void {
 
 function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint): boolean {
   if (samePoint(unit.position, target)) return true;
-  const player = state.players.find((candidate) => candidate.id === unit.ownerId);
-  const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  const speed = UNITS[unit.typeId].speedMilliTilesPerSecond * (trait?.metric === "unitSpeed" ? trait.multiplierPermille / 1000 : 1);
+  const speed = getEffectiveUnitSpeedMilliTilesPerSecond(state, unit.ownerId, unit.typeId);
   unit.movementProgress += speed;
   if (unit.movementProgress < 1000 * TICKS_PER_SECOND) return false;
   unit.movementProgress -= 1000 * TICKS_PER_SECOND;
@@ -905,9 +931,7 @@ type EntityMovementResult = "arrived" | "moving" | "blocked";
 
 function moveTowardEntity(state: MatchState, unit: UnitEntityState, entity: EntityState): EntityMovementResult {
   if (isEntityInteractionCell(unit.position, entity)) return "arrived";
-  const player = state.players.find((candidate) => candidate.id === unit.ownerId);
-  const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  const speed = UNITS[unit.typeId].speedMilliTilesPerSecond * (trait?.metric === "unitSpeed" ? trait.multiplierPermille / 1000 : 1);
+  const speed = getEffectiveUnitSpeedMilliTilesPerSecond(state, unit.ownerId, unit.typeId);
   const stepCost = 1000 * TICKS_PER_SECOND;
   unit.movementProgress += speed;
   if (unit.movementProgress < stepCost) return "moving";
@@ -931,25 +955,26 @@ function damageAfterVillageTrait(state: MatchState, target: EntityState, damage:
 }
 
 function createUnit(state: MatchState, ownerId: PlayerId, typeId: UnitType, position: GridPoint): UnitEntityState {
-  const definition = UNITS[typeId];
-  return { id: nextId(state, "unit"), ownerId, kind: "unit", typeId, position, hitPoints: definition.maxHitPoints, maxHitPoints: definition.maxHitPoints, stateRevision: 0, order: { type: "idle" }, movementProgress: 0, attackCooldownTicks: 0, workCooldownTicks: 0, cargo: { kind: null, amount: 0 }, gatherRemainderMilli: { food: 0, wood: 0, stone: 0 } };
+  const maxHitPoints = getEffectiveUnitMaxHitPoints(state, ownerId, typeId);
+  return { id: nextId(state, "unit"), ownerId, kind: "unit", typeId, position, hitPoints: maxHitPoints, maxHitPoints, stateRevision: 0, order: { type: "idle" }, movementProgress: 0, attackCooldownTicks: 0, workCooldownTicks: 0, cargo: { kind: null, amount: 0 }, gatherRemainderMilli: { food: 0, wood: 0, stone: 0 } };
 }
 
 function createBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingType, position: GridPoint, complete: boolean): BuildingEntityState {
   const definition = BUILDINGS[typeId];
+  const maxHitPoints = getEffectiveBuildingMaxHitPoints(state, ownerId, typeId);
   return {
     id: nextId(state, "building"),
     ownerId,
     kind: "building",
     typeId,
     position,
-    hitPoints: complete ? definition.maxHitPoints : 1,
-    maxHitPoints: definition.maxHitPoints,
+    hitPoints: complete ? maxHitPoints : 1,
+    maxHitPoints,
     stateRevision: 0,
     complete,
     constructionRemainingTicks: complete ? 0 : definition.buildTicks,
     attackCooldownTicks: 0,
-    trainingQueue: [],
+    productionQueue: [],
   };
 }
 
@@ -999,6 +1024,97 @@ function hasCompletedPrerequisites(state: MatchState, playerId: PlayerId, prereq
 
 function meetsTier(currentTier: SettlementTier, requiredTier: SettlementTier): boolean {
   return SETTLEMENT_TIER_ORDER.indexOf(currentTier) >= SETTLEMENT_TIER_ORDER.indexOf(requiredTier);
+}
+
+function hasQueuedTechnology(state: MatchState, playerId: PlayerId, technologyId: TechnologyType): boolean {
+  return state.entities.some((entity) => (
+    entity.kind === "building"
+    && entity.ownerId === playerId
+    && entity.productionQueue.some((job) => job.kind === "research" && job.technologyId === technologyId)
+  ));
+}
+
+function completeTechnology(state: MatchState, playerId: PlayerId, producerId: EntityId, technologyId: TechnologyType, events: DomainEvent[]): void {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  if (!player || player.completedTechnologyIds.includes(technologyId)) return;
+  player.completedTechnologyIds.push(technologyId);
+  player.completedTechnologyIds.sort((left, right) => TECHNOLOGY_ORDER.indexOf(left) - TECHNOLOGY_ORDER.indexOf(right));
+
+  for (const entity of state.entities) {
+    if (entity.ownerId !== playerId) continue;
+    const effectiveMaximum = entity.kind === "unit"
+      ? getEffectiveUnitMaxHitPoints(state, playerId, entity.typeId)
+      : getEffectiveBuildingMaxHitPoints(state, playerId, entity.typeId);
+    const increase = Math.max(0, effectiveMaximum - entity.maxHitPoints);
+    if (increase <= 0) continue;
+    entity.maxHitPoints = effectiveMaximum;
+    if (entity.kind === "unit" || entity.complete) entity.hitPoints = Math.min(effectiveMaximum, entity.hitPoints + increase);
+    entity.stateRevision += 1;
+  }
+  events.push({ type: "technologyResearched", playerId, producerId, technologyId });
+}
+
+export function getEffectiveGatherRatePermille(state: MatchState, playerId: PlayerId, unitType: UnitType, resourceKind: ResourceKind): number {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  const trait = player ? getVillage(player.villageId)?.trait : undefined;
+  let multiplier = trait?.metric === "gatherRate" ? trait.multiplierPermille : 1_000;
+  if (!player) return multiplier;
+  for (const technologyId of TECHNOLOGY_ORDER) {
+    if (!player.completedTechnologyIds.includes(technologyId)) continue;
+    const effect = TECHNOLOGIES[technologyId].effect;
+    if (effect.kind === "gatherRate" && effect.resourceKinds.includes(resourceKind) && UNITS[unitType].gatherPerSecond[resourceKind] > 0) {
+      multiplier = Math.floor(multiplier * effect.multiplierPermille / 1_000);
+    }
+  }
+  return multiplier;
+}
+
+export function getEffectiveUnitAttackDamage(state: MatchState, playerId: PlayerId, unitType: UnitType): number {
+  return effectiveUnitStat(state, playerId, unitType, UNITS[unitType].attackDamage, "unitAttack");
+}
+
+export function getEffectiveUnitMaxHitPoints(state: MatchState, playerId: PlayerId, unitType: UnitType): number {
+  return effectiveUnitStat(state, playerId, unitType, UNITS[unitType].maxHitPoints, "unitMaxHitPoints");
+}
+
+export function getEffectiveUnitSpeedMilliTilesPerSecond(state: MatchState, playerId: PlayerId, unitType: UnitType): number {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  const trait = player ? getVillage(player.villageId)?.trait : undefined;
+  const villageMultiplierPermille = trait?.metric === "unitSpeed" ? trait.multiplierPermille : 1_000;
+  const base = Math.floor(UNITS[unitType].speedMilliTilesPerSecond * villageMultiplierPermille / 1_000);
+  return effectiveUnitStat(state, playerId, unitType, base, "unitSpeed");
+}
+
+export function getEffectiveBuildingMaxHitPoints(state: MatchState, playerId: PlayerId, buildingType: BuildingType): number {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  let value = BUILDINGS[buildingType].maxHitPoints;
+  if (!player) return value;
+  for (const technologyId of TECHNOLOGY_ORDER) {
+    if (!player.completedTechnologyIds.includes(technologyId)) continue;
+    const effect = TECHNOLOGIES[technologyId].effect;
+    if (effect.kind === "buildingMaxHitPoints" && (effect.buildingTypes === "all" || effect.buildingTypes.includes(buildingType))) {
+      value = Math.floor(value * effect.multiplierPermille / 1_000);
+    }
+  }
+  return value;
+}
+
+function effectiveUnitStat(
+  state: MatchState,
+  playerId: PlayerId,
+  unitType: UnitType,
+  base: number,
+  kind: "unitAttack" | "unitMaxHitPoints" | "unitSpeed",
+): number {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  let value = base;
+  if (!player) return value;
+  for (const technologyId of TECHNOLOGY_ORDER) {
+    if (!player.completedTechnologyIds.includes(technologyId)) continue;
+    const effect = TECHNOLOGIES[technologyId].effect;
+    if (effect.kind === kind && effect.unitTypes.includes(unitType)) value = Math.floor(value * effect.multiplierPermille / 1_000);
+  }
+  return value;
 }
 
 function updateSettlementAdvancements(state: MatchState, events: DomainEvent[]): void {
@@ -1053,7 +1169,7 @@ function usedPopulation(state: MatchState, playerId: PlayerId): number {
 }
 
 function queuedPopulation(state: MatchState, playerId: PlayerId): number {
-  return state.entities.reduce((sum, entity) => sum + (entity.kind === "building" && entity.ownerId === playerId ? entity.trainingQueue.reduce((jobs, job) => jobs + UNITS[job.unitType].population, 0) : 0), 0);
+  return state.entities.reduce((sum, entity) => sum + (entity.kind === "building" && entity.ownerId === playerId ? entity.productionQueue.reduce((jobs, job) => jobs + (job.kind === "train" ? UNITS[job.unitType].population : 0), 0) : 0), 0);
 }
 
 function canAfford(wallet: ResourceWallet, cost: ResourceWallet): boolean {

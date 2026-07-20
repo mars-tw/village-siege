@@ -1,9 +1,11 @@
 import Phaser from "phaser";
-import type {
-  BuildingEntityState,
-  BuildingType,
-  ResourceEntityState,
-  ResourceKind,
+import {
+  TECHNOLOGIES,
+  TICKS_PER_SECOND,
+  type BuildingEntityState,
+  type BuildingType,
+  type ResourceEntityState,
+  type ResourceKind,
 } from "@village-siege/shared";
 
 export type AssaultSide = "player" | "enemy";
@@ -95,9 +97,9 @@ export function createBuildingView(
       health.setDisplaySize(88 * ratio, 4);
       lastRevision = next.stateRevision;
     }
-    const progressLabel = next.complete ? queueText(next.trainingQueue) : `施工 ${Math.floor(completionRatio(next) * 100)}%`;
+    const progressLabel = next.complete ? queueText(next.productionQueue) : `施工 ${Math.floor(completionRatio(next) * 100)}%`;
     if (progress.text !== progressLabel) progress.setText(progressLabel);
-    progress.setVisible(!next.complete || next.trainingQueue.length > 0);
+    progress.setVisible(!next.complete || next.productionQueue.length > 0);
     if (selected !== lastSelected) {
       selection.clear();
       if (selected) {
@@ -184,9 +186,15 @@ function completionRatio(entity: BuildingEntityState): number {
   return Phaser.Math.Clamp(entity.hitPoints / entity.maxHitPoints, 0.08, 0.99);
 }
 
-function queueText(queue: BuildingEntityState["trainingQueue"]): string {
+function queueText(queue: BuildingEntityState["productionQueue"]): string {
   if (queue.length === 0) return "";
-  return `訓練 ${queue.length} · ${Math.ceil(queue[0]!.remainingTicks / 10)}s`;
+  const job = queue[0]!;
+  if (job.kind === "research") {
+    const definition = TECHNOLOGIES[job.technologyId];
+    const progress = Math.round(Phaser.Math.Clamp(1 - job.remainingTicks / definition.researchTicks, 0, 1) * 100);
+    return `研究 ${definition.shortName} ${progress}%`;
+  }
+  return `生產 ${queue.length} 項 · ${Math.ceil(job.remainingTicks / TICKS_PER_SECOND)}s`;
 }
 
 function footprintWidth(type: BuildingType): number {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AI_PROFILES, createAiController, getAiObservation, type AiObservation } from "./ai";
-import { MAX_TRAINING_QUEUE_DEPTH } from "./content";
+import { MAX_TRAINING_QUEUE_DEPTH, TECHNOLOGIES } from "./content";
 import { isGameCommand, type AiPersonality, type GameCommand, type PublicEntityState, type UnitType } from "./protocol";
 import { applyCommand, cloneMatchState, createInitialState, stepSimulation, validateCommand, type MatchState } from "./simulation";
 
@@ -35,6 +35,81 @@ describe("shared AI personalities", () => {
     expect(decide("prosperer")).toMatchObject({ type: "train", unitType: "villager" });
     expect(decide("balanced")).toMatchObject({ type: "gather" });
     expect(decide("raider")).toMatchObject({ type: "gather" });
+  });
+
+  it("uses distinct, legal, data-driven research priorities for all five personalities", () => {
+    const base = createInitialState({ seed: 75, matchId: "ai-research-priorities" });
+    const player = base.players[0]!;
+    const townCenter = base.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    player.settlementTier = "artificer";
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    base.tick = 15_000;
+    for (const [index, typeId] of (["farmstead", "lumberCamp", "barracks", "beastStable"] as const).entries()) {
+      base.entities.push({
+        ...townCenter,
+        id: `research-producer-${typeId}`,
+        typeId,
+        position: { x: 9 + index * 2, y: 10 },
+        hitPoints: 500,
+        maxHitPoints: 500,
+        productionQueue: [],
+      });
+    }
+    const expected = {
+      aggressor: "layeredHarness",
+      guardian: "surveyedFoundations",
+      prosperer: "hearthlandAlmanac",
+      balanced: "resinboundKits",
+      raider: "windspurRigging",
+    } as const;
+
+    for (const personality of PERSONALITIES) {
+      const state = cloneMatchState(base);
+      const command = createAiController(personality, player.id, 750 + PERSONALITIES.indexOf(personality), "veteran")
+        .decide(getAiObservation(state, player.id), 5)[0];
+      expect(command).toMatchObject({ type: "research", technologyId: expected[personality] });
+      expect(validateCommand(state, envelope(state, 0, command!)), `${personality} research must be authoritative-valid`).toEqual({ ok: true });
+
+      const queued = applyCommand(state, envelope(state, 0, command!)).state;
+      const next = createAiController(personality, player.id, 850 + PERSONALITIES.indexOf(personality), "veteran")
+        .decide({ ...getAiObservation(queued, player.id), serverTick: queued.tick + 10 }, 5)[0];
+      if (next?.type === "research") expect(next.technologyId).not.toBe(expected[personality]);
+      if (next) expect(validateCommand(queued, envelope(queued, 1, next))).toEqual({ ok: true });
+    }
+  });
+
+  it("continues strategic research under visible pressure after fielding a defensive force", () => {
+    const state = createInitialState({ seed: 751, matchId: "ai-research-under-pressure" });
+    const player = state.players[0]!;
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    state.entities.push({
+      ...townCenter,
+      id: "pressure-lumber-camp",
+      typeId: "lumberCamp",
+      position: { x: 9, y: 10 },
+      hitPoints: 500,
+      maxHitPoints: 500,
+      productionQueue: [],
+    });
+    player.settlementTier = "artificer";
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    state.tick = 15_000;
+    const observation = getAiObservation(state, player.id);
+    const pressured: AiObservation = {
+      ...observation,
+      ownEntities: [
+        ...observation.ownEntities,
+        entity("pressure-militia", player.id, "unit", "militia", 8, 8),
+        entity("pressure-spearman", player.id, "unit", "spearman", 9, 8),
+        entity("pressure-archer", player.id, "unit", "archer", 10, 8),
+      ],
+      visibleEnemyEntities: [entity("pressure-enemy", "player-2", "unit", "militia", 12, 8)],
+    };
+    const command = createAiController("balanced", player.id, 751, "veteran").decide(pressured, 5)[0];
+    expect(command).toMatchObject({ type: "research", producerId: "pressure-lumber-camp", technologyId: "resinboundKits" });
+    expect(validateCommand(state, envelope(state, 0, command!))).toEqual({ ok: true });
   });
 
   it("never interrupts a loaded villager to construct an AI building", () => {
@@ -108,6 +183,8 @@ describe("shared AI personalities", () => {
     hiddenEnemy!.hitPoints = 1;
     hiddenEnemy!.stateRevision += 100;
     enemyPlayer!.resources = { food: 9999, wood: 9999, stone: 9999 };
+    enemyPlayer!.completedTechnologyIds = ["surveyedFoundations"];
+    if (hiddenEnemy?.kind === "building") hiddenEnemy.productionQueue = [{ kind: "research", technologyId: "starfireBores", remainingTicks: TECHNOLOGIES.starfireBores.researchTicks }];
 
     const baseline = getAiObservation(state, "player-1");
     const afterHiddenChange = getAiObservation(changedHiddenState, "player-1");
@@ -145,7 +222,7 @@ describe("shared AI personalities", () => {
     const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
     expect(townCenter?.kind).toBe("building");
     if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
-    townCenter.trainingQueue = Array.from({ length: MAX_TRAINING_QUEUE_DEPTH }, () => ({ unitType: "villager" as const, remainingTicks: 120 }));
+    townCenter.productionQueue = Array.from({ length: MAX_TRAINING_QUEUE_DEPTH }, () => ({ kind: "train" as const, unitType: "villager" as const, remainingTicks: 120 }));
     state.players[0]!.population.used += MAX_TRAINING_QUEUE_DEPTH;
 
     const observation = getAiObservation(state, "player-1");
@@ -229,7 +306,7 @@ describe("shared AI personalities", () => {
       typeId: "barracks",
       hitPoints: 625,
       maxHitPoints: 650,
-      trainingQueue: [],
+      productionQueue: [],
     });
     state.players[0]!.resources = { food: 0, wood: 0, stone: 0 };
     const command = createAiController("aggressor", "player-1", 173).decide(getAiObservation(state, "player-1"), 5)[0];
@@ -248,7 +325,7 @@ describe("shared AI personalities", () => {
       typeId: "barracks",
       hitPoints: 650,
       maxHitPoints: 650,
-      trainingQueue: [],
+      productionQueue: [],
     });
     state.players[0]!.resources = { food: 0, wood: 0, stone: 0 };
     state.tick = 20;
@@ -288,6 +365,8 @@ function combatObservation(): AiObservation {
     map: { id: "open", width: 32, height: 32 },
     ownEntities,
     ownTrainingQueueDepth: { "own-town-center": 0, "own-barracks": 0 },
+    ownProductionQueues: { "own-town-center": [], "own-barracks": [] },
+    completedTechnologyIds: [],
     ownIncompleteBuildingIds: [],
     visibleEnemyEntities: [
       entity("enemy-town-center", "player-2", "building", "townCenter", 12, 6),

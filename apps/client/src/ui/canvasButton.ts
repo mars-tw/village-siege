@@ -46,7 +46,7 @@ export function createCanvasButton(
   const label = scene.add.text(0, options.compact ? 19 : 27, options.label, {
     color: "#f0ebcf",
     fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
-    fontSize: options.compact ? "16px" : "28px",
+    fontSize: options.compact ? "20px" : "28px",
     fontStyle: "bold",
     align: "center",
     wordWrap: options.compact ? { width: options.width - 14, useAdvancedWrap: true } : undefined,
@@ -68,6 +68,7 @@ export function createCanvasButton(
   let active = false;
   let enabled = true;
   let hovered = false;
+  let focused = false;
   let pressed = false;
   let pressedPointerId: number | null = null;
 
@@ -87,6 +88,10 @@ export function createCanvasButton(
       .strokeRect(-options.width / 2, -options.height / 2, options.width - 5, options.height - 7);
     background.lineStyle(1, COLORS.charcoal, 0.88)
       .strokeRect(-options.width / 2 + 5, -options.height / 2 + 5, options.width - 15, options.height - 17);
+    if (focused) {
+      background.lineStyle(5, COLORS.copper, 1)
+        .strokeRect(-options.width / 2 + 2, -options.height / 2 + 2, options.width - 9, options.height - 11);
+    }
     glyph.setColor(Phaser.Display.Color.IntegerToColor(foreground).rgba);
     label.setColor(Phaser.Display.Color.IntegerToColor(foreground).rgba);
     container.setAlpha(enabled ? 1 : 0.62);
@@ -124,10 +129,12 @@ export function createCanvasButton(
     draw();
   });
   accessibilityButton.addEventListener("focus", () => {
+    focused = true;
     hovered = true;
     draw();
   });
   accessibilityButton.addEventListener("blur", () => {
+    focused = false;
     hovered = false;
     pressed = false;
     pressedPointerId = null;

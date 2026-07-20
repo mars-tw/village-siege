@@ -1,7 +1,7 @@
-import { BUILDINGS, MAX_TRAINING_QUEUE_DEPTH, SETTLEMENT_TIERS, UNITS } from "./content.js";
+import { BUILDINGS, MAX_TRAINING_QUEUE_DEPTH, SETTLEMENT_TIERS, TECHNOLOGIES, TECHNOLOGY_ORDER, UNITS } from "./content.js";
 import { getVillageAssaultBuildBlockedCells, getVillageAssaultWalkBlockedCells, VILLAGE_ASSAULT_MAP_ID } from "./battlefield.js";
 import { nextUint32, normalizeSeed } from "./random.js";
-import { isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState } from "./simulation.js";
+import { isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState, type ProductionJob } from "./simulation.js";
 import { getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import type {
   AiDifficulty,
@@ -15,6 +15,7 @@ import type {
   ResourceKind,
   ResourceWallet,
   SettlementTier,
+  TechnologyType,
   UnitType,
 } from "./protocol.js";
 
@@ -39,6 +40,8 @@ export interface AiObservation {
   readonly map: { readonly id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; readonly width: number; readonly height: number };
   readonly ownEntities: readonly PublicEntityState[];
   readonly ownTrainingQueueDepth: Readonly<Record<EntityId, number>>;
+  readonly ownProductionQueues: Readonly<Record<EntityId, readonly ProductionJob[]>>;
+  readonly completedTechnologyIds: readonly TechnologyType[];
   readonly ownIncompleteBuildingIds: readonly EntityId[];
   readonly visibleEnemyEntities: readonly PublicEntityState[];
   readonly visibleResourceEntities: readonly PublicEntityState[];
@@ -62,14 +65,17 @@ export interface AiProfile {
   readonly preferredBuildings: readonly BuildingType[];
   readonly targetPriority: readonly ("townCenter" | "military" | "economy" | "villager")[];
   readonly advanceAfterTick: Readonly<Record<Exclude<SettlementTier, "frontier">, number>>;
+  readonly preferredTechnologies: readonly TechnologyType[];
+  readonly researchAfterTick: number;
+  readonly researchIntervalTicks: number;
 }
 
 export const AI_PROFILES: Readonly<Record<AiPersonality, AiProfile>> = {
-  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "siegeWorkshop", "house"], targetPriority: ["townCenter", "military", "villager", "economy"], advanceAfterTick: { stronghold: 260, artificer: 11_000 } },
-  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "barracks", "archeryRange", "house"], targetPriority: ["military", "townCenter", "villager", "economy"], advanceAfterTick: { stronghold: 420, artificer: 14_000 } },
-  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "archeryRange", "siegeWorkshop", "house"], targetPriority: ["economy", "townCenter", "military", "villager"], advanceAfterTick: { stronghold: 520, artificer: 13_000 } },
-  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "archeryRange", "mageSanctum", "gunWorkshop", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"], advanceAfterTick: { stronghold: 360, artificer: 12_000 } },
-  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["beastStable", "archeryRange", "barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"], advanceAfterTick: { stronghold: 220, artificer: 10_500 } },
+  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "siegeWorkshop", "house"], targetPriority: ["townCenter", "military", "villager", "economy"], advanceAfterTick: { stronghold: 260, artificer: 11_000 }, preferredTechnologies: ["layeredHarness", "starfireBores", "torsionCradles"], researchAfterTick: 1_500, researchIntervalTicks: 2_200 },
+  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "barracks", "archeryRange", "house"], targetPriority: ["military", "townCenter", "villager", "economy"], advanceAfterTick: { stronghold: 420, artificer: 14_000 }, preferredTechnologies: ["surveyedFoundations", "layeredHarness", "resinboundKits"], researchAfterTick: 2_200, researchIntervalTicks: 2_600 },
+  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "archeryRange", "siegeWorkshop", "house"], targetPriority: ["economy", "townCenter", "military", "villager"], advanceAfterTick: { stronghold: 520, artificer: 13_000 }, preferredTechnologies: ["hearthlandAlmanac", "resinboundKits", "surveyedFoundations"], researchAfterTick: 1_200, researchIntervalTicks: 1_600 },
+  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "archeryRange", "mageSanctum", "gunWorkshop", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"], advanceAfterTick: { stronghold: 360, artificer: 12_000 }, preferredTechnologies: ["resinboundKits", "layeredHarness", "surveyedFoundations", "starfireBores"], researchAfterTick: 1_800, researchIntervalTicks: 2_000 },
+  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["beastStable", "archeryRange", "barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"], advanceAfterTick: { stronghold: 220, artificer: 10_500 }, preferredTechnologies: ["windspurRigging", "resinboundKits", "layeredHarness"], researchAfterTick: 1_400, researchIntervalTicks: 1_800 },
 };
 
 const DIFFICULTY_INTERVAL: Readonly<Record<AiDifficulty, number>> = { novice: 40, standard: 20, veteran: 10 };
@@ -113,8 +119,15 @@ export function getAiObservation(state: MatchState, playerId: PlayerId, remember
       state.entities
         .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId)
         .sort((left, right) => left.id.localeCompare(right.id))
-        .map((building) => [building.id, building.trainingQueue.length]),
+        .map((building) => [building.id, building.productionQueue.length]),
     ),
+    ownProductionQueues: Object.fromEntries(
+      state.entities
+        .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId)
+        .sort((left, right) => left.id.localeCompare(right.id))
+        .map((building) => [building.id, building.productionQueue.map((job) => ({ ...job }))]),
+    ),
+    completedTechnologyIds: [...player.completedTechnologyIds],
     ownIncompleteBuildingIds: state.entities
       .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId && !entity.complete)
       .map((building) => building.id)
@@ -142,6 +155,12 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
   }
   const progression = settlementProgressionCommand(profile, observation, villagers, randomValue);
   if (progression) return progression;
+  // A visible enemy delays research until the AI has a field force, but does
+  // not permanently freeze its strategic progression during a long battle.
+  if (!visibleTarget || military.length >= 3) {
+    const research = researchProgressionCommand(profile, observation, villagers, randomValue);
+    if (research) return research;
+  }
 
   switch (profile.id) {
     case "aggressor":
@@ -263,6 +282,58 @@ function affordableTrain(observation: AiObservation, producerId: EntityId, unitT
   if (observation.ownTrainingQueueDepth[producerId] >= MAX_TRAINING_QUEUE_DEPTH) return null;
   if (!canAfford(observation.wallet, definition.cost) || observation.population.used + definition.population > observation.population.capacity) return null;
   return { type: "train", producerId, unitType, count: 1 };
+}
+
+function researchProgressionCommand(
+  profile: AiProfile,
+  observation: AiObservation,
+  villagers: readonly PublicEntityState[],
+  randomValue: number,
+): GameCommand | null {
+  const queuedTechnologies = new Set<TechnologyType>();
+  for (const queue of Object.values(observation.ownProductionQueues)) {
+    for (const job of queue) if (job.kind === "research") queuedTechnologies.add(job.technologyId);
+  }
+  const completed = new Set(observation.completedTechnologyIds);
+  const incomplete = new Set(observation.ownIncompleteBuildingIds);
+  if (queuedTechnologies.size > 0) return null;
+  const preferredCompletedCount = profile.preferredTechnologies.filter((technologyId) => completed.has(technologyId)).length;
+  if (observation.serverTick < profile.researchAfterTick + preferredCompletedCount * profile.researchIntervalTicks) return null;
+
+  for (const technologyId of profile.preferredTechnologies) {
+    if (completed.has(technologyId) || queuedTechnologies.has(technologyId)) continue;
+    const definition = TECHNOLOGIES[technologyId];
+    if (!tierReached(observation.settlementTier, definition.requiredTier)) continue;
+    if (!definition.prerequisites.every((prerequisite) => completed.has(prerequisite))) continue;
+
+    const producer = observation.ownEntities
+      .filter((entity) => entity.kind === "building" && entity.typeId === definition.producer)
+      .sort((left, right) => left.id.localeCompare(right.id))[0];
+    if (!producer) {
+      return affordableBuild(observation, villagers, definition.producer, profile.mobilityWeight >= profile.defenseWeight ? -1 : 1)
+        ?? economyCommand(observation, villagers, randomValue, definition.cost);
+    }
+    if (incomplete.has(producer.id)) return null;
+    if ((observation.ownTrainingQueueDepth[producer.id] ?? MAX_TRAINING_QUEUE_DEPTH) >= MAX_TRAINING_QUEUE_DEPTH) continue;
+    if (!canAfford(observation.wallet, definition.cost)) return economyCommand(observation, villagers, randomValue, definition.cost);
+    return { type: "research", producerId: producer.id, technologyId };
+  }
+
+  // Canonical fallback keeps a profile progressing if a future content update
+  // removes one of its explicit preferences.
+  const remaining = TECHNOLOGY_ORDER.find((technologyId) => (
+    !completed.has(technologyId)
+    && !queuedTechnologies.has(technologyId)
+    && tierReached(observation.settlementTier, TECHNOLOGIES[technologyId].requiredTier)
+    && TECHNOLOGIES[technologyId].prerequisites.every((prerequisite) => completed.has(prerequisite))
+  ));
+  if (!remaining) return null;
+  const definition = TECHNOLOGIES[remaining];
+  const producer = observation.ownEntities
+    .filter((entity) => entity.kind === "building" && entity.typeId === definition.producer && !incomplete.has(entity.id))
+    .sort((left, right) => left.id.localeCompare(right.id))[0];
+  if (!producer || (observation.ownTrainingQueueDepth[producer.id] ?? MAX_TRAINING_QUEUE_DEPTH) >= MAX_TRAINING_QUEUE_DEPTH || !canAfford(observation.wallet, definition.cost)) return null;
+  return { type: "research", producerId: producer.id, technologyId: remaining };
 }
 
 function productionCommand(
