@@ -61,11 +61,21 @@ Snapshots include player/team state, resources, population, settlement tier, res
 
 ## Technology research contract
 
-Version `village-siege/0.5.0` defines seven original technologies in shared content. A `research` command names the producing building and technology; the server or offline shared simulation validates ownership, building completion and survival, settlement tier, prerequisite technologies, player-global duplicate state, resources and the five-slot queue limit before charging once. Pending or completed duplicates return the explicit `DUPLICATE_RESEARCH` rejection instead of being conflated with a missing prerequisite.
+Version `village-siege/0.6.0` defines seven original technologies in shared content. A `research` command names the producing building and technology; the server or offline shared simulation validates ownership, building completion and survival, settlement tier, prerequisite technologies, player-global duplicate state, resources and the five-slot queue limit before charging once. Pending or completed duplicates return the explicit `DUPLICATE_RESEARCH` rejection instead of being conflated with a missing prerequisite.
 
 Training and research share one FIFO production lane per building. Production is lost without refund if the building is destroyed. A completed technology emits `technologyResearched`, enters the player's canonical sorted completion list and affects actions beginning on the following simulation tick. Economy, attack, maximum hit points, unit speed and building durability are computed through pure derived-stat functions so current entities, future entities, AI, replay and canonical hashes use the same values.
 
 The fixed seven-slot client dock is presentation only. It may show locked reasons, queue position, progress and completion notices, but it never grants a technology locally. AI personalities submit the same command and use distinct deterministic priority lists and research intervals.
+
+## Production cancellation and rally contract
+
+Every training or research entry owns a deterministic identity `{ commandSequence, itemIndex }`, its enqueue-time total duration and an immutable paid-cost snapshot. A cancellation command names the owned producer plus that identity; queue indices are display-only and never authority. A stale identity returns `PRODUCTION_JOB_NOT_FOUND` without mutating resources, population reservations or a different queue entry.
+
+Village Siege uses an original progress-weighted refund rule. A waiting job refunds its full paid cost. An active job refunds `floor(paidCost × remainingTicks / totalTicks)` independently for food, wood and stone. A zero-tick job blocked at its exit refunds zero. Destroying a producer still loses its whole queue without a voluntary-cancellation event or refund. Research cancellation removes the pending duplicate lock but never grants the technology.
+
+Only completed, living buildings that train units may store a rally point. The target must be an in-bounds, walkable, unoccupied exact grid cell with a deterministic route from a legal producer perimeter. Training completion first uses the canonical free spawn perimeter; a valid current route then gives the new unit a move order. If later construction invalidates the rally, production still completes and the new unit stays idle instead of blocking the FIFO lane.
+
+Production queues, job identities and rally points are owner-only state. They are intentionally absent from `PublicEntityState`; an authoritative online transport must filter the related events to the owning player. AI receives only `ownProductionQueues` and `ownRallyPoints`, sets a stable local military rally once before affordable production, and cancels a tail training job only to recover from a real population-capacity deficit.
 
 ## Server validation
 

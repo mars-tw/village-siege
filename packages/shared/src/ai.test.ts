@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AI_PROFILES, createAiController, getAiObservation, type AiObservation } from "./ai";
-import { MAX_TRAINING_QUEUE_DEPTH, TECHNOLOGIES } from "./content";
+import { MAX_TRAINING_QUEUE_DEPTH, TECHNOLOGIES, UNITS } from "./content";
 import { isGameCommand, type AiPersonality, type GameCommand, type PublicEntityState, type UnitType } from "./protocol";
 import { applyCommand, cloneMatchState, createInitialState, stepSimulation, validateCommand, type MatchState } from "./simulation";
 
@@ -184,7 +184,17 @@ describe("shared AI personalities", () => {
     hiddenEnemy!.stateRevision += 100;
     enemyPlayer!.resources = { food: 9999, wood: 9999, stone: 9999 };
     enemyPlayer!.completedTechnologyIds = ["surveyedFoundations"];
-    if (hiddenEnemy?.kind === "building") hiddenEnemy.productionQueue = [{ kind: "research", technologyId: "starfireBores", remainingTicks: TECHNOLOGIES.starfireBores.researchTicks }];
+    if (hiddenEnemy?.kind === "building") {
+      hiddenEnemy.rallyPoint = { x: 20, y: 20 };
+      hiddenEnemy.productionQueue = [{
+        jobId: { commandSequence: 9, itemIndex: 0 },
+        kind: "research",
+        technologyId: "starfireBores",
+        remainingTicks: TECHNOLOGIES.starfireBores.researchTicks,
+        totalTicks: TECHNOLOGIES.starfireBores.researchTicks,
+        paidCost: { ...TECHNOLOGIES.starfireBores.cost },
+      }];
+    }
 
     const baseline = getAiObservation(state, "player-1");
     const afterHiddenChange = getAiObservation(changedHiddenState, "player-1");
@@ -222,15 +232,78 @@ describe("shared AI personalities", () => {
     const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
     expect(townCenter?.kind).toBe("building");
     if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
-    townCenter.productionQueue = Array.from({ length: MAX_TRAINING_QUEUE_DEPTH }, () => ({ kind: "train" as const, unitType: "villager" as const, remainingTicks: 120 }));
-    state.players[0]!.population.used += MAX_TRAINING_QUEUE_DEPTH;
-
+    townCenter.productionQueue = Array.from({ length: MAX_TRAINING_QUEUE_DEPTH }, (_, index) => ({
+      jobId: { commandSequence: 0, itemIndex: index },
+      kind: "train" as const,
+      unitType: "villager" as const,
+      remainingTicks: 120,
+      totalTicks: 120,
+      paidCost: { ...UNITS.villager.cost },
+    }));
     const observation = getAiObservation(state, "player-1");
     const commands = createAiController("prosperer", "player-1", 151).decide(observation, 5);
     expect(observation.ownTrainingQueueDepth[townCenter.id]).toBe(MAX_TRAINING_QUEUE_DEPTH);
     expect(commands).toHaveLength(1);
     expect(commands[0]).toMatchObject({ type: "gather" });
     expect(validateCommand(state, envelope(state, 0, commands[0]!))).toEqual({ ok: true });
+  });
+
+  it("sets one legal personality rally before starting military production", () => {
+    let state = createInitialState({ seed: 152, matchId: "ai-rally-before-training" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
+    state.entities.push({
+      ...townCenter,
+      id: "ai-rally-barracks",
+      typeId: "barracks",
+      position: { x: 10, y: 10 },
+      hitPoints: 650,
+      maxHitPoints: 650,
+      rallyPoint: null,
+      productionQueue: [],
+    });
+    state.players[0]!.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    state.tick = 20;
+    const controller = createAiController("aggressor", "player-1", 152, "standard");
+    const rally = controller.decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(rally).toMatchObject({ type: "setRallyPoint", producerId: "ai-rally-barracks" });
+    expect(validateCommand(state, envelope(state, 0, rally!))).toEqual({ ok: true });
+
+    state = applyCommand(state, envelope(state, 0, rally!)).state;
+    state = stepSimulation(state, [], 20).state;
+    const train = controller.decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(train).toMatchObject({ type: "train", producerId: "ai-rally-barracks", unitType: "militia" });
+    expect(validateCommand(state, envelope(state, 1, train!))).toEqual({ ok: true });
+  });
+
+  it("cancels only a stable tail training job when queued population exceeds capacity", () => {
+    const state = createInitialState({ seed: 153, matchId: "ai-capacity-recovery" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
+    state.players[0]!.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const queued = applyCommand(state, envelope(state, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 5 })).state;
+    queued.players[0]!.population.capacity = 7;
+    const observation = getAiObservation(queued, "player-1");
+    expect(observation.population.used).toBeGreaterThan(observation.population.capacity);
+    const command = createAiController("prosperer", "player-1", 153, "veteran").decide(observation, 5)[0];
+    expect(command).toEqual({ type: "cancelProduction", producerId: townCenter.id, jobId: { commandSequence: 0, itemIndex: 4 } });
+    expect(validateCommand(queued, envelope(queued, 1, command!))).toEqual({ ok: true });
+  });
+
+  it("does not double-count queued population when capacity still covers the authoritative used total", () => {
+    const state = createInitialState({ seed: 154, matchId: "ai-capacity-no-false-positive" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
+    state.players[0]!.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const queued = applyCommand(state, envelope(state, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 5 })).state;
+    const observation = getAiObservation(queued, "player-1");
+    expect(observation.population).toEqual({ used: 8, capacity: 10 });
+    const command = createAiController("prosperer", "player-1", 154, "veteran").decide(observation, 5)[0];
+    expect(command?.type).not.toBe("cancelProduction");
+    if (command) expect(validateCommand(queued, envelope(queued, 1, command))).toEqual({ ok: true });
   });
 
   it("keeps every personality command legal until advancement or a legitimate victory", () => {

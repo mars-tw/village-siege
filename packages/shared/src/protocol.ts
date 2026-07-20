@@ -47,6 +47,11 @@ export interface ResourceCargo {
   readonly capacity: number;
 }
 
+export interface ProductionJobId {
+  readonly commandSequence: number;
+  readonly itemIndex: number;
+}
+
 export type GameCommand =
   | { readonly type: "move"; readonly entityIds: readonly EntityId[]; readonly target: GridPoint }
   | { readonly type: "attack"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
@@ -55,6 +60,8 @@ export type GameCommand =
   | { readonly type: "build"; readonly builderIds: readonly EntityId[]; readonly buildingType: BuildingType; readonly origin: GridPoint }
   | { readonly type: "train"; readonly producerId: EntityId; readonly unitType: UnitType; readonly count: number }
   | { readonly type: "research"; readonly producerId: EntityId; readonly technologyId: TechnologyType }
+  | { readonly type: "cancelProduction"; readonly producerId: EntityId; readonly jobId: ProductionJobId }
+  | { readonly type: "setRallyPoint"; readonly producerId: EntityId; readonly target: GridPoint | null }
   | { readonly type: "advanceSettlement"; readonly producerId: EntityId; readonly targetTier: SettlementTier }
   | { readonly type: "patrol"; readonly entityIds: readonly EntityId[]; readonly waypoints: readonly GridPoint[] }
   | { readonly type: "stop"; readonly entityIds: readonly EntityId[] }
@@ -77,6 +84,7 @@ export type CommandRejectCode =
   | "ENTITY_NOT_OWNED"
   | "INSUFFICIENT_RESOURCES"
   | "DUPLICATE_RESEARCH"
+  | "PRODUCTION_JOB_NOT_FOUND"
   | "PREREQUISITE_NOT_MET"
   | "ACTION_ON_COOLDOWN"
   | "TARGET_NOT_VISIBLE"
@@ -107,6 +115,17 @@ export type DomainEvent =
   | { readonly type: "entityRemoved"; readonly entityId: EntityId; readonly reason: "destroyed" | "completed" | "depleted" | "despawned" }
   | { readonly type: "settlementAdvanced"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly settlementTier: SettlementTier }
   | { readonly type: "technologyResearched"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly technologyId: TechnologyType }
+  | { readonly type: "rallyPointChanged"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly target: GridPoint | null }
+  | {
+      readonly type: "productionCancelled";
+      readonly playerId: PlayerId;
+      readonly producerId: EntityId;
+      readonly jobId: ProductionJobId;
+      readonly formerQueueIndex: number;
+      readonly job: { readonly kind: "train"; readonly unitType: UnitType } | { readonly kind: "research"; readonly technologyId: TechnologyType };
+      readonly remainingTicks: number;
+      readonly refunded: ResourceWallet;
+    }
   | { readonly type: "resourcesDeposited"; readonly playerId: PlayerId; readonly unitId: EntityId; readonly dropOffId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
   | { readonly type: "resourceDepleted"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly renewable: boolean; readonly renewAtTick: number | null }
   | { readonly type: "resourceRenewed"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
@@ -132,6 +151,10 @@ export function isGameCommand(value: unknown): value is GameCommand {
       return hasOnlyKeys(value, ["type", "producerId", "unitType", "count"]) && typeof value.producerId === "string" && isUnitType(value.unitType) && isSafeInteger(value.count) && value.count >= 1 && value.count <= 5;
     case "research":
       return hasOnlyKeys(value, ["type", "producerId", "technologyId"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isTechnologyType(value.technologyId);
+    case "cancelProduction":
+      return hasOnlyKeys(value, ["type", "producerId", "jobId"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isProductionJobId(value.jobId);
+    case "setRallyPoint":
+      return hasOnlyKeys(value, ["type", "producerId", "target"]) && typeof value.producerId === "string" && value.producerId.length > 0 && (value.target === null || isGridPoint(value.target));
     case "advanceSettlement":
       return hasOnlyKeys(value, ["type", "producerId", "targetTier"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isSettlementTier(value.targetTier);
     case "patrol":
@@ -175,6 +198,15 @@ export function isBuildingType(value: unknown): value is BuildingType {
 
 export function isUnitType(value: unknown): value is UnitType {
   return typeof value === "string" && (["villager", "militia", "spearman", "archer", "mage", "musketeer", "scout", "batteringRam"] as const).includes(value as UnitType);
+}
+
+function isProductionJobId(value: unknown): value is ProductionJobId {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["commandSequence", "itemIndex"])
+    && isSafeInteger(value.commandSequence)
+    && value.commandSequence >= 0
+    && isSafeInteger(value.itemIndex)
+    && value.itemIndex >= 0;
 }
 
 export function isSettlementTier(value: unknown): value is SettlementTier {

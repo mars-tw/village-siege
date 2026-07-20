@@ -1,6 +1,6 @@
 import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, TechnologyType, UnitType, VillageId } from "./protocol.js";
 
-export const RULES_VERSION = "village-siege/0.5.0";
+export const RULES_VERSION = "village-siege/0.6.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;

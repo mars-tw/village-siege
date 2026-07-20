@@ -1,7 +1,5 @@
 import Phaser from "phaser";
 import {
-  TECHNOLOGIES,
-  TICKS_PER_SECOND,
   type BuildingEntityState,
   type BuildingType,
   type ResourceEntityState,
@@ -189,12 +187,8 @@ function completionRatio(entity: BuildingEntityState): number {
 function queueText(queue: BuildingEntityState["productionQueue"]): string {
   if (queue.length === 0) return "";
   const job = queue[0]!;
-  if (job.kind === "research") {
-    const definition = TECHNOLOGIES[job.technologyId];
-    const progress = Math.round(Phaser.Math.Clamp(1 - job.remainingTicks / definition.researchTicks, 0, 1) * 100);
-    return `研究 ${definition.shortName} ${progress}%`;
-  }
-  return `生產 ${queue.length} 項 · ${Math.ceil(job.remainingTicks / TICKS_PER_SECOND)}s`;
+  const progress = Math.round(Phaser.Math.Clamp(1 - job.remainingTicks / Math.max(1, job.totalTicks), 0, 1) * 100);
+  return `列${queue.length} · ${job.kind === "research" ? "研" : "工"}${progress}%`;
 }
 
 function footprintWidth(type: BuildingType): number {

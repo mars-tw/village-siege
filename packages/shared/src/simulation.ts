@@ -23,7 +23,7 @@ import {
   isVillageAssaultWalkableCell,
 } from "./battlefield.js";
 import { normalizeSeed } from "./random.js";
-import { findNextPathStep, findPathToAny, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
+import { findNextPathStep, findPathRoute, findPathToAny, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import {
   isCommandEnvelope,
   type BuildingType,
@@ -36,6 +36,7 @@ import {
   type MatchId,
   type MatchPhase,
   type PlayerId,
+  type ProductionJobId,
   type PublicEntityState,
   type ResourceKind,
   type ResourceWallet,
@@ -72,8 +73,8 @@ export interface UnitEntityState {
 }
 
 export type ProductionJob =
-  | { kind: "train"; unitType: UnitType; remainingTicks: number }
-  | { kind: "research"; technologyId: TechnologyType; remainingTicks: number };
+  | { jobId: ProductionJobId; kind: "train"; unitType: UnitType; remainingTicks: number; totalTicks: number; paidCost: ResourceWallet }
+  | { jobId: ProductionJobId; kind: "research"; technologyId: TechnologyType; remainingTicks: number; totalTicks: number; paidCost: ResourceWallet };
 
 export interface BuildingEntityState {
   id: EntityId;
@@ -87,6 +88,7 @@ export interface BuildingEntityState {
   complete: boolean;
   constructionRemainingTicks: number;
   attackCooldownTicks: number;
+  rallyPoint: GridPoint | null;
   productionQueue: ProductionJob[];
 }
 
@@ -264,7 +266,7 @@ export function applyCommand(state: MatchState, envelope: CommandEnvelope): Comm
   const events: DomainEvent[] = [{ type: "commandAccepted", sequence: envelope.sequence, serverTick: next.tick }];
   const player = next.players.find((candidate) => candidate.id === envelope.playerId)!;
   player.lastSequence = envelope.sequence;
-  applyGameCommand(next, player, envelope.command, events);
+  applyGameCommand(next, player, envelope.sequence, envelope.command, events);
   syncPopulation(next);
   evaluateVictory(next, events);
   return { state: next, validation, events };
@@ -274,7 +276,7 @@ export function stepSimulation(state: MatchState, commands: readonly CommandEnve
   if (!Number.isSafeInteger(deltaTicks) || deltaTicks < 0) throw new RangeError("deltaTicks must be a non-negative safe integer");
   let next = cloneMatchState(state);
   const events: DomainEvent[] = [];
-  const ordered = [...commands].sort((left, right) => left.playerId.localeCompare(right.playerId) || left.sequence - right.sequence);
+  const ordered = orderCommands(commands);
   for (const envelope of ordered) {
     const applied = applyCommand(next, envelope);
     next = applied.state;
@@ -295,8 +297,9 @@ export function hashMatchState(state: MatchState): string {
 }
 
 export function hashReplay(initialState: MatchState, commands: readonly CommandEnvelope[], deltaTicks: number): string {
-  const result = stepSimulation(initialState, commands, deltaTicks);
-  return fnv1a(stableStringify({ initial: hashMatchState(initialState), commands, deltaTicks, final: hashMatchState(result.state) }));
+  const ordered = orderCommands(commands);
+  const result = stepSimulation(initialState, ordered, deltaTicks);
+  return fnv1a(stableStringify({ initial: hashMatchState(initialState), commands: ordered, deltaTicks, final: hashMatchState(result.state) }));
 }
 
 export function toPublicEntity(entity: EntityState): PublicEntityState {
@@ -370,6 +373,19 @@ export function isBuildLocationAvailable(state: MatchState, buildingType: Buildi
   ));
 }
 
+export function isRallyPointAvailable(state: MatchState, producerId: EntityId, target: GridPoint): boolean {
+  const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === producerId && entity.kind === "building");
+  if (!producer || !isTrainingProducer(producer.typeId) || !producer.complete || producer.hitPoints <= 0) return false;
+  if (!isExactWalkTargetAvailable(state, target)) return false;
+  const blocked = getPathBlockedCells(state);
+  return getFootprintPerimeterCells(producer.position, BUILDINGS[producer.typeId].footprint).some((start) => (
+    isPointInBounds(start, state)
+    && isMapCellWalkable(state, start)
+    && !isMapCellBlocked(state, start)
+    && findPathRoute(start, target, state.map.width, state.map.height, blocked) !== null
+  ));
+}
+
 function validateGameCommand(state: MatchState, player: PlayerState, command: GameCommand): CommandValidation {
   if (command.type === "surrender") return { ok: true };
   if (command.type === "advanceSettlement") {
@@ -413,6 +429,23 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     if (!definition.prerequisites.every((technologyId) => player.completedTechnologyIds.includes(technologyId))) return rejected("PREREQUISITE_NOT_MET");
     return canAfford(player.resources, definition.cost) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
+  if (command.type === "cancelProduction") {
+    const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
+    if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
+    if (!producer.complete || producer.hitPoints <= 0) return rejected("ACTION_ON_COOLDOWN");
+    return producer.productionQueue.some((job) => sameProductionJobId(job.jobId, command.jobId))
+      ? { ok: true }
+      : rejected("PRODUCTION_JOB_NOT_FOUND");
+  }
+  if (command.type === "setRallyPoint") {
+    const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
+    if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
+    if (!isTrainingProducer(producer.typeId)) return rejected("INVALID_PAYLOAD");
+    if (!producer.complete || producer.hitPoints <= 0) return rejected("ACTION_ON_COOLDOWN");
+    return command.target === null || isRallyPointAvailable(state, producer.id, command.target)
+      ? { ok: true }
+      : rejected("TARGET_NOT_REACHABLE");
+  }
   const ids = command.entityIds;
   const units = ownedUnits(state, player.id, ids);
   if (!units) return rejected("ENTITY_NOT_OWNED");
@@ -445,7 +478,7 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
   return { ok: true };
 }
 
-function applyGameCommand(state: MatchState, player: PlayerState, command: GameCommand, events: DomainEvent[]): void {
+function applyGameCommand(state: MatchState, player: PlayerState, commandSequence: number, command: GameCommand, events: DomainEvent[]): void {
   switch (command.type) {
     case "move":
       setOrders(state, command.entityIds, { type: "move", target: command.target });
@@ -493,7 +526,16 @@ function applyGameCommand(state: MatchState, player: PlayerState, command: GameC
       const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building")!;
       const definition = UNITS[command.unitType];
       subtractWallet(player, multiplyWallet(definition.cost, command.count));
-      for (let index = 0; index < command.count; index += 1) producer.productionQueue.push({ kind: "train", unitType: command.unitType, remainingTicks: definition.trainTicks });
+      for (let index = 0; index < command.count; index += 1) {
+        producer.productionQueue.push({
+          jobId: { commandSequence, itemIndex: index },
+          kind: "train",
+          unitType: command.unitType,
+          remainingTicks: definition.trainTicks,
+          totalTicks: definition.trainTicks,
+          paidCost: { ...definition.cost },
+        });
+      }
       producer.stateRevision += 1;
       break;
     }
@@ -501,8 +543,41 @@ function applyGameCommand(state: MatchState, player: PlayerState, command: GameC
       const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building")!;
       const definition = TECHNOLOGIES[command.technologyId];
       subtractWallet(player, definition.cost);
-      producer.productionQueue.push({ kind: "research", technologyId: command.technologyId, remainingTicks: definition.researchTicks });
+      producer.productionQueue.push({
+        jobId: { commandSequence, itemIndex: 0 },
+        kind: "research",
+        technologyId: command.technologyId,
+        remainingTicks: definition.researchTicks,
+        totalTicks: definition.researchTicks,
+        paidCost: { ...definition.cost },
+      });
       producer.stateRevision += 1;
+      break;
+    }
+    case "cancelProduction": {
+      const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building")!;
+      const formerQueueIndex = producer.productionQueue.findIndex((job) => sameProductionJobId(job.jobId, command.jobId));
+      const [job] = producer.productionQueue.splice(formerQueueIndex, 1);
+      const refunded = productionRefund(job!);
+      addWallet(player, refunded);
+      producer.stateRevision += 1;
+      events.push({
+        type: "productionCancelled",
+        playerId: player.id,
+        producerId: producer.id,
+        jobId: { ...job!.jobId },
+        formerQueueIndex,
+        job: job!.kind === "train" ? { kind: "train", unitType: job!.unitType } : { kind: "research", technologyId: job!.technologyId },
+        remainingTicks: job!.remainingTicks,
+        refunded,
+      });
+      break;
+    }
+    case "setRallyPoint": {
+      const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building")!;
+      producer.rallyPoint = command.target ? { ...command.target } : null;
+      producer.stateRevision += 1;
+      events.push({ type: "rallyPointChanged", playerId: player.id, producerId: producer.id, target: producer.rallyPoint ? { ...producer.rallyPoint } : null });
       break;
     }
     case "advanceSettlement": {
@@ -528,11 +603,11 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   state.tick += 1;
   const resources = state.entities
     .filter((entity): entity is ResourceEntityState => entity.kind === "resource")
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareText(left.id, right.id));
   for (const resource of resources) updateRenewableResourceNode(state, resource, events);
   const units = state.entities
     .filter((entity): entity is UnitEntityState => entity.kind === "unit")
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareText(left.id, right.id));
   for (const unit of units) {
     unit.attackCooldownTicks = Math.max(0, unit.attackCooldownTicks - 1);
     unit.workCooldownTicks = Math.max(0, unit.workCooldownTicks - 1);
@@ -540,7 +615,7 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   }
   const buildings = state.entities
     .filter((entity): entity is BuildingEntityState => entity.kind === "building")
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareText(left.id, right.id));
   for (const building of buildings) {
     building.attackCooldownTicks = Math.max(0, building.attackCooldownTicks - 1);
     updateTower(state, building);
@@ -781,7 +856,7 @@ function findNearestGatherSource(state: MatchState, playerId: PlayerId, resource
     .sort((left, right) => (
       Number(gatherSourceAmount(right.entity) > 0) - Number(gatherSourceAmount(left.entity) > 0)
       || left.route.distance - right.route.distance
-      || left.entity.id.localeCompare(right.entity.id)
+      || compareText(left.entity.id, right.entity.id)
     ))[0]?.entity ?? null;
 }
 
@@ -796,7 +871,7 @@ function findNearestDropOff(state: MatchState, playerId: PlayerId, resourceKind:
     ))
     .map((entity) => ({ entity, route: findEntityApproachRoute(state, position, entity) }))
     .filter((candidate): candidate is { entity: BuildingEntityState; route: EntityApproachRoute } => candidate.route !== null)
-    .sort((left, right) => left.route.distance - right.route.distance || left.entity.id.localeCompare(right.entity.id))[0]?.entity ?? null;
+    .sort((left, right) => left.route.distance - right.route.distance || compareText(left.entity.id, right.entity.id))[0]?.entity ?? null;
 }
 
 function buildingAcceptsResource(building: BuildingEntityState, resourceKind: ResourceKind): boolean {
@@ -855,7 +930,7 @@ function gatherYield(state: MatchState, unit: UnitEntityState, resourceKind: Res
 function updateProduction(state: MatchState, building: BuildingEntityState, events: DomainEvent[]): void {
   if (!building.complete || building.hitPoints <= 0 || building.productionQueue.length === 0) return;
   const job = building.productionQueue[0]!;
-  job.remainingTicks -= 1;
+  job.remainingTicks = Math.max(0, job.remainingTicks - 1);
   building.stateRevision += 1;
   if (job.remainingTicks > 0) return;
   if (job.kind === "research") {
@@ -867,6 +942,9 @@ function updateProduction(state: MatchState, building: BuildingEntityState, even
   if (!spawn) return;
   building.productionQueue.shift();
   const unit = createUnit(state, building.ownerId, job.unitType, spawn);
+  if (building.rallyPoint && canUnitMoveToExactPoint(state, spawn, building.rallyPoint) && !samePoint(spawn, building.rallyPoint)) {
+    unit.order = { type: "move", target: { ...building.rallyPoint } };
+  }
   state.entities.push(unit);
   events.push({ type: "entitySpawned", entity: toPublicEntity(unit) });
 }
@@ -877,7 +955,7 @@ function updateTower(state: MatchState, building: BuildingEntityState): void {
   if (stats.attackDamage <= 0) return;
   const enemies = state.entities
     .filter((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId !== building.ownerId && distanceSquared(entity.position, building.position) <= stats.attackRange * stats.attackRange)
-    .sort((left, right) => distanceSquared(left.position, building.position) - distanceSquared(right.position, building.position) || left.id.localeCompare(right.id));
+    .sort((left, right) => distanceSquared(left.position, building.position) - distanceSquared(right.position, building.position) || compareText(left.id, right.id));
   const target = enemies[0];
   if (!target) return;
   target.hitPoints = Math.max(0, target.hitPoints - stats.attackDamage);
@@ -974,6 +1052,7 @@ function createBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingTy
     complete,
     constructionRemainingTicks: complete ? 0 : definition.buildTicks,
     attackCooldownTicks: 0,
+    rallyPoint: null,
     productionQueue: [],
   };
 }
@@ -1180,6 +1259,16 @@ function subtractWallet(player: PlayerState, cost: ResourceWallet): void {
   player.resources = { food: player.resources.food - cost.food, wood: player.resources.wood - cost.wood, stone: player.resources.stone - cost.stone };
 }
 
+function addWallet(player: PlayerState, value: ResourceWallet): void {
+  player.resources = { food: player.resources.food + value.food, wood: player.resources.wood + value.wood, stone: player.resources.stone + value.stone };
+}
+
+function productionRefund(job: ProductionJob): ResourceWallet {
+  const remaining = Math.max(0, Math.min(job.totalTicks, job.remainingTicks));
+  const refund = (amount: number): number => Math.floor(amount * remaining / Math.max(1, job.totalTicks));
+  return { food: refund(job.paidCost.food), wood: refund(job.paidCost.wood), stone: refund(job.paidCost.stone) };
+}
+
 function multiplyWallet(wallet: ResourceWallet, count: number): ResourceWallet {
   return { food: wallet.food * count, wood: wallet.wood * count, stone: wallet.stone * count };
 }
@@ -1238,6 +1327,14 @@ function distanceSquaredToEntity(point: GridPoint, entity: EntityState): number 
   return Math.min(...getEntityFootprintCells(entity).map((cell) => distanceSquared(point, cell)));
 }
 
+function sameProductionJobId(left: ProductionJobId, right: ProductionJobId): boolean {
+  return left.commandSequence === right.commandSequence && left.itemIndex === right.itemIndex;
+}
+
+function isTrainingProducer(buildingType: BuildingType): boolean {
+  return (Object.keys(UNITS) as UnitType[]).some((unitType) => UNITS[unitType].producers.includes(buildingType));
+}
+
 interface EntityApproachRoute {
   readonly target: GridPoint;
   readonly firstStep: GridPoint;
@@ -1287,6 +1384,15 @@ function isMapCellWalkable(state: MatchState, point: GridPoint): boolean {
   return state.map.id !== VILLAGE_ASSAULT_MAP_ID || isVillageAssaultWalkableCell(point);
 }
 
+function isExactWalkTargetAvailable(state: MatchState, point: GridPoint): boolean {
+  return isPointInBounds(point, state) && isMapCellWalkable(state, point) && !isMapCellBlocked(state, point);
+}
+
+function canUnitMoveToExactPoint(state: MatchState, start: GridPoint, target: GridPoint): boolean {
+  return isExactWalkTargetAvailable(state, target)
+    && findPathRoute(start, target, state.map.width, state.map.height, getPathBlockedCells(state)) !== null;
+}
+
 function getPathBlockedCells(state: MatchState): readonly GridPoint[] {
   return state.map.id === VILLAGE_ASSAULT_MAP_ID
     ? [...getOccupiedMapCells(state), ...getVillageAssaultWalkBlockedCells()]
@@ -1295,6 +1401,18 @@ function getPathBlockedCells(state: MatchState): readonly GridPoint[] {
 
 function pointKey(point: GridPoint): string {
   return `${point.x},${point.y}`;
+}
+
+function orderCommands(commands: readonly CommandEnvelope[]): CommandEnvelope[] {
+  return [...commands].sort((left, right) => (
+    compareText(left.playerId, right.playerId)
+    || left.sequence - right.sequence
+    || compareText(stableStringify(left.command), stableStringify(right.command))
+  ));
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function stableStringify(value: unknown): string {

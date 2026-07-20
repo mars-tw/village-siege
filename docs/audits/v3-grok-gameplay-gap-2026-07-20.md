@@ -105,3 +105,30 @@ The first three P2 findings were all closed before handoff: duplicate research n
 - Independent shared-rules, AI/test and mobile-UX auditors were used before finalization; their mobile label, queued-research status, completion-notice and cyclic page-number findings were fixed. The final mobile closure reports P0 `0`, P1 `0`, P2 `0`.
 
 Verdict: **TASK-027 PASS**. This completes only the technology research slice. Fog of war, walls and gates, remaining combat commands, save/replay product flow and server-owned multiplayer battles remain open and are not claimed complete.
+
+## Production cancellation and rally slice final review
+
+TASK-028 adds deterministic production job identities, enqueue-time paid-cost snapshots, original progress-weighted cancellation refunds and owner-private building rally points. The fixed seven-slot building dock now reserves four primary actions, one queue action, one rally action and one system action. A five-job queue uses two in-dock pages and stable-ID two-step cancellation; no modal or overlapping mobile panel was added.
+
+Waiting work refunds its full paid cost. Active work refunds `floor(paidCost × remainingTicks / totalTicks)` independently per resource. Destroyed producers still lose their queues without refund. New units spawn from the canonical free perimeter before receiving a rally move order; a rally invalidated by later construction leaves the unit idle and never blocks FIFO production.
+
+### Grok CLI evidence
+
+- CLI/version: `C:\Users\digimkt\.grok\bin\grok.exe`, `grok 0.2.106 (bde89716f6)`
+- Requested model: `grok-4.5`; permission: read-only plan mode; web, memory and subagents disabled
+- Accepted session: `019f7f27-43de-7762-833e-94e5a3d519c9`
+- Full audit prompt id: `5df12d44-0fde-4f66-ac7b-92723e8561b9`; verdict `PASS WITH FINDINGS`, P0 `0`, P1 `1`, P2 `1`
+- Targeted closure prompt id: `40c16808-660c-4127-89d1-db0fe519d3ba`; verdict **PASS**, P0 `0`, P1 `0`, P2 `0`
+
+The initial P1 correctly found that AI recovery added queued population to `population.used` even though the authoritative value already includes queued population. The fix compares `used` directly with capacity and adds both a real-overflow stable-tail cancellation test and a `used=8, capacity=10` false-positive regression test. The P2 README gap was closed by documenting the exact Escape hierarchy: confirmation to queue, queue/rally to building commands, building placement cancellation, then battle exit.
+
+### Codex and delegated-auditor evidence
+
+- Final `npm run verify`: PASS with all workspace typechecks, 5 files / 93 tests and client/server production builds.
+- `npm run smoke:multiplayer:local`: PASS for two-player room, readiness/host/invalid-payload rejection, reconnect and authoritative tick.
+- `npm audit --omit=dev`: PASS, 0 known production vulnerabilities.
+- Playwright production-preview QA at 844×390, 667×375 and 568×320 exposed exactly seven controls, kept document and canvas inside the viewport, rendered queue pages 1/2 and 2/2, cancelled only the selected fifth job after confirmation, preserved Escape layers, kept rally targeting active after drag, rendered the legal copper rally marker and reported zero console/page errors.
+- Browser QA found one stale-confirmation success-message race. The mode transition now occurs before the accepted cancel is rendered; a rebuilt preview reverified the owner status as `已取消 工匠`.
+- Three independent read-only auditors reviewed shared rules, AI/tests and mobile UX before implementation. Their stable job identity, owner-only observation, invalid-rally spawn fallback, fixed dock, two-step confirmation and active/a11y findings were implemented.
+
+Verdict: **TASK-028 PASS**. This completes the production cancellation and rally slice only. Fog of war, walls and gates, remaining combat commands, save/replay product flow and server-owned multiplayer battles remain open and are not claimed complete.

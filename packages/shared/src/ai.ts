@@ -2,7 +2,7 @@ import { BUILDINGS, MAX_TRAINING_QUEUE_DEPTH, SETTLEMENT_TIERS, TECHNOLOGIES, TE
 import { getVillageAssaultBuildBlockedCells, getVillageAssaultWalkBlockedCells, VILLAGE_ASSAULT_MAP_ID } from "./battlefield.js";
 import { nextUint32, normalizeSeed } from "./random.js";
 import { isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState, type ProductionJob } from "./simulation.js";
-import { getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
+import { findPathRoute, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import type {
   AiDifficulty,
   AiPersonality,
@@ -41,6 +41,7 @@ export interface AiObservation {
   readonly ownEntities: readonly PublicEntityState[];
   readonly ownTrainingQueueDepth: Readonly<Record<EntityId, number>>;
   readonly ownProductionQueues: Readonly<Record<EntityId, readonly ProductionJob[]>>;
+  readonly ownRallyPoints: Readonly<Record<EntityId, GridPoint | null>>;
   readonly completedTechnologyIds: readonly TechnologyType[];
   readonly ownIncompleteBuildingIds: readonly EntityId[];
   readonly visibleEnemyEntities: readonly PublicEntityState[];
@@ -118,20 +119,26 @@ export function getAiObservation(state: MatchState, playerId: PlayerId, remember
     ownTrainingQueueDepth: Object.fromEntries(
       state.entities
         .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId)
-        .sort((left, right) => left.id.localeCompare(right.id))
+        .sort((left, right) => compareText(left.id, right.id))
         .map((building) => [building.id, building.productionQueue.length]),
     ),
     ownProductionQueues: Object.fromEntries(
       state.entities
         .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId)
-        .sort((left, right) => left.id.localeCompare(right.id))
-        .map((building) => [building.id, building.productionQueue.map((job) => ({ ...job }))]),
+        .sort((left, right) => compareText(left.id, right.id))
+        .map((building) => [building.id, building.productionQueue.map((job) => ({ ...job, jobId: { ...job.jobId }, paidCost: { ...job.paidCost } }))]),
+    ),
+    ownRallyPoints: Object.fromEntries(
+      state.entities
+        .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId)
+        .sort((left, right) => compareText(left.id, right.id))
+        .map((building) => [building.id, building.rallyPoint ? { ...building.rallyPoint } : null]),
     ),
     completedTechnologyIds: [...player.completedTechnologyIds],
     ownIncompleteBuildingIds: state.entities
       .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId && !entity.complete)
       .map((building) => building.id)
-      .sort((left, right) => left.localeCompare(right)),
+      .sort(compareText),
     visibleEnemyEntities: sortPublicEntities(visible.filter((entity) => entity.ownerId !== null).map(toPublicEntity)),
     // Keep fallow renewable fields in spatial knowledge so the AI will not try
     // to build over them. Economy selection separately filters empty nodes.
@@ -149,6 +156,9 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
   const townCenter = townCenterSite && !incompleteIds.has(townCenterSite.id) ? townCenterSite : undefined;
   const incompleteBuilding = incompleteIds.size > 0;
   const visibleTarget = chooseTarget(profile, observation.visibleEnemyEntities, randomValue);
+
+  const populationRecovery = populationRecoveryCommand(profile, observation);
+  if (populationRecovery) return populationRecovery;
 
   if (observation.advancement) {
     return advancementSupportCommand(observation, villagers, incompleteBuilding, randomValue);
@@ -172,7 +182,7 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
       const home = townCenter?.position;
       const closeEnemy = home && [...observation.visibleEnemyEntities]
         .filter((enemy) => distanceSquared(home, enemy.position) <= 64)
-        .sort((left, right) => distanceSquared(home, left.position) - distanceSquared(home, right.position) || left.id.localeCompare(right.id))[0];
+        .sort((left, right) => distanceSquared(home, left.position) - distanceSquared(home, right.position) || compareText(left.id, right.id))[0];
       if (closeEnemy && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: closeEnemy.id };
       if (incompleteBuilding) return null;
       if (!observation.ownEntities.some((entity) => entity.kind === "building" && entity.typeId === "defenseTower")) {
@@ -270,7 +280,7 @@ function economyCommand(
   const target = preferred.sort((left, right) => (
     Math.min(...availableVillagers.map((villager) => distanceSquared(villager.position, left.position)))
     - Math.min(...availableVillagers.map((villager) => distanceSquared(villager.position, right.position)))
-    || (randomValue % 2 === 0 ? left.id.localeCompare(right.id) : right.id.localeCompare(left.id))
+    || (randomValue % 2 === 0 ? compareText(left.id, right.id) : compareText(right.id, left.id))
   ))[0];
   return target ? { type: "gather", entityIds: availableVillagers.map((villager) => villager.id), targetId: target.id } : null;
 }
@@ -308,7 +318,7 @@ function researchProgressionCommand(
 
     const producer = observation.ownEntities
       .filter((entity) => entity.kind === "building" && entity.typeId === definition.producer)
-      .sort((left, right) => left.id.localeCompare(right.id))[0];
+      .sort((left, right) => compareText(left.id, right.id))[0];
     if (!producer) {
       return affordableBuild(observation, villagers, definition.producer, profile.mobilityWeight >= profile.defenseWeight ? -1 : 1)
         ?? economyCommand(observation, villagers, randomValue, definition.cost);
@@ -331,7 +341,7 @@ function researchProgressionCommand(
   const definition = TECHNOLOGIES[remaining];
   const producer = observation.ownEntities
     .filter((entity) => entity.kind === "building" && entity.typeId === definition.producer && !incomplete.has(entity.id))
-    .sort((left, right) => left.id.localeCompare(right.id))[0];
+    .sort((left, right) => compareText(left.id, right.id))[0];
   if (!producer || (observation.ownTrainingQueueDepth[producer.id] ?? MAX_TRAINING_QUEUE_DEPTH) >= MAX_TRAINING_QUEUE_DEPTH || !canAfford(observation.wallet, definition.cost)) return null;
   return { type: "research", producerId: producer.id, technologyId: remaining };
 }
@@ -353,7 +363,12 @@ function productionCommand(
   const producer = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === producerType);
   if (producer) {
     if (observation.ownIncompleteBuildingIds.includes(producer.id)) return null;
-    return affordableTrain(observation, producer.id, unitType) ?? economyCommand(observation, villagers, randomValue);
+    const train = affordableTrain(observation, producer.id, unitType);
+    if (train && unitType !== "villager" && observation.ownRallyPoints[producer.id] === null) {
+      const target = chooseRallyTarget(profile, observation, producer);
+      if (target) return { type: "setRallyPoint", producerId: producer.id, target };
+    }
+    return train ?? economyCommand(observation, villagers, randomValue);
   }
   return affordableBuild(observation, villagers, producerType, direction) ?? economyCommand(observation, villagers, randomValue);
 }
@@ -365,6 +380,49 @@ function affordableBuild(observation: AiObservation, villagers: readonly PublicE
   const anchor = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? builder.position;
   const origin = findOpenPoint(observation, anchor, buildingType, direction);
   return origin ? { type: "build", builderIds: [builder.id], buildingType, origin } : null;
+}
+
+function populationRecoveryCommand(profile: AiProfile, observation: AiObservation): GameCommand | null {
+  const queued = Object.entries(observation.ownProductionQueues).flatMap(([producerId, jobs]) => jobs.map((job, queueIndex) => ({ producerId, job, queueIndex })));
+  // Authoritative population.used already includes queued training population.
+  if (observation.population.used <= observation.population.capacity) return null;
+  const preference = new Map(profile.preferredUnits.map((unitType, index) => [unitType, index]));
+  const candidate = queued
+    .filter((entry) => entry.job.kind === "train")
+    .sort((left, right) => (
+      right.queueIndex - left.queueIndex
+      || (preference.get(right.job.kind === "train" ? right.job.unitType : "villager") ?? 999)
+        - (preference.get(left.job.kind === "train" ? left.job.unitType : "villager") ?? 999)
+      || compareText(right.producerId, left.producerId)
+    ))[0];
+  return candidate ? { type: "cancelProduction", producerId: candidate.producerId, jobId: { ...candidate.job.jobId } } : null;
+}
+
+function chooseRallyTarget(profile: AiProfile, observation: AiObservation, producer: PublicEntityState): GridPoint | null {
+  const home = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? producer.position;
+  const center = { x: Math.floor(observation.map.width / 2), y: Math.floor(observation.map.height / 2) };
+  const toward = (from: GridPoint, to: GridPoint, distance: number): GridPoint => ({
+    x: from.x + Math.sign(to.x - from.x) * distance,
+    y: from.y + Math.sign(to.y - from.y) * distance,
+  });
+  const desired = profile.id === "guardian"
+    ? toward(producer.position, home, 2)
+    : profile.id === "raider"
+      ? { x: producer.position.x + (producer.position.x < center.x ? 3 : -3), y: producer.position.y + (producer.position.y < center.y ? -2 : 2) }
+      : profile.id === "prosperer"
+        ? toward(producer.position, home, 2)
+        : toward(producer.position, center, 3);
+  const target = nearestOpenWaypoint(observation, desired);
+  if (!target || producer.kind !== "building") return null;
+  const blocked = knownWalkBlockedCells(observation);
+  return getFootprintPerimeterCells(producer.position, BUILDINGS[producer.typeId as BuildingType].footprint).some((start) => (
+    start.x >= 0
+    && start.y >= 0
+    && start.x < observation.map.width
+    && start.y < observation.map.height
+    && !blocked.some((cell) => cell.x === start.x && cell.y === start.y)
+    && findPathRoute(start, target, observation.map.width, observation.map.height, blocked) !== null
+  )) ? target : null;
 }
 
 function settlementProgressionCommand(
@@ -430,17 +488,7 @@ function flankPatrol(observation: AiObservation, unit: PublicEntityState, random
 }
 
 function nearestOpenWaypoint(observation: AiObservation, desired: GridPoint): GridPoint | null {
-  const blocked = new Set(
-    [...observation.ownEntities, ...observation.visibleEnemyEntities, ...observation.visibleResourceEntities]
-      .filter((entity) => entity.kind !== "unit")
-      .flatMap((entity) => entity.kind === "building"
-        ? getFootprintCells(entity.position, BUILDINGS[entity.typeId as BuildingType].footprint)
-        : [entity.position])
-      .map((cell) => `${cell.x},${cell.y}`),
-  );
-  if (observation.map.id === VILLAGE_ASSAULT_MAP_ID) {
-    for (const cell of getVillageAssaultWalkBlockedCells()) blocked.add(`${cell.x},${cell.y}`);
-  }
+  const blocked = new Set(knownWalkBlockedCells(observation).map((cell) => `${cell.x},${cell.y}`));
   const center = clamp(desired, observation.map);
   for (let radius = 0; radius <= 5; radius += 1) {
     for (let dy = -radius; dy <= radius; dy += 1) {
@@ -455,9 +503,18 @@ function nearestOpenWaypoint(observation: AiObservation, desired: GridPoint): Gr
   return null;
 }
 
+function knownWalkBlockedCells(observation: AiObservation): GridPoint[] {
+  const occupied = [...observation.ownEntities, ...observation.visibleEnemyEntities, ...observation.visibleResourceEntities]
+    .filter((entity) => entity.kind !== "unit")
+    .flatMap((entity) => entity.kind === "building"
+      ? getFootprintCells(entity.position, BUILDINGS[entity.typeId as BuildingType].footprint)
+      : [entity.position]);
+  return observation.map.id === VILLAGE_ASSAULT_MAP_ID ? [...occupied, ...getVillageAssaultWalkBlockedCells()] : occupied;
+}
+
 function chooseTarget(profile: AiProfile, visibleEnemies: readonly PublicEntityState[], randomValue: number): PublicEntityState | undefined {
   for (const priority of profile.targetPriority) {
-    const candidates = visibleEnemies.filter((entity) => targetClass(entity) === priority).sort((left, right) => left.id.localeCompare(right.id));
+    const candidates = visibleEnemies.filter((entity) => targetClass(entity) === priority).sort((left, right) => compareText(left.id, right.id));
     if (candidates.length > 0) return candidates[randomValue % candidates.length];
   }
   return undefined;
@@ -526,7 +583,7 @@ function distanceSquared(left: GridPoint, right: GridPoint): number {
 }
 
 function sortPublicEntities(entities: readonly PublicEntityState[]): PublicEntityState[] {
-  return [...entities].sort((left, right) => left.id.localeCompare(right.id));
+  return [...entities].sort((left, right) => compareText(left.id, right.id));
 }
 
 function sanitizeRememberedEnemySites(
@@ -544,11 +601,15 @@ function sanitizeRememberedEnemySites(
       newestByEntity.set(site.entityId, { ...site, lastKnownPosition: { ...site.lastKnownPosition } });
     }
   }
-  return [...newestByEntity.values()].sort((left, right) => left.entityId.localeCompare(right.entityId));
+  return [...newestByEntity.values()].sort((left, right) => compareText(left.entityId, right.entityId));
 }
 
 function hashText(value: string): number {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) hash = Math.imul(hash ^ value.charCodeAt(index), 16777619);
   return hash >>> 0;
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

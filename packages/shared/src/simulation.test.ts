@@ -15,6 +15,7 @@ import {
   hashMatchState,
   hashReplay,
   isBuildLocationAvailable,
+  isRallyPointAvailable,
   stepSimulation,
   validateCommand,
   type BuildingEntityState,
@@ -40,6 +41,7 @@ function addCompletedBuilding(state: MatchState, ownerId: PlayerId, typeId: Buil
     complete: true,
     constructionRemainingTicks: 0,
     attackCooldownTicks: 0,
+    rallyPoint: null,
     productionQueue: [],
   };
   state.entities.push(building);
@@ -60,7 +62,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.5.0");
+    expect(RULES_VERSION).toBe("village-siege/0.6.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -264,6 +266,17 @@ describe("deterministic shared simulation", () => {
     expect(isGameCommand({ type: "research", producerId: "forge-1", technologyId: "starfireBores", extra: true })).toBe(false);
   });
 
+  it("strictly parses stable production cancellation and nullable rally commands", () => {
+    expect(isGameCommand({ type: "cancelProduction", producerId: "hall-1", jobId: { commandSequence: 7, itemIndex: 2 } })).toBe(true);
+    expect(isGameCommand({ type: "cancelProduction", producerId: "hall-1", jobId: { commandSequence: 7, itemIndex: -1 } })).toBe(false);
+    expect(isGameCommand({ type: "cancelProduction", producerId: "hall-1", jobId: { commandSequence: 7, itemIndex: 2, extra: true } })).toBe(false);
+    expect(isGameCommand({ type: "cancelProduction", producerId: "", jobId: { commandSequence: 7, itemIndex: 2 } })).toBe(false);
+    expect(isGameCommand({ type: "setRallyPoint", producerId: "hall-1", target: { x: 10, y: 11 } })).toBe(true);
+    expect(isGameCommand({ type: "setRallyPoint", producerId: "hall-1", target: null })).toBe(true);
+    expect(isGameCommand({ type: "setRallyPoint", producerId: "hall-1", target: { x: 10.5, y: 11 } })).toBe(false);
+    expect(isGameCommand({ type: "setRallyPoint", producerId: "hall-1", target: null, extra: true })).toBe(false);
+  });
+
   it("shares one deterministic production queue between training and research", () => {
     const state = createInitialState({ seed: 61, matchId: "research-shared-lane" });
     const player = state.players.find((candidate) => candidate.id === "player-1")!;
@@ -280,7 +293,14 @@ describe("deterministic shared simulation", () => {
 
     const firstDone = stepSimulation(secondTrain.state, [], UNITS.villager.trainTicks);
     const afterFirst = firstDone.state.entities.find((entity): entity is BuildingEntityState => entity.id === townCenter.id && entity.kind === "building")!;
-    expect(afterFirst.productionQueue[0]).toEqual({ kind: "research", technologyId: "surveyedFoundations", remainingTicks: TECHNOLOGIES.surveyedFoundations.researchTicks });
+    expect(afterFirst.productionQueue[0]).toEqual({
+      jobId: { commandSequence: 1, itemIndex: 0 },
+      kind: "research",
+      technologyId: "surveyedFoundations",
+      remainingTicks: TECHNOLOGIES.surveyedFoundations.researchTicks,
+      totalTicks: TECHNOLOGIES.surveyedFoundations.researchTicks,
+      paidCost: TECHNOLOGIES.surveyedFoundations.cost,
+    });
 
     const almost = stepSimulation(firstDone.state, [], TECHNOLOGIES.surveyedFoundations.researchTicks - 1);
     expect(almost.state.players[0]!.completedTechnologyIds).toEqual([]);
@@ -291,8 +311,166 @@ describe("deterministic shared simulation", () => {
     expect(completed.state.players[0]!.completedTechnologyIds).toEqual(["surveyedFoundations"]);
     expect(upgradedCenter.maxHitPoints).toBe(1_320);
     expect(upgradedCenter.hitPoints).toBe(1_320);
-    expect(upgradedCenter.productionQueue[0]).toEqual({ kind: "train", unitType: "villager", remainingTicks: UNITS.villager.trainTicks });
+    expect(upgradedCenter.productionQueue[0]).toEqual({
+      jobId: { commandSequence: 2, itemIndex: 0 },
+      kind: "train",
+      unitType: "villager",
+      remainingTicks: UNITS.villager.trainTicks,
+      totalTicks: UNITS.villager.trainTicks,
+      paidCost: UNITS.villager.cost,
+    });
     expect(completed.events).toContainEqual({ type: "technologyResearched", playerId: player.id, producerId: townCenter.id, technologyId: "surveyedFoundations" });
+  });
+
+  it("cancels exact jobs by stable identity with deterministic progress refunds", () => {
+    const state = createInitialState({ seed: 611, matchId: "production-cancel-refund" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    player.resources = { food: 1_000, wood: 1_000, stone: 1_000 };
+
+    const queued = applyCommand(state, envelope(state, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 3 }));
+    expect(queued.validation).toEqual({ ok: true });
+    expect((queued.state.entities.find((entity) => entity.id === townCenter.id) as BuildingEntityState).productionQueue.map((job) => job.jobId)).toEqual([
+      { commandSequence: 0, itemIndex: 0 },
+      { commandSequence: 0, itemIndex: 1 },
+      { commandSequence: 0, itemIndex: 2 },
+    ]);
+
+    const progressed = stepSimulation(queued.state, [], 30).state;
+    const middleCancelled = applyCommand(progressed, envelope(progressed, 1, {
+      type: "cancelProduction",
+      producerId: townCenter.id,
+      jobId: { commandSequence: 0, itemIndex: 1 },
+    }));
+    expect(middleCancelled.validation).toEqual({ ok: true });
+    expect(middleCancelled.state.players[0]!.resources.food).toBe(900);
+    expect((middleCancelled.state.entities.find((entity) => entity.id === townCenter.id) as BuildingEntityState).productionQueue.map((job) => job.jobId)).toEqual([
+      { commandSequence: 0, itemIndex: 0 },
+      { commandSequence: 0, itemIndex: 2 },
+    ]);
+    expect(middleCancelled.events).toContainEqual({
+      type: "productionCancelled",
+      playerId: player.id,
+      producerId: townCenter.id,
+      jobId: { commandSequence: 0, itemIndex: 1 },
+      formerQueueIndex: 1,
+      job: { kind: "train", unitType: "villager" },
+      remainingTicks: UNITS.villager.trainTicks,
+      refunded: { food: 50, wood: 0, stone: 0 },
+    });
+
+    const activeCancelled = applyCommand(middleCancelled.state, envelope(middleCancelled.state, 2, {
+      type: "cancelProduction",
+      producerId: townCenter.id,
+      jobId: { commandSequence: 0, itemIndex: 0 },
+    }));
+    expect(activeCancelled.state.players[0]!.resources.food).toBe(937);
+    expect(activeCancelled.events).toContainEqual(expect.objectContaining({
+      type: "productionCancelled",
+      remainingTicks: 90,
+      refunded: { food: 37, wood: 0, stone: 0 },
+    }));
+
+    const beforeRepeat = hashMatchState(activeCancelled.state);
+    const repeated = applyCommand(activeCancelled.state, envelope(activeCancelled.state, 3, {
+      type: "cancelProduction",
+      producerId: townCenter.id,
+      jobId: { commandSequence: 0, itemIndex: 0 },
+    }));
+    expect(repeated.validation).toEqual({ ok: false, code: "PRODUCTION_JOB_NOT_FOUND" });
+    expect(hashMatchState(repeated.state)).toBe(beforeRepeat);
+  });
+
+  it("cancels research without completion and releases its duplicate lock", () => {
+    const state = createInitialState({ seed: 612, matchId: "research-cancel-refund" });
+    const player = state.players[0]!;
+    player.settlementTier = "stronghold";
+    player.resources = { food: 1_000, wood: 1_000, stone: 1_000 };
+    const farmstead = addCompletedBuilding(state, player.id, "farmstead", "cancel-farmstead", { x: 18, y: 18 });
+    const started = applyCommand(state, envelope(state, 0, { type: "research", producerId: farmstead.id, technologyId: "hearthlandAlmanac" }));
+    const progressed = stepSimulation(started.state, [], 1).state;
+    const cancelled = applyCommand(progressed, envelope(progressed, 1, {
+      type: "cancelProduction",
+      producerId: farmstead.id,
+      jobId: { commandSequence: 0, itemIndex: 0 },
+    }));
+    expect(cancelled.state.players[0]).toMatchObject({
+      resources: { food: 999, wood: 999, stone: 1_000 },
+      completedTechnologyIds: [],
+    });
+    expect(cancelled.events.some((event) => event.type === "technologyResearched")).toBe(false);
+    expect(validateCommand(cancelled.state, envelope(cancelled.state, 2, {
+      type: "research",
+      producerId: farmstead.id,
+      technologyId: "hearthlandAlmanac",
+    }))).toEqual({ ok: true });
+  });
+
+  it("sets, copies, clears, and executes a future-unit rally without blocking production", () => {
+    const state = createInitialState({ seed: 613, matchId: "rally-lifecycle" });
+    const player = state.players[0]!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    player.resources = { food: 1_000, wood: 1_000, stone: 1_000 };
+    const target = { x: 10, y: 10 };
+    expect(isRallyPointAvailable(state, townCenter.id, target)).toBe(true);
+    const set = applyCommand(state, envelope(state, 0, { type: "setRallyPoint", producerId: townCenter.id, target }));
+    target.x = 20;
+    expect((set.state.entities.find((entity) => entity.id === townCenter.id) as BuildingEntityState).rallyPoint).toEqual({ x: 10, y: 10 });
+    expect(set.events).toContainEqual({ type: "rallyPointChanged", playerId: player.id, producerId: townCenter.id, target: { x: 10, y: 10 } });
+
+    const trained = applyCommand(set.state, envelope(set.state, 1, { type: "train", producerId: townCenter.id, unitType: "villager", count: 1 }));
+    const completed = stepSimulation(trained.state, [], UNITS.villager.trainTicks);
+    const rallied = completed.state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.id !== "unit-2" && entity.id !== "unit-3" && entity.id !== "unit-4" && entity.order.type === "move");
+    expect(rallied).toMatchObject({ order: { type: "move", target: { x: 10, y: 10 } } });
+
+    const cleared = applyCommand(completed.state, envelope(completed.state, 2, { type: "setRallyPoint", producerId: townCenter.id, target: null }));
+    expect((cleared.state.entities.find((entity) => entity.id === townCenter.id) as BuildingEntityState).rallyPoint).toBeNull();
+    expect(cleared.events).toContainEqual({ type: "rallyPointChanged", playerId: player.id, producerId: townCenter.id, target: null });
+  });
+
+  it("rejects illegal rally producers and leaves a spawned unit idle when the target later blocks", () => {
+    const state = createInitialState({ seed: 614, matchId: "rally-invalidated" });
+    const player = state.players[0]!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    const house = addCompletedBuilding(state, player.id, "house", "rally-house", { x: 18, y: 18 });
+    player.resources = { food: 1_000, wood: 1_000, stone: 1_000 };
+    expect(validateCommand(state, envelope(state, 0, { type: "setRallyPoint", producerId: house.id, target: { x: 20, y: 20 } }))).toEqual({ ok: false, code: "INVALID_PAYLOAD" });
+    expect(validateCommand(state, envelope(state, 0, { type: "setRallyPoint", producerId: townCenter.id, target: townCenter.position }))).toEqual({ ok: false, code: "TARGET_NOT_REACHABLE" });
+
+    const target = { x: 10, y: 10 };
+    const set = applyCommand(state, envelope(state, 0, { type: "setRallyPoint", producerId: townCenter.id, target }));
+    const trained = applyCommand(set.state, envelope(set.state, 1, { type: "train", producerId: townCenter.id, unitType: "villager", count: 1 }));
+    const blocker = trained.state.entities.find((entity) => entity.kind === "resource" && entity.ownerId === null)!;
+    blocker.position = { ...target };
+    const completed = stepSimulation(trained.state, [], UNITS.villager.trainTicks);
+    const spawned = completed.events.find((event) => event.type === "entitySpawned" && event.entity.typeId === "villager");
+    expect(spawned).toBeDefined();
+    const unit = spawned && completed.state.entities.find((entity) => entity.id === spawned.entity.id);
+    expect(unit).toMatchObject({ kind: "unit", order: { type: "idle" } });
+    expect((completed.state.entities.find((entity) => entity.id === townCenter.id) as BuildingEntityState).productionQueue).toEqual([]);
+  });
+
+  it("keeps nested production and rally state clone-isolated and canonically replay ordered", () => {
+    const state = createInitialState({ seed: 615, matchId: "production-rally-replay" });
+    state.players[0]!.resources = { food: 1_000, wood: 1_000, stone: 1_000 };
+    const firstCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    const secondCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
+    const firstRally: CommandEnvelope = { matchId: state.matchId, playerId: "player-1", sequence: 0, clientTick: 0, command: { type: "setRallyPoint", producerId: firstCenter.id, target: { x: 10, y: 10 } } };
+    const secondRally: CommandEnvelope = { matchId: state.matchId, playerId: "player-2", sequence: 0, clientTick: 0, command: { type: "setRallyPoint", producerId: secondCenter.id, target: { x: 21, y: 10 } } };
+    expect(hashReplay(state, [secondRally, firstRally], 0)).toBe(hashReplay(state, [firstRally, secondRally], 0));
+    expect(hashMatchState(stepSimulation(state, [secondRally, firstRally], 0).state)).toBe(hashMatchState(stepSimulation(state, [firstRally, secondRally], 0).state));
+
+    const rallied = applyCommand(state, firstRally).state;
+    const trained = applyCommand(rallied, envelope(rallied, 1, { type: "train", producerId: firstCenter.id, unitType: "villager", count: 1 })).state;
+    const cloned = cloneMatchState(trained);
+    const clonedCenter = cloned.entities.find((entity) => entity.id === firstCenter.id) as BuildingEntityState;
+    clonedCenter.rallyPoint = { x: 11, y: 11 };
+    clonedCenter.productionQueue[0]!.jobId = { commandSequence: 99, itemIndex: 99 };
+    clonedCenter.productionQueue[0]!.paidCost = { food: 999, wood: 999, stone: 999 };
+    const originalCenter = trained.entities.find((entity) => entity.id === firstCenter.id) as BuildingEntityState;
+    expect(originalCenter.rallyPoint).toEqual({ x: 10, y: 10 });
+    expect(originalCenter.productionQueue[0]).toMatchObject({ jobId: { commandSequence: 1, itemIndex: 0 }, paidCost: UNITS.villager.cost });
+    expect(hashMatchState(cloned)).not.toBe(hashMatchState(trained));
   });
 
   it("rejects illegal and player-global duplicate research without mutation", () => {
@@ -441,7 +619,14 @@ describe("deterministic shared simulation", () => {
     const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
     expect(townCenter?.kind).toBe("building");
     if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
-    townCenter.productionQueue = Array.from({ length: 4 }, () => ({ kind: "train" as const, unitType: "villager" as const, remainingTicks: 120 }));
+    townCenter.productionQueue = Array.from({ length: 4 }, (_, index) => ({
+      jobId: { commandSequence: 0, itemIndex: index },
+      kind: "train" as const,
+      unitType: "villager" as const,
+      remainingTicks: 120,
+      totalTicks: 120,
+      paidCost: { ...UNITS.villager.cost },
+    }));
     expect(validateCommand(state, envelope(state, 0, {
       type: "train",
       producerId: townCenter.id,

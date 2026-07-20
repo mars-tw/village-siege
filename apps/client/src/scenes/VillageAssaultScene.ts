@@ -8,6 +8,7 @@ import {
   getOccupiedMapCells,
   getVillageAssaultWalkBlockedCells,
   isBuildLocationAvailable,
+  isRallyPointAvailable,
   MAX_TRAINING_QUEUE_DEPTH,
   SETTLEMENT_TIER_ORDER,
   SETTLEMENT_TIERS,
@@ -25,6 +26,7 @@ import {
   type ResourceEntityState,
   type ResourceKind,
   type ResourceWallet,
+  type ProductionJobId,
   type SettlementTier,
   type TechnologyType,
   type UnitEntityState,
@@ -94,8 +96,15 @@ interface ActionSpec {
   readonly label: string;
   readonly accessibleLabel?: string;
   readonly enabled?: boolean;
+  readonly active?: boolean;
   readonly run: () => void;
 }
+
+type ProductionUiMode =
+  | { readonly kind: "none" }
+  | { readonly kind: "queue"; readonly producerId: string; readonly page: number }
+  | { readonly kind: "confirm"; readonly producerId: string; readonly jobId: ProductionJobId; readonly page: number }
+  | { readonly kind: "rally"; readonly producerId: string };
 
 const UNIT_ART: Readonly<Record<UnitType, CombatArtId>> = {
   villager: "warrior",
@@ -159,6 +168,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private buildPage = 0;
   private researchMenuOpen = false;
   private researchPage = 0;
+  private productionUiMode: ProductionUiMode = { kind: "none" };
   private buildingPlacement: BuildingType | null = null;
   private systemPanelOpen = false;
   private hoverGrid: GridPoint | null = null;
@@ -184,6 +194,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private objectiveText?: Phaser.GameObjects.Text;
   private selectionText?: Phaser.GameObjects.Text;
   private noticeText?: Phaser.GameObjects.Text;
+  private noticeLiveRegion?: HTMLOutputElement;
   private readonly actionButtons: CanvasButtonControl[] = [];
   private currentActions: readonly ActionSpec[] = [];
   private pointerStart?: { x: number; y: number; scrollX: number; scrollY: number };
@@ -206,6 +217,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.buildPage = 0;
     this.researchMenuOpen = false;
     this.researchPage = 0;
+    this.productionUiMode = { kind: "none" };
     this.buildingPlacement = null;
     this.systemPanelOpen = false;
     this.hoverGrid = null;
@@ -461,6 +473,13 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.ended || this.paused) return;
     const entity = this.entityById(id);
     if (!entity) return;
+    if (this.productionUiMode.kind === "rally") {
+      this.setNotice("集結點必須設在可通行的空地；目前仍在選點模式。", "warning");
+      return;
+    }
+    if (this.productionUiMode.kind !== "none" && this.productionUiMode.producerId !== entity.id) {
+      this.productionUiMode = { kind: "none" };
+    }
     if (this.buildingPlacement) {
       this.setNotice("建造位置被單位或資源占用", "warning");
       return;
@@ -524,6 +543,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.buildMenuOpen = false;
       this.researchMenuOpen = false;
       this.researchPage = 0;
+      this.productionUiMode = { kind: "none" };
       this.buildingPlacement = null;
       this.systemPanelOpen = false;
       this.refreshSelectionViews();
@@ -546,7 +566,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer): void => {
-    if (this.buildingPlacement) {
+    if (this.productionUiMode.kind === "rally") {
+      this.hoverGrid = this.pointerGrid(pointer);
+      this.drawRallyMarker(this.hoverGrid, isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid), true);
+    } else if (this.buildingPlacement) {
       this.hoverGrid = this.pointerGrid(pointer);
       const cells = getFootprintCells(this.hoverGrid, BUILDINGS[this.buildingPlacement].footprint);
       const occupied = new Set(getOccupiedMapCells(this.runtime.state).map((cell) => `${cell.x},${cell.y}`));
@@ -573,6 +596,20 @@ export class VillageAssaultScene extends Phaser.Scene {
   private handleGroundCommand(pointer: Phaser.Input.Pointer): void {
     if (this.ended || this.paused) return;
     const point = this.pointerGrid(pointer);
+    if (this.productionUiMode.kind === "rally") {
+      const producerId = this.productionUiMode.producerId;
+      if (!isRallyPointAvailable(this.runtime.state, producerId, point)) {
+        this.setNotice("此處無法作為集結點；請選擇可通行且可抵達的空地。", "warning");
+        this.drawRallyMarker(point, false, true);
+        return;
+      }
+      if (this.issue({ type: "setRallyPoint", producerId, target: point }, `集結旗已設於 ${point.x},${point.y}`)) {
+        this.productionUiMode = { kind: "none" };
+        this.hoverGrid = null;
+        this.refreshRallyOverlay();
+      }
+      return;
+    }
     if (this.buildingPlacement) {
       const villagers = this.selectedUnits().filter((unit) => unit.typeId === "villager");
       if (villagers.length === 0) {
@@ -612,6 +649,11 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private createInterface(): void {
+    this.noticeLiveRegion = document.createElement("output");
+    this.noticeLiveRegion.className = "canvas-control-proxy";
+    this.noticeLiveRegion.setAttribute("role", "status");
+    this.noticeLiveRegion.setAttribute("aria-live", "polite");
+    (this.game.canvas.parentElement ?? document.body).append(this.noticeLiveRegion);
     const topPanel = this.add.graphics();
     topPanel.fillStyle(0x0b1311, 0.94).fillRect(0, 0, UI_WIDTH, 80);
     topPanel.fillStyle(0x25483c, 0.98).fillRect(6, 6, UI_WIDTH - 12, 68);
@@ -671,6 +713,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (!this.runtime) return;
     if (!force && this.lastUiTick === this.runtime.state.tick) return;
     this.lastUiTick = this.runtime.state.tick;
+    this.sanitizeProductionMode();
     const player = this.playerState();
     const tierLabel = SETTLEMENT_TIER_LABELS[player.settlementTier];
     this.resourceText?.setFontSize(this.compactUi ? 20 : 22).setText(this.compactUi
@@ -692,10 +735,12 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.actionButtons.forEach((button, index) => {
       const spec = this.currentActions[index];
       button.setVisible(Boolean(spec));
+      button.setActive(spec?.active ?? false);
       if (!spec) return;
       button.setLabel(spec.glyph, spec.label, spec.accessibleLabel);
       button.setEnabled(spec.enabled ?? true);
     });
+    this.refreshRallyOverlay();
   }
 
   private actionsForSelection(selected: readonly EntityState[]): readonly ActionSpec[] {
@@ -716,6 +761,9 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     const ownUnits = selected.filter((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID);
     const ownBuilding = selected.length === 1 && selected[0]?.kind === "building" && selected[0].ownerId === VILLAGE_ASSAULT_PLAYER_ID ? selected[0] : undefined;
+    if (this.productionUiMode.kind === "confirm") return this.productionConfirmActions(this.productionUiMode);
+    if (this.productionUiMode.kind === "queue") return this.productionQueueActions(this.productionUiMode);
+    if (this.productionUiMode.kind === "rally") return this.rallyPlacementActions(this.productionUiMode.producerId);
     if (this.buildingPlacement) {
       return [
         { glyph: "✓", label: "點地圖放置", enabled: false, run: () => undefined },
@@ -761,7 +809,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (ownBuilding) {
       const trainable = (Object.keys(UNITS) as UnitType[]).filter((type) => UNITS[type].producers.includes(ownBuilding.typeId));
       const researchable = TECHNOLOGY_ORDER.filter((technologyId) => TECHNOLOGIES[technologyId].producer === ownBuilding.typeId);
-      const contextual: ActionSpec[] = [
+      const primary: ActionSpec[] = [
         ...trainable.map((type) => this.trainAction(ownBuilding, type)),
         ...(ownBuilding.typeId === "townCenter" ? [this.advanceSettlementAction(ownBuilding)] : []),
         ...(researchable.length > 0 ? [this.openResearchAction(ownBuilding, researchable)] : []),
@@ -770,8 +818,34 @@ export class VillageAssaultScene extends Phaser.Scene {
         { glyph: "⌖", label: "置中建築", run: () => this.centerCameraOn(ownBuilding.position) },
         this.zoomAction(-0.12),
       ];
-      if (contextual.length < 6) contextual.push(this.zoomAction(0.12));
-      return [...contextual.slice(0, 6), this.systemAction()];
+      const primaryActionCount = trainable.length + (ownBuilding.typeId === "townCenter" ? 1 : 0) + (researchable.length > 0 ? 1 : 0);
+      primary.splice(primaryActionCount);
+      while (primary.length < 4) primary.push({ glyph: "·", label: "空欄", enabled: false, run: () => undefined });
+      const canManageQueue = trainable.length > 0 || researchable.length > 0 || ownBuilding.productionQueue.length > 0;
+      return [
+        ...primary.slice(0, 4),
+        canManageQueue
+          ? {
+              glyph: "列",
+              label: `佇列 ${ownBuilding.productionQueue.length}/${MAX_TRAINING_QUEUE_DEPTH}`,
+              accessibleLabel: `${buildingDisplayName(ownBuilding.typeId)}生產佇列，共${ownBuilding.productionQueue.length}項`,
+              active: ownBuilding.productionQueue.length > 0,
+              run: () => this.openProductionQueue(ownBuilding.id),
+            }
+          : { glyph: "◎", label: "置中", run: () => this.centerCameraOn(ownBuilding.position) },
+        trainable.length > 0
+          ? {
+              glyph: "⚑",
+              label: ownBuilding.rallyPoint ? "改集結" : "設集結",
+              accessibleLabel: ownBuilding.rallyPoint
+                ? `變更集結點，目前${ownBuilding.rallyPoint.x},${ownBuilding.rallyPoint.y}`
+                : `設定${buildingDisplayName(ownBuilding.typeId)}集結點`,
+              active: ownBuilding.rallyPoint !== null,
+              run: () => this.openRallyPlacement(ownBuilding.id),
+            }
+          : { glyph: "◎", label: "置中", run: () => this.centerCameraOn(ownBuilding.position) },
+        this.systemAction(),
+      ];
     }
     if (ownUnits.length > 0) {
       const hasVillager = ownUnits.some((unit) => unit.typeId === "villager");
@@ -798,6 +872,128 @@ export class VillageAssaultScene extends Phaser.Scene {
     ];
   }
 
+  private openProductionQueue(producerId: string): void {
+    this.productionUiMode = { kind: "queue", producerId, page: 0 };
+    this.buildMenuOpen = false;
+    this.researchMenuOpen = false;
+    this.buildingPlacement = null;
+    this.hoverGrid = null;
+    this.setNotice("已開啟生產佇列；選取工作後再確認取消。", "normal");
+    this.refreshInterface(true);
+  }
+
+  private openRallyPlacement(producerId: string): void {
+    this.productionUiMode = { kind: "rally", producerId };
+    this.buildMenuOpen = false;
+    this.researchMenuOpen = false;
+    this.buildingPlacement = null;
+    this.hoverGrid = null;
+    this.setNotice("點選地圖空地設定集結旗；拖曳地圖不會送出指令。", "normal");
+    this.refreshInterface(true);
+  }
+
+  private productionQueueActions(mode: Extract<ProductionUiMode, { kind: "queue" }>): readonly ActionSpec[] {
+    const producer = this.entityById(mode.producerId);
+    if (!producer || producer.kind !== "building") return [];
+    const pageCount = Math.max(1, Math.ceil(producer.productionQueue.length / 4));
+    const page = Math.min(mode.page, pageCount - 1);
+    const entries: ActionSpec[] = producer.productionQueue.slice(page * 4, page * 4 + 4).map((job, localIndex) => {
+      const queueIndex = page * 4 + localIndex;
+      const name = this.productionJobName(job);
+      const progress = queueIndex === 0 ? Math.floor((1 - job.remainingTicks / Math.max(1, job.totalTicks)) * 100) : 0;
+      return {
+        glyph: job.kind === "train" ? "兵" : "研",
+        label: queueIndex === 0 ? `${queueIndex + 1}.${name} ${progress}%` : `${queueIndex + 1}.${name} 等待`,
+        accessibleLabel: `生產佇列第${queueIndex + 1}項，${name}，${queueIndex === 0 ? `完成${progress}%` : "等待中"}；選取以取消`,
+        run: () => {
+          this.productionUiMode = { kind: "confirm", producerId: producer.id, jobId: { ...job.jobId }, page };
+          this.refreshInterface(true);
+        },
+      };
+    });
+    while (entries.length < 4) entries.push({ glyph: "·", label: "空佇列", enabled: false, run: () => undefined });
+    return [
+      ...entries,
+      { glyph: "↩", label: "返回指令", run: () => { this.productionUiMode = { kind: "none" }; this.refreshInterface(true); } },
+      pageCount > 1
+        ? { glyph: "頁", label: `${page + 1}/${pageCount} 下一頁`, run: () => { this.productionUiMode = { kind: "queue", producerId: producer.id, page: (page + 1) % pageCount }; this.refreshInterface(true); } }
+        : { glyph: "頁", label: "1/1", enabled: false, run: () => undefined },
+      this.systemAction(),
+    ];
+  }
+
+  private productionConfirmActions(mode: Extract<ProductionUiMode, { kind: "confirm" }>): readonly ActionSpec[] {
+    const producer = this.entityById(mode.producerId);
+    if (!producer || producer.kind !== "building") return [];
+    const job = producer.productionQueue.find((candidate) => this.sameProductionJobId(candidate.jobId, mode.jobId));
+    if (!job) return this.productionQueueActions({ kind: "queue", producerId: producer.id, page: mode.page });
+    const queueIndex = producer.productionQueue.indexOf(job);
+    const refund = this.productionRefund(job);
+    const name = this.productionJobName(job);
+    return [
+      {
+        glyph: job.kind === "train" ? "兵" : "研",
+        label: `第${queueIndex + 1}項 ${name}`,
+        accessibleLabel: `已選取生產佇列第${queueIndex + 1}項，${name}`,
+        active: true,
+        enabled: false,
+        run: () => undefined,
+      },
+      {
+        glyph: "退",
+        label: `確認取消 ${this.shortCost(refund) || "不退款"}`,
+        accessibleLabel: `確認取消${name}，返還${this.spokenCost(refund) || "零資源"}`,
+        run: () => {
+          this.productionUiMode = { kind: "queue", producerId: producer.id, page: mode.page };
+          this.issue({ type: "cancelProduction", producerId: producer.id, jobId: { ...job.jobId } }, `已取消 ${name}`);
+        },
+      },
+      { glyph: "留", label: "保留工作", run: () => { this.productionUiMode = { kind: "queue", producerId: producer.id, page: mode.page }; this.refreshInterface(true); } },
+      { glyph: "·", label: "先確認再取消", enabled: false, run: () => undefined },
+      { glyph: "↩", label: "返回佇列", run: () => { this.productionUiMode = { kind: "queue", producerId: producer.id, page: mode.page }; this.refreshInterface(true); } },
+      { glyph: "頁", label: `${mode.page + 1}/${Math.max(1, Math.ceil(producer.productionQueue.length / 4))}`, enabled: false, run: () => undefined },
+      this.systemAction(),
+    ];
+  }
+
+  private rallyPlacementActions(producerId: string): readonly ActionSpec[] {
+    const producer = this.entityById(producerId);
+    if (!producer || producer.kind !== "building") return [];
+    return [
+      { glyph: "☝", label: "點地圖設定", enabled: false, run: () => undefined },
+      {
+        glyph: "清",
+        label: "清除集結",
+        enabled: producer.rallyPoint !== null,
+        run: () => {
+          if (this.issue({ type: "setRallyPoint", producerId, target: null }, "已清除集結點")) {
+            this.productionUiMode = { kind: "none" };
+            this.hoverGrid = null;
+          }
+        },
+      },
+      { glyph: "◎", label: "置中建築", run: () => this.centerCameraOn(producer.position) },
+      { glyph: "座", label: producer.rallyPoint ? `${producer.rallyPoint.x},${producer.rallyPoint.y}` : "尚未設定", enabled: false, run: () => undefined },
+      { glyph: "↩", label: "返回指令", run: () => { this.productionUiMode = { kind: "none" }; this.hoverGrid = null; this.refreshInterface(true); } },
+      { glyph: "⚑", label: "設定中", active: true, run: () => undefined },
+      this.systemAction(),
+    ];
+  }
+
+  private productionJobName(job: BuildingEntityState["productionQueue"][number]): string {
+    return job.kind === "train" ? this.shortUnitName(job.unitType) : TECHNOLOGIES[job.technologyId].displayName;
+  }
+
+  private productionRefund(job: BuildingEntityState["productionQueue"][number]): ResourceWallet {
+    const remaining = Math.max(0, Math.min(job.totalTicks, job.remainingTicks));
+    const refund = (amount: number): number => Math.floor(amount * remaining / Math.max(1, job.totalTicks));
+    return { food: refund(job.paidCost.food), wood: refund(job.paidCost.wood), stone: refund(job.paidCost.stone) };
+  }
+
+  private sameProductionJobId(left: ProductionJobId, right: ProductionJobId): boolean {
+    return left.commandSequence === right.commandSequence && left.itemIndex === right.itemIndex;
+  }
+
   private buildAction(type: BuildingType): ActionSpec {
     const definition = BUILDINGS[type];
     const unlocked = this.hasReachedTier(definition.requiredTier);
@@ -815,6 +1011,7 @@ export class VillageAssaultScene extends Phaser.Scene {
         : `${buildingDisplayName(type)}尚未解鎖，需要${SETTLEMENT_TIER_LABELS[definition.requiredTier]}`,
       enabled: unlocked && affordable,
       run: () => {
+        this.productionUiMode = { kind: "none" };
         this.buildingPlacement = type;
         this.buildMenuOpen = false;
         this.setNotice(`選擇 ${buildingDisplayName(type)} 的建造位置`, "success");
@@ -860,6 +1057,7 @@ export class VillageAssaultScene extends Phaser.Scene {
           : `${queuedTechnology.displayName}位於生產佇列第${queuedIndex + 1}項`
         : `開啟研究選單，已完成${completed}項，共${technologyIds.length}項`,
       run: () => {
+        this.productionUiMode = { kind: "none" };
         this.researchMenuOpen = true;
         this.researchPage = 0;
         this.buildMenuOpen = false;
@@ -1107,6 +1305,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.buildPage = 0;
     this.researchMenuOpen = false;
     this.researchPage = 0;
+    this.productionUiMode = { kind: "none" };
     this.buildingPlacement = null;
     this.systemPanelOpen = false;
     this.setNotice("建造模式：先選建築，再點地圖位置", "success");
@@ -1165,6 +1364,64 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.researchMenuOpen && !this.selectedEntities().some((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID)) {
       this.researchMenuOpen = false;
       this.researchPage = 0;
+    }
+    this.sanitizeProductionMode();
+  }
+
+  private sanitizeProductionMode(): void {
+    const mode = this.productionUiMode;
+    if (mode.kind === "none") return;
+    const producer = this.entityById(mode.producerId);
+    if (!producer || producer.kind !== "building" || producer.ownerId !== VILLAGE_ASSAULT_PLAYER_ID || !producer.complete || producer.hitPoints <= 0 || !this.selectedIds.has(producer.id)) {
+      this.productionUiMode = { kind: "none" };
+      this.hoverGrid = null;
+      return;
+    }
+    if (mode.kind === "queue") {
+      const pageCount = Math.max(1, Math.ceil(producer.productionQueue.length / 4));
+      if (mode.page >= pageCount) this.productionUiMode = { ...mode, page: pageCount - 1 };
+      return;
+    }
+    if (mode.kind === "confirm" && !producer.productionQueue.some((job) => this.sameProductionJobId(job.jobId, mode.jobId))) {
+      this.productionUiMode = { kind: "queue", producerId: producer.id, page: Math.min(mode.page, Math.max(0, Math.ceil(producer.productionQueue.length / 4) - 1)) };
+      this.setNotice("該工作已完成或已取消，沒有取消其他項目。", "warning");
+    }
+  }
+
+  private refreshRallyOverlay(): void {
+    const graphics = this.settlementOverlay?.placement;
+    if (!graphics || this.buildingPlacement) return;
+    if (this.productionUiMode.kind === "rally" && this.hoverGrid) {
+      this.drawRallyMarker(this.hoverGrid, isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid), true);
+      return;
+    }
+    const selected = this.selectedEntities();
+    const building = selected.length === 1 && selected[0]?.kind === "building" && selected[0].ownerId === VILLAGE_ASSAULT_PLAYER_ID ? selected[0] : undefined;
+    if (building?.rallyPoint) this.drawRallyMarker(building.rallyPoint, true, false);
+    else graphics.clear();
+  }
+
+  private drawRallyMarker(point: GridPoint, valid: boolean, preview: boolean): void {
+    const graphics = this.settlementOverlay?.placement;
+    if (!graphics) return;
+    const world = gridToWorld(point, { x: 0, y: 0 });
+    const color = preview ? (valid ? 0x9ed486 : 0xef735f) : 0xe0b866;
+    graphics.clear();
+    graphics.fillStyle(color, preview ? 0.22 : 0.16).beginPath()
+      .moveTo(world.x, world.y - 22)
+      .lineTo(world.x + 44, world.y)
+      .lineTo(world.x, world.y + 22)
+      .lineTo(world.x - 44, world.y)
+      .closePath().fillPath();
+    graphics.lineStyle(4, color, 0.95).strokePath();
+    graphics.lineStyle(6, 0x4b3424, 1).lineBetween(world.x - 4, world.y - 52, world.x - 4, world.y + 3);
+    graphics.fillStyle(color, 1).fillTriangle(world.x, world.y - 50, world.x + 28, world.y - 40, world.x, world.y - 29);
+    graphics.lineStyle(3, color, 1);
+    if (valid) {
+      graphics.beginPath().moveTo(world.x - 15, world.y + 2).lineTo(world.x - 5, world.y + 11).lineTo(world.x + 16, world.y - 10).strokePath();
+    } else {
+      graphics.lineBetween(world.x - 13, world.y - 10, world.x + 13, world.y + 10);
+      graphics.lineBetween(world.x + 13, world.y - 10, world.x - 13, world.y + 10);
     }
   }
 
@@ -1337,6 +1594,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private rejectMessage(code: string | null): string {
+    if (code === "PRODUCTION_JOB_NOT_FOUND") return "該生產工作已完成或取消，未變更其他佇列項目。";
     return ({
       INSUFFICIENT_RESOURCES: "材料不足，先派工匠採集",
       ACTION_ON_COOLDOWN: "人口／佇列已滿、建築未完成，或聚落正在升級",
@@ -1358,6 +1616,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.noticeUntil = performance.now() + 3_200;
     this.noticeText?.setColor(tone === "warning" ? "#ffb09c" : tone === "success" ? "#dce9c6" : "#e0b866");
     this.noticeText?.setText(message);
+    if (this.noticeLiveRegion) this.noticeLiveRegion.textContent = message;
   }
 
   private drawUnitHealth(graphics: Phaser.GameObjects.Graphics, entity: UnitEntityState): void {
@@ -1528,6 +1787,17 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private handleEscape(): void {
+    if (!this.systemPanelOpen && this.productionUiMode.kind === "confirm") {
+      this.productionUiMode = { kind: "queue", producerId: this.productionUiMode.producerId, page: this.productionUiMode.page };
+      this.refreshInterface(true);
+      return;
+    }
+    if (!this.systemPanelOpen && (this.productionUiMode.kind === "queue" || this.productionUiMode.kind === "rally")) {
+      this.productionUiMode = { kind: "none" };
+      this.hoverGrid = null;
+      this.refreshInterface(true);
+      return;
+    }
     if (this.systemPanelOpen) {
       this.systemPanelOpen = false;
       this.refreshInterface(true);
@@ -1585,6 +1855,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.events.off(GAME_FULLSCREEN_FALLBACK_EVENT, this.layoutInterface, this);
     window.removeEventListener("resize", this.layoutInterface);
     for (const button of this.actionButtons) button.destroy();
+    this.noticeLiveRegion?.remove();
+    this.noticeLiveRegion = undefined;
     this.actionButtons.length = 0;
     for (const view of this.unitViews.values()) view.actor.destroy();
     for (const view of this.entityViews.values()) view.destroy();
