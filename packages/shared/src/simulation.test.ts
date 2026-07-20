@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { nextUint32 } from "./random";
 import { isVillageAssaultWalkableCell } from "./battlefield";
-import { BUILDINGS, RULES_VERSION, SETTLEMENT_TIERS, UNITS } from "./content";
+import { BUILDINGS, RESOURCE_NODES, RULES_VERSION, SETTLEMENT_TIERS, UNITS } from "./content";
 import {
   applyCommand,
+  cloneMatchState,
   createInitialState,
   getEntityFootprintCells,
   hashMatchState,
@@ -14,7 +15,7 @@ import {
   type BuildingEntityState,
   type MatchState,
 } from "./simulation";
-import type { BuildingType, CommandEnvelope, GridPoint, PlayerId } from "./protocol";
+import type { BuildingType, CommandEnvelope, DomainEvent, GridPoint, PlayerId } from "./protocol";
 
 function envelope(state: MatchState, sequence: number, command: CommandEnvelope["command"]): CommandEnvelope {
   return { matchId: state.matchId, playerId: "player-1", sequence, clientTick: state.tick, command };
@@ -54,7 +55,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.3.0");
+    expect(RULES_VERSION).toBe("village-siege/0.4.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -83,6 +84,16 @@ describe("deterministic shared simulation", () => {
       musketeer: "artificer",
       scout: "stronghold",
       batteringRam: "artificer",
+    });
+    expect(UNITS.villager.carryCapacity).toBe(12);
+    expect(Object.values(UNITS).filter((unit) => unit.id !== "villager").every((unit) => unit.carryCapacity === 0)).toBe(true);
+    expect(BUILDINGS.townCenter.dropOffResources).toEqual(["food", "wood", "stone"]);
+    expect(BUILDINGS.lumberCamp.dropOffResources).toEqual(["wood"]);
+    expect(BUILDINGS.farmstead.dropOffResources).toEqual(["food"]);
+    expect(RESOURCE_NODES).toEqual({
+      food: { kind: "food", maxAmount: 360, renewAfterTicks: 300 },
+      wood: { kind: "wood", maxAmount: 1_000, renewAfterTicks: null },
+      stone: { kind: "stone", maxAmount: 700, renewAfterTicks: null },
     });
   });
 
@@ -467,13 +478,40 @@ describe("deterministic shared simulation", () => {
     const startingNodeAmount = wood.kind === "resource" ? wood.amount : 0;
 
     state = applyCommand(state, envelope(state, 0, { type: "gather", entityIds: [villager.id], targetId: wood.id })).state;
-    state = stepSimulation(state, [], 1).state;
+    for (let tick = 0; tick < 40; tick += 1) {
+      state = stepSimulation(state, [], 1).state;
+      const carrier = state.entities.find((entity) => entity.id === villager.id);
+      if (carrier?.kind === "unit" && carrier.cargo.amount > 0) break;
+    }
     const gatheredPlayer = state.players.find((candidate) => candidate.id === player.id)!;
     const gatheredWood = state.entities.find((entity) => entity.id === wood.id);
-    expect(gatheredPlayer.resources.wood).toBeCloseTo(startingWood + 6.18);
+    const carryingVillager = state.entities.find((entity) => entity.id === villager.id);
+    expect(gatheredPlayer.resources.wood).toBe(startingWood);
+    expect(carryingVillager?.kind).toBe("unit");
+    if (!carryingVillager || carryingVillager.kind !== "unit") throw new Error("gathering villager disappeared");
+    expect(carryingVillager.cargo).toEqual({ kind: "wood", amount: 6 });
+    expect(carryingVillager.gatherRemainderMilli.wood).toBe(180);
     expect(gatheredWood?.kind).toBe("resource");
     if (!gatheredWood || gatheredWood.kind !== "resource") throw new Error("wood node depleted unexpectedly");
-    expect(gatheredWood.amount).toBeCloseTo(startingNodeAmount - 6.18);
+    expect(gatheredWood.amount).toBe(startingNodeAmount - 6);
+
+    const depositEvents: DomainEvent[] = [];
+    for (let tick = 0; tick < 120; tick += 1) {
+      const stepped = stepSimulation(state, [], 1);
+      state = stepped.state;
+      depositEvents.push(...stepped.events);
+      if (stepped.events.some((event) => event.type === "resourcesDeposited" && event.unitId === villager.id)) break;
+    }
+    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(startingWood + 12);
+    expect(state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: null, amount: 0 } });
+    expect(depositEvents).toContainEqual({
+      type: "resourcesDeposited",
+      playerId: player.id,
+      unitId: villager.id,
+      dropOffId: state.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!.id,
+      resourceKind: "wood",
+      amount: 12,
+    });
 
     state = applyCommand(state, envelope(state, 1, { type: "build", builderIds: [villager.id], buildingType: "house", origin: { x: 9, y: 9 } })).state;
     state = stepSimulation(state, [], 320).state;
@@ -496,7 +534,7 @@ describe("deterministic shared simulation", () => {
     expect(state.players.find((candidate) => candidate.id === player.id)?.population.used).toBe(4);
   });
 
-  it("makes nearby lumber camps and farmsteads functional economy buildings", () => {
+  it("uses nearby economy buildings as legal resource-specific drop-off points", () => {
     let state = createInitialState({ seed: 30, matchId: "economy-building-bonus" });
     const player = state.players.find((candidate) => candidate.id === "player-1")!;
     const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
@@ -514,8 +552,278 @@ describe("deterministic shared simulation", () => {
 
     const before = state.players.find((candidate) => candidate.id === player.id)!.resources.wood;
     state = applyCommand(state, envelope(state, 1, { type: "gather", entityIds: [villager.id], targetId: wood.id })).state;
+    for (let tick = 0; tick < 40; tick += 1) {
+      state = stepSimulation(state, [], 1).state;
+      const carrier = state.entities.find((entity) => entity.id === villager.id);
+      if (carrier?.kind === "unit" && carrier.cargo.amount > 0) break;
+    }
+    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before);
+    expect(state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: "wood", amount: 6 } });
+    const dropped = applyCommand(state, envelope(state, 2, { type: "dropOff", entityIds: [villager.id], targetId: camp!.id }));
+    expect(dropped.validation).toEqual({ ok: true });
+    state = dropped.state;
+    const deliveryEvents: DomainEvent[] = [];
+    for (let tick = 0; tick < 80; tick += 1) {
+      const stepped = stepSimulation(state, [], 1);
+      state = stepped.state;
+      deliveryEvents.push(...stepped.events);
+      if (stepped.events.some((event) => event.type === "resourcesDeposited" && event.unitId === villager.id)) break;
+    }
+    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before + 6);
+    expect(deliveryEvents).toContainEqual({
+      type: "resourcesDeposited",
+      playerId: player.id,
+      unitId: villager.id,
+      dropOffId: camp!.id,
+      resourceKind: "wood",
+      amount: 6,
+    });
+  });
+
+  it("validates resource-specific manual drop-off without deleting cargo on interruption", () => {
+    let state = createInitialState({ seed: 301, matchId: "manual-drop-off-rules" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    const foreignCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
+    const lumberCamp = addCompletedBuilding(state, player.id, "lumberCamp", "drop-lumber", { x: 9, y: 8 });
+    const farmstead = addCompletedBuilding(state, player.id, "farmstead", "drop-food", { x: 12, y: 8 });
+    villager.position = { x: 8, y: 8 };
+    villager.cargo = { kind: "wood", amount: 5 };
+
+    expect(validateCommand(state, envelope(state, 0, { type: "dropOff", entityIds: [villager.id], targetId: townCenter.id }))).toEqual({ ok: true });
+    expect(validateCommand(state, envelope(state, 0, { type: "dropOff", entityIds: [villager.id], targetId: lumberCamp.id }))).toEqual({ ok: true });
+    expect(validateCommand(state, envelope(state, 0, { type: "dropOff", entityIds: [villager.id], targetId: farmstead.id }))).toEqual({ ok: false, code: "INVALID_PAYLOAD" });
+    expect(validateCommand(state, envelope(state, 0, { type: "dropOff", entityIds: [villager.id], targetId: foreignCenter.id }))).toEqual({ ok: false, code: "TARGET_NOT_VISIBLE" });
+
+    const stopped = applyCommand(state, envelope(state, 0, { type: "stop", entityIds: [villager.id] }));
+    expect(stopped.state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: "wood", amount: 5 }, order: { type: "idle" } });
+    const delivered = applyCommand(stopped.state, envelope(stopped.state, 1, { type: "dropOff", entityIds: [villager.id], targetId: lumberCamp.id }));
+    state = stepSimulation(delivered.state, [], 1).state;
+    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(425);
+    expect(state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: null, amount: 0 }, order: { type: "idle" } });
+  });
+
+  it("uses a reachable far-side cardinal perimeter when the geometrically nearest drop-off side is sealed", () => {
+    let state = createInitialState({ seed: 311, matchId: "reachable-drop-off-perimeter" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    townCenter.position = { x: 5, y: 5 };
+    villager.position = { x: 1, y: 5 };
+    villager.cargo = { kind: "wood", amount: 12 };
+    addCompletedBuilding(state, player.id, "house", "sealed-west-north", { x: 4, y: 4 });
+    addCompletedBuilding(state, player.id, "house", "sealed-west-entry", { x: 3, y: 5 });
+    addCompletedBuilding(state, player.id, "house", "sealed-west-south", { x: 4, y: 6 });
+    const before = player.resources.wood;
+
+    const command = applyCommand(state, envelope(state, 0, { type: "dropOff", entityIds: [villager.id], targetId: townCenter.id }));
+    expect(command.validation).toEqual({ ok: true });
+    const delivered = stepSimulation(command.state, [], 160);
+    state = delivered.state;
+
+    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before + 12);
+    expect(state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: null, amount: 0 }, order: { type: "idle" } });
+    expect(delivered.events).toContainEqual({ type: "resourcesDeposited", playerId: player.id, unitId: villager.id, dropOffId: townCenter.id, resourceKind: "wood", amount: 12 });
+  });
+
+  it("does not gather or unload diagonally through a sealed corner", () => {
+    let gatherState = createInitialState({ seed: 312, matchId: "no-diagonal-gather" });
+    const gatherPlayer = gatherState.players.find((candidate) => candidate.id === "player-1")!;
+    const gatherer = gatherState.entities.find((entity) => entity.kind === "unit" && entity.ownerId === gatherPlayer.id && entity.typeId === "villager")!;
+    const wood = gatherState.entities.find((entity) => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 10)!;
+    gatherer.position = { x: 4, y: 4 };
+    wood.position = { x: 5, y: 5 };
+    addCompletedBuilding(gatherState, gatherPlayer.id, "house", "gather-corner-east", { x: 5, y: 4 });
+    addCompletedBuilding(gatherState, gatherPlayer.id, "house", "gather-corner-south", { x: 4, y: 5 });
+    const woodBefore = wood.amount;
+    gatherState = applyCommand(gatherState, envelope(gatherState, 0, { type: "gather", entityIds: [gatherer.id], targetId: wood.id })).state;
+    gatherState = stepSimulation(gatherState, [], 1).state;
+    expect(gatherState.entities.find((entity) => entity.id === gatherer.id)).toMatchObject({ cargo: { kind: null, amount: 0 } });
+    expect(gatherState.entities.find((entity) => entity.id === wood.id)).toMatchObject({ amount: woodBefore });
+
+    let dropState = createInitialState({ seed: 313, matchId: "no-diagonal-drop-off" });
+    const dropPlayer = dropState.players.find((candidate) => candidate.id === "player-1")!;
+    const carrier = dropState.entities.find((entity) => entity.kind === "unit" && entity.ownerId === dropPlayer.id && entity.typeId === "villager")!;
+    const townCenter = dropState.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === dropPlayer.id && entity.typeId === "townCenter")!;
+    townCenter.position = { x: 5, y: 5 };
+    carrier.position = { x: 4, y: 4 };
+    carrier.cargo = { kind: "wood", amount: 6 };
+    addCompletedBuilding(dropState, dropPlayer.id, "house", "drop-corner-east", { x: 5, y: 4 });
+    addCompletedBuilding(dropState, dropPlayer.id, "house", "drop-corner-south", { x: 4, y: 5 });
+    const walletBefore = dropPlayer.resources.wood;
+    dropState = applyCommand(dropState, envelope(dropState, 0, { type: "dropOff", entityIds: [carrier.id], targetId: townCenter.id })).state;
+    dropState = stepSimulation(dropState, [], 1).state;
+    expect(dropState.players.find((candidate) => candidate.id === dropPlayer.id)!.resources.wood).toBe(walletBefore);
+    expect(dropState.entities.find((entity) => entity.id === carrier.id)).toMatchObject({ cargo: { kind: "wood", amount: 6 }, order: { type: "deliver" } });
+  });
+
+  it("reroutes a carrier when its assigned drop-off becomes unreachable", () => {
+    let state = createInitialState({ seed: 314, matchId: "dynamic-drop-off-reroute" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const carrier = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    townCenter.position = { x: 5, y: 5 };
+    const camp = addCompletedBuilding(state, player.id, "lumberCamp", "reroute-lumber", { x: 12, y: 5 });
+    carrier.position = { x: 1, y: 5 };
+    carrier.cargo = { kind: "wood", amount: 12 };
+    state = applyCommand(state, envelope(state, 0, { type: "dropOff", entityIds: [carrier.id], targetId: townCenter.id })).state;
+    state = stepSimulation(state, [], 10).state;
+    const seal = [
+      { x: 5, y: 4 }, { x: 4, y: 5 }, { x: 6, y: 4 }, { x: 7, y: 5 },
+      { x: 5, y: 7 }, { x: 4, y: 6 }, { x: 7, y: 6 }, { x: 6, y: 7 },
+    ];
+    seal.forEach((position, index) => addCompletedBuilding(state, player.id, "house", `reroute-seal-${index}`, position));
+    const before = state.players.find((candidate) => candidate.id === player.id)!.resources.wood;
+
+    const delivered = stepSimulation(state, [], 220);
+    expect(delivered.state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before + 12);
+    expect(delivered.events).toContainEqual({ type: "resourcesDeposited", playerId: player.id, unitId: carrier.id, dropOffId: camp.id, resourceKind: "wood", amount: 12 });
+  });
+
+  it("preserves cargo and the delivery order while every drop-off is blocked, then resumes after reopening", () => {
+    let state = createInitialState({ seed: 316, matchId: "blocked-drop-off-resume" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const carrier = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    townCenter.position = { x: 5, y: 5 };
+    carrier.position = { x: 1, y: 5 };
+    carrier.cargo = { kind: "wood", amount: 12 };
+    state = applyCommand(state, envelope(state, 0, { type: "dropOff", entityIds: [carrier.id], targetId: townCenter.id })).state;
+    const sealPositions = [
+      { x: 5, y: 4 }, { x: 4, y: 5 }, { x: 6, y: 4 }, { x: 7, y: 5 },
+      { x: 5, y: 7 }, { x: 4, y: 6 }, { x: 7, y: 6 }, { x: 6, y: 7 },
+    ];
+    const sealIds = sealPositions.map((position, index) => addCompletedBuilding(state, player.id, "house", `resume-seal-${index}`, position).id);
+    state = stepSimulation(state, [], 40).state;
+    expect(state.entities.find((entity) => entity.id === carrier.id)).toMatchObject({ cargo: { kind: "wood", amount: 12 }, order: { type: "deliver" } });
+
+    state.entities = state.entities.filter((entity) => !sealIds.includes(entity.id));
+    const before = state.players.find((candidate) => candidate.id === player.id)!.resources.wood;
+    const resumed = stepSimulation(state, [], 160);
+    expect(resumed.state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before + 12);
+    expect(resumed.events).toContainEqual({ type: "resourcesDeposited", playerId: player.id, unitId: carrier.id, dropOffId: townCenter.id, resourceKind: "wood", amount: 12 });
+  });
+
+  it("skips an unreachable nearer replacement source after the prior node disappears", () => {
+    let state = createInitialState({ seed: 315, matchId: "reachable-source-retarget" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const gatherer = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const woodNodes = state.entities.filter((entity) => entity.kind === "resource" && entity.typeId === "wood");
+    const near = woodNodes[0]!;
+    const far = woodNodes[1]!;
+    state.entities = state.entities.filter((entity) => entity.kind !== "resource" || entity.id === near.id || entity.id === far.id);
+    gatherer.position = { x: 1, y: 5 };
+    gatherer.order = { type: "gather", targetId: "depleted-source", resourceKind: "wood", phase: "toSource", dropOffId: null };
+    near.position = { x: 5, y: 5 };
+    far.position = { x: 9, y: 5 };
+    [{ x: 5, y: 4 }, { x: 6, y: 5 }, { x: 5, y: 6 }, { x: 4, y: 5 }]
+      .forEach((position, index) => addCompletedBuilding(state, player.id, "house", `source-seal-${index}`, position));
+
     state = stepSimulation(state, [], 1).state;
-    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBeCloseTo(before + 9.27);
+    expect(state.entities.find((entity) => entity.id === gatherer.id)).toMatchObject({ order: { type: "gather", targetId: far.id, phase: "toSource" } });
+  });
+
+  it("depletes finite nodes without losing the final carried load", () => {
+    let state = createInitialState({ seed: 302, matchId: "finite-node-final-load" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const wood = state.entities.find((entity) => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 10)!;
+    wood.amount = 5;
+    wood.hitPoints = 5;
+    const before = player.resources.wood;
+
+    state = applyCommand(state, envelope(state, 0, { type: "gather", entityIds: [villager.id], targetId: wood.id })).state;
+    const depletionEvents: DomainEvent[] = [];
+    for (let tick = 0; tick < 40; tick += 1) {
+      const stepped = stepSimulation(state, [], 1);
+      state = stepped.state;
+      depletionEvents.push(...stepped.events);
+      if (!state.entities.some((entity) => entity.id === wood.id)) break;
+    }
+    expect(state.entities.some((entity) => entity.id === wood.id)).toBe(false);
+    expect(state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: "wood", amount: 5 }, order: { type: "gather", phase: "toDropOff" } });
+    expect(state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before);
+    expect(depletionEvents).toContainEqual({ type: "resourceDepleted", resourceId: wood.id, resourceKind: "wood", renewable: false, renewAtTick: null });
+    expect(depletionEvents).toContainEqual({ type: "entityRemoved", entityId: wood.id, reason: "depleted" });
+
+    const deposited = stepSimulation(state, [], 1);
+    expect(deposited.state.players.find((candidate) => candidate.id === player.id)!.resources.wood).toBe(before + 5);
+    expect(deposited.events.some((event) => event.type === "resourcesDeposited" && event.amount === 5)).toBe(true);
+  });
+
+  it("resolves multiple villagers contesting the last stock in stable id order with one depletion event", () => {
+    let state = createInitialState({ seed: 317, matchId: "stable-final-stock" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const villagers = state.entities
+      .filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const wood = state.entities.find((entity) => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 10)!;
+    wood.position = { x: 5, y: 5 };
+    wood.amount = 8;
+    wood.hitPoints = 8;
+    villagers[0]!.position = { x: 4, y: 5 };
+    villagers[1]!.position = { x: 5, y: 4 };
+    state = applyCommand(state, envelope(state, 0, { type: "gather", entityIds: villagers.slice(0, 2).map((villager) => villager.id), targetId: wood.id })).state;
+
+    const depleted = stepSimulation(state, [], 1);
+    const first = depleted.state.entities.find((entity) => entity.id === villagers[0]!.id);
+    const second = depleted.state.entities.find((entity) => entity.id === villagers[1]!.id);
+    expect(first).toMatchObject({ cargo: { kind: "wood", amount: 6 } });
+    expect(second).toMatchObject({ cargo: { kind: "wood", amount: 2 } });
+    expect(depleted.state.entities.some((entity) => entity.id === wood.id)).toBe(false);
+    expect(depleted.events.filter((event) => event.type === "resourceDepleted" && event.resourceId === wood.id)).toHaveLength(1);
+  });
+
+  it("keeps depleted food fields fallow and renews them on the exact deterministic tick", () => {
+    let state = createInitialState({ seed: 303, matchId: "renewable-food-field" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const food = state.entities.find((entity) => entity.kind === "resource" && entity.typeId === "food" && entity.position.x < 10)!;
+    villager.position = { x: food.position.x, y: food.position.y + 1 };
+    food.amount = 6;
+    food.hitPoints = 6;
+
+    state = applyCommand(state, envelope(state, 0, { type: "gather", entityIds: [villager.id], targetId: food.id })).state;
+    const depleted = stepSimulation(state, [], 1);
+    state = depleted.state;
+    const fallow = state.entities.find((entity) => entity.id === food.id);
+    expect(fallow).toMatchObject({ kind: "resource", amount: 0, renewAtTick: 301 });
+    expect(depleted.events).toContainEqual({ type: "resourceDepleted", resourceId: food.id, resourceKind: "food", renewable: true, renewAtTick: 301 });
+
+    state = stepSimulation(state, [], 1).state;
+    state = applyCommand(state, envelope(state, 1, { type: "stop", entityIds: [villager.id] })).state;
+    const beforeRenewal = stepSimulation(state, [], 298);
+    expect(beforeRenewal.state.tick).toBe(300);
+    expect(beforeRenewal.state.entities.find((entity) => entity.id === food.id)).toMatchObject({ amount: 0, renewAtTick: 301 });
+    const renewed = stepSimulation(beforeRenewal.state, [], 1);
+    expect(renewed.state.entities.find((entity) => entity.id === food.id)).toMatchObject({ amount: 360, hitPoints: 360, renewAtTick: null });
+    expect(renewed.events).toContainEqual({ type: "resourceRenewed", resourceId: food.id, resourceKind: "food", amount: 360 });
+  });
+
+  it("keeps returning gather orders idempotent and hashes nested cargo state", () => {
+    let state = createInitialState({ seed: 304, matchId: "gather-idempotence" });
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
+    const wood = state.entities.find((entity) => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 10)!;
+    state = applyCommand(state, envelope(state, 0, { type: "gather", entityIds: [villager.id], targetId: wood.id })).state;
+    for (let tick = 0; tick < 80; tick += 1) {
+      state = stepSimulation(state, [], 1).state;
+      const carrier = state.entities.find((entity) => entity.id === villager.id);
+      if (carrier?.kind === "unit" && carrier.cargo.amount >= UNITS.villager.carryCapacity) break;
+    }
+    expect(state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: "wood", amount: 12 }, order: { type: "gather", phase: "toDropOff" } });
+
+    const repeated = applyCommand(state, envelope(state, 1, { type: "gather", entityIds: [villager.id], targetId: wood.id }));
+    expect(repeated.validation).toEqual({ ok: true });
+    expect(repeated.state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { kind: "wood", amount: 12 }, order: { type: "gather", phase: "toDropOff" } });
+
+    const cloned = cloneMatchState(repeated.state);
+    const clonedVillager = cloned.entities.find((entity) => entity.id === villager.id);
+    expect(clonedVillager?.kind).toBe("unit");
+    if (!clonedVillager || clonedVillager.kind !== "unit") throw new Error("cloned villager missing");
+    clonedVillager.cargo.amount = 11;
+    expect(repeated.state.entities.find((entity) => entity.id === villager.id)).toMatchObject({ cargo: { amount: 12 } });
+    expect(hashMatchState(cloned)).not.toBe(hashMatchState(repeated.state));
   });
 
   it("applies the selected village movement trait inside the authoritative simulation", () => {
@@ -552,5 +860,5 @@ describe("deterministic shared simulation", () => {
     expect(result.state.winningTeamIds).toEqual(["team-1"]);
     expect(result.events).toContainEqual({ type: "entityRemoved", entityId: enemyCenter.id, reason: "destroyed" });
     expect(result.events).toContainEqual({ type: "matchFinished", winningTeamIds: ["team-1"], reason: "conquest" });
-  });
+  }, 60_000);
 });

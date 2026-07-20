@@ -2,6 +2,7 @@ import {
   BUILDINGS,
   MAX_TRAINING_QUEUE_DEPTH,
   MAX_UNITS_PER_PLAYER,
+  RESOURCE_NODES,
   RULES_VERSION,
   SETTLEMENT_TIERS,
   SETTLEMENT_TIER_ORDER,
@@ -20,7 +21,7 @@ import {
   isVillageAssaultWalkableCell,
 } from "./battlefield.js";
 import { normalizeSeed } from "./random.js";
-import { findNextPathStep, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
+import { findNextPathStep, findPathToAny, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import {
   isCommandEnvelope,
   type BuildingType,
@@ -45,7 +46,8 @@ export type UnitOrder =
   | { type: "idle" }
   | { type: "move"; target: GridPoint }
   | { type: "attack"; targetId: EntityId }
-  | { type: "gather"; targetId: EntityId }
+  | { type: "gather"; targetId: EntityId; resourceKind: ResourceKind; phase: "toSource" | "toDropOff"; dropOffId: EntityId | null }
+  | { type: "deliver"; targetId: EntityId }
   | { type: "construct"; targetId: EntityId }
   | { type: "patrol"; waypoints: GridPoint[]; waypointIndex: number };
 
@@ -62,6 +64,8 @@ export interface UnitEntityState {
   movementProgress: number;
   attackCooldownTicks: number;
   workCooldownTicks: number;
+  cargo: { kind: ResourceKind | null; amount: number };
+  gatherRemainderMilli: ResourceWallet;
 }
 
 export interface TrainingJob {
@@ -94,6 +98,7 @@ export interface ResourceEntityState {
   maxHitPoints: number;
   stateRevision: number;
   amount: number;
+  renewAtTick: number | null;
 }
 
 export type EntityState = UnitEntityState | BuildingEntityState | ResourceEntityState;
@@ -291,7 +296,7 @@ export function hashReplay(initialState: MatchState, commands: readonly CommandE
 }
 
 export function toPublicEntity(entity: EntityState): PublicEntityState {
-  return {
+  const publicEntity: PublicEntityState = {
     id: entity.id,
     ownerId: entity.ownerId,
     kind: entity.kind,
@@ -301,6 +306,27 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
     maxHitPoints: entity.maxHitPoints,
     stateRevision: entity.stateRevision,
   };
+  if (entity.kind === "unit") {
+    return {
+      ...publicEntity,
+      cargo: {
+        kind: entity.cargo.kind,
+        amount: entity.cargo.amount,
+        capacity: UNITS[entity.typeId].carryCapacity,
+      },
+    };
+  }
+  if (entity.kind === "resource") {
+    return {
+      ...publicEntity,
+      resourceNode: {
+        amount: entity.amount,
+        maxAmount: entity.maxHitPoints,
+        renewAtTick: entity.renewAtTick,
+      },
+    };
+  }
+  return publicEntity;
 }
 
 export function isEntityVisibleToPlayer(state: MatchState, playerId: PlayerId, target: EntityState): boolean {
@@ -382,7 +408,22 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
   if (!target) return rejected("INVALID_PAYLOAD");
   if (!isEntityVisibleToPlayer(state, player.id, target)) return rejected("TARGET_NOT_VISIBLE");
   if (command.type === "gather") {
-    if (target.kind !== "resource" || units.some((unit) => unit.typeId !== "villager")) return rejected("INVALID_PAYLOAD");
+    const resourceKind = gatherSourceKind(target);
+    if (!resourceKind || gatherSourceAmount(target) <= 0 || units.some((unit) => unit.typeId !== "villager")) return rejected("INVALID_PAYLOAD");
+    if (units.some((unit) => !isEntityReachable(state, unit.position, target))) return rejected("TARGET_NOT_REACHABLE");
+    if (units.some((unit) => {
+      const capacity = UNITS[unit.typeId].carryCapacity;
+      const depositKind = unit.cargo.amount > 0 && (unit.cargo.kind !== resourceKind || unit.cargo.amount >= capacity)
+        ? unit.cargo.kind
+        : resourceKind;
+      return depositKind === null || findNearestDropOff(state, player.id, depositKind, unit.position) === null;
+    })) return rejected("TARGET_NOT_REACHABLE");
+    return { ok: true };
+  }
+  if (command.type === "dropOff") {
+    if (target.kind !== "building" || target.ownerId !== player.id || !target.complete || target.hitPoints <= 0) return rejected("INVALID_PAYLOAD");
+    if (units.some((unit) => unit.typeId !== "villager" || unit.cargo.kind === null || unit.cargo.amount <= 0 || !buildingAcceptsResource(target, unit.cargo.kind))) return rejected("INVALID_PAYLOAD");
+    if (units.some((unit) => !isEntityReachable(state, unit.position, target))) return rejected("TARGET_NOT_REACHABLE");
     return { ok: true };
   }
   if (target.kind === "resource" || target.ownerId === player.id) return rejected("INVALID_PAYLOAD");
@@ -397,8 +438,27 @@ function applyGameCommand(state: MatchState, player: PlayerState, command: GameC
     case "attack":
       setOrders(state, command.entityIds, { type: "attack", targetId: command.targetId });
       break;
-    case "gather":
-      setOrders(state, command.entityIds, { type: "gather", targetId: command.targetId });
+    case "gather": {
+      const target = state.entities.find((entity) => entity.id === command.targetId)!;
+      const resourceKind = gatherSourceKind(target)!;
+      for (const id of command.entityIds) {
+        const unit = state.entities.find((entity): entity is UnitEntityState => entity.id === id && entity.kind === "unit")!;
+        if (unit.order.type === "gather" && unit.order.targetId === command.targetId && unit.order.resourceKind === resourceKind) continue;
+        const capacity = UNITS[unit.typeId].carryCapacity;
+        const mustDeposit = unit.cargo.amount > 0 && (unit.cargo.kind !== resourceKind || unit.cargo.amount >= capacity);
+        unit.order = {
+          type: "gather",
+          targetId: command.targetId,
+          resourceKind,
+          phase: mustDeposit ? "toDropOff" : "toSource",
+          dropOffId: mustDeposit ? findNearestDropOff(state, unit.ownerId, unit.cargo.kind!, unit.position)?.id ?? null : null,
+        };
+        unit.stateRevision += 1;
+      }
+      break;
+    }
+    case "dropOff":
+      setOrders(state, command.entityIds, { type: "deliver", targetId: command.targetId });
       break;
     case "patrol":
       setOrders(state, command.entityIds, { type: "patrol", waypoints: [...command.waypoints], waypointIndex: 0 });
@@ -443,29 +503,42 @@ function applyGameCommand(state: MatchState, player: PlayerState, command: GameC
 
 function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   state.tick += 1;
-  for (const entity of state.entities) {
-    if (entity.kind === "unit") {
-      entity.attackCooldownTicks = Math.max(0, entity.attackCooldownTicks - 1);
-      entity.workCooldownTicks = Math.max(0, entity.workCooldownTicks - 1);
-      updateUnit(state, entity);
-    } else if (entity.kind === "building") {
-      entity.attackCooldownTicks = Math.max(0, entity.attackCooldownTicks - 1);
-      updateTraining(state, entity, events);
-      updateTower(state, entity);
-    }
+  const resources = state.entities
+    .filter((entity): entity is ResourceEntityState => entity.kind === "resource")
+    .sort((left, right) => left.id.localeCompare(right.id));
+  for (const resource of resources) updateRenewableResourceNode(state, resource, events);
+  const units = state.entities
+    .filter((entity): entity is UnitEntityState => entity.kind === "unit")
+    .sort((left, right) => left.id.localeCompare(right.id));
+  for (const unit of units) {
+    unit.attackCooldownTicks = Math.max(0, unit.attackCooldownTicks - 1);
+    unit.workCooldownTicks = Math.max(0, unit.workCooldownTicks - 1);
+    updateUnit(state, unit, events);
   }
-  const removed = state.entities.filter((entity) => entity.hitPoints <= 0 || (entity.kind === "resource" && entity.amount <= 0));
+  const buildings = state.entities
+    .filter((entity): entity is BuildingEntityState => entity.kind === "building")
+    .sort((left, right) => left.id.localeCompare(right.id));
+  for (const building of buildings) {
+    building.attackCooldownTicks = Math.max(0, building.attackCooldownTicks - 1);
+    updateTraining(state, building, events);
+    updateTower(state, building);
+  }
+  const removed = state.entities.filter((entity) => (
+    entity.kind === "resource"
+      ? entity.amount <= 0 && entity.renewAtTick === null
+      : entity.hitPoints <= 0
+  ));
   if (removed.length > 0) {
     const removedIds = new Set(removed.map((entity) => entity.id));
     state.entities = state.entities.filter((entity) => !removedIds.has(entity.id));
-    for (const entity of removed) events.push({ type: "entityRemoved", entityId: entity.id, reason: entity.kind === "resource" ? "completed" : "destroyed" });
+    for (const entity of removed) events.push({ type: "entityRemoved", entityId: entity.id, reason: entity.kind === "resource" ? "depleted" : "destroyed" });
   }
   updateSettlementAdvancements(state, events);
   syncPopulation(state);
   evaluateVictory(state, events);
 }
 
-function updateUnit(state: MatchState, unit: UnitEntityState): void {
+function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
   const order = unit.order;
   if (order.type === "idle") return;
   if (order.type === "move") {
@@ -478,28 +551,26 @@ function updateUnit(state: MatchState, unit: UnitEntityState): void {
     if (moveToward(state, unit, target)) order.waypointIndex = (order.waypointIndex + 1) % order.waypoints.length;
     return;
   }
+  if (order.type === "gather") {
+    updateGatherOrder(state, unit, order, events);
+    return;
+  }
+  if (order.type === "deliver") {
+    updateDeliveryOrder(state, unit, order.targetId, events);
+    return;
+  }
   const target = state.entities.find((entity) => entity.id === order.targetId);
   if (!target) { unit.order = { type: "idle" }; return; }
   if (order.type === "construct") {
     if (target.kind !== "building" || target.complete) { unit.order = { type: "idle" }; return; }
-    if (distanceSquaredToEntity(unit.position, target) > 2) { moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target)); return; }
+    if (!isEntityInteractionCell(unit.position, target)) { moveTowardEntity(state, unit, target); return; }
     target.constructionRemainingTicks = Math.max(0, target.constructionRemainingTicks - 1);
     target.hitPoints = Math.max(1, Math.floor(target.maxHitPoints * (1 - target.constructionRemainingTicks / BUILDINGS[target.typeId].buildTicks)));
     target.stateRevision += 1;
-    if (target.constructionRemainingTicks === 0) { target.complete = true; target.hitPoints = target.maxHitPoints; unit.order = { type: "idle" }; }
-    return;
-  }
-  if (order.type === "gather") {
-    if (target.kind !== "resource") { unit.order = { type: "idle" }; return; }
-    if (distanceSquaredToEntity(unit.position, target) > 2) { moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target)); return; }
-    if (unit.workCooldownTicks === 0) {
-      const amount = Math.min(target.amount, gatherYield(state, unit, target));
-      const player = state.players.find((candidate) => candidate.id === unit.ownerId)!;
-      player.resources = { ...player.resources, [target.typeId]: player.resources[target.typeId] + amount };
-      target.amount -= amount;
-      target.hitPoints = target.amount;
-      target.stateRevision += 1;
-      unit.workCooldownTicks = TICKS_PER_SECOND;
+    if (target.constructionRemainingTicks === 0) {
+      target.complete = true;
+      target.hitPoints = target.maxHitPoints;
+      unit.order = { type: "idle" };
     }
     return;
   }
@@ -512,21 +583,250 @@ function updateUnit(state: MatchState, unit: UnitEntityState): void {
   }
 }
 
-function gatherYield(state: MatchState, unit: UnitEntityState, target: ResourceEntityState): number {
-  const base = UNITS[unit.typeId].gatherPerSecond[target.typeId];
-  const economicBuilding = target.typeId === "wood" ? "lumberCamp" : target.typeId === "food" ? "farmstead" : null;
-  const boosted = economicBuilding !== null && state.entities.some((entity) => (
-    entity.kind === "building"
-    && entity.ownerId === unit.ownerId
-    && entity.typeId === economicBuilding
-    && entity.complete
-    && entity.hitPoints > 0
-    && distanceSquared(entity.position, target.position) <= 36
-  ));
-  const economyYield = boosted ? base * 1.5 : base;
+function updateGatherOrder(
+  state: MatchState,
+  unit: UnitEntityState,
+  order: Extract<UnitOrder, { type: "gather" }>,
+  events: DomainEvent[],
+): void {
+  const capacity = UNITS[unit.typeId].carryCapacity;
+  if (capacity <= 0) { unit.order = { type: "idle" }; return; }
+
+  if (order.phase === "toDropOff") {
+    if (unit.cargo.kind === null || unit.cargo.amount <= 0) {
+      unit.cargo = { kind: null, amount: 0 };
+      order.phase = "toSource";
+      order.dropOffId = null;
+      unit.stateRevision += 1;
+      return;
+    }
+    const assigned = order.dropOffId
+      ? state.entities.find((entity): entity is BuildingEntityState => entity.id === order.dropOffId && entity.kind === "building")
+      : undefined;
+    const dropOff = assigned
+      && assigned.ownerId === unit.ownerId
+      && assigned.complete
+      && assigned.hitPoints > 0
+      && buildingAcceptsResource(assigned, unit.cargo.kind)
+      ? assigned
+      : findNearestDropOff(state, unit.ownerId, unit.cargo.kind, unit.position);
+    if (!dropOff) {
+      if (order.dropOffId !== null) {
+        order.dropOffId = null;
+        unit.stateRevision += 1;
+      }
+      return;
+    }
+    if (order.dropOffId !== dropOff.id) {
+      order.dropOffId = dropOff.id;
+      unit.stateRevision += 1;
+    }
+    if (!isEntityInteractionCell(unit.position, dropOff)) {
+      if (moveTowardEntity(state, unit, dropOff) === "blocked") {
+        const alternative = findNearestDropOff(state, unit.ownerId, unit.cargo.kind, unit.position);
+        const nextId = alternative?.id ?? null;
+        if (order.dropOffId !== nextId) {
+          order.dropOffId = nextId;
+          unit.stateRevision += 1;
+        }
+      }
+      return;
+    }
+    depositCargo(state, unit, dropOff, events);
+    const source = findUsableGatherSource(state, unit.ownerId, order.targetId, order.resourceKind)
+      ?? findNearestGatherSource(state, unit.ownerId, order.resourceKind, unit.position);
+    if (!source) { unit.order = { type: "idle" }; return; }
+    order.targetId = source.id;
+    order.phase = "toSource";
+    order.dropOffId = null;
+    unit.stateRevision += 1;
+    return;
+  }
+
+  if (unit.cargo.amount > 0 && (unit.cargo.kind !== order.resourceKind || unit.cargo.amount >= capacity)) {
+    order.phase = "toDropOff";
+    order.dropOffId = findNearestDropOff(state, unit.ownerId, unit.cargo.kind!, unit.position)?.id ?? null;
+    unit.stateRevision += 1;
+    return;
+  }
+  const source = findUsableGatherSource(state, unit.ownerId, order.targetId, order.resourceKind)
+    ?? findNearestGatherSource(state, unit.ownerId, order.resourceKind, unit.position);
+  if (!source) {
+    if (unit.cargo.amount > 0 && unit.cargo.kind) {
+      order.phase = "toDropOff";
+      order.dropOffId = findNearestDropOff(state, unit.ownerId, unit.cargo.kind, unit.position)?.id ?? null;
+      unit.stateRevision += 1;
+    } else {
+      unit.order = { type: "idle" };
+    }
+    return;
+  }
+  if (order.targetId !== source.id) {
+    order.targetId = source.id;
+    unit.stateRevision += 1;
+  }
+  if (gatherSourceAmount(source) <= 0) return;
+  if (!isEntityInteractionCell(unit.position, source)) {
+    if (moveTowardEntity(state, unit, source) === "blocked") {
+      const alternative = findNearestGatherSource(state, unit.ownerId, order.resourceKind, unit.position);
+      if (alternative && alternative.id !== order.targetId) {
+        order.targetId = alternative.id;
+        unit.stateRevision += 1;
+      }
+    }
+    return;
+  }
+  if (unit.workCooldownTicks > 0) return;
+  const remainingCapacity = Math.max(0, capacity - unit.cargo.amount);
+  const amount = Math.min(gatherSourceAmount(source), gatherYield(state, unit, order.resourceKind), remainingCapacity);
+  if (amount <= 0) return;
+  unit.cargo = { kind: order.resourceKind, amount: unit.cargo.amount + amount };
+  unit.stateRevision += 1;
+  takeFromGatherSource(state, source, amount, events);
+  unit.workCooldownTicks = TICKS_PER_SECOND;
+  if (unit.cargo.amount >= capacity || gatherSourceAmount(source) <= 0) {
+    order.phase = "toDropOff";
+    order.dropOffId = findNearestDropOff(state, unit.ownerId, order.resourceKind, unit.position)?.id ?? null;
+    unit.stateRevision += 1;
+  }
+}
+
+function updateDeliveryOrder(state: MatchState, unit: UnitEntityState, targetId: EntityId, events: DomainEvent[]): void {
+  if (unit.cargo.kind === null || unit.cargo.amount <= 0) {
+    unit.cargo = { kind: null, amount: 0 };
+    unit.order = { type: "idle" };
+    return;
+  }
+  const assigned = state.entities.find((entity): entity is BuildingEntityState => entity.id === targetId && entity.kind === "building");
+  const dropOff = assigned
+    && assigned.ownerId === unit.ownerId
+    && assigned.complete
+    && assigned.hitPoints > 0
+    && buildingAcceptsResource(assigned, unit.cargo.kind)
+    ? assigned
+    : findNearestDropOff(state, unit.ownerId, unit.cargo.kind, unit.position);
+  if (!dropOff) return;
+  if (dropOff.id !== targetId) {
+    unit.order = { type: "deliver", targetId: dropOff.id };
+    unit.stateRevision += 1;
+  }
+  if (!isEntityInteractionCell(unit.position, dropOff)) {
+    if (moveTowardEntity(state, unit, dropOff) === "blocked") {
+      const alternative = findNearestDropOff(state, unit.ownerId, unit.cargo.kind, unit.position);
+      if (alternative && alternative.id !== targetId) {
+        unit.order = { type: "deliver", targetId: alternative.id };
+        unit.stateRevision += 1;
+      }
+    }
+    return;
+  }
+  depositCargo(state, unit, dropOff, events);
+  unit.order = { type: "idle" };
+}
+
+function depositCargo(state: MatchState, unit: UnitEntityState, dropOff: BuildingEntityState, events: DomainEvent[]): void {
+  const resourceKind = unit.cargo.kind;
+  const amount = unit.cargo.amount;
+  if (!resourceKind || amount <= 0) return;
+  const player = state.players.find((candidate) => candidate.id === unit.ownerId)!;
+  player.resources = { ...player.resources, [resourceKind]: player.resources[resourceKind] + amount };
+  unit.cargo = { kind: null, amount: 0 };
+  unit.stateRevision += 1;
+  events.push({ type: "resourcesDeposited", playerId: player.id, unitId: unit.id, dropOffId: dropOff.id, resourceKind, amount });
+}
+
+function findUsableGatherSource(state: MatchState, playerId: PlayerId, targetId: EntityId, resourceKind: ResourceKind): EntityState | null {
+  const source = state.entities.find((entity) => entity.id === targetId);
+  return source
+    && gatherSourceKind(source) === resourceKind
+    && isEntityVisibleToPlayer(state, playerId, source)
+    ? source
+    : null;
+}
+
+function findNearestGatherSource(state: MatchState, playerId: PlayerId, resourceKind: ResourceKind, position: GridPoint): EntityState | null {
+  return state.entities
+    .filter((entity) => (
+      gatherSourceKind(entity) === resourceKind
+      && (gatherSourceAmount(entity) > 0 || (entity.kind === "resource" && entity.renewAtTick !== null))
+      && isEntityVisibleToPlayer(state, playerId, entity)
+    ))
+    .map((entity) => ({ entity, route: findEntityApproachRoute(state, position, entity) }))
+    .filter((candidate): candidate is { entity: EntityState; route: EntityApproachRoute } => candidate.route !== null)
+    .sort((left, right) => (
+      Number(gatherSourceAmount(right.entity) > 0) - Number(gatherSourceAmount(left.entity) > 0)
+      || left.route.distance - right.route.distance
+      || left.entity.id.localeCompare(right.entity.id)
+    ))[0]?.entity ?? null;
+}
+
+function findNearestDropOff(state: MatchState, playerId: PlayerId, resourceKind: ResourceKind, position: GridPoint): BuildingEntityState | null {
+  return state.entities
+    .filter((entity): entity is BuildingEntityState => (
+      entity.kind === "building"
+      && entity.ownerId === playerId
+      && entity.complete
+      && entity.hitPoints > 0
+      && buildingAcceptsResource(entity, resourceKind)
+    ))
+    .map((entity) => ({ entity, route: findEntityApproachRoute(state, position, entity) }))
+    .filter((candidate): candidate is { entity: BuildingEntityState; route: EntityApproachRoute } => candidate.route !== null)
+    .sort((left, right) => left.route.distance - right.route.distance || left.entity.id.localeCompare(right.entity.id))[0]?.entity ?? null;
+}
+
+function buildingAcceptsResource(building: BuildingEntityState, resourceKind: ResourceKind): boolean {
+  return BUILDINGS[building.typeId].dropOffResources?.includes(resourceKind) ?? false;
+}
+
+function gatherSourceKind(entity: EntityState): ResourceKind | null {
+  if (entity.kind === "resource") return entity.typeId;
+  return null;
+}
+
+function gatherSourceAmount(entity: EntityState): number {
+  if (entity.kind === "resource") return entity.amount;
+  return 0;
+}
+
+function takeFromGatherSource(state: MatchState, entity: EntityState, amount: number, events: DomainEvent[]): void {
+  if (entity.kind !== "resource") return;
+  entity.amount = Math.max(0, entity.amount - amount);
+  entity.hitPoints = entity.amount;
+  entity.stateRevision += 1;
+  if (entity.amount > 0) return;
+  const renewAfterTicks = RESOURCE_NODES[entity.typeId].renewAfterTicks;
+  entity.renewAtTick = renewAfterTicks === null ? null : state.tick + renewAfterTicks;
+  events.push({
+    type: "resourceDepleted",
+    resourceId: entity.id,
+    resourceKind: entity.typeId,
+    renewable: renewAfterTicks !== null,
+    renewAtTick: entity.renewAtTick,
+  });
+}
+
+function updateRenewableResourceNode(state: MatchState, resource: ResourceEntityState, events: DomainEvent[]): void {
+  if (resource.renewAtTick === null || state.tick < resource.renewAtTick) return;
+  const definition = RESOURCE_NODES[resource.typeId];
+  resource.amount = definition.maxAmount;
+  resource.hitPoints = definition.maxAmount;
+  resource.renewAtTick = null;
+  resource.stateRevision += 1;
+  events.push({ type: "resourceRenewed", resourceId: resource.id, resourceKind: resource.typeId, amount: resource.amount });
+}
+
+function gatherYield(state: MatchState, unit: UnitEntityState, resourceKind: ResourceKind): number {
+  const base = UNITS[unit.typeId].gatherPerSecond[resourceKind];
   const player = state.players.find((candidate) => candidate.id === unit.ownerId);
   const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  return trait?.metric === "gatherRate" ? economyYield * trait.multiplierPermille / 1000 : economyYield;
+  const multiplierPermille = trait?.metric === "gatherRate" ? trait.multiplierPermille : 1_000;
+  const accumulatedMilli = unit.gatherRemainderMilli[resourceKind] + base * multiplierPermille;
+  const gathered = Math.floor(accumulatedMilli / 1_000);
+  unit.gatherRemainderMilli = {
+    ...unit.gatherRemainderMilli,
+    [resourceKind]: accumulatedMilli % 1_000,
+  };
+  return gathered;
 }
 
 function updateTraining(state: MatchState, building: BuildingEntityState, events: DomainEvent[]): void {
@@ -601,6 +901,28 @@ function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint)
   return samePoint(next, target);
 }
 
+type EntityMovementResult = "arrived" | "moving" | "blocked";
+
+function moveTowardEntity(state: MatchState, unit: UnitEntityState, entity: EntityState): EntityMovementResult {
+  if (isEntityInteractionCell(unit.position, entity)) return "arrived";
+  const player = state.players.find((candidate) => candidate.id === unit.ownerId);
+  const trait = player ? getVillage(player.villageId)?.trait : undefined;
+  const speed = UNITS[unit.typeId].speedMilliTilesPerSecond * (trait?.metric === "unitSpeed" ? trait.multiplierPermille / 1000 : 1);
+  const stepCost = 1000 * TICKS_PER_SECOND;
+  unit.movementProgress += speed;
+  if (unit.movementProgress < stepCost) return "moving";
+  const route = findEntityApproachRoute(state, unit.position, entity);
+  if (!route) {
+    unit.movementProgress = stepCost;
+    return "blocked";
+  }
+  unit.movementProgress -= stepCost;
+  if (samePoint(route.firstStep, unit.position)) return "arrived";
+  unit.position = route.firstStep;
+  unit.stateRevision += 1;
+  return isEntityInteractionCell(unit.position, entity) ? "arrived" : "moving";
+}
+
 function damageAfterVillageTrait(state: MatchState, target: EntityState, damage: number): number {
   if (target.kind !== "building" || target.typeId !== "defenseTower") return damage;
   const player = state.players.find((candidate) => candidate.id === target.ownerId);
@@ -610,17 +932,30 @@ function damageAfterVillageTrait(state: MatchState, target: EntityState, damage:
 
 function createUnit(state: MatchState, ownerId: PlayerId, typeId: UnitType, position: GridPoint): UnitEntityState {
   const definition = UNITS[typeId];
-  return { id: nextId(state, "unit"), ownerId, kind: "unit", typeId, position, hitPoints: definition.maxHitPoints, maxHitPoints: definition.maxHitPoints, stateRevision: 0, order: { type: "idle" }, movementProgress: 0, attackCooldownTicks: 0, workCooldownTicks: 0 };
+  return { id: nextId(state, "unit"), ownerId, kind: "unit", typeId, position, hitPoints: definition.maxHitPoints, maxHitPoints: definition.maxHitPoints, stateRevision: 0, order: { type: "idle" }, movementProgress: 0, attackCooldownTicks: 0, workCooldownTicks: 0, cargo: { kind: null, amount: 0 }, gatherRemainderMilli: { food: 0, wood: 0, stone: 0 } };
 }
 
 function createBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingType, position: GridPoint, complete: boolean): BuildingEntityState {
   const definition = BUILDINGS[typeId];
-  return { id: nextId(state, "building"), ownerId, kind: "building", typeId, position, hitPoints: complete ? definition.maxHitPoints : 1, maxHitPoints: definition.maxHitPoints, stateRevision: 0, complete, constructionRemainingTicks: complete ? 0 : definition.buildTicks, attackCooldownTicks: 0, trainingQueue: [] };
+  return {
+    id: nextId(state, "building"),
+    ownerId,
+    kind: "building",
+    typeId,
+    position,
+    hitPoints: complete ? definition.maxHitPoints : 1,
+    maxHitPoints: definition.maxHitPoints,
+    stateRevision: 0,
+    complete,
+    constructionRemainingTicks: complete ? 0 : definition.buildTicks,
+    attackCooldownTicks: 0,
+    trainingQueue: [],
+  };
 }
 
 function createResource(state: MatchState, typeId: ResourceKind, position: GridPoint): ResourceEntityState {
-  const amount = typeId === "stone" ? 700 : 1000;
-  return { id: nextId(state, "resource"), ownerId: null, kind: "resource", typeId, position, hitPoints: amount, maxHitPoints: amount, stateRevision: 0, amount };
+  const amount = RESOURCE_NODES[typeId].maxAmount;
+  return { id: nextId(state, "resource"), ownerId: null, kind: "resource", typeId, position, hitPoints: amount, maxHitPoints: amount, stateRevision: 0, amount, renewAtTick: null };
 }
 
 function nextId(state: MatchState, prefix: string): EntityId {
@@ -787,6 +1122,26 @@ function distanceSquaredToEntity(point: GridPoint, entity: EntityState): number 
   return Math.min(...getEntityFootprintCells(entity).map((cell) => distanceSquared(point, cell)));
 }
 
+interface EntityApproachRoute {
+  readonly target: GridPoint;
+  readonly firstStep: GridPoint;
+  readonly distance: number;
+}
+
+function isEntityInteractionCell(point: GridPoint, entity: EntityState): boolean {
+  return getEntityFootprintCells(entity).some((cell) => Math.abs(point.x - cell.x) + Math.abs(point.y - cell.y) === 1);
+}
+
+function findEntityApproachRoute(state: MatchState, start: GridPoint, entity: EntityState): EntityApproachRoute | null {
+  if (isEntityInteractionCell(start, entity)) return { target: { ...start }, firstStep: { ...start }, distance: 0 };
+  const footprint = entity.kind === "building" ? BUILDINGS[entity.typeId].footprint : [{ x: 0, y: 0 }];
+  const blockedCells = getPathBlockedCells(state);
+  const blocked = new Set(blockedCells.map(pointKey));
+  const targets = getFootprintPerimeterCells(entity.position, footprint)
+    .filter((target) => isPointInBounds(target, state) && isMapCellWalkable(state, target) && !blocked.has(pointKey(target)));
+  return findPathToAny(start, targets, state.map.width, state.map.height, blockedCells);
+}
+
 function closestApproachableEntityCell(state: MatchState, point: GridPoint, entity: EntityState): GridPoint {
   const blocked = new Set(getPathBlockedCells(state).map(pointKey));
   const approachable = getEntityFootprintCells(entity).filter((cell) => (
@@ -801,6 +1156,10 @@ function closestApproachableEntityCell(state: MatchState, point: GridPoint, enti
     || left.y - right.y
     || left.x - right.x
   ))[0]!;
+}
+
+function isEntityReachable(state: MatchState, start: GridPoint, entity: EntityState): boolean {
+  return findEntityApproachRoute(state, start, entity) !== null;
 }
 
 function isMapCellBlocked(state: MatchState, point: GridPoint): boolean {

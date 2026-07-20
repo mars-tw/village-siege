@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   doesFootprintOverlap,
   findNextPathStep,
+  findPathToAny,
+  findPathRoute,
   getFootprintCells,
   getFootprintPerimeterCells,
   isFootprintWithinBounds,
@@ -77,6 +79,7 @@ describe("deterministic four-way pathfinding", () => {
 
     expect(findNextPathStep({ x: 1, y: 2 }, { x: 4, y: 2 }, 6, 5, obstacle)).toEqual({ x: 1, y: 3 });
     expect(findNextPathStep({ x: 1, y: 2 }, { x: 4, y: 2 }, 6, 5, obstacle)).toEqual({ x: 1, y: 3 });
+    expect(findPathRoute({ x: 1, y: 2 }, { x: 4, y: 2 }, 6, 5, obstacle)).toEqual({ firstStep: { x: 1, y: 3 }, distance: 5 });
   });
 
   it("walks to a reachable neighbor when the requested target is blocked", () => {
@@ -96,5 +99,14 @@ describe("deterministic four-way pathfinding", () => {
     ];
 
     expect(findNextPathStep({ x: 0, y: 2 }, { x: 4, y: 2 }, 5, 5, wall)).toBeNull();
+  });
+
+  it("finds the nearest reachable member of a target set in one deterministic search", () => {
+    const wall = [{ x: 2, y: 1 }, { x: 2, y: 2 }, { x: 2, y: 3 }];
+    expect(findPathToAny({ x: 0, y: 2 }, [{ x: 3, y: 2 }, { x: 1, y: 4 }], 5, 5, wall)).toEqual({
+      target: { x: 1, y: 4 },
+      firstStep: { x: 1, y: 2 },
+      distance: 3,
+    });
   });
 });

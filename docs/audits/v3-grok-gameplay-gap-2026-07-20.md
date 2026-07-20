@@ -55,3 +55,28 @@ After implementation, Grok CLI performed a second read-only review of the uncomm
 The review accepted the deterministic tier costs, prerequisites, 450/600-tick completion, destruction cancellation, unlock gates, five-profile AI integration, fixed seven-slot client dock and explicit first-slice/open-source wording. It also confirmed that this work must not be presented as the complete RTS or as completed server-authoritative multiplayer.
 
 The wording-only P2 findings were resolved immediately: the cooldown message now includes settlement advancement, the README lists tier locks, and the changelog labels authoritative multiplayer as a planned architecture document. Separate Codex verification then passed all 65 tests, production builds, the local multiplayer smoke test, dependency audit, and a 568x320 landscape-browser check with no overflow or console errors. Artificer progression for all five AI profiles remains a later test milestone and is not claimed complete.
+
+## Economy carry-and-drop-off slice final review
+
+TASK-006 replaced instant wallet credit with an original deterministic logistics loop: workers carry at most 12 units, deposit only at compatible reachable buildings, retain cargo when routes are blocked, exhaust finite wood and stone nodes, and wait for food fields to renew at the declared tick. Client presentation adds original food-sack, bundled-log and stone-pile vector cargo silhouettes, grouped manual delivery, fallow feedback and fixed-dock controls.
+
+### Grok CLI evidence
+
+- CLI/version: `C:\Users\digimkt\.grok\bin\grok.exe`, `grok 0.2.106 (bde89716f6)`
+- Requested model: `grok-4.5`; actual model: `grok-4.5-build`
+- Permission: read-only plan mode; web, memory and subagents disabled
+- Session: `b0b532a7-6640-4b40-8f2b-6c8140483aef`
+- First accepted audit request: `c82eedb1-0b86-409c-80bc-d33d3ff26d1b`, exit `0`, `EndTurn`, verdict `PASS`, P0 `0`, P1 `0`, P2 `2`
+- Final targeted closure request: `093b789d-0e62-4484-88e5-7e663700ae33`, exit `0`, `EndTurn`, verdict `PASS`, P0 `0`, P1 `0`, P2 `0`
+
+The two initial P2 observations were closed before handoff. Resource clicks now filter selected workers by a reachable cardinal resource perimeter and a reachable compatible deposit route, preserving blocked workers' existing orders instead of risking an all-or-nothing command rejection. The README now documents the mixed-selection `卸全部` action. Grok re-read those exact changes and reported no regression. Two intermediary Grok requests ended as `Cancelled` while exploring or reaching their turn cap; they were not treated as accepted audit verdicts.
+
+### Independent Codex and delegated-auditor evidence
+
+- `npm run verify`: PASS; client/server/shared typechecks, 5 test files and 77 tests, and production builds all completed.
+- `npm run smoke:multiplayer:local`: PASS; two-player room, host/readiness rejection, invalid-payload rejection, reconnect and authoritative tick checks completed.
+- `npm audit --omit=dev`: PASS; 0 known production vulnerabilities.
+- Playwright production-preview QA: 1280×720, 844×390 and 568×320 landscape layouts rendered in a single viewport; the 568×320 document measured 568×320 and its canvas 568×319, with no overflow and 0 console errors. Worker selection, three-page construction controls and the system panel retained seven non-overlapping action slots.
+- A separate read-only client/AI auditor returned P0 `0`, P1 `0`, P2 `0` after checking disconnected same-resource carrier grouping, mixed-resource delivery, all three cargo drawing paths, client typecheck, 77 shared tests and 667×375 layout behavior.
+
+Verdict: **TASK-006 PASS**. This completes only the economy carry/drop-off slice. Technology research, fog of war, walls and gates, complete combat integration, save/replay and server-owned multiplayer battles remain open work and are not claimed complete.

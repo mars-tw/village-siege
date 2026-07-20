@@ -33,10 +33,17 @@ export interface ResourceWallet {
   readonly stone: number;
 }
 
+export interface ResourceCargo {
+  readonly kind: ResourceKind | null;
+  readonly amount: number;
+  readonly capacity: number;
+}
+
 export type GameCommand =
   | { readonly type: "move"; readonly entityIds: readonly EntityId[]; readonly target: GridPoint }
   | { readonly type: "attack"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
   | { readonly type: "gather"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
+  | { readonly type: "dropOff"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
   | { readonly type: "build"; readonly builderIds: readonly EntityId[]; readonly buildingType: BuildingType; readonly origin: GridPoint }
   | { readonly type: "train"; readonly producerId: EntityId; readonly unitType: UnitType; readonly count: number }
   | { readonly type: "advanceSettlement"; readonly producerId: EntityId; readonly targetTier: SettlementTier }
@@ -74,6 +81,12 @@ export interface PublicEntityState {
   readonly hitPoints: number;
   readonly maxHitPoints: number;
   readonly stateRevision: number;
+  readonly cargo?: ResourceCargo;
+  readonly resourceNode?: {
+    readonly amount: number;
+    readonly maxAmount: number;
+    readonly renewAtTick: number | null;
+  };
 }
 
 export type DomainEvent =
@@ -81,8 +94,11 @@ export type DomainEvent =
   | { readonly type: "commandRejected"; readonly sequence: number; readonly code: CommandRejectCode }
   | { readonly type: "entitySpawned"; readonly entity: PublicEntityState }
   | { readonly type: "entityUpdated"; readonly entity: PublicEntityState }
-  | { readonly type: "entityRemoved"; readonly entityId: EntityId; readonly reason: "destroyed" | "completed" | "despawned" }
+  | { readonly type: "entityRemoved"; readonly entityId: EntityId; readonly reason: "destroyed" | "completed" | "depleted" | "despawned" }
   | { readonly type: "settlementAdvanced"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly settlementTier: SettlementTier }
+  | { readonly type: "resourcesDeposited"; readonly playerId: PlayerId; readonly unitId: EntityId; readonly dropOffId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
+  | { readonly type: "resourceDepleted"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly renewable: boolean; readonly renewAtTick: number | null }
+  | { readonly type: "resourceRenewed"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
   | { readonly type: "matchFinished"; readonly winningTeamIds: readonly string[]; readonly reason: "conquest" | "surrender" | "disconnect" };
 
 export function isGridPoint(value: unknown): value is GridPoint {
@@ -97,6 +113,7 @@ export function isGameCommand(value: unknown): value is GameCommand {
       return hasOnlyKeys(value, ["type", "entityIds", "target"]) && isIdArray(value.entityIds) && isGridPoint(value.target);
     case "attack":
     case "gather":
+    case "dropOff":
       return hasOnlyKeys(value, ["type", "entityIds", "targetId"]) && isIdArray(value.entityIds) && typeof value.targetId === "string" && value.targetId.length > 0;
     case "build":
       return hasOnlyKeys(value, ["type", "builderIds", "buildingType", "origin"]) && isIdArray(value.builderIds) && isBuildingType(value.buildingType) && isGridPoint(value.origin);

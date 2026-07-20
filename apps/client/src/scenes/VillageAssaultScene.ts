@@ -1,9 +1,12 @@
 import Phaser from "phaser";
 import {
   BUILDINGS,
+  findPathToAny,
   getEntityFootprintCells,
   getFootprintCells,
+  getFootprintPerimeterCells,
   getOccupiedMapCells,
+  getVillageAssaultWalkBlockedCells,
   isBuildLocationAvailable,
   MAX_TRAINING_QUEUE_DEPTH,
   SETTLEMENT_TIER_ORDER,
@@ -18,6 +21,7 @@ import {
   type GameCommand,
   type GridPoint,
   type ResourceEntityState,
+  type ResourceKind,
   type ResourceWallet,
   type SettlementTier,
   type UnitEntityState,
@@ -75,6 +79,8 @@ interface UnitView {
   readonly selection: Phaser.GameObjects.Graphics;
   readonly health: Phaser.GameObjects.Graphics;
   readonly label: Phaser.GameObjects.Text;
+  readonly cargoPack: Phaser.GameObjects.Graphics;
+  readonly cargoLabel: Phaser.GameObjects.Text;
   grid: GridPoint;
   hitPoints: number;
   action: CombatAction;
@@ -154,7 +160,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private paused = false;
   private ended = false;
   private lastUiTick = -1;
-  private notice = "先點工匠，再點木材、糧食或石礦開始採集";
+  private notice = "先點工匠，再點資源採集；滿載後會自動送回主城或集散建築";
   private noticeUntil = 0;
   private artLoadFailures: string[] = [];
   private readonly artLoadPromises = new Map<CombatArtId, Promise<void>>();
@@ -347,6 +353,9 @@ export class VillageAssaultScene extends Phaser.Scene {
     view.hitPoints = entity.hitPoints;
     view.selection.setVisible(this.selectedIds.has(entity.id));
     this.drawUnitHealth(view.health, entity);
+    const cargoGlyph = entity.cargo.kind ? ({ food: "糧", wood: "木", stone: "石" } as const)[entity.cargo.kind] : "";
+    this.drawCargoPack(view.cargoPack, entity.cargo.kind, entity.cargo.amount, UNITS[entity.typeId].carryCapacity);
+    view.cargoLabel.setText(entity.cargo.amount > 0 ? `${cargoGlyph}${entity.cargo.amount}/${UNITS[entity.typeId].carryCapacity}` : "").setVisible(entity.cargo.amount > 0);
     view.actor.container.setDepth(target.y + 100);
   }
 
@@ -386,6 +395,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     }, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, artId));
     const selection = this.add.graphics().lineStyle(3, 0xffdf83, 1).strokeEllipse(0, 2, artId === "boar_rider" ? 64 : 48, artId === "boar_rider" ? 26 : 20).setVisible(false);
     const health = this.add.graphics();
+    const cargoPack = this.add.graphics().setPosition(23, -25).setVisible(false);
     const roleMark = entity.typeId === "villager" ? "⚒" : entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? "Ⅰ" : "Ⅱ";
     const label = this.add.text(0, 11, `${roleMark} ${UNIT_LABELS[entity.typeId]}`, {
       color: entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? "#e4efce" : "#ffd2c3",
@@ -395,8 +405,17 @@ export class VillageAssaultScene extends Phaser.Scene {
       stroke: "#101917",
       strokeThickness: 4,
     }).setOrigin(0.5, 0).setResolution(2);
+    label.setVisible(!this.compactUi);
+    const cargoLabel = this.add.text(23, -44, "", {
+      color: "#fff0b3",
+      fontFamily: 'Consolas, "Noto Sans TC", monospace',
+      fontSize: "10px",
+      fontStyle: "bold",
+      backgroundColor: "#101917d8",
+      padding: { x: 3, y: 1 },
+    }).setOrigin(0.5).setResolution(2).setVisible(false);
     actor.container.addAt(selection, 0);
-    actor.container.add([health, label]);
+    actor.container.add([health, cargoPack, label, cargoLabel]);
     actor.container.setSize(112, 136).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
     actor.container.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => event.stopPropagation());
     actor.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
@@ -404,15 +423,20 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.handleEntityTap(entity.id, pointer);
     });
     this.uiCamera?.ignore(actor.container);
-    return { actor, selection, health, label, grid: { ...entity.position }, hitPoints: entity.hitPoints, action: "idle" };
+    return { actor, selection, health, label, cargoPack, cargoLabel, grid: { ...entity.position }, hitPoints: entity.hitPoints, action: "idle" };
   }
 
   private actionForUnit(entity: UnitEntityState, view: UnitView): CombatAction {
     if (entity.hitPoints < view.hitPoints) return "hurt";
     if (entity.order.type === "attack") return "attack";
     if (entity.order.type === "construct") return "cast";
-    if (entity.order.type === "gather") return "attack";
-    if (entity.order.type === "move" || entity.order.type === "patrol") return "walk";
+    if (entity.order.type === "gather") {
+      if (entity.order.phase === "toDropOff") return "walk";
+      const target = this.entityById(entity.order.targetId);
+      if (target?.kind === "resource" && target.amount <= 0) return "idle";
+      return target && this.isAdjacentToEntity(entity.position, target) ? "attack" : "walk";
+    }
+    if (entity.order.type === "deliver" || entity.order.type === "move" || entity.order.type === "patrol") return "walk";
     return "idle";
   }
 
@@ -431,8 +455,48 @@ export class VillageAssaultScene extends Phaser.Scene {
     const selectedUnits = this.selectedUnits();
     const selectedVillagers = selectedUnits.filter((unit) => unit.typeId === "villager");
     const selectedMilitary = selectedUnits.filter((unit) => unit.typeId !== "villager");
+    if (entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID && entity.complete) {
+      const accepted = BUILDINGS[entity.typeId].dropOffResources ?? [];
+      const carriers = selectedVillagers.filter((unit) => (
+        unit.cargo.kind !== null
+        && unit.cargo.amount > 0
+        && accepted.includes(unit.cargo.kind)
+        && this.approachDistance(unit.position, entity) !== null
+      ));
+      if (carriers.length > 0) {
+        this.issue({ type: "dropOff", entityIds: carriers.map((unit) => unit.id), targetId: entity.id }, `將材料送往${buildingDisplayName(entity.typeId)}`);
+        return;
+      }
+    }
+    if (entity.kind === "resource" && entity.amount <= 0 && entity.renewAtTick !== null) {
+      this.selectedIds.clear();
+      this.selectedIds.add(entity.id);
+      this.refreshSelectionViews();
+      this.refreshInterface(true);
+      this.setNotice("糧田正在休耕，選取資訊會顯示復育倒數", "warning");
+      return;
+    }
     if (entity.kind === "resource" && selectedVillagers.length > 0) {
-      this.issue({ type: "gather", entityIds: selectedVillagers.map((unit) => unit.id), targetId: entity.id }, `工匠前往採集${resourceDisplayName(entity.typeId)}`);
+      const gatherers = selectedVillagers.filter((unit) => {
+        const capacity = UNITS[unit.typeId].carryCapacity;
+        const depositKind = unit.cargo.amount > 0 && (unit.cargo.kind !== entity.typeId || unit.cargo.amount >= capacity)
+          ? unit.cargo.kind
+          : entity.typeId;
+        return this.approachDistance(unit.position, entity) !== null
+          && depositKind !== null
+          && this.nearestDropOff(unit.position, depositKind) !== null;
+      });
+      if (gatherers.length === 0) {
+        this.setNotice("所選工匠目前無法到達資源或合法卸貨點", "warning");
+        return;
+      }
+      const skipped = selectedVillagers.length - gatherers.length;
+      this.issue(
+        { type: "gather", entityIds: gatherers.map((unit) => unit.id), targetId: entity.id },
+        skipped > 0
+          ? `${gatherers.length} 名工匠前往採集；${skipped} 名因路線受阻保留原指令`
+          : `工匠前往採集${resourceDisplayName(entity.typeId)}`,
+      );
       return;
     }
     if (entity.ownerId === VILLAGE_ASSAULT_AI_ID && selectedMilitary.length > 0) {
@@ -604,14 +668,10 @@ export class VillageAssaultScene extends Phaser.Scene {
         ? `敵城 ${Math.ceil(enemyTown.hitPoints / enemyTown.maxHitPoints * 100)}%`
         : `目標｜建立經濟與軍隊，摧毀東境議事堂　敵城 ${enemyTown.hitPoints}/${enemyTown.maxHitPoints}`
       : `敵方主城已毀｜撐過重建期限 ${Math.max(0, Math.ceil((TOWN_CENTER_REBUILD_GRACE_TICKS - (this.runtime.state.tick - (rebuild?.tick ?? this.runtime.state.tick))) / TICKS_PER_SECOND))} 秒`);
-    if (performance.now() > this.noticeUntil) this.notice = "點空地移動｜點資源採集｜點敵軍攻擊｜拖曳移鏡";
+    if (performance.now() > this.noticeUntil) this.notice = "點空地移動｜點資源採集｜滿載自動卸貨｜點敵軍攻擊";
     this.noticeText?.setText(this.compactUi ? "" : this.paused ? "戰局暫停" : this.notice);
     const selected = this.selectedEntities();
-    const selectionLabel = selected.length === 0
-      ? "未選取｜點我方工匠或建築"
-      : selected.length === 1
-        ? `${this.entityDisplayName(selected[0]!)}｜生命 ${selected[0]!.hitPoints}/${selected[0]!.maxHitPoints}`
-        : `已選取 ${selected.length} 個單位｜智慧指令已啟用`;
+    const selectionLabel = this.selectionLabel(selected);
     this.selectionText?.setText(this.compactUi && performance.now() <= this.noticeUntil ? this.compactNotice(this.notice) : selectionLabel);
     this.currentActions = this.actionsForSelection(selected);
     this.actionButtons.forEach((button, index) => {
@@ -677,15 +737,17 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     if (ownUnits.length > 0) {
       const hasVillager = ownUnits.some((unit) => unit.typeId === "villager");
-      return [
+      const unload = this.dropOffAction(ownUnits);
+      const contextual: ActionSpec[] = [
         ...(hasVillager ? [{ glyph: "⌂", label: "建造", run: () => this.openBuildMenu() } satisfies ActionSpec] : []),
+        ...(unload ? [unload] : []),
         { glyph: "■", label: "停止", run: () => this.issue({ type: "stop", entityIds: ownUnits.map((unit) => unit.id) }, "單位停止目前工作") },
         this.selectWorkersAction(),
         this.selectArmyAction(),
         { glyph: "Ⅱ", label: this.paused ? "繼續" : "暫停", run: () => this.togglePause() },
         this.zoomAction(-0.12),
-        this.systemAction(),
-      ].slice(0, 7);
+      ];
+      return [...contextual.slice(0, 6), this.systemAction()];
     }
     return [
       this.selectWorkersAction(),
@@ -1007,6 +1069,113 @@ export class VillageAssaultScene extends Phaser.Scene {
     return wallet.food >= cost.food && wallet.wood >= cost.wood && wallet.stone >= cost.stone;
   }
 
+  private selectionLabel(selected: readonly EntityState[]): string {
+    if (selected.length === 0) return "未選取｜點我方工匠或建築";
+    if (selected.length === 1) {
+      const entity = selected[0]!;
+      if (entity.kind === "resource") {
+        if (entity.amount <= 0 && entity.renewAtTick !== null) {
+          const seconds = Math.max(0, Math.ceil((entity.renewAtTick - this.runtime.state.tick) / TICKS_PER_SECOND));
+          return `${this.entityDisplayName(entity)}｜休耕中，${seconds} 秒後復育`;
+        }
+        return `${this.entityDisplayName(entity)}｜存量 ${entity.amount}/${entity.maxHitPoints}`;
+      }
+      if (entity.kind === "unit" && entity.cargo.kind && entity.cargo.amount > 0) {
+        return `${this.entityDisplayName(entity)}｜生命 ${entity.hitPoints}/${entity.maxHitPoints}｜攜帶${this.resourceKindName(entity.cargo.kind)} ${entity.cargo.amount}/${UNITS[entity.typeId].carryCapacity}`;
+      }
+      return `${this.entityDisplayName(entity)}｜生命 ${entity.hitPoints}/${entity.maxHitPoints}`;
+    }
+    const carriers = selected.filter((entity): entity is UnitEntityState => entity.kind === "unit" && entity.cargo.kind !== null && entity.cargo.amount > 0);
+    const cargo = (["food", "wood", "stone"] satisfies ResourceKind[])
+      .map((kind) => ({ kind, amount: carriers.reduce((sum, unit) => sum + (unit.cargo.kind === kind ? unit.cargo.amount : 0), 0) }))
+      .filter((entry) => entry.amount > 0)
+      .map((entry) => `${this.resourceKindName(entry.kind)}${entry.amount}`)
+      .join(" ");
+    return `已選取 ${selected.length} 個單位${cargo ? `｜攜帶 ${cargo}` : "｜智慧指令已啟用"}`;
+  }
+
+  private dropOffAction(units: readonly UnitEntityState[]): ActionSpec | null {
+    const grouped = new Map<string, { resourceKind: ResourceKind; carriers: UnitEntityState[]; dropOff: BuildingEntityState }>();
+    for (const carrier of units) {
+      if (carrier.typeId !== "villager" || !carrier.cargo.kind || carrier.cargo.amount <= 0) continue;
+      const dropOff = this.nearestDropOff(carrier.position, carrier.cargo.kind);
+      if (!dropOff) continue;
+      const key = `${carrier.cargo.kind}:${dropOff.id}`;
+      const existing = grouped.get(key);
+      if (existing) existing.carriers.push(carrier);
+      else grouped.set(key, { resourceKind: carrier.cargo.kind, carriers: [carrier], dropOff });
+    }
+    const resourceOrder = { food: 0, wood: 1, stone: 2 } satisfies Record<ResourceKind, number>;
+    const deliveries = [...grouped.values()].sort((left, right) => (
+      resourceOrder[left.resourceKind] - resourceOrder[right.resourceKind]
+      || left.dropOff.id.localeCompare(right.dropOff.id)
+    ));
+    if (deliveries.length === 0) return null;
+    const splitRoute = deliveries.length > 1;
+    const delivery = deliveries[0]!;
+    return {
+      glyph: "⇩",
+      label: splitRoute ? "卸全部" : `卸${this.resourceKindName(delivery.resourceKind)}`,
+      accessibleLabel: splitRoute
+        ? "將所有工匠攜帶的材料分送到最近的合法卸貨建築"
+        : `將攜帶的${this.resourceKindName(delivery.resourceKind)}送往${buildingDisplayName(delivery.dropOff.typeId)}`,
+      run: () => {
+        for (const current of deliveries) {
+          this.issue(
+            { type: "dropOff", entityIds: current.carriers.map((unit) => unit.id), targetId: current.dropOff.id },
+            splitRoute ? "正在分送全部材料" : `將${this.resourceKindName(current.resourceKind)}送往${buildingDisplayName(current.dropOff.typeId)}`,
+          );
+        }
+      },
+    };
+  }
+
+  private nearestDropOff(position: GridPoint, resourceKind: ResourceKind): BuildingEntityState | null {
+    return this.runtime.state.entities
+      .filter((entity): entity is BuildingEntityState => (
+        entity.kind === "building"
+        && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID
+        && entity.complete
+        && entity.hitPoints > 0
+        && (BUILDINGS[entity.typeId].dropOffResources?.includes(resourceKind) ?? false)
+      ))
+      .map((entity) => ({ entity, distance: this.approachDistance(position, entity) }))
+      .filter((candidate): candidate is { entity: BuildingEntityState; distance: number } => candidate.distance !== null)
+      .sort((left, right) => left.distance - right.distance || left.entity.id.localeCompare(right.entity.id))[0]?.entity ?? null;
+  }
+
+  private isAdjacentToEntity(point: GridPoint, entity: EntityState): boolean {
+    return getEntityFootprintCells(entity).some((cell) => Math.abs(point.x - cell.x) + Math.abs(point.y - cell.y) === 1);
+  }
+
+  private approachDistance(position: GridPoint, entity: BuildingEntityState | ResourceEntityState): number | null {
+    const blockedCells = [
+      ...getOccupiedMapCells(this.runtime.state),
+      ...(this.runtime.state.map.id === "villageAssault" ? getVillageAssaultWalkBlockedCells() : []),
+    ];
+    const blocked = new Set(blockedCells.map((cell) => `${cell.x},${cell.y}`));
+    const targets = (entity.kind === "building"
+      ? getFootprintPerimeterCells(entity.position, BUILDINGS[entity.typeId].footprint)
+      : [
+          { x: entity.position.x + 1, y: entity.position.y },
+          { x: entity.position.x - 1, y: entity.position.y },
+          { x: entity.position.x, y: entity.position.y + 1 },
+          { x: entity.position.x, y: entity.position.y - 1 },
+        ])
+      .filter((target) => (
+        target.x >= 0
+        && target.y >= 0
+        && target.x < this.runtime.state.map.width
+        && target.y < this.runtime.state.map.height
+        && !blocked.has(`${target.x},${target.y}`)
+      ));
+    return findPathToAny(position, targets, this.runtime.state.map.width, this.runtime.state.map.height, blockedCells)?.distance ?? null;
+  }
+
+  private resourceKindName(kind: ResourceKind): string {
+    return ({ food: "糧", wood: "木", stone: "石" } satisfies Record<ResourceKind, string>)[kind];
+  }
+
   private hasReachedTier(requiredTier: SettlementTier): boolean {
     return SETTLEMENT_TIER_ORDER.indexOf(this.playerState().settlementTier) >= SETTLEMENT_TIER_ORDER.indexOf(requiredTier);
   }
@@ -1068,6 +1237,62 @@ export class VillageAssaultScene extends Phaser.Scene {
     const ratio = Phaser.Math.Clamp(entity.hitPoints / entity.maxHitPoints, 0, 1);
     graphics.fillStyle(0x101917, 0.9).fillRect(-27, -80, 54, 7);
     graphics.fillStyle(entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? 0x79b879 : 0xd8725f, 1).fillRect(-25, -78, 50 * ratio, 3);
+  }
+
+  private drawCargoPack(
+    graphics: Phaser.GameObjects.Graphics,
+    kind: ResourceKind | null,
+    amount: number,
+    capacity: number,
+  ): void {
+    graphics.clear().setVisible(kind !== null && amount > 0);
+    if (!kind || amount <= 0) return;
+    const fullness = Phaser.Math.Clamp(amount / Math.max(1, capacity), 0.25, 1);
+    graphics.fillStyle(0x08100f, 0.52).fillEllipse(0, 11, 30, 10);
+    graphics.setScale(0.82 + fullness * 0.18);
+
+    if (kind === "food") {
+      graphics.fillStyle(0x5a351d, 1).fillRoundedRect(-11, -8, 22, 22, 6);
+      graphics.lineStyle(2, 0x2a1710, 1).strokeRoundedRect(-11, -8, 22, 22, 6);
+      graphics.fillStyle(0xd2a85b, 1).fillRoundedRect(-9, -6, 18, 17, 5);
+      graphics.fillStyle(0x3b2012, 1).fillRect(-7, -10, 14, 4);
+      graphics.lineStyle(2, 0xe2c176, 1).lineBetween(-8, -8, 8, -8);
+      graphics.fillStyle(0x7f5524, 1).fillCircle(-4, 2, 1.4).fillCircle(2, 0, 1.4).fillCircle(5, 5, 1.4);
+      return;
+    }
+
+    if (kind === "wood") {
+      for (const y of [-7, 0, 7]) {
+        graphics.fillStyle(0x2a1710, 1).fillRoundedRect(-13, y - 4, 26, 8, 3);
+        graphics.fillStyle(y === 0 ? 0x8d5128 : 0x70401f, 1).fillRoundedRect(-11, y - 3, 22, 6, 2);
+        graphics.fillStyle(0xd09a5d, 1).fillCircle(11, y, 3);
+        graphics.lineStyle(1, 0x6a3b21, 1).strokeCircle(11, y, 1.5);
+      }
+      graphics.lineStyle(2, 0xd2aa59, 1).lineBetween(-3, -12, -3, 12).lineBetween(4, -12, 4, 12);
+      return;
+    }
+
+    const rock = (x: number, y: number, scale: number, color: number): void => {
+      graphics.fillStyle(0x202728, 1);
+      graphics.fillPoints([
+        new Phaser.Math.Vector2(x - 7 * scale, y + 4 * scale),
+        new Phaser.Math.Vector2(x - 5 * scale, y - 5 * scale),
+        new Phaser.Math.Vector2(x + 2 * scale, y - 8 * scale),
+        new Phaser.Math.Vector2(x + 8 * scale, y - 1 * scale),
+        new Phaser.Math.Vector2(x + 5 * scale, y + 6 * scale),
+      ], true);
+      graphics.fillStyle(color, 1).fillPoints([
+        new Phaser.Math.Vector2(x - 5 * scale, y + 2 * scale),
+        new Phaser.Math.Vector2(x - 3 * scale, y - 4 * scale),
+        new Phaser.Math.Vector2(x + 2 * scale, y - 6 * scale),
+        new Phaser.Math.Vector2(x + 6 * scale, y - 1 * scale),
+        new Phaser.Math.Vector2(x + 3 * scale, y + 4 * scale),
+      ], true);
+      graphics.lineStyle(1, 0xa8b2ad, 0.8).lineBetween(x - 2 * scale, y - 3 * scale, x + 2 * scale, y - 5 * scale);
+    };
+    rock(-5, 3, 1, 0x687574);
+    rock(6, 4, 0.85, 0x52605f);
+    rock(1, -5, 0.75, 0x7c8985);
   }
 
   private playerPalette() {

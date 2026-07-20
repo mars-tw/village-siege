@@ -120,6 +120,8 @@ export function getAiObservation(state: MatchState, playerId: PlayerId, remember
       .map((building) => building.id)
       .sort((left, right) => left.localeCompare(right)),
     visibleEnemyEntities: sortPublicEntities(visible.filter((entity) => entity.ownerId !== null).map(toPublicEntity)),
+    // Keep fallow renewable fields in spatial knowledge so the AI will not try
+    // to build over them. Economy selection separately filters empty nodes.
     visibleResourceEntities: sortPublicEntities(visible.filter((entity) => entity.kind === "resource").map(toPublicEntity)),
     rememberedEnemySites: sanitizeRememberedEnemySites(rememberedEnemySites, state.tick, state.map),
   };
@@ -221,13 +223,37 @@ function advanceTowardEnemy(observation: AiObservation, military: readonly Publi
   };
 }
 
-function economyCommand(observation: AiObservation, villagers: readonly PublicEntityState[], randomValue: number): GameCommand | null {
-  if (villagers.length === 0 || observation.visibleResourceEntities.length === 0) return null;
-  const scarce = (["stone", "wood", "food"] satisfies ResourceKind[]).sort((left, right) => observation.wallet[left] - observation.wallet[right])[0]!;
-  const candidates = observation.visibleResourceEntities.filter((entity) => entity.typeId === scarce).sort((left, right) => left.id.localeCompare(right.id));
-  const pool = candidates.length > 0 ? candidates : [...observation.visibleResourceEntities].sort((left, right) => left.id.localeCompare(right.id));
-  const target = pool[randomValue % pool.length];
-  return target ? { type: "gather", entityIds: villagers.map((villager) => villager.id), targetId: target.id } : null;
+function economyCommand(
+  observation: AiObservation,
+  villagers: readonly PublicEntityState[],
+  randomValue: number,
+  targetWallet?: ResourceWallet,
+): GameCommand | null {
+  const availableVillagers = villagers.filter((villager) => (villager.cargo?.amount ?? 0) <= 0);
+  if (availableVillagers.length === 0 || observation.visibleResourceEntities.length === 0) return null;
+  const scarce = (["stone", "wood", "food"] satisfies ResourceKind[]).sort((left, right) => (
+    targetWallet
+      ? (targetWallet[right] - observation.wallet[right]) - (targetWallet[left] - observation.wallet[left])
+      : observation.wallet[left] - observation.wallet[right]
+  ))[0]!;
+  const stocked = observation.visibleResourceEntities.filter((entity) => (entity.resourceNode?.amount ?? 0) > 0);
+  const candidates = stocked.filter((entity) => entity.typeId === scarce);
+  const pool = candidates.length > 0 ? candidates : [...stocked];
+  const home = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position;
+  const localKnownScarce = home
+    ? observation.visibleResourceEntities.filter((entity) => entity.typeId === scarce && distanceSquared(home, entity.position) <= 100)
+    : [];
+  const localPool = home ? pool.filter((entity) => distanceSquared(home, entity.position) <= 100) : pool;
+  if (candidates.length > 0 && localPool.length === 0 && localKnownScarce.some((entity) => (entity.resourceNode?.amount ?? 0) <= 0)) {
+    return null;
+  }
+  const preferred = localPool.length > 0 ? localPool : pool;
+  const target = preferred.sort((left, right) => (
+    Math.min(...availableVillagers.map((villager) => distanceSquared(villager.position, left.position)))
+    - Math.min(...availableVillagers.map((villager) => distanceSquared(villager.position, right.position)))
+    || (randomValue % 2 === 0 ? left.id.localeCompare(right.id) : right.id.localeCompare(left.id))
+  ))[0];
+  return target ? { type: "gather", entityIds: availableVillagers.map((villager) => villager.id), targetId: target.id } : null;
 }
 
 function affordableTrain(observation: AiObservation, producerId: EntityId, unitType: UnitType): GameCommand | null {
@@ -263,10 +289,11 @@ function productionCommand(
 
 function affordableBuild(observation: AiObservation, villagers: readonly PublicEntityState[], buildingType: BuildingType, direction: number): GameCommand | null {
   if (!tierReached(observation.settlementTier, BUILDINGS[buildingType].requiredTier)) return null;
-  if (villagers.length === 0 || !canAfford(observation.wallet, BUILDINGS[buildingType].cost)) return null;
-  const anchor = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? villagers[0]!.position;
+  const builder = villagers.find((villager) => (villager.cargo?.amount ?? 0) <= 0);
+  if (!builder || !canAfford(observation.wallet, BUILDINGS[buildingType].cost)) return null;
+  const anchor = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? builder.position;
   const origin = findOpenPoint(observation, anchor, buildingType, direction);
-  return origin ? { type: "build", builderIds: [villagers[0]!.id], buildingType, origin } : null;
+  return origin ? { type: "build", builderIds: [builder.id], buildingType, origin } : null;
 }
 
 function settlementProgressionCommand(
@@ -290,7 +317,7 @@ function settlementProgressionCommand(
   }
   const townCenter = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter");
   if (!townCenter || incompleteIds.has(townCenter.id)) return economyCommand(observation, villagers, randomValue);
-  if (!canAfford(observation.wallet, definition.cost)) return economyCommand(observation, villagers, randomValue);
+  if (!canAfford(observation.wallet, definition.cost)) return economyCommand(observation, villagers, randomValue, definition.cost);
   return { type: "advanceSettlement", producerId: townCenter.id, targetTier };
 }
 

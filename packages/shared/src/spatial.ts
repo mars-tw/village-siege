@@ -14,6 +14,15 @@ export interface FootprintValidation {
   readonly cells: readonly GridPoint[];
 }
 
+export interface PathRoute {
+  readonly firstStep: GridPoint;
+  readonly distance: number;
+}
+
+export interface PathToAnyRoute extends PathRoute {
+  readonly target: GridPoint;
+}
+
 /** Resolves footprint-local offsets into absolute map cells. */
 export function getFootprintCells(origin: GridPoint, offsets: readonly GridPoint[]): readonly GridPoint[] {
   return offsets.map((offset) => ({
@@ -86,55 +95,158 @@ export function findNextPathStep(
   mapHeight: number,
   blockedCells: readonly GridPoint[],
 ): GridPoint | null {
+  return findPathRoute(start, target, mapWidth, mapHeight, blockedCells)?.firstStep ?? null;
+}
+
+/** Finds the deterministic first step and total shortest-path distance. */
+export function findPathRoute(
+  start: GridPoint,
+  target: GridPoint,
+  mapWidth: number,
+  mapHeight: number,
+  blockedCells: readonly GridPoint[],
+): PathRoute | null {
   if (!isWithinBounds(start, mapWidth, mapHeight) || !isWithinBounds(target, mapWidth, mapHeight)) {
     return null;
   }
 
-  const blocked = new Set(blockedCells.map(pointKey));
-  const targetKey = pointKey(target);
-  const goals = blocked.has(targetKey)
+  const cellCount = mapWidth * mapHeight;
+  const blocked = new Uint8Array(cellCount);
+  for (const cell of blockedCells) {
+    if (isWithinBounds(cell, mapWidth, mapHeight)) blocked[toIndex(cell, mapWidth)] = 1;
+  }
+  const targetIndex = toIndex(target, mapWidth);
+  const goals = blocked[targetIndex] === 1
     ? CARDINAL_NEIGHBORS
       .map((offset) => addPoints(target, offset))
-      .filter((candidate) => isWithinBounds(candidate, mapWidth, mapHeight) && !blocked.has(pointKey(candidate)))
+      .filter((candidate) => isWithinBounds(candidate, mapWidth, mapHeight) && blocked[toIndex(candidate, mapWidth)] === 0)
     : [target];
 
   if (goals.length === 0) return null;
-  const goalKeys = new Set(goals.map(pointKey));
-  const startKey = pointKey(start);
-  if (goalKeys.has(startKey)) return { ...start };
+  const goalMask = new Uint8Array(cellCount);
+  for (const goal of goals) goalMask[toIndex(goal, mapWidth)] = 1;
+  const startIndex = toIndex(start, mapWidth);
+  if (goalMask[startIndex] === 1) return { firstStep: { ...start }, distance: 0 };
 
-  interface SearchNode {
-    readonly position: GridPoint;
-    readonly firstStep: GridPoint;
-  }
-
-  const visited = new Set<string>([startKey]);
-  const queue: SearchNode[] = [];
+  const visited = new Uint8Array(cellCount);
+  visited[startIndex] = 1;
+  const queue = new Int32Array(cellCount);
+  const firstSteps = new Int32Array(cellCount);
+  const distances = new Int32Array(cellCount);
   let head = 0;
+  let tail = 0;
 
   for (const offset of CARDINAL_NEIGHBORS) {
     const candidate = addPoints(start, offset);
-    const candidateKey = pointKey(candidate);
-    if (!isWithinBounds(candidate, mapWidth, mapHeight) || blocked.has(candidateKey) || visited.has(candidateKey)) continue;
-    if (goalKeys.has(candidateKey)) return candidate;
-    visited.add(candidateKey);
-    queue.push({ position: candidate, firstStep: candidate });
+    if (!isWithinBounds(candidate, mapWidth, mapHeight)) continue;
+    const candidateIndex = toIndex(candidate, mapWidth);
+    if (blocked[candidateIndex] === 1 || visited[candidateIndex] === 1) continue;
+    if (goalMask[candidateIndex] === 1) return { firstStep: candidate, distance: 1 };
+    visited[candidateIndex] = 1;
+    queue[tail] = candidateIndex;
+    firstSteps[tail] = candidateIndex;
+    distances[tail] = 1;
+    tail += 1;
   }
 
-  while (head < queue.length) {
-    const current = queue[head++];
-    if (!current) break;
+  while (head < tail) {
+    const currentIndex = queue[head]!;
+    const firstStepIndex = firstSteps[head]!;
+    const currentDistance = distances[head]!;
+    head += 1;
+    const current = fromIndex(currentIndex, mapWidth);
     for (const offset of CARDINAL_NEIGHBORS) {
-      const candidate = addPoints(current.position, offset);
-      const candidateKey = pointKey(candidate);
-      if (!isWithinBounds(candidate, mapWidth, mapHeight) || blocked.has(candidateKey) || visited.has(candidateKey)) continue;
-      if (goalKeys.has(candidateKey)) return current.firstStep;
-      visited.add(candidateKey);
-      queue.push({ position: candidate, firstStep: current.firstStep });
+      const candidate = addPoints(current, offset);
+      if (!isWithinBounds(candidate, mapWidth, mapHeight)) continue;
+      const candidateIndex = toIndex(candidate, mapWidth);
+      if (blocked[candidateIndex] === 1 || visited[candidateIndex] === 1) continue;
+      if (goalMask[candidateIndex] === 1) {
+        return { firstStep: fromIndex(firstStepIndex, mapWidth), distance: currentDistance + 1 };
+      }
+      visited[candidateIndex] = 1;
+      queue[tail] = candidateIndex;
+      firstSteps[tail] = firstStepIndex;
+      distances[tail] = currentDistance + 1;
+      tail += 1;
     }
   }
 
   return null;
+}
+
+/** Finds one shortest route to any supplied walkable target in one BFS pass. */
+export function findPathToAny(
+  start: GridPoint,
+  targets: readonly GridPoint[],
+  mapWidth: number,
+  mapHeight: number,
+  blockedCells: readonly GridPoint[],
+): PathToAnyRoute | null {
+  if (!isWithinBounds(start, mapWidth, mapHeight)) return null;
+  const cellCount = mapWidth * mapHeight;
+  const blocked = new Uint8Array(cellCount);
+  for (const cell of blockedCells) {
+    if (isWithinBounds(cell, mapWidth, mapHeight)) blocked[toIndex(cell, mapWidth)] = 1;
+  }
+  const targetMask = new Uint8Array(cellCount);
+  for (const target of targets) {
+    if (isWithinBounds(target, mapWidth, mapHeight) && blocked[toIndex(target, mapWidth)] === 0) targetMask[toIndex(target, mapWidth)] = 1;
+  }
+  const startIndex = toIndex(start, mapWidth);
+  if (targetMask[startIndex] === 1) return { target: { ...start }, firstStep: { ...start }, distance: 0 };
+
+  const visited = new Uint8Array(cellCount);
+  visited[startIndex] = 1;
+  const queue = new Int32Array(cellCount);
+  const firstSteps = new Int32Array(cellCount);
+  const distances = new Int32Array(cellCount);
+  let head = 0;
+  let tail = 0;
+
+  for (const offset of CARDINAL_NEIGHBORS) {
+    const candidate = addPoints(start, offset);
+    if (!isWithinBounds(candidate, mapWidth, mapHeight)) continue;
+    const candidateIndex = toIndex(candidate, mapWidth);
+    if (blocked[candidateIndex] === 1 || visited[candidateIndex] === 1) continue;
+    if (targetMask[candidateIndex] === 1) return { target: candidate, firstStep: candidate, distance: 1 };
+    visited[candidateIndex] = 1;
+    queue[tail] = candidateIndex;
+    firstSteps[tail] = candidateIndex;
+    distances[tail] = 1;
+    tail += 1;
+  }
+
+  while (head < tail) {
+    const currentIndex = queue[head]!;
+    const firstStepIndex = firstSteps[head]!;
+    const currentDistance = distances[head]!;
+    head += 1;
+    const current = fromIndex(currentIndex, mapWidth);
+    for (const offset of CARDINAL_NEIGHBORS) {
+      const candidate = addPoints(current, offset);
+      if (!isWithinBounds(candidate, mapWidth, mapHeight)) continue;
+      const candidateIndex = toIndex(candidate, mapWidth);
+      if (blocked[candidateIndex] === 1 || visited[candidateIndex] === 1) continue;
+      if (targetMask[candidateIndex] === 1) {
+        return { target: candidate, firstStep: fromIndex(firstStepIndex, mapWidth), distance: currentDistance + 1 };
+      }
+      visited[candidateIndex] = 1;
+      queue[tail] = candidateIndex;
+      firstSteps[tail] = firstStepIndex;
+      distances[tail] = currentDistance + 1;
+      tail += 1;
+    }
+  }
+
+  return null;
+}
+
+function toIndex(point: GridPoint, mapWidth: number): number {
+  return point.y * mapWidth + point.x;
+}
+
+function fromIndex(index: number, mapWidth: number): GridPoint {
+  return { x: index % mapWidth, y: Math.floor(index / mapWidth) };
 }
 
 function isWithinBounds(point: GridPoint, mapWidth: number, mapHeight: number): boolean {

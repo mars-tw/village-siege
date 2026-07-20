@@ -139,12 +139,15 @@ export function createResourceView(scene: Phaser.Scene, entity: ResourceEntitySt
   container.setName(`assault-resource:${entity.id}`).setSize(84, 88);
   let lastRevision = -1;
   let lastSelected = false;
+  let compactView = false;
+  let fallow = false;
   const update = (next: BuildingEntityState | ResourceEntityState, selected = false): void => {
     if (next.kind !== "resource") return;
     if (next.stateRevision !== lastRevision) {
       art.clear();
       drawResource(art, next.typeId, Phaser.Math.Clamp(next.amount / next.maxHitPoints, 0, 1));
-      amount.setText(`${Math.max(0, Math.ceil(next.amount))}`);
+      fallow = next.amount <= 0 && next.renewAtTick !== null;
+      amount.setText(fallow ? "休耕" : `${Math.max(0, Math.ceil(next.amount))}`).setVisible(!compactView || fallow);
       lastRevision = next.stateRevision;
     }
     if (selected !== lastSelected) {
@@ -158,8 +161,9 @@ export function createResourceView(scene: Phaser.Scene, entity: ResourceEntitySt
     container,
     update,
     setCompact: (compact) => {
+      compactView = compact;
       label.setVisible(!compact);
-      amount.setVisible(!compact);
+      amount.setVisible(!compact || fallow);
     },
     destroy: () => container.destroy(true),
   };
@@ -389,7 +393,7 @@ function drawTower(g: Phaser.GameObjects.Graphics, accent: number, completion: n
 }
 
 function drawResource(g: Phaser.GameObjects.Graphics, type: ResourceKind, ratio: number): void {
-  const count = Math.max(1, Math.ceil(4 * ratio));
+  const count = ratio <= 0 ? 0 : Math.max(1, Math.ceil(4 * ratio));
   if (type === "wood") {
     for (let index = 0; index < count; index += 1) {
       const x = [-24, -7, 18, 31][index]!;
@@ -400,7 +404,8 @@ function drawResource(g: Phaser.GameObjects.Graphics, type: ResourceKind, ratio:
       g.lineStyle(2, 0x162b22, 0.8).strokeTriangle(x, y - 68, x - 23, y - 25, x + 23, y - 25);
     }
   } else if (type === "stone") {
-    for (let index = 0; index < count + 1; index += 1) {
+    const stoneCount = count === 0 ? 0 : count + 1;
+    for (let index = 0; index < stoneCount; index += 1) {
       const x = [-29, -12, 9, 28, 2][index]!;
       const y = [4, -7, 5, -1, -16][index]!;
       g.fillStyle(index % 2 === 0 ? STONE_LIGHT : STONE, 1)
@@ -409,6 +414,13 @@ function drawResource(g: Phaser.GameObjects.Graphics, type: ResourceKind, ratio:
     }
   } else {
     g.fillStyle(0x7f5b32, 1).fillEllipse(0, 8, 68, 24);
+    if (count === 0) {
+      g.lineStyle(2, 0x9b7646, 0.8)
+        .lineBetween(-25, 4, -10, 8)
+        .lineBetween(-5, 1, 12, 6)
+        .lineBetween(15, 9, 29, 4);
+      return;
+    }
     for (let index = 0; index < count * 3; index += 1) {
       const x = -29 + (index % 6) * 12;
       const y = 7 - Math.floor(index / 6) * 12;

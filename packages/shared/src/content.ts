@@ -1,6 +1,6 @@
 import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, UnitType, VillageId } from "./protocol.js";
 
-export const RULES_VERSION = "village-siege/0.3.0";
+export const RULES_VERSION = "village-siege/0.4.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;
@@ -47,6 +47,7 @@ export const SETTLEMENT_TIERS: Readonly<Record<SettlementTier, SettlementTierDef
 export interface UnitDefinition {
   readonly id: UnitType;
   readonly requiredTier: SettlementTier;
+  readonly carryCapacity: number;
   readonly cost: ResourceWallet;
   readonly maxHitPoints: number;
   readonly attackDamage: number;
@@ -61,14 +62,14 @@ export interface UnitDefinition {
 }
 
 export const UNITS: Readonly<Record<UnitType, UnitDefinition>> = {
-  villager: { id: "villager", requiredTier: "frontier", cost: wallet(50, 0, 0), maxHitPoints: 55, attackDamage: 4, attackRange: 1, attackCooldownTicks: 12, speedMilliTilesPerSecond: 1100, sightRadius: 6, population: 1, trainTicks: 120, producers: ["townCenter"], gatherPerSecond: { food: 6, wood: 6, stone: 4 } },
-  militia: { id: "militia", requiredTier: "frontier", cost: wallet(60, 25, 0), maxHitPoints: 85, attackDamage: 11, attackRange: 1, attackCooldownTicks: 10, speedMilliTilesPerSecond: 1050, sightRadius: 6, population: 1, trainTicks: 150, producers: ["barracks"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  spearman: { id: "spearman", requiredTier: "frontier", cost: wallet(45, 35, 0), maxHitPoints: 75, attackDamage: 13, attackRange: 2, attackCooldownTicks: 12, speedMilliTilesPerSecond: 1000, sightRadius: 7, population: 1, trainTicks: 160, producers: ["barracks"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  archer: { id: "archer", requiredTier: "stronghold", cost: wallet(45, 50, 0), maxHitPoints: 60, attackDamage: 10, attackRange: 5, attackCooldownTicks: 14, speedMilliTilesPerSecond: 1050, sightRadius: 8, population: 1, trainTicks: 180, producers: ["archeryRange"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  mage: { id: "mage", requiredTier: "artificer", cost: wallet(70, 0, 75), maxHitPoints: 55, attackDamage: 20, attackRange: 4, attackCooldownTicks: 18, speedMilliTilesPerSecond: 950, sightRadius: 8, population: 2, trainTicks: 240, producers: ["mageSanctum"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  musketeer: { id: "musketeer", requiredTier: "artificer", cost: wallet(70, 65, 20), maxHitPoints: 65, attackDamage: 24, attackRange: 5, attackCooldownTicks: 20, speedMilliTilesPerSecond: 920, sightRadius: 8, population: 2, trainTicks: 260, producers: ["gunWorkshop"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  scout: { id: "scout", requiredTier: "stronghold", cost: wallet(80, 20, 0), maxHitPoints: 95, attackDamage: 9, attackRange: 1, attackCooldownTicks: 9, speedMilliTilesPerSecond: 1800, sightRadius: 9, population: 1, trainTicks: 200, producers: ["beastStable"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  batteringRam: { id: "batteringRam", requiredTier: "artificer", cost: wallet(0, 140, 80), maxHitPoints: 230, attackDamage: 35, attackRange: 1, attackCooldownTicks: 20, speedMilliTilesPerSecond: 650, sightRadius: 5, population: 3, trainTicks: 300, producers: ["siegeWorkshop"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  villager: { id: "villager", requiredTier: "frontier", carryCapacity: 12, cost: wallet(50, 0, 0), maxHitPoints: 55, attackDamage: 4, attackRange: 1, attackCooldownTicks: 12, speedMilliTilesPerSecond: 1100, sightRadius: 6, population: 1, trainTicks: 120, producers: ["townCenter"], gatherPerSecond: { food: 6, wood: 6, stone: 4 } },
+  militia: { id: "militia", requiredTier: "frontier", carryCapacity: 0, cost: wallet(60, 25, 0), maxHitPoints: 85, attackDamage: 11, attackRange: 1, attackCooldownTicks: 10, speedMilliTilesPerSecond: 1050, sightRadius: 6, population: 1, trainTicks: 150, producers: ["barracks"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  spearman: { id: "spearman", requiredTier: "frontier", carryCapacity: 0, cost: wallet(45, 35, 0), maxHitPoints: 75, attackDamage: 13, attackRange: 2, attackCooldownTicks: 12, speedMilliTilesPerSecond: 1000, sightRadius: 7, population: 1, trainTicks: 160, producers: ["barracks"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  archer: { id: "archer", requiredTier: "stronghold", carryCapacity: 0, cost: wallet(45, 50, 0), maxHitPoints: 60, attackDamage: 10, attackRange: 5, attackCooldownTicks: 14, speedMilliTilesPerSecond: 1050, sightRadius: 8, population: 1, trainTicks: 180, producers: ["archeryRange"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  mage: { id: "mage", requiredTier: "artificer", carryCapacity: 0, cost: wallet(70, 0, 75), maxHitPoints: 55, attackDamage: 20, attackRange: 4, attackCooldownTicks: 18, speedMilliTilesPerSecond: 950, sightRadius: 8, population: 2, trainTicks: 240, producers: ["mageSanctum"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  musketeer: { id: "musketeer", requiredTier: "artificer", carryCapacity: 0, cost: wallet(70, 65, 20), maxHitPoints: 65, attackDamage: 24, attackRange: 5, attackCooldownTicks: 20, speedMilliTilesPerSecond: 920, sightRadius: 8, population: 2, trainTicks: 260, producers: ["gunWorkshop"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  scout: { id: "scout", requiredTier: "stronghold", carryCapacity: 0, cost: wallet(80, 20, 0), maxHitPoints: 95, attackDamage: 9, attackRange: 1, attackCooldownTicks: 9, speedMilliTilesPerSecond: 1800, sightRadius: 9, population: 1, trainTicks: 200, producers: ["beastStable"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  batteringRam: { id: "batteringRam", requiredTier: "artificer", carryCapacity: 0, cost: wallet(0, 140, 80), maxHitPoints: 230, attackDamage: 35, attackRange: 1, attackCooldownTicks: 20, speedMilliTilesPerSecond: 650, sightRadius: 5, population: 3, trainTicks: 300, producers: ["siegeWorkshop"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
 };
 
 export interface BuildingDefinition {
@@ -83,13 +84,14 @@ export interface BuildingDefinition {
   readonly attackRange: number;
   readonly attackCooldownTicks: number;
   readonly footprint: readonly GridPoint[];
+  readonly dropOffResources?: readonly ResourceKind[];
 }
 
 export const BUILDINGS: Readonly<Record<BuildingType, BuildingDefinition>> = {
-  townCenter: { id: "townCenter", requiredTier: "frontier", cost: wallet(0, 275, 225), maxHitPoints: 1200, buildTicks: 600, populationCapacity: 10, sightRadius: 9, attackDamage: 12, attackRange: 6, attackCooldownTicks: 15, footprint: rectangleFootprint(2, 2) },
+  townCenter: { id: "townCenter", requiredTier: "frontier", cost: wallet(0, 275, 225), maxHitPoints: 1200, buildTicks: 600, populationCapacity: 10, sightRadius: 9, attackDamage: 12, attackRange: 6, attackCooldownTicks: 15, footprint: rectangleFootprint(2, 2), dropOffResources: ["food", "wood", "stone"] },
   house: { id: "house", requiredTier: "frontier", cost: wallet(0, 80, 0), maxHitPoints: 360, buildTicks: 180, populationCapacity: 8, sightRadius: 4, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(1, 1) },
-  lumberCamp: { id: "lumberCamp", requiredTier: "frontier", cost: wallet(0, 110, 0), maxHitPoints: 430, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 1) },
-  farmstead: { id: "farmstead", requiredTier: "frontier", cost: wallet(0, 85, 20), maxHitPoints: 410, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 1) },
+  lumberCamp: { id: "lumberCamp", requiredTier: "frontier", cost: wallet(0, 110, 0), maxHitPoints: 430, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 1), dropOffResources: ["wood"] },
+  farmstead: { id: "farmstead", requiredTier: "frontier", cost: wallet(0, 85, 20), maxHitPoints: 410, buildTicks: 220, populationCapacity: 0, sightRadius: 5, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 1), dropOffResources: ["food"] },
   barracks: { id: "barracks", requiredTier: "frontier", cost: wallet(0, 150, 35), maxHitPoints: 650, buildTicks: 280, populationCapacity: 0, sightRadius: 6, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 2) },
   defenseTower: { id: "defenseTower", requiredTier: "stronghold", cost: wallet(0, 90, 125), maxHitPoints: 720, buildTicks: 320, populationCapacity: 0, sightRadius: 9, attackDamage: 18, attackRange: 7, attackCooldownTicks: 12, footprint: rectangleFootprint(1, 1) },
   archeryRange: { id: "archeryRange", requiredTier: "stronghold", cost: wallet(0, 160, 45), maxHitPoints: 560, buildTicks: 260, populationCapacity: 0, sightRadius: 7, attackDamage: 0, attackRange: 0, attackCooldownTicks: 0, footprint: rectangleFootprint(2, 2) },
@@ -100,6 +102,18 @@ export const BUILDINGS: Readonly<Record<BuildingType, BuildingDefinition>> = {
 };
 
 export const STARTING_RESOURCES: ResourceWallet = wallet(420, 420, 260);
+
+export interface ResourceNodeDefinition {
+  readonly kind: ResourceKind;
+  readonly maxAmount: number;
+  readonly renewAfterTicks: number | null;
+}
+
+export const RESOURCE_NODES: Readonly<Record<ResourceKind, ResourceNodeDefinition>> = {
+  food: { kind: "food", maxAmount: 360, renewAfterTicks: 300 },
+  wood: { kind: "wood", maxAmount: 1_000, renewAfterTicks: null },
+  stone: { kind: "stone", maxAmount: 700, renewAfterTicks: null },
+};
 
 export function getVillage(id: VillageId): VillageDefinition | undefined {
   return VILLAGES.find((village) => village.id === id);

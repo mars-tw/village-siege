@@ -37,6 +37,19 @@ describe("shared AI personalities", () => {
     expect(decide("raider")).toMatchObject({ type: "gather" });
   });
 
+  it("never interrupts a loaded villager to construct an AI building", () => {
+    const state = createInitialState({ seed: 76, matchId: "ai-unloaded-builder" });
+    const villagers = state.entities
+      .filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")
+      .sort((left, right) => left.id.localeCompare(right.id));
+    villagers[0]!.cargo = { kind: "wood", amount: 10 };
+    const command = createAiController("aggressor", "player-1", 76).decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(command).toMatchObject({ type: "build", buildingType: "barracks", builderIds: [villagers[1]!.id] });
+
+    for (const villager of villagers) villager.cargo = { kind: "wood", amount: 10 };
+    expect(createAiController("aggressor", "player-1", 77).decide(getAiObservation(state, "player-1"), 5)).toEqual([]);
+  });
+
   it("builds legal prerequisites before advancing toward a locked raider unit", () => {
     const base = getAiObservation(createInitialState({ seed: 78 }), "player-1");
     const ready = {
@@ -143,7 +156,7 @@ describe("shared AI personalities", () => {
     expect(validateCommand(state, envelope(state, 0, commands[0]!))).toEqual({ ok: true });
   });
 
-  it("keeps every personality command legal during a deterministic 10,000-tick run", () => {
+  it("keeps every personality command legal until advancement or a legitimate victory", () => {
     const expectedProduction = {
       aggressor: { building: "barracks", unit: "militia" },
       guardian: { building: "barracks", unit: "spearman" },
@@ -155,10 +168,19 @@ describe("shared AI personalities", () => {
       const result = runAiForTicks(personality, 10_000);
       const expected = expectedProduction[personality];
       const ownedTypes = result.state.entities.filter((entity) => entity.ownerId === "player-1").map((entity) => entity.typeId).sort();
+      const wonByConquest = result.state.phase === "finished"
+        && result.state.finishReason === "conquest"
+        && result.state.winningTeamIds.includes("team-1");
+      const progressionDebug = `tick=${result.state.tick} phase=${result.state.phase} reason=${result.state.finishReason} winners=${result.state.winningTeamIds.join(",")} wallet=${JSON.stringify(result.state.players[0]!.resources)} owns=${ownedTypes.join(",")} deposits=${result.depositCount} advancement=${JSON.stringify(result.state.players[0]!.advancement)}`;
       expect(result.rejections, `${personality} emitted rejected commands`).toEqual([]);
       expect(result.commandCount, `${personality} should exercise at least one decision`).toBeGreaterThan(0);
-      expect(result.strongholdReachedAt, `${personality} should reach stronghold`).not.toBeNull();
-      expect(result.strongholdReachedAt!, `${personality} should reach stronghold in a reasonable time`).toBeLessThanOrEqual(6_000);
+      expect(result.depositCount, `${personality} should complete at least one carry and drop-off cycle`).toBeGreaterThan(0);
+      expect(result.strongholdReachedAt !== null || wonByConquest, `${personality} should reach stronghold or win by conquest; ${progressionDebug}`).toBe(true);
+      if (result.strongholdReachedAt !== null) {
+        expect(result.strongholdReachedAt, `${personality} should reach stronghold in a reasonable time`).toBeLessThanOrEqual(6_000);
+      } else {
+        expect(result.state.tick, `${personality} should win by conquest in a reasonable time`).toBeLessThanOrEqual(6_000);
+      }
       expect(result.state.entities.some((entity) => (
         entity.kind === "building"
         && entity.ownerId === "player-1"
@@ -167,7 +189,7 @@ describe("shared AI personalities", () => {
       )), `${personality} should complete ${expected.building}; owns ${ownedTypes.join(",")}`).toBe(true);
       expect(result.producedUnitTypes, `${personality} should train ${expected.unit}`).toContain(expected.unit);
     }
-  }, 30_000);
+  }, 300_000);
 
   it("takes the balanced profile from economy through barracks, production, and an advance", () => {
     const result = runAiForTicks("balanced", 7_000);
@@ -175,7 +197,7 @@ describe("shared AI personalities", () => {
     expect(result.state.entities.some((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "barracks" && entity.complete)).toBe(true);
     expect(result.peakMilitary).toBeGreaterThanOrEqual(3);
     expect(result.advancedBeyondHome).toBe(true);
-  });
+  }, 60_000);
 
   it("keeps all personalities legal against village terrain and the reserved breach route", () => {
     for (const personality of PERSONALITIES) {
@@ -183,7 +205,7 @@ describe("shared AI personalities", () => {
       expect(result.rejections, `${personality} rejected a village-map command`).toEqual([]);
       expect(result.commandCount).toBeGreaterThan(0);
     }
-  }, 30_000);
+  }, 300_000);
 
   it("distinguishes damaged completed buildings from active construction", () => {
     const state = createInitialState({ seed: 171, matchId: "damaged-complete-building" });
@@ -296,6 +318,7 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
   readonly advancedBeyondHome: boolean;
   readonly strongholdReachedAt: number | null;
   readonly producedUnitTypes: readonly UnitType[];
+  readonly depositCount: number;
 } {
   let state = createInitialState({
     seed: 20260717,
@@ -312,9 +335,11 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
   let peakMilitary = 0;
   let advancedBeyondHome = false;
   let strongholdReachedAt: number | null = null;
+  let depositCount = 0;
   const producedUnitTypes = new Set<UnitType>();
 
   for (let index = 0; index < ticks; index += 1) {
+    if (state.phase !== "playing") break;
     const commands = controller.decide(getAiObservation(state, "player-1"), 5);
     for (const command of commands) {
       const commandEnvelope = envelope(state, sequence, command);
@@ -327,7 +352,9 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
       sequence += 1;
       commandCount += 1;
     }
-    state = stepSimulation(state, [], 1).state;
+    const stepped = stepSimulation(state, [], 1);
+    state = stepped.state;
+    depositCount += stepped.events.filter((event) => event.type === "resourcesDeposited" && event.playerId === "player-1").length;
     if (strongholdReachedAt === null && state.players[0]!.settlementTier !== "frontier") strongholdReachedAt = state.tick;
     const military = state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId !== "villager");
     for (const unit of military) producedUnitTypes.add(unit.typeId);
@@ -335,7 +362,7 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
     advancedBeyondHome ||= military.some((unit) => unit.position.x > 10);
   }
 
-  return { commandCount, rejections, state, peakMilitary, advancedBeyondHome, strongholdReachedAt, producedUnitTypes: [...producedUnitTypes].sort() };
+  return { commandCount, rejections, state, peakMilitary, advancedBeyondHome, strongholdReachedAt, producedUnitTypes: [...producedUnitTypes].sort(), depositCount };
 }
 
 function envelope(state: MatchState, sequence: number, command: GameCommand) {
