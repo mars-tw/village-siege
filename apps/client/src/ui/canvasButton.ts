@@ -18,6 +18,7 @@ export interface CanvasButtonControl {
   setEnabled(enabled: boolean): void;
   setLabel(glyph: string, label: string, accessibleLabel?: string): void;
   setVisible(visible: boolean): void;
+  focus(): void;
   destroy(): void;
 }
 
@@ -176,6 +177,9 @@ export function createCanvasButton(
       container.setVisible(visible).setActive(visible);
       if (hitZone.input) hitZone.input.enabled = visible && enabled;
       accessibilityButton.hidden = !visible;
+    },
+    focus(): void {
+      if (!accessibilityButton.hidden && !accessibilityButton.disabled) accessibilityButton.focus();
     },
     destroy(): void {
       accessibilityButton.remove();

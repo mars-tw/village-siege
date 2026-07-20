@@ -75,6 +75,45 @@ export interface AiAuthorityState {
   readonly telemetry: AiTelemetryCounters;
 }
 export type MatchPhase = "lobby" | "loading" | "playing" | "finished" | "disposed";
+export type VictoryFinishReason = "conquest" | "elimination" | "landmark" | "timedControl" | "surrender" | "disconnect";
+export type MatchOutcome = "victory" | "draw";
+export type TeamEliminationReason = "conquest" | "elimination" | "surrender" | "disconnect";
+export type VictoryObjectiveKind = "landmark" | "timedControl";
+
+export interface VictoryPolicy {
+  readonly commandCenterConquest: { readonly rebuildGraceTicks: number } | null;
+  readonly elimination: boolean;
+  readonly landmark: {
+    readonly buildingType: "copperLandmark";
+    readonly requiredCount: number;
+    readonly holdTicks: number;
+  } | null;
+  readonly timedControl: {
+    readonly point: GridPoint;
+    readonly radius: number;
+    readonly startsAtTick: number;
+    readonly targetTicks: number;
+  } | null;
+}
+
+export interface TeamVictoryProgress {
+  readonly teamId: string;
+  readonly landmarkHoldTicks: number;
+  readonly timedControlScoreTicks: number;
+  readonly eliminatedAtTick: number | null;
+  readonly eliminationReason: TeamEliminationReason | null;
+}
+
+export interface VictoryState {
+  readonly policy: VictoryPolicy;
+  readonly teams: readonly TeamVictoryProgress[];
+  readonly control: { readonly controllerTeamId: string | null; readonly contested: boolean };
+  readonly outcome: MatchOutcome | null;
+  readonly winningTeamIds: readonly string[];
+  readonly finishReason: VictoryFinishReason | null;
+  readonly triggeredReasons: readonly VictoryFinishReason[];
+  readonly finishedAtTick: number | null;
+}
 export type SettlementTier = "frontier" | "stronghold" | "artificer";
 export type TechnologyType =
   | "hearthlandAlmanac"
@@ -260,6 +299,7 @@ export interface VisibleSnapshot {
   readonly serverTick: number;
   readonly recipientPlayerId: PlayerId;
   readonly phase: MatchPhase;
+  readonly victory: VictoryState;
   readonly map: { readonly id: string; readonly width: number; readonly height: number; readonly layoutId?: PlayableVillageId };
   readonly wallet: ResourceWallet;
   readonly population: { readonly used: number; readonly capacity: number };
@@ -313,7 +353,18 @@ export type DomainEvent =
   | { readonly type: "monsterDefeated"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly creditedTeamId: string | null }
   | { readonly type: "monsterRewardGranted"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly playerId: PlayerId; readonly reward: ResourceWallet; readonly boon: ActiveMonsterBoon | null }
   | { readonly type: "breachCreated"; readonly structureId: EntityId; readonly rubbleId: EntityId; readonly ownerId: PlayerId; readonly position: GridPoint; readonly createdTick: number; readonly effectExpiresAtTick: number }
-  | { readonly type: "matchFinished"; readonly winningTeamIds: readonly string[]; readonly reason: "conquest" | "surrender" | "disconnect" };
+  | { readonly type: "teamEliminated"; readonly teamId: string; readonly reason: TeamEliminationReason; readonly eliminatedAtTick: number }
+  | { readonly type: "controlObjectiveChanged"; readonly controllerTeamId: string | null; readonly contested: boolean; readonly changedAtTick: number }
+  | { readonly type: "victoryProgressChanged"; readonly teamId: string; readonly objective: VictoryObjectiveKind; readonly progressTicks: number; readonly targetTicks: number }
+  | {
+      readonly type: "matchFinished";
+      readonly winningTeamIds: readonly string[];
+      readonly outcome: MatchOutcome;
+      readonly reason: VictoryFinishReason;
+      readonly triggeredReasons: readonly VictoryFinishReason[];
+      readonly finishedAtTick: number;
+      readonly teamScores: readonly { readonly teamId: string; readonly landmarkHoldTicks: number; readonly timedControlScoreTicks: number }[];
+    };
 
 export function isGridPoint(value: unknown): value is GridPoint {
   if (!isRecord(value)) return false;

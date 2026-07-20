@@ -1,5 +1,10 @@
 import {
+  LANDMARK_VICTORY_HOLD_TICKS,
   TICK_MILLISECONDS,
+  TIMED_CONTROL_START_TICK,
+  TIMED_CONTROL_TARGET_TICKS,
+  TOWN_CENTER_REBUILD_GRACE_TICKS,
+  VILLAGE_ASSAULT_CONTROL_OBJECTIVE,
   VILLAGE_ASSAULT_MAP_ID,
   applyCommand,
   createInitialState,
@@ -17,6 +22,7 @@ import {
   type GridPoint,
   type MatchState,
   type VisibleSnapshot,
+  type VictoryPolicy,
   type VillageId,
 } from "@village-siege/shared";
 import { deriveVisibleTacticalSignalRaised } from "./aiTacticalSignals";
@@ -29,6 +35,23 @@ export const VILLAGE_ASSAULT_SPAWNS = {
   ai: { x: 14, y: 8 },
 } as const satisfies Readonly<Record<"player" | "ai", GridPoint>>;
 
+/** Original multi-route victory policy used by the playable village assault. */
+export const VILLAGE_ASSAULT_VICTORY_POLICY = {
+  commandCenterConquest: { rebuildGraceTicks: TOWN_CENTER_REBUILD_GRACE_TICKS },
+  elimination: true,
+  landmark: {
+    buildingType: "copperLandmark",
+    requiredCount: 1,
+    holdTicks: LANDMARK_VICTORY_HOLD_TICKS,
+  },
+  timedControl: {
+    point: { ...VILLAGE_ASSAULT_CONTROL_OBJECTIVE.point },
+    radius: VILLAGE_ASSAULT_CONTROL_OBJECTIVE.radius,
+    startsAtTick: TIMED_CONTROL_START_TICK,
+    targetTicks: TIMED_CONTROL_TARGET_TICKS,
+  },
+} as const satisfies VictoryPolicy;
+
 const MAX_CATCH_UP_STEPS = 20;
 export interface VillageAssaultRuntimeOptions {
   readonly playerVillageId: VillageId;
@@ -38,6 +61,7 @@ export interface VillageAssaultRuntimeOptions {
   readonly aiBudgetMs?: number;
   readonly matchId?: string;
   readonly seed?: number;
+  readonly victoryPolicy?: Partial<VictoryPolicy>;
 }
 
 export interface VillageAssaultRejectedCommand {
@@ -83,6 +107,10 @@ export class VillageAssaultRuntime {
 
   constructor(options: VillageAssaultRuntimeOptions) {
     const aiVillageId = resolveAiVillage(options.playerVillageId, options.aiVillageId);
+    const victoryPolicy: VictoryPolicy = {
+      ...VILLAGE_ASSAULT_VICTORY_POLICY,
+      ...options.victoryPolicy,
+    };
     this.matchState = createInitialState({
       matchId: options.matchId ?? "village-assault-local",
       seed: options.seed ?? 1,
@@ -99,6 +127,7 @@ export class VillageAssaultRuntime {
           },
         },
       ],
+      victoryPolicy,
     });
     this.aiBudgetMs = normalizeAiBudget(options.aiBudgetMs);
   }
@@ -194,7 +223,8 @@ export class VillageAssaultRuntime {
 
     for (const playerId of aiPlayerIds) {
       const authority = this.matchState.aiControllers.find((candidate) => candidate.playerId === playerId);
-      if (!authority) continue;
+      const player = this.matchState.players.find((candidate) => candidate.id === playerId);
+      if (!authority || !player || player.surrendered || player.eliminated) continue;
 
       const reduced = reduceAi(
         authority,

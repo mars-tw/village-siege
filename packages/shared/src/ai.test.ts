@@ -350,18 +350,17 @@ describe("shared AI personalities", () => {
       const result = runAiForTicks(personality, 18_000);
       const expected = expectedProduction[personality];
       const ownedTypes = result.state.entities.filter((entity) => entity.ownerId === "player-1").map((entity) => entity.typeId).sort();
-      const wonByConquest = result.state.phase === "finished"
-        && result.state.finishReason === "conquest"
+      const wonByVictory = result.state.phase === "finished"
         && result.state.winningTeamIds.includes("team-1");
       const progressionDebug = `tick=${result.state.tick} phase=${result.state.phase} reason=${result.state.finishReason} winners=${result.state.winningTeamIds.join(",")} wallet=${JSON.stringify(result.state.players[0]!.resources)} owns=${ownedTypes.join(",")} deposits=${result.depositCount} advancement=${JSON.stringify(result.state.players[0]!.advancement)}`;
       expect(result.rejections, `${personality} emitted rejected commands`).toEqual([]);
       expect(result.commandCount, `${personality} should exercise at least one decision`).toBeGreaterThan(0);
       expect(result.depositCount, `${personality} should complete at least one carry and drop-off cycle`).toBeGreaterThan(0);
-      expect(result.strongholdReachedAt !== null || wonByConquest, `${personality} should reach stronghold or win by conquest; ${progressionDebug}`).toBe(true);
+      expect(result.strongholdReachedAt !== null || wonByVictory, `${personality} should reach stronghold or win legitimately; ${progressionDebug}`).toBe(true);
       if (result.strongholdReachedAt !== null) {
         expect(result.strongholdReachedAt, `${personality} should reach stronghold in a reasonable time`).toBeLessThanOrEqual(6_000);
       } else {
-        expect(result.state.tick, `${personality} should win by conquest in a reasonable time`).toBeLessThanOrEqual(6_000);
+        expect(result.state.tick, `${personality} should win in a reasonable time`).toBeLessThanOrEqual(6_000);
       }
       expect(result.state.entities.some((entity) => (
         entity.kind === "building"

@@ -1,13 +1,16 @@
 import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, StructureOrientation, TechnologyType, UnitType, VillageId } from "./protocol.js";
 import { COMBAT_UNITS, type CombatUnitId } from "./combat.js";
 
-export const RULES_VERSION = "village-siege/0.11.0";
+export const RULES_VERSION = "village-siege/0.12.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;
 export const MAX_UNITS_PER_PLAYER = 128;
 export const MAX_TRAINING_QUEUE_DEPTH = 5;
 export const TOWN_CENTER_REBUILD_GRACE_TICKS = 60 * TICKS_PER_SECOND;
+export const LANDMARK_VICTORY_HOLD_TICKS = 90 * TICKS_PER_SECOND;
+export const TIMED_CONTROL_START_TICK = 60 * TICKS_PER_SECOND;
+export const TIMED_CONTROL_TARGET_TICKS = 120 * TICKS_PER_SECOND;
 
 export type VillageTraitMetric = "gatherRate" | "unitSpeed" | "towerArmor" | "buildingDurability" | "carryCapacity";
 

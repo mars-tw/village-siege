@@ -6,6 +6,7 @@ import {
 } from "../src/game/aiTacticalSignals.js";
 import {
   VILLAGE_ASSAULT_AI_ID,
+  VILLAGE_ASSAULT_VICTORY_POLICY,
   createVillageAssaultRuntime,
 } from "../src/game/villageAssaultRuntime.js";
 
@@ -20,6 +21,26 @@ const OPTIONS = {
 } as const;
 
 describe("VillageAssaultRuntime authoritative AI", () => {
+  it("enables all original victory routes in the playable assault", () => {
+    const runtime = createVillageAssaultRuntime(OPTIONS);
+
+    expect(runtime.state.victory.policy).toEqual(VILLAGE_ASSAULT_VICTORY_POLICY);
+    expect(runtime.view.victory.policy).toEqual(VILLAGE_ASSAULT_VICTORY_POLICY);
+  });
+
+  it("publishes a synchronous command result even though later runtime steps are zero", () => {
+    const runtime = createVillageAssaultRuntime(OPTIONS);
+    const surrendered = runtime.issuePlayerCommand({ type: "surrender" });
+
+    expect(surrendered.accepted).toBe(true);
+    expect(runtime.view).toMatchObject({
+      phase: "finished",
+      victory: { outcome: "victory", winningTeamIds: ["team-ai"], finishReason: "surrender" },
+    });
+    expect(runtime.step(100).steps).toBe(0);
+    expect(runtime.view.phase).toBe("finished");
+  });
+
   it("creates the AI controller as part of canonical match state", () => {
     const runtime = createVillageAssaultRuntime(OPTIONS);
 

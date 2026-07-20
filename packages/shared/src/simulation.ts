@@ -85,9 +85,13 @@ import {
   type StructureHealthBand,
   type StructureOrientation,
   type TechnologyType,
+  type TeamEliminationReason,
   type UnitType,
   type VisibleSnapshot,
   type VillageId,
+  type VictoryFinishReason,
+  type VictoryPolicy,
+  type VictoryState,
 } from "./protocol.js";
 
 export type UnitOrder =
@@ -299,7 +303,8 @@ export interface MatchState {
   nextEntityNumber: number;
   teamTownCenterLostAt: { teamId: string; tick: number }[];
   winningTeamIds: string[];
-  finishReason: "conquest" | "surrender" | "disconnect" | null;
+  finishReason: VictoryFinishReason | null;
+  victory: VictoryState;
 }
 
 export interface InitialPlayer {
@@ -315,6 +320,7 @@ export interface CreateInitialStateOptions {
   readonly players?: readonly InitialPlayer[];
   readonly map?: { readonly id?: "open" | typeof VILLAGE_ASSAULT_MAP_ID; readonly width: number; readonly height: number; readonly layoutId?: PlayableVillageId };
   readonly spawnOverrides?: Readonly<Partial<Record<PlayerId, GridPoint>>>;
+  readonly victoryPolicy?: Partial<VictoryPolicy>;
 }
 
 export type CommandValidation =
@@ -358,11 +364,93 @@ const VILLAGE_ASSAULT_SPAWNS: readonly GridPoint[] = [
   { x: 8, y: 13 },
 ];
 
+function createVictoryState(
+  participants: readonly InitialPlayer[],
+  mapWidth: number,
+  mapHeight: number,
+  requested: Partial<VictoryPolicy> | undefined,
+): VictoryState {
+  const commandCenterConquest = requested?.commandCenterConquest === undefined
+    ? { rebuildGraceTicks: TOWN_CENTER_REBUILD_GRACE_TICKS }
+    : requested.commandCenterConquest;
+  const landmark = requested?.landmark ?? null;
+  const timedControl = requested?.timedControl ?? null;
+  if (commandCenterConquest && (!Number.isSafeInteger(commandCenterConquest.rebuildGraceTicks) || commandCenterConquest.rebuildGraceTicks < 0)) {
+    throw new RangeError("commandCenterConquest.rebuildGraceTicks must be a non-negative safe integer");
+  }
+  if (landmark && (landmark.buildingType !== "copperLandmark"
+    || !Number.isSafeInteger(landmark.requiredCount)
+    || landmark.requiredCount < 1
+    || !Number.isSafeInteger(landmark.holdTicks)
+    || landmark.holdTicks < 1)) {
+    throw new RangeError("landmark victory requires copperLandmark, positive requiredCount and positive holdTicks");
+  }
+  if (timedControl && (!Number.isSafeInteger(timedControl.point.x)
+    || !Number.isSafeInteger(timedControl.point.y)
+    || timedControl.point.x < 0
+    || timedControl.point.y < 0
+    || timedControl.point.x >= mapWidth
+    || timedControl.point.y >= mapHeight
+    || !Number.isSafeInteger(timedControl.radius)
+    || timedControl.radius < 1
+    || timedControl.radius > Math.max(mapWidth, mapHeight)
+    || !Number.isSafeInteger(timedControl.startsAtTick)
+    || timedControl.startsAtTick < 0
+    || !Number.isSafeInteger(timedControl.targetTicks)
+    || timedControl.targetTicks < 1)) {
+    throw new RangeError("timedControl requires an in-bounds point and positive integer radius/targetTicks");
+  }
+  if (requested?.elimination !== undefined && typeof requested.elimination !== "boolean") {
+    throw new TypeError("elimination victory policy must be boolean");
+  }
+  const teamIds = [...new Set(participants.map((participant) => participant.teamId))].sort(compareText);
+  return {
+    policy: {
+      commandCenterConquest: commandCenterConquest ? { ...commandCenterConquest } : null,
+      elimination: requested?.elimination ?? true,
+      landmark: landmark ? { ...landmark } : null,
+      timedControl: timedControl ? { ...timedControl, point: { ...timedControl.point } } : null,
+    },
+    teams: teamIds.map((teamId) => ({
+      teamId,
+      landmarkHoldTicks: 0,
+      timedControlScoreTicks: 0,
+      eliminatedAtTick: null,
+      eliminationReason: null,
+    })),
+    control: { controllerTeamId: null, contested: false },
+    outcome: null,
+    winningTeamIds: [],
+    finishReason: null,
+    triggeredReasons: [],
+    finishedAtTick: null,
+  };
+}
+
+function cloneVictoryState(victory: VictoryState): VictoryState {
+  return {
+    policy: {
+      commandCenterConquest: victory.policy.commandCenterConquest ? { ...victory.policy.commandCenterConquest } : null,
+      elimination: victory.policy.elimination,
+      landmark: victory.policy.landmark ? { ...victory.policy.landmark } : null,
+      timedControl: victory.policy.timedControl ? { ...victory.policy.timedControl, point: { ...victory.policy.timedControl.point } } : null,
+    },
+    teams: victory.teams.map((team) => ({ ...team })),
+    control: { ...victory.control },
+    outcome: victory.outcome,
+    winningTeamIds: [...victory.winningTeamIds],
+    finishReason: victory.finishReason,
+    triggeredReasons: [...victory.triggeredReasons],
+    finishedAtTick: victory.finishedAtTick,
+  };
+}
+
 export function createInitialState(options: CreateInitialStateOptions = {}): MatchState {
   const participants = options.players ?? DEFAULT_PLAYERS;
   if (participants.length < 2 || participants.length > 5) throw new RangeError("A match requires two to five factions");
   if (new Set(participants.map((player) => player.id)).size !== participants.length) throw new Error("Player ids must be unique");
   if (new Set(participants.map((player) => player.villageId)).size !== participants.length) throw new Error("Village ids must be unique");
+  if (new Set(participants.map((player) => player.teamId)).size < 2) throw new Error("A match requires at least two opposing teams");
 
   const mapId = options.map?.id ?? "open";
   const mapWidth = options.map?.width ?? 32;
@@ -418,6 +506,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     teamTownCenterLostAt: [],
     winningTeamIds: [],
     finishReason: null,
+    victory: createVictoryState(participants, mapWidth, mapHeight, options.victoryPolicy),
   };
 
   const fortifiedLayout = mapId === VILLAGE_ASSAULT_MAP_ID && participants.length === 2 && options.spawnOverrides === undefined
@@ -540,6 +629,10 @@ export function validateCommand(state: MatchState, envelope: unknown): CommandVa
 }
 
 export function applyCommand(state: MatchState, envelope: CommandEnvelope): CommandApplication {
+  return applyCommandInternal(state, envelope, true);
+}
+
+function applyCommandInternal(state: MatchState, envelope: CommandEnvelope, evaluateImmediately: boolean): CommandApplication {
   const next = cloneMatchState(state);
   const validation = validateCommand(next, envelope);
   if (!validation.ok) {
@@ -550,7 +643,7 @@ export function applyCommand(state: MatchState, envelope: CommandEnvelope): Comm
   player.lastSequence = envelope.sequence;
   applyGameCommand(next, player, envelope.sequence, envelope.command, events);
   syncPopulation(next);
-  evaluateVictory(next, events);
+  if (evaluateImmediately) evaluateVictory(next, events);
   return { state: next, validation, events };
 }
 
@@ -560,13 +653,26 @@ export function stepSimulation(state: MatchState, commands: readonly CommandEnve
   const events: DomainEvent[] = [];
   const ordered = orderCommands(commands);
   for (const envelope of ordered) {
-    const applied = applyCommand(next, envelope);
+    const applied = applyCommandInternal(next, envelope, false);
     next = applied.state;
     events.push(...applied.events);
   }
+  evaluateVictory(next, events);
   for (let index = 0; index < deltaTicks && next.phase === "playing"; index += 1) {
     advanceOneTick(next, events);
   }
+  return { state: next, events };
+}
+
+/** Called by an authoritative room only after its reconnect lease expires. */
+export function applyDisconnectedTeamDefeat(state: MatchState, teamId: string): SimulationStepResult {
+  const next = cloneMatchState(state);
+  if (next.phase !== "playing") return { state: next, events: [] };
+  if (!next.victory.teams.some((team) => team.teamId === teamId)) throw new Error(`Unknown team: ${teamId}`);
+  const events: DomainEvent[] = [];
+  eliminateTeam(next, teamId, "disconnect", events);
+  evaluateVictory(next, events);
+  updateVisibilityState(next);
   return { state: next, events };
 }
 
@@ -718,6 +824,7 @@ export function toVisibleSnapshot(state: MatchState, playerId: PlayerId): Visibl
     serverTick: state.tick,
     recipientPlayerId: playerId,
     phase: state.phase,
+    victory: cloneVictoryState(state.victory),
     map: { ...state.map },
     wallet: { ...player.resources },
     population: { ...player.population },
@@ -872,6 +979,9 @@ export function projectDomainEventsForPlayer(
       case "breachCreated":
         if (arePlayersAllied(state, playerId, event.ownerId) || isTileVisibleToPlayer(state, playerId, event.position)) projected.push(event);
         break;
+      case "teamEliminated":
+      case "controlObjectiveChanged":
+      case "victoryProgressChanged":
       case "matchFinished":
         projected.push(event);
         break;
@@ -1235,6 +1345,8 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
     case "surrender":
       player.surrendered = true;
       player.eliminated = true;
+      player.advancement = null;
+      deactivatePlayerAssets(state, player.id, events);
       break;
   }
 }
@@ -1253,7 +1365,7 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
     unit.attackCooldownTicks = Math.max(0, unit.attackCooldownTicks - 1);
     unit.workCooldownTicks = Math.max(0, unit.workCooldownTicks - 1);
     updateStatuses(state, unit, events);
-    if (unit.hitPoints <= 0) continue;
+    if (unit.hitPoints <= 0 || !isPlayerOperational(state, unit.ownerId)) continue;
     updateUnit(state, unit, events);
   }
   const monsters = state.entities
@@ -1270,12 +1382,12 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   for (const building of buildings) {
     building.attackCooldownTicks = Math.max(0, building.attackCooldownTicks - 1);
     updateStatuses(state, building, events);
-    updateTower(state, building, events);
+    if (isPlayerOperational(state, building.ownerId)) updateTower(state, building, events);
   }
   updateProjectiles(state, events);
   // Resolve every production job only after unit and tower actions. A research
   // completion therefore benefits all entities uniformly from the next action tick.
-  for (const building of buildings) updateProduction(state, building, events);
+  for (const building of buildings) if (isPlayerOperational(state, building.ownerId)) updateProduction(state, building, events);
   const removed = state.entities.filter((entity) => (
     entity.kind === "resource"
       ? entity.amount <= 0 && entity.renewAtTick === null
@@ -1309,13 +1421,18 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   updateSettlementAdvancements(state, events);
   syncPopulation(state);
   updateVisibilityState(state);
-  evaluateVictory(state, events);
+  evaluateVictory(state, events, true);
 }
 
 function expirePlayerMonsterBoons(state: MatchState): void {
   for (const player of state.players) {
     player.activeMonsterBoons = player.activeMonsterBoons.filter((boon) => boon.expiresAtTick > state.tick);
   }
+}
+
+function isPlayerOperational(state: MatchState, playerId: PlayerId): boolean {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+  return Boolean(player && !player.surrendered && !player.eliminated);
 }
 
 function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
@@ -2808,32 +2925,225 @@ function updateTower(state: MatchState, building: BuildingEntityState, events: D
   building.attackCooldownTicks = stats.attackCooldownTicks;
 }
 
-function evaluateVictory(state: MatchState, events: DomainEvent[]): void {
+function evaluateVictory(state: MatchState, events: DomainEvent[], advanceObjectiveProgress = false): void {
   if (state.phase !== "playing") return;
-  const teams = [...new Set(state.players.map((player) => player.teamId))].sort();
+  const teams = [...new Set(state.players.map((player) => player.teamId))].sort(compareText);
   for (const teamId of teams) {
     const members = state.players.filter((player) => player.teamId === teamId);
+    const progress = state.victory.teams.find((candidate) => candidate.teamId === teamId);
+    if (!progress || progress.eliminatedAtTick !== null) continue;
     if (members.every((player) => player.surrendered)) {
-      for (const member of members) member.eliminated = true;
+      eliminateTeam(state, teamId, "surrender", events);
       continue;
     }
-    const hasTownCenter = state.entities.some((entity) => entity.kind === "building" && entity.typeId === "townCenter" && entity.hitPoints > 0 && members.some((member) => member.id === entity.ownerId));
+    if (members.every((player) => player.eliminated)) {
+      eliminateTeam(state, teamId, "elimination", events);
+      continue;
+    }
+    if (state.victory.policy.elimination && !teamHasEssentialPresence(state, members)) {
+      eliminateTeam(state, teamId, "elimination", events);
+      continue;
+    }
+    const conquest = state.victory.policy.commandCenterConquest;
+    const activeMemberIds = new Set(members.filter((member) => !member.surrendered && !member.eliminated).map((member) => member.id));
+    const hasTownCenter = state.entities.some((entity) => entity.kind === "building"
+      && entity.typeId === "townCenter"
+      && entity.complete
+      && entity.hitPoints > 0
+      && activeMemberIds.has(entity.ownerId));
     const timerIndex = state.teamTownCenterLostAt.findIndex((timer) => timer.teamId === teamId);
-    if (hasTownCenter) {
+    if (!conquest || hasTownCenter) {
       if (timerIndex >= 0) state.teamTownCenterLostAt.splice(timerIndex, 1);
-    } else if (timerIndex < 0) {
-      state.teamTownCenterLostAt.push({ teamId, tick: state.tick });
-    } else if (state.tick - state.teamTownCenterLostAt[timerIndex]!.tick >= TOWN_CENTER_REBUILD_GRACE_TICKS) {
-      for (const member of members) member.eliminated = true;
+    } else {
+      const lostAtTick = timerIndex < 0 ? state.tick : state.teamTownCenterLostAt[timerIndex]!.tick;
+      if (timerIndex < 0) state.teamTownCenterLostAt.push({ teamId, tick: lostAtTick });
+      if (state.tick - lostAtTick >= conquest.rebuildGraceTicks) eliminateTeam(state, teamId, "conquest", events);
     }
   }
+  state.teamTownCenterLostAt.sort((left, right) => compareText(left.teamId, right.teamId));
   const activeTeams = teams.filter((teamId) => state.players.some((player) => player.teamId === teamId && !player.eliminated));
   if (teams.length > 1 && activeTeams.length <= 1) {
-    state.phase = "finished";
-    state.winningTeamIds = activeTeams;
-    state.finishReason = state.players.some((player) => player.surrendered) ? "surrender" : "conquest";
-    events.push({ type: "matchFinished", winningTeamIds: activeTeams, reason: state.finishReason });
+    const triggeredReasons = eliminationFinishReasons(state);
+    finishMatch(state, activeTeams, triggeredReasons[0] ?? "elimination", events, triggeredReasons);
+    return;
   }
+
+  if (advanceObjectiveProgress) {
+    updateLandmarkVictoryProgress(state, activeTeams, events);
+    updateTimedControlProgress(state, activeTeams, events);
+  }
+  const landmarkTarget = state.victory.policy.landmark?.holdTicks;
+  const landmarkWinners = landmarkTarget === undefined ? [] : activeTeams.filter((teamId) => (
+    (state.victory.teams.find((team) => team.teamId === teamId)?.landmarkHoldTicks ?? 0) >= landmarkTarget
+  ));
+  const controlTarget = state.victory.policy.timedControl?.targetTicks;
+  const controlWinners = controlTarget === undefined ? [] : activeTeams.filter((teamId) => (
+    (state.victory.teams.find((team) => team.teamId === teamId)?.timedControlScoreTicks ?? 0) >= controlTarget
+  ));
+  const triggeredReasons: VictoryFinishReason[] = [];
+  if (landmarkWinners.length > 0) triggeredReasons.push("landmark");
+  if (controlWinners.length > 0) triggeredReasons.push("timedControl");
+  if (triggeredReasons.length > 0) {
+    finishMatch(
+      state,
+      [...landmarkWinners, ...controlWinners],
+      triggeredReasons[0]!,
+      events,
+      triggeredReasons,
+    );
+  }
+}
+
+function teamHasEssentialPresence(state: MatchState, members: readonly PlayerState[]): boolean {
+  const memberIds = new Set(members.filter((member) => !member.surrendered && !member.eliminated).map((member) => member.id));
+  return state.entities.some((entity) => {
+    if (entity.hitPoints <= 0 || entity.ownerId === null || !memberIds.has(entity.ownerId)) return false;
+    if (entity.kind === "unit") return true;
+    if (entity.kind !== "building" || entity.typeId === "resinPalisade" || entity.typeId === "surveyGate") return false;
+    if (entity.complete) return true;
+    return state.entities.some((candidate) => candidate.kind === "unit"
+      && candidate.hitPoints > 0
+      && memberIds.has(candidate.ownerId)
+      && candidate.order.type === "construct"
+      && candidate.order.targetId === entity.id);
+  });
+}
+
+function eliminateTeam(state: MatchState, teamId: string, reason: TeamEliminationReason, events: DomainEvent[]): void {
+  const current = state.victory.teams.find((team) => team.teamId === teamId);
+  if (!current || current.eliminatedAtTick !== null) return;
+  for (const player of state.players.filter((candidate) => candidate.teamId === teamId)) {
+    player.eliminated = true;
+    player.advancement = null;
+    deactivatePlayerAssets(state, player.id, events);
+  }
+  state.victory = {
+    ...state.victory,
+    teams: state.victory.teams.map((team) => team.teamId === teamId
+      ? { ...team, eliminatedAtTick: state.tick, eliminationReason: reason }
+      : team),
+  };
+  events.push({ type: "teamEliminated", teamId, reason, eliminatedAtTick: state.tick });
+}
+
+function deactivatePlayerAssets(state: MatchState, playerId: PlayerId, events: DomainEvent[]): void {
+  state.projectiles = state.projectiles.filter((projectile) => projectile.ownerId !== playerId);
+  for (const entity of state.entities) {
+    if (entity.kind !== "unit" || entity.ownerId !== playerId) continue;
+    entity.order = { type: "idle" };
+    entity.movementProgress = 0;
+    if (entity.combat.phase !== "ready") cancelCombatAction(state, entity, events);
+    entity.stateRevision += 1;
+  }
+}
+
+function eliminationFinishReasons(state: MatchState): VictoryFinishReason[] {
+  const priority: readonly TeamEliminationReason[] = ["surrender", "disconnect", "conquest", "elimination"];
+  const currentTickReasons = state.victory.teams
+    .filter((team) => team.eliminatedAtTick === state.tick && team.eliminationReason !== null)
+    .map((team) => team.eliminationReason!);
+  const reasons = currentTickReasons.length > 0
+    ? currentTickReasons
+    : state.victory.teams.flatMap((team) => team.eliminationReason ? [team.eliminationReason] : []);
+  const triggered = priority.filter((reason) => reasons.includes(reason));
+  return triggered.length > 0 ? triggered : ["elimination"];
+}
+
+function updateLandmarkVictoryProgress(state: MatchState, activeTeams: readonly string[], events: DomainEvent[]): void {
+  const policy = state.victory.policy.landmark;
+  if (!policy) return;
+  for (const teamId of activeTeams) {
+    const playerIds = new Set(state.players
+      .filter((player) => player.teamId === teamId && !player.surrendered && !player.eliminated)
+      .map((player) => player.id));
+    const completed = state.entities.filter((entity) => entity.kind === "building"
+      && entity.typeId === policy.buildingType
+      && entity.complete
+      && entity.hitPoints > 0
+      && playerIds.has(entity.ownerId)).length;
+    const current = state.victory.teams.find((team) => team.teamId === teamId)!;
+    const nextTicks = completed >= policy.requiredCount ? Math.min(policy.holdTicks, current.landmarkHoldTicks + 1) : 0;
+    if (nextTicks === current.landmarkHoldTicks) continue;
+    state.victory = {
+      ...state.victory,
+      teams: state.victory.teams.map((team) => team.teamId === teamId ? { ...team, landmarkHoldTicks: nextTicks } : team),
+    };
+    if (crossedProgressReportBoundary(current.landmarkHoldTicks, nextTicks, policy.holdTicks)) {
+      events.push({ type: "victoryProgressChanged", teamId, objective: "landmark", progressTicks: nextTicks, targetTicks: policy.holdTicks });
+    }
+  }
+}
+
+function updateTimedControlProgress(state: MatchState, activeTeams: readonly string[], events: DomainEvent[]): void {
+  const policy = state.victory.policy.timedControl;
+  if (!policy) return;
+  const counts = new Map(activeTeams.map((teamId) => [teamId, 0]));
+  if (state.tick >= policy.startsAtTick) {
+    for (const entity of state.entities) {
+      if (entity.kind !== "unit" || entity.hitPoints <= 0) continue;
+      const player = state.players.find((candidate) => candidate.id === entity.ownerId);
+      if (!player || player.eliminated || player.surrendered || !counts.has(player.teamId)) continue;
+      if (distanceSquared(entity.position, policy.point) <= policy.radius * policy.radius) {
+        counts.set(player.teamId, counts.get(player.teamId)! + 1);
+      }
+    }
+  }
+  const presentTeams = [...counts.entries()].filter(([, count]) => count > 0).map(([teamId]) => teamId).sort(compareText);
+  const controllerTeamId = presentTeams.length === 1 ? presentTeams[0]! : null;
+  const contested = presentTeams.length > 1;
+  if (state.victory.control.controllerTeamId !== controllerTeamId || state.victory.control.contested !== contested) {
+    state.victory = { ...state.victory, control: { controllerTeamId, contested } };
+    events.push({ type: "controlObjectiveChanged", controllerTeamId, contested, changedAtTick: state.tick });
+  }
+  if (!controllerTeamId) return;
+  const current = state.victory.teams.find((team) => team.teamId === controllerTeamId)!;
+  const nextTicks = Math.min(policy.targetTicks, current.timedControlScoreTicks + 1);
+  if (nextTicks === current.timedControlScoreTicks) return;
+  state.victory = {
+    ...state.victory,
+    teams: state.victory.teams.map((team) => team.teamId === controllerTeamId ? { ...team, timedControlScoreTicks: nextTicks } : team),
+  };
+  if (crossedProgressReportBoundary(current.timedControlScoreTicks, nextTicks, policy.targetTicks)) {
+    events.push({ type: "victoryProgressChanged", teamId: controllerTeamId, objective: "timedControl", progressTicks: nextTicks, targetTicks: policy.targetTicks });
+  }
+}
+
+function crossedProgressReportBoundary(previous: number, next: number, target: number): boolean {
+  if (next === 0 || next === target) return previous !== next;
+  return Math.floor(previous * 20 / target) !== Math.floor(next * 20 / target);
+}
+
+function finishMatch(
+  state: MatchState,
+  winningTeamIds: readonly string[],
+  reason: VictoryFinishReason,
+  events: DomainEvent[],
+  triggeredReasons: readonly VictoryFinishReason[] = [reason],
+): void {
+  if (state.phase !== "playing") return;
+  const winners = [...new Set(winningTeamIds)].sort(compareText);
+  state.phase = "finished";
+  state.winningTeamIds = winners;
+  state.finishReason = reason;
+  state.victory = {
+    ...state.victory,
+    outcome: winners.length === 1 ? "victory" : "draw",
+    winningTeamIds: winners,
+    finishReason: reason,
+    triggeredReasons: [...triggeredReasons],
+    finishedAtTick: state.tick,
+  };
+  events.push({
+    type: "matchFinished",
+    winningTeamIds: winners,
+    outcome: winners.length === 1 ? "victory" : "draw",
+    reason,
+    triggeredReasons: [...triggeredReasons],
+    finishedAtTick: state.tick,
+    teamScores: state.victory.teams
+      .map((team) => ({ teamId: team.teamId, landmarkHoldTicks: team.landmarkHoldTicks, timedControlScoreTicks: team.timedControlScoreTicks }))
+      .sort((left, right) => compareText(left.teamId, right.teamId)),
+  });
 }
 
 function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint): boolean {
@@ -3248,6 +3558,10 @@ function effectiveUnitStat(
 
 function updateSettlementAdvancements(state: MatchState, events: DomainEvent[]): void {
   for (const player of state.players) {
+    if (player.surrendered || player.eliminated) {
+      player.advancement = null;
+      continue;
+    }
     const advancement = player.advancement;
     if (!advancement) continue;
     const producer = state.entities.find((entity): entity is BuildingEntityState => (

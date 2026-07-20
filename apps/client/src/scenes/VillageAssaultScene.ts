@@ -75,6 +75,7 @@ import {
 } from "../game/frameAnimatedCombatActor";
 import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
 import { gridToWorld, worldToGrid } from "../game/isometric";
+import { createVictoryPresentation } from "../game/victoryPresentation";
 import {
   buildingDisplayName,
   createBuildingView,
@@ -261,6 +262,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private selectionText?: Phaser.GameObjects.Text;
   private noticeText?: Phaser.GameObjects.Text;
   private noticeLiveRegion?: HTMLOutputElement;
+  private resultLiveRegion?: HTMLDivElement;
   private readonly actionButtons: CanvasButtonControl[] = [];
   private currentActions: readonly ActionSpec[] = [];
   private pointerStart?: { x: number; y: number; scrollX: number; scrollY: number };
@@ -382,7 +384,10 @@ export class VillageAssaultScene extends Phaser.Scene {
     for (const actor of this.retiringActors) actor.update(delta);
     if (this.paused || this.ended || this.orientationBlocked || !this.runtime) return;
     const result = this.runtime.step(Math.min(delta, 250));
-    if (result.steps === 0) return;
+    if (result.steps === 0) {
+      if (this.runtime.view.phase === "finished") this.finishBattle();
+      return;
+    }
     const advancement = result.events.find((event) => (
       event.type === "settlementAdvanced" && event.playerId === VILLAGE_ASSAULT_PLAYER_ID
     ));
@@ -402,7 +407,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (result.latestRejection?.source === "ai") {
       // AI rejection is kept for audit telemetry; player-facing UI stays focused on their own command.
     }
-    if (this.runtime.state.phase === "finished") this.finishBattle();
+    if (this.runtime.view.phase === "finished") this.finishBattle();
     this.refreshInterface(false);
   }
 
@@ -1146,7 +1151,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     this.setNotice(success, "success");
     this.syncEntityViews(false);
-    this.refreshInterface(true);
+    if (this.runtime.view.phase === "finished") this.finishBattle();
+    else this.refreshInterface(true);
     return true;
   }
 
@@ -1156,6 +1162,12 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.noticeLiveRegion.setAttribute("role", "status");
     this.noticeLiveRegion.setAttribute("aria-live", "polite");
     (this.game.canvas.parentElement ?? document.body).append(this.noticeLiveRegion);
+    this.resultLiveRegion = document.createElement("div");
+    this.resultLiveRegion.className = "canvas-control-proxy";
+    this.resultLiveRegion.setAttribute("role", "alert");
+    this.resultLiveRegion.setAttribute("aria-live", "assertive");
+    this.resultLiveRegion.setAttribute("aria-atomic", "true");
+    (this.game.canvas.parentElement ?? document.body).append(this.resultLiveRegion);
     const topPanel = this.add.graphics();
     topPanel.fillStyle(0x0b1311, 0.94).fillRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT);
     topPanel.fillStyle(0x25483c, 0.98).fillRect(6, 6, UI_WIDTH - 12, 68);
@@ -1222,41 +1234,46 @@ export class VillageAssaultScene extends Phaser.Scene {
       ? `${tierLabel}｜糧${Math.floor(player.resources.food)} 木${Math.floor(player.resources.wood)}\n石${Math.floor(player.resources.stone)} 人${player.population.used}/${player.population.capacity}`
       : `${tierLabel}  糧 ${Math.floor(player.resources.food)}   木 ${Math.floor(player.resources.wood)}   石 ${Math.floor(player.resources.stone)}   人口 ${player.population.used}/${player.population.capacity}`);
     const view = this.runtime.view;
+    const victoryPresentation = createVictoryPresentation(view.victory, "team-player", view.serverTick);
     const enemyTown = view.entities.find((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_AI_ID && entity.typeId === "townCenter");
     const staleEnemyTown = view.staleEnemySightings.find((sighting) => sighting.ownerId === VILLAGE_ASSAULT_AI_ID && sighting.typeId === "townCenter");
-    const objective = enemyTown
+    const enemyObjective = enemyTown
       ? this.compactUi
         ? `敵城 ${Math.ceil(enemyTown.hitPoints / enemyTown.maxHitPoints * 100)}%`
-        : `目標｜建立經濟與軍隊，摧毀東境議事堂　敵城 ${enemyTown.hitPoints}/${enemyTown.maxHitPoints}`
+        : `敵城 ${enemyTown.hitPoints}/${enemyTown.maxHitPoints}`
       : staleEnemyTown
         ? this.compactUi
           ? `敵城情報 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))}秒前`
-          : `目標｜敵方議事堂已離開視野；最後偵察於 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))} 秒前`
-        : this.compactUi ? "敵城 尚未偵察" : "目標｜先偵察東境，再建立攻城路線摧毀敵方議事堂";
-    const boonLabels = view.activeMonsterBoons
-      .map((boon) => ({
-        label: ({ scoutingRations: "巡野", ashwingDraft: "順風", cinderStandard: "戰旗" } as const)[boon.id],
-        seconds: Math.max(0, Math.ceil((boon.expiresAtTick - view.serverTick) / TICKS_PER_SECOND)),
-      }))
-      .filter((boon) => boon.seconds > 0)
-      .map((boon) => `${boon.label} ${boon.seconds}秒`);
-    const firstBoon = boonLabels[0];
-    const shortObjective = enemyTown
-      ? `敵城｜${Math.ceil(enemyTown.hitPoints / enemyTown.maxHitPoints * 100)}%`
-      : staleEnemyTown
-        ? `敵城情報｜${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))}秒前`
-        : "敵城｜尚未偵察";
-    const boonLine = firstBoon ? `增益｜${firstBoon}${boonLabels.length > 1 ? ` +${boonLabels.length - 1}` : ""}` : "";
+          : `敵城情報 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))} 秒前`
+        : "敵城尚未偵察";
+    const objective = victoryPresentation.outcome === "playing"
+      ? this.compactUi
+        ? victoryPresentation.compactObjectiveText
+        : `${enemyObjective}｜${victoryPresentation.objectiveText.replace("勝途｜", "")}`
+      : this.compactUi
+        ? victoryPresentation.compactObjectiveText
+        : victoryPresentation.objectiveText;
     this.objectiveText
-      ?.setFontSize(this.compactUi ? 26 : 20)
-      .setWordWrapWidth(boonLine ? 0 : this.compactUi ? 180 : 300)
-      .setText(boonLine ? `${shortObjective}\n${boonLine}` : objective);
+      ?.setFontSize(this.compactUi ? 22 : 18)
+      .setColor(victoryPresentation.outcome === "victory"
+        ? "#dce9c6"
+        : victoryPresentation.outcome === "defeat"
+          ? "#ffb09c"
+          : victoryPresentation.outcome === "draw"
+            ? "#e0b866"
+            : "#dce9c6")
+      .setWordWrapWidth(this.compactUi ? 180 : 330, true)
+      .setText(objective);
     if (performance.now() > this.noticeUntil) this.notice = "點空地移動｜點資源採集｜滿載自動卸貨｜點敵軍攻擊";
-    this.noticeText?.setText(this.compactUi ? "" : this.paused ? "戰局暫停" : this.notice);
+    this.noticeText?.setText(this.compactUi || this.ended ? "" : this.paused ? "戰局暫停" : this.notice);
     const selected = this.selectedEntities();
     const selectionLabel = this.selectionLabel(selected);
     this.selectionText?.setFontSize(this.compactUi ? 26 : 20)
-      .setText(this.compactUi && performance.now() <= this.noticeUntil ? this.compactNotice(this.notice) : selectionLabel);
+      .setText(this.ended
+        ? victoryPresentation.selectionText
+        : this.compactUi && performance.now() <= this.noticeUntil
+          ? this.compactNotice(this.notice)
+          : selectionLabel);
     this.currentActions = this.actionsForSelection(selected);
     this.actionButtons.forEach((button, index) => {
       const spec = this.currentActions[index];
@@ -2618,10 +2635,13 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private finishBattle(): void {
+    if (this.ended) return;
     this.ended = true;
-    const victory = this.runtime.state.winningTeamIds.includes("team-player");
-    this.setNotice(victory ? "征服成功｜東境敵寨已失守" : "戰役失敗｜你的村鎮已被攻陷", victory ? "success" : "warning");
+    const presentation = createVictoryPresentation(this.runtime.view.victory, "team-player", this.runtime.view.serverTick);
+    this.noticeText?.setText("");
+    if (this.resultLiveRegion) this.resultLiveRegion.textContent = presentation.announcement;
     this.refreshInterface(true);
+    this.time.delayedCall(0, () => this.actionButtons[0]?.focus());
   }
 
   private handleEscape(): void {
@@ -2699,6 +2719,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     for (const button of this.actionButtons) button.destroy();
     this.noticeLiveRegion?.remove();
     this.noticeLiveRegion = undefined;
+    this.resultLiveRegion?.remove();
+    this.resultLiveRegion = undefined;
     this.actionButtons.length = 0;
     for (const view of this.unitViews.values()) view.actor.destroy();
     for (const view of this.monsterViews.values()) view.actor.destroy();

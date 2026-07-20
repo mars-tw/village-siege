@@ -95,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.11.0");
+    expect(RULES_VERSION).toBe("village-siege/0.12.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -1944,7 +1944,7 @@ describe("deterministic shared simulation", () => {
   });
 
   it("consumes matchlock rest and boar momentum on the next basic attack", () => {
-    let rested = createInitialState({ seed: 346, matchId: "matchlock-rest" });
+    let rested = createInitialState({ seed: 346, matchId: "matchlock-rest", victoryPolicy: { commandCenterConquest: null, elimination: false } });
     const musketeer = configureCombatUnit(rested, "player-1", 0, "musketeer", { x: 5, y: 5 });
     const spotter = configureCombatUnit(rested, "player-1", 1, "warrior", { x: 13, y: 6 });
     const distant = configureCombatUnit(rested, "player-2", 0, "warrior", { x: 14, y: 5 });
@@ -1959,7 +1959,7 @@ describe("deterministic shared simulation", () => {
     expect(activeMusketeer.combat.phase).toBe("windup");
     expect(activeMusketeer.combat.readyTick - rested.tick).toBe(Math.floor(UNITS.musketeer.attackCooldownTicks * 0.8));
 
-    let momentum = createInitialState({ seed: 347, matchId: "boar-momentum" });
+    let momentum = createInitialState({ seed: 347, matchId: "boar-momentum", victoryPolicy: { commandCenterConquest: null, elimination: false } });
     const rider = configureCombatUnit(momentum, "player-1", 0, "boarRider", { x: 2, y: 5 });
     const target = configureCombatUnit(momentum, "player-2", 0, "warrior", { x: 14, y: 12 });
     momentum.entities = [rider, target];
@@ -1979,7 +1979,7 @@ describe("deterministic shared simulation", () => {
   });
 
   it("automatically emplaces a stationary heavy crossbow and clears it on redeploy", () => {
-    let state = createInitialState({ seed: 348, matchId: "heavy-emplacement" });
+    let state = createInitialState({ seed: 348, matchId: "heavy-emplacement", victoryPolicy: { commandCenterConquest: null, elimination: false } });
     const crossbow = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 5, y: 5 });
     state.entities = [crossbow];
     state = stepSimulation(state, [], 20).state;
@@ -2144,6 +2144,6 @@ describe("deterministic shared simulation", () => {
     expect(result.events).toContainEqual(expect.objectContaining({
       type: "entityRemoved", entityId: enemyCenter.id, entity: expect.objectContaining({ id: enemyCenter.id }), reason: "destroyed",
     }));
-    expect(result.events).toContainEqual({ type: "matchFinished", winningTeamIds: ["team-1"], reason: "conquest" });
+    expect(result.events).toContainEqual(expect.objectContaining({ type: "matchFinished", winningTeamIds: ["team-1"], reason: "conquest", outcome: "victory" }));
   }, 60_000);
 });

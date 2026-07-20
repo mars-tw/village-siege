@@ -57,6 +57,7 @@ function barrierState(): { state: MatchState; gate: BuildingEntityState; mover: 
     matchId: "fortification-barrier",
     seed: 91,
     map: { id: "fortification-test", width: 7, height: 5 },
+    victoryPolicy: { commandCenterConquest: null, elimination: false },
   });
   const mover = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1")!;
   mover.position = { x: 1, y: 2 };
@@ -172,7 +173,12 @@ describe("deterministic fortifications", () => {
   });
 
   it("preserves construction damage instead of full-healing a completed wall", () => {
-    const state = createInitialState({ matchId: "damaged-foundation", seed: 33, map: { id: "construction-test", width: 10, height: 10 } });
+    const state = createInitialState({
+      matchId: "damaged-foundation",
+      seed: 33,
+      map: { id: "construction-test", width: 10, height: 10 },
+      victoryPolicy: { commandCenterConquest: null, elimination: false },
+    });
     const worker = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1")!;
     worker.position = { x: 1, y: 2 };
     const wall = building("foundation", "player-1", "resinPalisade", { x: 2, y: 2 });

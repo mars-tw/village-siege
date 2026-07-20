@@ -11,6 +11,10 @@ import type {
 export const VILLAGE_ASSAULT_MAP_ID = "villageAssault";
 export const VILLAGE_ASSAULT_MAP_WIDTH = 18;
 export const VILLAGE_ASSAULT_MAP_HEIGHT = 16;
+export const VILLAGE_ASSAULT_CONTROL_OBJECTIVE = {
+  point: { x: 8, y: 8 },
+  radius: 2,
+} as const;
 
 export type VillageAssaultTerrainGlyph = "G" | "M" | "S" | "W" | "R" | "T";
 export type VillageAssaultLayoutId = PlayableVillageId;
