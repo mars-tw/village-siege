@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { AI_PROFILES, createAiController, getAiObservation, type AiObservation } from "./ai";
-import { updateVisibilityState } from "./visibility";
-import { MAX_TRAINING_QUEUE_DEPTH, TECHNOLOGIES, UNITS } from "./content";
+import { AI_PROFILES, createAiController, getAiKnownSpatialModel, getAiObservation, type AiObservation, type AiStrategicSnapshot } from "./ai";
+import { getVillageAssaultBuildBlockedCells, getVillageAssaultWalkBlockedCells } from "./battlefield";
+import { getPlayerVisibilityState, updateVisibilityState } from "./visibility";
+import { getBuildingFootprint, MAX_TRAINING_QUEUE_DEPTH, TECHNOLOGIES, UNITS } from "./content";
 import { isGameCommand, type AiPersonality, type GameCommand, type PublicEntityState, type UnitType } from "./protocol";
-import { applyCommand, cloneMatchState, createInitialState, stepSimulation, validateCommand, type MatchState } from "./simulation";
+import { applyCommand, cloneMatchState, createInitialState, getEntityFootprintCells, stepSimulation, validateCommand, type BuildingEntityState, type MatchState } from "./simulation";
+import { getFootprintCells } from "./spatial";
 
 const PERSONALITIES: readonly AiPersonality[] = ["aggressor", "guardian", "prosperer", "balanced", "raider"];
 
@@ -343,8 +345,9 @@ describe("shared AI personalities", () => {
       balanced: { building: "barracks", unit: "shieldBearer" },
       raider: { building: "beastStable", unit: "boarRider" },
     } as const;
+    const strategicSignatures = new Set<string>();
     for (const personality of PERSONALITIES) {
-      const result = runAiForTicks(personality, 10_000);
+      const result = runAiForTicks(personality, 18_000);
       const expected = expectedProduction[personality];
       const ownedTypes = result.state.entities.filter((entity) => entity.ownerId === "player-1").map((entity) => entity.typeId).sort();
       const wonByConquest = result.state.phase === "finished"
@@ -367,7 +370,12 @@ describe("shared AI personalities", () => {
         && entity.complete
       )), `${personality} should complete ${expected.building}; owns ${ownedTypes.join(",")}`).toBe(true);
       expect(result.producedUnitTypes, `${personality} should train ${expected.unit}`).toContain(expected.unit);
+      const telemetry = result.strategicSnapshot.telemetry;
+      expect(telemetry.decisions, `${personality} should make strategic decisions`).toBeGreaterThan(0);
+      expect(telemetry.wavesLaunched + telemetry.scoutsSent, `${personality} should scout or launch an assault`).toBeGreaterThan(0);
+      strategicSignatures.add(`${telemetry.wavesLaunched}:${telemetry.scoutsSent}:${telemetry.retreatsOrdered}:${telemetry.repairsOrdered}`);
     }
+    expect(strategicSignatures.size, "all five AI personalities should produce distinct 30-minute strategic telemetry").toBe(PERSONALITIES.length);
   }, 300_000);
 
   it("takes the balanced profile from economy through barracks, production, and an advance", () => {
@@ -446,6 +454,133 @@ describe("shared AI personalities", () => {
     };
     expect(createAiController("guardian", "player-1", 175).decide(guarded, 5)[0]).toMatchObject({ type: "patrol" });
   });
+
+  it("uses the selected village terrain while treating open gates and rubble as placement-only blockers", () => {
+    const state = createInitialState({
+      seed: 176,
+      map: { id: "villageAssault", width: 18, height: 16, layoutId: "highcrag" },
+    });
+    const gate = state.entities.find((entity): entity is BuildingEntityState => (
+      entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "surveyGate"
+    ));
+    expect(gate).toBeDefined();
+    gate!.gateOpen = true;
+    const gateCells = getEntityFootprintCells(gate!);
+    const openModel = getAiKnownSpatialModel(getAiObservation(state, "player-1"));
+    expect(openModel.walkBlockedCells).not.toEqual(expect.arrayContaining(gateCells));
+    expect(openModel.placementBlockedCells).toEqual(expect.arrayContaining(gateCells));
+    expect(openModel.walkBlockedCells).toEqual(expect.arrayContaining(getVillageAssaultWalkBlockedCells("highcrag")));
+    expect(openModel.placementBlockedCells).toEqual(expect.arrayContaining(getVillageAssaultBuildBlockedCells("highcrag")));
+
+    gate!.hitPoints = 0;
+    const breached = stepSimulation(state, [], 1).state;
+    const observation = getAiObservation(breached, "player-1");
+    const rubble = observation.visibleWorldEntities.find((entity) => entity.kind === "rubble" && entity.typeId === "surveyGate");
+    expect(rubble).toBeDefined();
+    expect(observation.visibleTileIndices).toEqual(getPlayerVisibilityState(breached, "player-1").visibleTileIndices);
+    expect(observation.exploredTileIndices).toEqual(getPlayerVisibilityState(breached, "player-1").exploredTileIndices);
+    const rubbleCells = getFootprintCells(rubble!.position, getBuildingFootprint("surveyGate", rubble!.orientation));
+    const breachedModel = getAiKnownSpatialModel(observation);
+    expect(breachedModel.walkBlockedCells).not.toEqual(expect.arrayContaining(rubbleCells));
+    expect(breachedModel.placementBlockedCells).toEqual(expect.arrayContaining(rubbleCells));
+  });
+
+  it("uses only last-seen fortification topology and never treats a remembered open gate as walk-blocking", () => {
+    const base = combatObservation();
+    const observation: AiObservation = {
+      ...base,
+      map: { id: "open", width: 16, height: 12 },
+      visibleTileIndices: Array.from({ length: 16 * 12 }, (_, index) => index),
+      exploredTileIndices: Array.from({ length: 16 * 12 }, (_, index) => index),
+      rememberedEnemySites: [
+        { entityId: "closed-gate", typeId: "surveyGate", lastKnownPosition: { x: 10, y: 4 }, observedAtTick: 0, orientation: "ne", gateOpen: false, blocksMovement: true },
+        { entityId: "open-gate", typeId: "surveyGate", lastKnownPosition: { x: 10, y: 7 }, observedAtTick: 0, orientation: "se", gateOpen: true, blocksMovement: false },
+      ],
+    };
+    const model = getAiKnownSpatialModel(observation);
+    const closedCells = getFootprintCells({ x: 10, y: 4 }, getBuildingFootprint("surveyGate", "ne"));
+    const openCells = getFootprintCells({ x: 10, y: 7 }, getBuildingFootprint("surveyGate", "se"));
+    expect(model.walkBlockedCells).toEqual(expect.arrayContaining(closedCells));
+    expect(model.walkBlockedCells).not.toEqual(expect.arrayContaining(openCells));
+    expect(model.placementBlockedCells).toEqual(expect.arrayContaining([...closedCells, ...openCells]));
+  });
+
+  it("gathers with only idle villagers that have visible routes to both the source and a drop-off", () => {
+    const width = 10;
+    const height = 7;
+    const walls = Array.from({ length: height }, (_, y) => ({
+      ...entity(`wall-${y}`, "player-1", "building", "resinPalisade", 5, y),
+      complete: true,
+      blocksMovement: true,
+    }));
+    const idle = {
+      ...entity("idle-villager", "player-1", "unit", "villager", 2, 4),
+      cargo: { kind: null, amount: 0, capacity: 10 },
+      civilianActivity: "idle" as const,
+    };
+    const busy = {
+      ...entity("busy-villager", "player-1", "unit", "villager", 3, 4),
+      cargo: { kind: null, amount: 0, capacity: 10 },
+      civilianActivity: "gathering" as const,
+    };
+    const isolated = {
+      ...entity("isolated-villager", "player-1", "unit", "villager", 8, 4),
+      cargo: { kind: null, amount: 0, capacity: 10 },
+      civilianActivity: "idle" as const,
+    };
+    const town = {
+      ...entity("town", "player-1", "building", "townCenter", 0, 0),
+      complete: true,
+      blocksMovement: true,
+    };
+    const resource: PublicEntityState = {
+      id: "wood-node",
+      ownerId: null,
+      kind: "resource",
+      typeId: "wood",
+      position: { x: 3, y: 5 },
+      hitPoints: 500,
+      maxHitPoints: 500,
+      stateRevision: 0,
+      resourceNode: { amount: 500, maxAmount: 500, renewAtTick: null },
+    };
+    const observation: AiObservation = {
+      serverTick: 0,
+      selfPlayerId: "player-1",
+      wallet: { food: 0, wood: 0, stone: 0 },
+      population: { used: 3, capacity: 10 },
+      settlementTier: "frontier",
+      advancement: null,
+      map: { id: "open", width, height },
+      ownEntities: [town, idle, busy, isolated, ...walls],
+      ownTrainingQueueDepth: { town: 0 },
+      ownProductionQueues: { town: [] },
+      ownRallyPoints: { town: null },
+      completedTechnologyIds: [],
+      ownIncompleteBuildingIds: [],
+      visibleEnemyEntities: [],
+      visibleResourceEntities: [resource],
+      visibleWorldEntities: [],
+      visibleTileIndices: Array.from({ length: width * height }, (_, index) => index),
+      exploredTileIndices: Array.from({ length: width * height }, (_, index) => index),
+      rememberedEnemySites: [],
+    };
+    expect(createAiController("balanced", "player-1", 177, "veteran").decide(observation, 5)[0]).toEqual({
+      type: "gather",
+      entityIds: ["idle-villager"],
+      targetId: "wood-node",
+    });
+  });
+
+  it("keeps every personality legal on all authored fortified layouts", () => {
+    for (const layoutId of ["pinehold", "riverstead", "highcrag"] as const) {
+      for (const personality of PERSONALITIES) {
+        const result = runFortifiedAiForTicks(personality, layoutId, 1_500);
+        expect(result.rejections, `${layoutId}/${personality} emitted rejected commands`).toEqual([]);
+        expect(result.commandCount, `${layoutId}/${personality} should exercise at least one decision`).toBeGreaterThan(0);
+      }
+    }
+  }, 300_000);
 });
 
 function combatObservation(): AiObservation {
@@ -476,6 +611,9 @@ function combatObservation(): AiObservation {
       entity("enemy-warrior", "player-2", "unit", "warrior", 8, 6),
     ],
     visibleResourceEntities: [],
+    visibleWorldEntities: [],
+    visibleTileIndices: Array.from({ length: 32 * 32 }, (_, index) => index),
+    exploredTileIndices: Array.from({ length: 32 * 32 }, (_, index) => index),
     rememberedEnemySites: [],
   };
 }
@@ -500,6 +638,7 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
   readonly strongholdReachedAt: number | null;
   readonly producedUnitTypes: readonly UnitType[];
   readonly depositCount: number;
+  readonly strategicSnapshot: AiStrategicSnapshot;
 } {
   let state = createInitialState({
     seed: 20260717,
@@ -543,7 +682,45 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
     advancedBeyondHome ||= military.some((unit) => unit.position.x > 10);
   }
 
-  return { commandCount, rejections, state, peakMilitary, advancedBeyondHome, strongholdReachedAt, producedUnitTypes: [...producedUnitTypes].sort(), depositCount };
+  return {
+    commandCount,
+    rejections,
+    state,
+    peakMilitary,
+    advancedBeyondHome,
+    strongholdReachedAt,
+    producedUnitTypes: [...producedUnitTypes].sort(),
+    depositCount,
+    strategicSnapshot: controller.getStrategicSnapshot(),
+  };
+}
+
+function runFortifiedAiForTicks(
+  personality: AiPersonality,
+  layoutId: "pinehold" | "riverstead" | "highcrag",
+  ticks: number,
+): { readonly commandCount: number; readonly rejections: readonly string[] } {
+  let state = createInitialState({
+    seed: 20260721,
+    matchId: `fortified-${layoutId}-${personality}`,
+    map: { id: "villageAssault", width: 18, height: 16, layoutId },
+  });
+  const controller = createAiController(personality, "player-1", 20260721, "standard");
+  const rejections: string[] = [];
+  let sequence = 0;
+  let commandCount = 0;
+  for (let index = 0; index < ticks && state.phase === "playing"; index += 1) {
+    for (const command of controller.decide(getAiObservation(state, "player-1"), 5)) {
+      const commandEnvelope = envelope(state, sequence, command);
+      const validation = validateCommand(state, commandEnvelope);
+      if (validation.ok) state = applyCommand(state, commandEnvelope).state;
+      else rejections.push(`${state.tick}:${validation.code}:${JSON.stringify(command)}`);
+      sequence += 1;
+      commandCount += 1;
+    }
+    state = stepSimulation(state, [], 1).state;
+  }
+  return { commandCount, rejections };
 }
 
 function envelope(state: MatchState, sequence: number, command: GameCommand) {

@@ -1,20 +1,22 @@
 {
   "name": "@village-siege/client",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --no-file-parallelism test"
   },
   "dependencies": {
     "@colyseus/sdk": "0.17.43",
-    "@village-siege/shared": "0.10.0",
+    "@village-siege/shared": "0.11.0",
     "phaser": "4.2.1"
   },
   "devDependencies": {
     "typescript": "6.0.3",
-    "vite": "8.1.5"
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
   }
 }

@@ -59,6 +59,12 @@ import {
 } from "../game/combatAnimationManifest";
 import { DEFAULT_TEAM_PALETTES } from "../game/combatArt";
 import { createProjectileVisual, spawnDeathDust, spawnFloatingText, spawnImpactBurst, spawnSkillTelegraph } from "../game/combatEffects";
+import {
+  TACTICAL_SIGNAL_NOTICE_MS,
+  TACTICAL_SIGNAL_PRESENTATION,
+  TACTICAL_SIGNAL_WORLD_MS,
+  type TacticalSignalRaisedEvent,
+} from "../game/aiTacticalSignals";
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
 import {
@@ -802,7 +808,9 @@ export class VillageAssaultScene extends Phaser.Scene {
       .filter((event): event is Extract<DomainEvent, { type: "entityRemoved" }> => event.type === "entityRemoved")
       .map((event) => [event.entityId, event.entity]));
     for (const event of events) {
-      if (event.type === "projectileSpawned") {
+      if (event.type === "tacticalSignalRaised") {
+        this.presentTacticalSignal(event);
+      } else if (event.type === "projectileSpawned") {
         const publicProjectile = this.runtime.view.projectiles.find((projectile) => projectile.id === event.projectile.id);
         if (!publicProjectile || this.projectileEffects.has(publicProjectile.id)) continue;
         this.spawnProjectileEffect(publicProjectile);
@@ -863,6 +871,18 @@ export class VillageAssaultScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private presentTacticalSignal(event: TacticalSignalRaisedEvent): void {
+    const anchor = this.runtime.view.entities.find((entity) => entity.id === event.anchorEntityId);
+    if (!anchor || anchor.ownerId !== event.actingPlayerId) return;
+    const presentation = TACTICAL_SIGNAL_PRESENTATION[event.signal];
+    const world = gridToWorld(anchor.position, VILLAGE_ASSAULT_ORIGIN);
+    const telegraph = spawnSkillTelegraph(this, world, presentation.color, 34, TACTICAL_SIGNAL_WORLD_MS);
+    const glyph = spawnFloatingText(this, { x: world.x, y: world.y - 54 }, presentation.glyph, presentation.textColor);
+    this.uiCamera?.ignore(telegraph);
+    this.uiCamera?.ignore(glyph);
+    this.setNotice(presentation.notice, presentation.tone, TACTICAL_SIGNAL_NOTICE_MS);
   }
 
   private spawnBreachEffect(position: GridPoint): void {
@@ -2404,9 +2424,9 @@ export class VillageAssaultScene extends Phaser.Scene {
     } as Record<string, string>)[code ?? ""] ?? "指令未被接受";
   }
 
-  private setNotice(message: string, tone: "normal" | "success" | "warning" = "normal"): void {
+  private setNotice(message: string, tone: "normal" | "success" | "warning" = "normal", durationMs = 3_200): void {
     this.notice = message;
-    this.noticeUntil = performance.now() + 3_200;
+    this.noticeUntil = performance.now() + durationMs;
     this.noticeText?.setColor(tone === "warning" ? "#ffb09c" : tone === "success" ? "#dce9c6" : "#e0b866");
     this.noticeText?.setText(message);
     if (this.noticeLiveRegion) this.noticeLiveRegion.textContent = message;

@@ -17,6 +17,63 @@ export type PlayableVillageId = "pinehold" | "riverstead" | "highcrag";
 export type ResourceKind = "food" | "wood" | "stone";
 export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" | "raider";
 export type AiDifficulty = "novice" | "standard" | "veteran";
+export type AiStrategicPhase = "economy" | "scouting" | "defending" | "repairing" | "assaulting" | "retreating" | "regrouping";
+
+export interface AiEnemyMemory {
+  readonly entityId: EntityId;
+  readonly ownerId: PlayerId;
+  readonly kind: "unit" | "building";
+  readonly typeId: UnitType | BuildingType;
+  readonly lastKnownPosition: GridPoint;
+  readonly healthPermille: number;
+  readonly observedAtTick: number;
+  /** Last-seen static topology. Undefined for mobile units and older saves. */
+  readonly orientation?: StructureOrientation;
+  readonly gateOpen?: boolean;
+  readonly complete?: boolean;
+  readonly healthBand?: StructureHealthBand;
+  readonly blocksMovement?: boolean;
+}
+
+export interface AiWaveState {
+  readonly memberIds: readonly EntityId[];
+  readonly targetEntityId: EntityId | null;
+  readonly targetPosition: GridPoint;
+  readonly launchedAtTick: number;
+  readonly baselineStrength: number;
+}
+
+export interface AiTelemetryCounters {
+  readonly decisions: number;
+  readonly scoutsSent: number;
+  readonly repairsOrdered: number;
+  readonly retreatsOrdered: number;
+  readonly wavesLaunched: number;
+  readonly counterSwitches: number;
+}
+
+/** Private deterministic planner state. It is hashed/saved with MatchState and never projected in VisibleSnapshot. */
+export interface AiAuthorityState {
+  readonly playerId: PlayerId;
+  readonly personality: AiPersonality;
+  readonly difficulty: AiDifficulty;
+  readonly randomState: number;
+  readonly lastDecisionTick: number;
+  readonly phase: AiStrategicPhase;
+  readonly phaseStartedTick: number;
+  readonly phaseLockedUntilTick: number;
+  readonly enemyMemory: readonly AiEnemyMemory[];
+  readonly desiredCounterUnit: CombatUnitId | null;
+  readonly counterLockedUntilTick: number;
+  readonly repairTargetId: EntityId | null;
+  readonly regroupPoint: GridPoint | null;
+  readonly activeWave: AiWaveState | null;
+  readonly waveIndex: number;
+  readonly nextWaveAtTick: number;
+  readonly nextScoutAtTick: number;
+  readonly scoutIndex: number;
+  readonly telemetry: AiTelemetryCounters;
+}
 export type MatchPhase = "lobby" | "loading" | "playing" | "finished" | "disposed";
 export type SettlementTier = "frontier" | "stronghold" | "artificer";
 export type TechnologyType =
@@ -219,6 +276,9 @@ export interface VisibleSnapshot {
   readonly checksum: string;
 }
 
+/** Coarse, perception-safe battlefield intent. Detailed AI planner state remains private. */
+export type TacticalSignal = "scouting" | "alarm" | "repairing" | "retreating" | "regrouping" | "assaulting";
+
 export type DomainEvent =
   | { readonly type: "commandAccepted"; readonly sequence: number; readonly serverTick: number }
   | { readonly type: "commandRejected"; readonly sequence: number; readonly code: CommandRejectCode }
@@ -248,6 +308,7 @@ export type DomainEvent =
   | { readonly type: "resourcesDeposited"; readonly playerId: PlayerId; readonly unitId: EntityId; readonly dropOffId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
   | { readonly type: "resourceDepleted"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly renewable: boolean; readonly renewAtTick: number | null }
   | { readonly type: "resourceRenewed"; readonly resourceId: EntityId; readonly resourceKind: ResourceKind; readonly amount: number }
+  | { readonly type: "tacticalSignalRaised"; readonly actingPlayerId: PlayerId; readonly signal: TacticalSignal; readonly anchorEntityId: EntityId; readonly emittedAtTick: number }
   | { readonly type: "monsterProvoked"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly teamId: string | null; readonly sourceId: EntityId | null }
   | { readonly type: "monsterDefeated"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly creditedTeamId: string | null }
   | { readonly type: "monsterRewardGranted"; readonly monsterId: EntityId; readonly monsterTypeId: MonsterId; readonly playerId: PlayerId; readonly reward: ResourceWallet; readonly boon: ActiveMonsterBoon | null }

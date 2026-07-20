@@ -95,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.10.0");
+    expect(RULES_VERSION).toBe("village-siege/0.11.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -777,6 +777,27 @@ describe("deterministic shared simulation", () => {
     const active = stepSimulation(initial, [], 120).state;
     const afterAmounts = active.entities.filter((entity): entity is ResourceEntityState => entity.kind === "resource").map((resource) => resource.amount);
     expect(afterAmounts.some((amount, index) => amount < beforeAmounts[index]!)).toBe(true);
+  });
+
+  it("keeps every authored civilian connected to a legal deposit route on all three layouts", () => {
+    for (const layoutId of ["pinehold", "riverstead", "highcrag"] as const) {
+      let state = createInitialState({
+        seed: 235,
+        matchId: `civilian-routes-${layoutId}`,
+        map: { id: "villageAssault", width: 18, height: 16, layoutId },
+      });
+      const civilianIds = state.entities
+        .filter((entity) => entity.kind === "unit" && entity.typeId === "villager")
+        .map((entity) => entity.id)
+        .sort();
+      const deposited = new Set<string>();
+      for (let tick = 0; tick < 1_200 && deposited.size < civilianIds.length; tick += 1) {
+        const stepped = stepSimulation(state, [], 1);
+        state = stepped.state;
+        for (const event of stepped.events) if (event.type === "resourcesDeposited") deposited.add(event.unitId);
+      }
+      expect([...deposited].sort(), `${layoutId} must not trap an authored worker`).toEqual(civilianIds);
+    }
   });
 
   it("allows an explicit neutral-monster attack, delays retaliation, and grants contribution-based rewards once", () => {

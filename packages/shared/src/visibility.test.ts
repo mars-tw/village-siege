@@ -211,6 +211,58 @@ describe("deterministic player visibility", () => {
     ]);
   });
 
+  it("projects only visible hostile tactical signals and rebuilds their privacy-safe payload", () => {
+    const state = createSeparatedMatch();
+    const ownUnit = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    const visibleEnemy = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-2")!;
+    const hiddenEnemy = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-2")!;
+    visibleEnemy.position = { x: ownUnit.position.x + 1, y: ownUnit.position.y };
+    updateVisibilityState(state);
+
+    const visibleWithPrivateFields = {
+      type: "tacticalSignalRaised",
+      actingPlayerId: "player-2",
+      signal: "retreating",
+      anchorEntityId: visibleEnemy.id,
+      emittedAtTick: state.tick,
+      targetPosition: { ...hiddenEnemy.position },
+      memberIds: [visibleEnemy.id, hiddenEnemy.id],
+    } as unknown as DomainEvent;
+    const events: DomainEvent[] = [
+      visibleWithPrivateFields,
+      { type: "tacticalSignalRaised", actingPlayerId: "player-2", signal: "assaulting", anchorEntityId: hiddenEnemy.id, emittedAtTick: state.tick },
+      { type: "tacticalSignalRaised", actingPlayerId: "player-2", signal: "alarm", anchorEntityId: ownUnit.id, emittedAtTick: state.tick },
+      { type: "tacticalSignalRaised", actingPlayerId: "player-1", signal: "scouting", anchorEntityId: ownUnit.id, emittedAtTick: state.tick },
+    ];
+
+    expect(isEntityVisibleToPlayer(state, "player-1", visibleEnemy)).toBe(true);
+    expect(isEntityVisibleToPlayer(state, "player-1", hiddenEnemy)).toBe(false);
+    expect(projectDomainEventsForPlayer(state, "player-1", { serverTick: state.tick, events })).toEqual([{
+      type: "tacticalSignalRaised",
+      actingPlayerId: "player-2",
+      signal: "retreating",
+      anchorEntityId: visibleEnemy.id,
+      emittedAtTick: state.tick,
+    }]);
+  });
+
+  it("keeps a hostile tactical signal when its visible anchor is removed in the same frame", () => {
+    const state = createSeparatedMatch();
+    const ownUnit = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    const enemy = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-2")!;
+    enemy.position = { x: ownUnit.position.x + 1, y: ownUnit.position.y };
+    updateVisibilityState(state);
+    const removed = toPublicEntity(enemy);
+    state.entities = state.entities.filter((entity) => entity.id !== enemy.id);
+    updateVisibilityState(state);
+    const events: DomainEvent[] = [
+      { type: "entityRemoved", entityId: enemy.id, entity: removed },
+      { type: "tacticalSignalRaised", actingPlayerId: "player-2", signal: "retreating", anchorEntityId: enemy.id, emittedAtTick: state.tick },
+    ];
+
+    expect(projectDomainEventsForPlayer(state, "player-1", { serverTick: state.tick, events })).toEqual(events);
+  });
+
   it("keeps a same-tick fatal monster provocation visible without leaking its hidden source team", () => {
     const state = createInitialState({
       seed: 81,

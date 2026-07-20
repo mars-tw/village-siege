@@ -26,6 +26,7 @@ import {
   isVillageAssaultLayoutId,
   isVillageAssaultWalkableCell,
 } from "./battlefield.js";
+import { createAiAuthorityState } from "./aiAuthority.js";
 import { normalizeSeed } from "./random.js";
 import {
   COMBAT_UNITS,
@@ -57,6 +58,9 @@ import {
 } from "./visibility.js";
 import {
   isCommandEnvelope,
+  type AiAuthorityState,
+  type AiDifficulty,
+  type AiPersonality,
   type AbilityTarget,
   type ActiveMonsterBoon,
   type BuildingType,
@@ -288,6 +292,7 @@ export interface MatchState {
   phase: MatchPhase;
   map: { id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; width: number; height: number; layoutId?: PlayableVillageId };
   players: PlayerState[];
+  aiControllers: AiAuthorityState[];
   entities: EntityState[];
   projectiles: ProjectileState[];
   visibilityByPlayer: PlayerVisibilityState[];
@@ -301,6 +306,7 @@ export interface InitialPlayer {
   readonly id: PlayerId;
   readonly teamId: string;
   readonly villageId: VillageId;
+  readonly ai?: { readonly personality: AiPersonality; readonly difficulty?: AiDifficulty };
 }
 
 export interface CreateInitialStateOptions {
@@ -383,7 +389,9 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
         : {}),
     },
     players: participants.map((participant) => ({
-      ...participant,
+      id: participant.id,
+      teamId: participant.teamId,
+      villageId: participant.villageId,
       resources: { ...STARTING_RESOURCES },
       population: { used: 0, capacity: 0 },
       settlementTier: "frontier",
@@ -394,6 +402,15 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
       surrendered: false,
       eliminated: false,
     })),
+    aiControllers: participants
+      .filter((participant) => participant.ai !== undefined)
+      .map((participant) => createAiAuthorityState(
+        participant.ai!.personality,
+        participant.id,
+        options.seed ?? 1,
+        participant.ai!.difficulty ?? "standard",
+      ))
+      .sort((left, right) => compareText(left.playerId, right.playerId)),
     entities: [],
     projectiles: [],
     visibilityByPlayer: createPlayerVisibilityStates(participants.map((participant) => participant.id)),
@@ -802,6 +819,27 @@ export function projectDomainEventsForPlayer(
           ? isEntityVisibleToPlayer(state, playerId, resource)
           : isPublicEntityVisibleToPlayer(state, playerId, removedById.get(event.resourceId));
         if (resourceVisible) projected.push(event);
+        break;
+      }
+      case "tacticalSignalRaised": {
+        const anchor = state.entities.find((candidate) => candidate.id === event.anchorEntityId);
+        const removedAnchor = removedById.get(event.anchorEntityId);
+        const anchorOwnerId = anchor?.ownerId ?? removedAnchor?.ownerId;
+        const anchorVisible = anchor
+          ? isEntityVisibleToPlayer(state, playerId, anchor)
+          : isPublicEntityVisibleToPlayer(state, playerId, removedAnchor);
+        if (!arePlayersHostile(state, playerId, event.actingPlayerId)
+          || anchorOwnerId !== event.actingPlayerId
+          || !anchorVisible) break;
+        // Rebuild the public payload so runtime-only planner details can never
+        // survive projection through an accidentally widened event object.
+        projected.push({
+          type: "tacticalSignalRaised",
+          actingPlayerId: event.actingPlayerId,
+          signal: event.signal,
+          anchorEntityId: event.anchorEntityId,
+          emittedAtTick: event.emittedAtTick,
+        });
         break;
       }
       case "monsterProvoked": {

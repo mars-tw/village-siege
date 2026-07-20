@@ -2,13 +2,12 @@ import {
   TICK_MILLISECONDS,
   VILLAGE_ASSAULT_MAP_ID,
   applyCommand,
-  createAiController,
   createInitialState,
   getAiObservation,
   projectDomainEventsForPlayer,
+  reduceAi,
   stepSimulation,
   toVisibleSnapshot,
-  type AiController,
   type AiDifficulty,
   type AiPersonality,
   type CommandEnvelope,
@@ -20,6 +19,7 @@ import {
   type VisibleSnapshot,
   type VillageId,
 } from "@village-siege/shared";
+import { deriveVisibleTacticalSignalRaised } from "./aiTacticalSignals";
 
 export const VILLAGE_ASSAULT_PLAYER_ID = "player-1";
 export const VILLAGE_ASSAULT_AI_ID = "player-2";
@@ -73,10 +73,8 @@ export class VillageAssaultRuntime {
   readonly aiPlayerId = VILLAGE_ASSAULT_AI_ID;
 
   private matchState: MatchState;
-  private readonly aiController: AiController;
   private readonly aiBudgetMs: number;
   private playerSequence = 0;
-  private aiSequence = 0;
   private accumulatorMs = 0;
   private latestEvents: readonly DomainEvent[] = [];
   private rejectedCommand: VillageAssaultRejectedCommand | null = null;
@@ -91,16 +89,18 @@ export class VillageAssaultRuntime {
       map: { ...VILLAGE_ASSAULT_MAP_SIZE, layoutId: getPlayableLayoutId(options.playerVillageId) },
       players: [
         { id: this.playerId, teamId: "team-player", villageId: options.playerVillageId },
-        { id: this.aiPlayerId, teamId: "team-ai", villageId: aiVillageId },
+        {
+          id: this.aiPlayerId,
+          teamId: "team-ai",
+          villageId: aiVillageId,
+          ai: {
+            personality: options.aiPersonality,
+            difficulty: options.aiDifficulty ?? "standard",
+          },
+        },
       ],
     });
     this.aiBudgetMs = normalizeAiBudget(options.aiBudgetMs);
-    this.aiController = createAiController(
-      options.aiPersonality,
-      this.aiPlayerId,
-      options.seed ?? 1,
-      options.aiDifficulty ?? "standard",
-    );
   }
 
   get state(): MatchState {
@@ -188,23 +188,55 @@ export class VillageAssaultRuntime {
   }
 
   private runAiDecision(events: DomainEvent[]): void {
-    const observation = getAiObservation(this.matchState, this.aiPlayerId);
-    const commands = this.aiController.decide(observation, this.aiBudgetMs);
-    for (const command of commands) {
-      const sequence = this.aiSequence;
-      this.aiSequence += 1;
-      const applied = applyCommand(
-        this.matchState,
-        this.createEnvelope(this.aiPlayerId, sequence, command),
+    const aiPlayerIds = this.matchState.aiControllers
+      .map((authority) => authority.playerId)
+      .sort(compareText);
+
+    for (const playerId of aiPlayerIds) {
+      const authority = this.matchState.aiControllers.find((candidate) => candidate.playerId === playerId);
+      if (!authority) continue;
+
+      const reduced = reduceAi(
+        authority,
+        getAiObservation(this.matchState, playerId),
+        this.aiBudgetMs,
       );
-      this.matchState = applied.state;
-      events.push(...applied.events);
-      if (!applied.validation.ok) {
-        this.rejectedCommand = {
-          source: "ai",
-          sequence,
-          code: applied.validation.code,
+      const tacticalSignal = deriveVisibleTacticalSignalRaised(
+        this.matchState,
+        this.playerId,
+        authority,
+        reduced.authority,
+        reduced.commands,
+      );
+      let phaseActionCommitted = reduced.commands.length === 0;
+
+      for (const command of reduced.commands) {
+        const player = this.matchState.players.find((candidate) => candidate.id === playerId);
+        if (!player) break;
+        const sequence = player.lastSequence + 1;
+        const applied = applyCommand(
+          this.matchState,
+          this.createEnvelope(playerId, sequence, command),
+        );
+        this.matchState = applied.state;
+        events.push(...applied.events);
+        if (applied.validation.ok) phaseActionCommitted = true;
+        if (!applied.validation.ok) {
+          this.rejectedCommand = {
+            source: "ai",
+            sequence,
+            code: applied.validation.code,
+          };
+        }
+      }
+      if (phaseActionCommitted) {
+        this.matchState = {
+          ...this.matchState,
+          aiControllers: this.matchState.aiControllers
+            .map((candidate) => candidate.playerId === playerId ? reduced.authority : candidate)
+            .sort((left, right) => compareText(left.playerId, right.playerId)),
         };
+        if (tacticalSignal) events.push(tacticalSignal);
       }
     }
   }
@@ -248,4 +280,8 @@ function normalizeAiBudget(value: number | undefined): number {
   if (value === undefined) return 5;
   if (!Number.isFinite(value) || value <= 0) throw new RangeError("aiBudgetMs must be a finite positive number");
   return value;
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

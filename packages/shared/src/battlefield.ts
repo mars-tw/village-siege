@@ -84,7 +84,7 @@ const PINEHOLD_TERRAIN_ROWS = [
   "GGGGSSSWWSSSSGGGGG",
   "GSSSSSSWWSSSSSSSSG",
   "GGGGGSSWWSSGGGGGGG",
-  "TRGGGGSSSSGGGGRRGT",
+  "TRGGGGSSSSGGGGGRGT",
   "TGGGGGSSSSSSGGGGGT",
   "TGGGGGSSSSSSGGGGGT",
   "TRGGGGSSSSGGGGRRGT",
@@ -335,7 +335,7 @@ function makeStartSlot(
         resourceAnchor(`${id}-stone`, "stone", { x: 12, y: 9 }),
       ];
   const civilianSpawns = west
-    ? [{ x: 3, y: 5 }, { x: 4, y: 6 }, { x: 4, y: 9 }]
+    ? [{ x: 4, y: 6 }, { x: 5, y: 8 }, { x: 4, y: 9 }]
     : [{ x: 13, y: 6 }, { x: 12, y: 7 }, { x: 13, y: 9 }];
   const civilianRoles = ["gatherer", "porter", "mason"] as const satisfies readonly VillageAssaultCivilianRole[];
   return {

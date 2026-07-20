@@ -80,7 +80,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-014 | Add strategic AI scouting memory, counter-composition, wall defense, repair, retreat, regroup and multi-wave assault planners. |  |  |
+| TASK-014 | Add strategic AI scouting memory, counter-composition, wall defense, repair, retreat, regroup and multi-wave assault planners. | Yes | 2026-07-21 |
 | TASK-015 | Add conquest, elimination, landmark and timed-control victory policies with deterministic scoring and result events. |  |  |
 | TASK-016 | Add versioned save snapshots, command journals, replay import/export and incompatible-version rejection. |  |  |
 | TASK-017 | Add an interactive touch-completable tutorial covering economy, era, research, fog, combat, breach and victory. |  |  |

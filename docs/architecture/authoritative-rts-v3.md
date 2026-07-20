@@ -97,6 +97,18 @@ Miremaw, Ashwing and Rootback remain neutral until damaged, then retaliate only 
 
 Defeat rewards are deterministic and divided across active members of the credited team. The temporary rewards—gather rate, movement speed or attack damage—are stored on player state, expire by server tick and appear in filtered snapshots. Fatal same-tick provocation and removal events may publish the visible monster, but a hidden attacker ID and team are masked. The client only renders terrain, workers, monsters, breach effects and reward timers from those authoritative contracts.
 
+## Strategic AI authority contract
+
+Rules version `village-siege/0.11.0` stores every configured AI controller in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator.
+
+The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Versioned command-journal export and replay orchestration remain explicitly scoped to `TASK-016`.
+
+AI observation is an owner-private view assembled from current fog authority. Mobile enemy memories expire after a fixed lifetime; static enemy topology persists only while the authoritative last-sighting record remains, and is removed when its footprint is re-scouted empty. Hidden unit, gate, wall or tower mutations cannot change planner output. Human `VisibleSnapshot` data never contains AI authority state, internal thresholds, target paths, force counts or wave numbers.
+
+Scouting chooses deterministic unexplored frontier cells. Counter composition weights only authorized sightings, subtracts owned and queued coverage, holds a choice for a personality-specific interval and requires a score margin before switching. Repair uses unloaded non-construction workers and prioritizes gate, town center, tower, wall, then economy. Retreat and regroup use integer force/health thresholds, a phase lock and a home reserve; assaults persist sorted member IDs, baseline strength, target memory and cooldown so reinforcements create later waves instead of repeated per-decision attack orders.
+
+The observed spatial model is layout-aware for Pinehold, Riverstead and Highcrag. Walk blocking respects closed gates and walls while rubble remains walkable; placement blocking retains rubble and every occupied footprint. Build, rally and gather candidates are restricted to currently visible, deterministic reachable routes. A projected `tacticalSignalRaised` event may expose only a coarse phase cue anchored to a currently visible hostile entity; it never exposes the private plan.
+
 ## Tactical combat contract
 
 Rules version `village-siege/0.9.0` has one canonical combat roster: `villager` plus `warrior`, `shieldBearer`, `archer`, `mage`, `musketeer`, `boarRider` and `heavyCrossbowman`. Formal unit content derives combat hit points, damage, cadence, range, speed, cost, population and training time from that roster rather than maintaining a second simulation table.
