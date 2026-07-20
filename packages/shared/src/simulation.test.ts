@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { nextUint32 } from "./random";
 import { isVillageAssaultWalkableCell } from "./battlefield";
+import { BUILDINGS, RULES_VERSION, SETTLEMENT_TIERS, UNITS } from "./content";
 import {
   applyCommand,
   createInitialState,
@@ -10,15 +11,225 @@ import {
   isBuildLocationAvailable,
   stepSimulation,
   validateCommand,
+  type BuildingEntityState,
   type MatchState,
 } from "./simulation";
-import type { CommandEnvelope } from "./protocol";
+import type { BuildingType, CommandEnvelope, GridPoint, PlayerId } from "./protocol";
 
 function envelope(state: MatchState, sequence: number, command: CommandEnvelope["command"]): CommandEnvelope {
   return { matchId: state.matchId, playerId: "player-1", sequence, clientTick: state.tick, command };
 }
 
+function addCompletedBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingType, id: string, position: GridPoint): BuildingEntityState {
+  const definition = BUILDINGS[typeId];
+  const building: BuildingEntityState = {
+    id,
+    ownerId,
+    kind: "building",
+    typeId,
+    position,
+    hitPoints: definition.maxHitPoints,
+    maxHitPoints: definition.maxHitPoints,
+    stateRevision: 0,
+    complete: true,
+    constructionRemainingTicks: 0,
+    attackCooldownTicks: 0,
+    trainingQueue: [],
+  };
+  state.entities.push(building);
+  return building;
+}
+
+function prepareStrongholdAdvance(state: MatchState): BuildingEntityState {
+  const player = state.players.find((candidate) => candidate.id === "player-1")!;
+  player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+  addCompletedBuilding(state, player.id, "barracks", "prerequisite-barracks", { x: 18, y: 18 });
+  addCompletedBuilding(state, player.id, "lumberCamp", "prerequisite-lumber-camp", { x: 21, y: 18 });
+  return state.entities.find((entity): entity is BuildingEntityState => (
+    entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter"
+  ))!;
+}
+
 describe("deterministic shared simulation", () => {
+  it("defines the original three-tier settlement content and frontier defaults", () => {
+    const state = createInitialState({ seed: 1, matchId: "settlement-content" });
+
+    expect(RULES_VERSION).toBe("village-siege/0.3.0");
+    expect(SETTLEMENT_TIERS).toEqual({
+      frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
+      stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
+      artificer: { id: "artificer", cost: { food: 750, wood: 500, stone: 300 }, advanceTicks: 600, prerequisites: ["archeryRange", "beastStable"] },
+    });
+    expect(state.players.every((player) => player.settlementTier === "frontier" && player.advancement === null)).toBe(true);
+    expect(Object.fromEntries(Object.entries(BUILDINGS).map(([id, definition]) => [id, definition.requiredTier]))).toEqual({
+      townCenter: "frontier",
+      house: "frontier",
+      lumberCamp: "frontier",
+      farmstead: "frontier",
+      barracks: "frontier",
+      defenseTower: "stronghold",
+      archeryRange: "stronghold",
+      mageSanctum: "artificer",
+      gunWorkshop: "artificer",
+      beastStable: "stronghold",
+      siegeWorkshop: "artificer",
+    });
+    expect(Object.fromEntries(Object.entries(UNITS).map(([id, definition]) => [id, definition.requiredTier]))).toEqual({
+      villager: "frontier",
+      militia: "frontier",
+      spearman: "frontier",
+      archer: "stronghold",
+      mage: "artificer",
+      musketeer: "artificer",
+      scout: "stronghold",
+      batteringRam: "artificer",
+    });
+  });
+
+  it("enforces settlement tiers for building and training", () => {
+    const state = createInitialState({ seed: 2, matchId: "tier-gates" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const villager = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
+    const range = addCompletedBuilding(state, player.id, "archeryRange", "test-archery-range", { x: 18, y: 18 });
+
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "build",
+      builderIds: [villager.id],
+      buildingType: "defenseTower",
+      origin: { x: 12, y: 12 },
+    }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "train",
+      producerId: range.id,
+      unitType: "archer",
+      count: 1,
+    }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+
+    player.settlementTier = "stronghold";
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "build",
+      builderIds: [villager.id],
+      buildingType: "defenseTower",
+      origin: { x: 12, y: 12 },
+    }))).toEqual({ ok: true });
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "train",
+      producerId: range.id,
+      unitType: "archer",
+      count: 1,
+    }))).toEqual({ ok: true });
+    expect(validateCommand(state, envelope(state, 0, {
+      type: "build",
+      builderIds: [villager.id],
+      buildingType: "siegeWorkshop",
+      origin: { x: 12, y: 12 },
+    }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+  });
+
+  it("rejects invalid, unaffordable, and unprepared settlement advances", () => {
+    const state = createInitialState({ seed: 3, matchId: "advance-validation" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter")!;
+    const foreignCenter = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
+    const house = addCompletedBuilding(state, player.id, "house", "not-a-town-center", { x: 18, y: 18 });
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+
+    expect(validateCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: foreignCenter.id, targetTier: "stronghold" }))).toEqual({ ok: false, code: "ENTITY_NOT_OWNED" });
+    expect(validateCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: house.id, targetTier: "stronghold" }))).toEqual({ ok: false, code: "INVALID_PAYLOAD" });
+    expect(validateCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "frontier" }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+    expect(validateCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "artificer" }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+    expect(validateCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "stronghold" }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+
+    addCompletedBuilding(state, player.id, "barracks", "validation-barracks", { x: 21, y: 18 });
+    addCompletedBuilding(state, player.id, "lumberCamp", "validation-lumber-camp", { x: 24, y: 18 });
+    player.resources = { food: 499, wood: 300, stone: 100 };
+    expect(validateCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "stronghold" }))).toEqual({ ok: false, code: "INSUFFICIENT_RESOURCES" });
+
+    townCenter.complete = false;
+    player.resources = { food: 500, wood: 300, stone: 100 };
+    expect(validateCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "stronghold" }))).toEqual({ ok: false, code: "ACTION_ON_COOLDOWN" });
+  });
+
+  it("deducts once and atomically completes each settlement advance on its exact tick", () => {
+    let state = createInitialState({ seed: 4, matchId: "advance-lifecycle" });
+    const townCenter = prepareStrongholdAdvance(state);
+    const start = applyCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "stronghold" }));
+    expect(start.validation).toEqual({ ok: true });
+    expect(start.state.players[0]).toMatchObject({
+      resources: { food: 4_500, wood: 4_700, stone: 4_900 },
+      settlementTier: "frontier",
+      advancement: { producerId: townCenter.id, targetTier: "stronghold", remainingTicks: 450 },
+    });
+    expect(start.events.some((event) => event.type === "settlementAdvanced")).toBe(false);
+
+    const duplicate = applyCommand(start.state, envelope(start.state, 1, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "stronghold" }));
+    expect(duplicate.validation).toEqual({ ok: false, code: "ACTION_ON_COOLDOWN" });
+    expect(duplicate.state.players[0]!.resources).toEqual({ food: 4_500, wood: 4_700, stone: 4_900 });
+
+    const pending = stepSimulation(start.state, [], 449);
+    expect(pending.state.players[0]).toMatchObject({
+      settlementTier: "frontier",
+      advancement: { producerId: townCenter.id, targetTier: "stronghold", remainingTicks: 1 },
+    });
+    expect(pending.events.some((event) => event.type === "settlementAdvanced")).toBe(false);
+
+    const completed = stepSimulation(pending.state, [], 1);
+    expect(completed.state.players[0]).toMatchObject({ settlementTier: "stronghold", advancement: null });
+    expect(completed.events).toContainEqual({
+      type: "settlementAdvanced",
+      playerId: "player-1",
+      producerId: townCenter.id,
+      settlementTier: "stronghold",
+    });
+    expect(validateCommand(completed.state, envelope(completed.state, 1, {
+      type: "advanceSettlement",
+      producerId: townCenter.id,
+      targetTier: "stronghold",
+    }))).toEqual({ ok: false, code: "PREREQUISITE_NOT_MET" });
+
+    state = completed.state;
+    addCompletedBuilding(state, "player-1", "archeryRange", "prerequisite-archery-range", { x: 18, y: 22 });
+    addCompletedBuilding(state, "player-1", "beastStable", "prerequisite-beast-stable", { x: 21, y: 22 });
+    const artificer = applyCommand(state, envelope(state, 1, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "artificer" }));
+    expect(artificer.validation).toEqual({ ok: true });
+    const final = stepSimulation(artificer.state, [], 600);
+    expect(final.state.players[0]).toMatchObject({ settlementTier: "artificer", advancement: null });
+    expect(final.events).toContainEqual({
+      type: "settlementAdvanced",
+      playerId: "player-1",
+      producerId: townCenter.id,
+      settlementTier: "artificer",
+    });
+  });
+
+  it("cancels a pending advance without refund when its town center is destroyed", () => {
+    const state = createInitialState({ seed: 5, matchId: "advance-cancelled" });
+    const townCenter = prepareStrongholdAdvance(state);
+    const started = applyCommand(state, envelope(state, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "stronghold" }));
+    const paidResources = { ...started.state.players[0]!.resources };
+    const producer = started.state.entities.find((entity) => entity.id === townCenter.id)!;
+    producer.hitPoints = 0;
+
+    const cancelled = stepSimulation(started.state, [], 1);
+    expect(cancelled.state.players[0]).toMatchObject({ settlementTier: "frontier", advancement: null, resources: paidResources });
+    expect(cancelled.state.entities.some((entity) => entity.id === townCenter.id)).toBe(false);
+    expect(cancelled.events).toContainEqual({ type: "entityRemoved", entityId: townCenter.id, reason: "destroyed" });
+    expect(cancelled.events.some((event) => event.type === "settlementAdvanced")).toBe(false);
+  });
+
+  it("includes settlement advancement in deterministic state and replay hashes", () => {
+    const initial = createInitialState({ seed: 6, matchId: "advance-replay" });
+    const townCenter = prepareStrongholdAdvance(initial);
+    const commands = [envelope(initial, 0, { type: "advanceSettlement", producerId: townCenter.id, targetTier: "stronghold" })];
+
+    const first = stepSimulation(initial, commands, 450).state;
+    const second = stepSimulation(initial, commands, 450).state;
+    expect(first.players[0]).toMatchObject({ settlementTier: "stronghold", advancement: null });
+    expect(hashMatchState(first)).toBe(hashMatchState(second));
+    expect(hashReplay(initial, commands, 450)).toBe(hashReplay(initial, commands, 450));
+  });
+
   it("repeats seeded random values and replay hashes", () => {
     const randomA = nextUint32(20260717);
     const randomB = nextUint32(20260717);

@@ -3,6 +3,8 @@ import {
   MAX_TRAINING_QUEUE_DEPTH,
   MAX_UNITS_PER_PLAYER,
   RULES_VERSION,
+  SETTLEMENT_TIERS,
+  SETTLEMENT_TIER_ORDER,
   STARTING_RESOURCES,
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
@@ -34,6 +36,7 @@ import {
   type PublicEntityState,
   type ResourceKind,
   type ResourceWallet,
+  type SettlementTier,
   type UnitType,
   type VillageId,
 } from "./protocol.js";
@@ -101,6 +104,8 @@ export interface PlayerState {
   villageId: VillageId;
   resources: ResourceWallet;
   population: { used: number; capacity: number };
+  settlementTier: SettlementTier;
+  advancement: { producerId: EntityId; targetTier: SettlementTier; remainingTicks: number } | null;
   lastSequence: number;
   surrendered: boolean;
   eliminated: boolean;
@@ -198,6 +203,8 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
       ...participant,
       resources: { ...STARTING_RESOURCES },
       population: { used: 0, capacity: 0 },
+      settlementTier: "frontier",
+      advancement: null,
       lastSequence: -1,
       surrendered: false,
       eliminated: false,
@@ -335,11 +342,24 @@ export function isBuildLocationAvailable(state: MatchState, buildingType: Buildi
 
 function validateGameCommand(state: MatchState, player: PlayerState, command: GameCommand): CommandValidation {
   if (command.type === "surrender") return { ok: true };
+  if (command.type === "advanceSettlement") {
+    const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
+    if (!producer || producer.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
+    if (producer.typeId !== "townCenter") return rejected("INVALID_PAYLOAD");
+    if (!producer.complete || player.advancement !== null) return rejected("ACTION_ON_COOLDOWN");
+    const currentIndex = SETTLEMENT_TIER_ORDER.indexOf(player.settlementTier);
+    const targetIndex = SETTLEMENT_TIER_ORDER.indexOf(command.targetTier);
+    if (targetIndex !== currentIndex + 1) return rejected("PREREQUISITE_NOT_MET");
+    const definition = SETTLEMENT_TIERS[command.targetTier];
+    if (!hasCompletedPrerequisites(state, player.id, definition.prerequisites)) return rejected("PREREQUISITE_NOT_MET");
+    return canAfford(player.resources, definition.cost) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
+  }
   if (command.type === "build") {
     const builders = ownedUnits(state, player.id, command.builderIds);
     if (!builders) return rejected("ENTITY_NOT_OWNED");
     if (builders.some((builder) => builder.typeId !== "villager")) return rejected("INVALID_PAYLOAD");
     if (!isBuildLocationAvailable(state, command.buildingType, command.origin)) return rejected("TARGET_NOT_REACHABLE");
+    if (!meetsTier(player.settlementTier, BUILDINGS[command.buildingType].requiredTier)) return rejected("PREREQUISITE_NOT_MET");
     return canAfford(player.resources, BUILDINGS[command.buildingType].cost) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
   if (command.type === "train") {
@@ -348,6 +368,7 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     if (!producer.complete || producer.trainingQueue.length + command.count > MAX_TRAINING_QUEUE_DEPTH) return rejected("ACTION_ON_COOLDOWN");
     const definition = UNITS[command.unitType];
     if (!definition.producers.includes(producer.typeId)) return rejected("INVALID_PAYLOAD");
+    if (!meetsTier(player.settlementTier, definition.requiredTier)) return rejected("PREREQUISITE_NOT_MET");
     if (usedPopulation(state, player.id) + queuedPopulation(state, player.id) + definition.population * command.count > player.population.capacity || countUnits(state, player.id) + command.count > MAX_UNITS_PER_PLAYER) return rejected("ACTION_ON_COOLDOWN");
     return canAfford(player.resources, multiplyWallet(definition.cost, command.count)) ? { ok: true } : rejected("INSUFFICIENT_RESOURCES");
   }
@@ -401,6 +422,18 @@ function applyGameCommand(state: MatchState, player: PlayerState, command: GameC
       producer.stateRevision += 1;
       break;
     }
+    case "advanceSettlement": {
+      const definition = SETTLEMENT_TIERS[command.targetTier];
+      subtractWallet(player, definition.cost);
+      player.advancement = {
+        producerId: command.producerId,
+        targetTier: command.targetTier,
+        remainingTicks: definition.advanceTicks,
+      };
+      const producer = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.producerId && entity.kind === "building");
+      if (producer) producer.stateRevision += 1;
+      break;
+    }
     case "surrender":
       player.surrendered = true;
       player.eliminated = true;
@@ -427,6 +460,7 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
     state.entities = state.entities.filter((entity) => !removedIds.has(entity.id));
     for (const entity of removed) events.push({ type: "entityRemoved", entityId: entity.id, reason: entity.kind === "resource" ? "completed" : "destroyed" });
   }
+  updateSettlementAdvancements(state, events);
   syncPopulation(state);
   evaluateVictory(state, events);
 }
@@ -616,6 +650,50 @@ function ownedUnits(state: MatchState, ownerId: PlayerId, ids: readonly EntityId
     units.push(entity);
   }
   return units;
+}
+
+function hasCompletedPrerequisites(state: MatchState, playerId: PlayerId, prerequisites: readonly BuildingType[]): boolean {
+  return prerequisites.every((buildingType) => state.entities.some((entity) => (
+    entity.kind === "building"
+    && entity.ownerId === playerId
+    && entity.typeId === buildingType
+    && entity.complete
+    && entity.hitPoints > 0
+  )));
+}
+
+function meetsTier(currentTier: SettlementTier, requiredTier: SettlementTier): boolean {
+  return SETTLEMENT_TIER_ORDER.indexOf(currentTier) >= SETTLEMENT_TIER_ORDER.indexOf(requiredTier);
+}
+
+function updateSettlementAdvancements(state: MatchState, events: DomainEvent[]): void {
+  for (const player of state.players) {
+    const advancement = player.advancement;
+    if (!advancement) continue;
+    const producer = state.entities.find((entity): entity is BuildingEntityState => (
+      entity.id === advancement.producerId
+      && entity.kind === "building"
+      && entity.ownerId === player.id
+      && entity.typeId === "townCenter"
+      && entity.complete
+      && entity.hitPoints > 0
+    ));
+    if (!producer) {
+      player.advancement = null;
+      continue;
+    }
+    advancement.remainingTicks = Math.max(0, advancement.remainingTicks - 1);
+    if (advancement.remainingTicks > 0) continue;
+    player.settlementTier = advancement.targetTier;
+    player.advancement = null;
+    producer.stateRevision += 1;
+    events.push({
+      type: "settlementAdvanced",
+      playerId: player.id,
+      producerId: producer.id,
+      settlementTier: player.settlementTier,
+    });
+  }
 }
 
 function syncPopulation(state: MatchState): void {

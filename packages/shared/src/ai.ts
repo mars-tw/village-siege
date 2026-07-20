@@ -1,4 +1,4 @@
-import { BUILDINGS, MAX_TRAINING_QUEUE_DEPTH, UNITS } from "./content.js";
+import { BUILDINGS, MAX_TRAINING_QUEUE_DEPTH, SETTLEMENT_TIERS, UNITS } from "./content.js";
 import { getVillageAssaultBuildBlockedCells, getVillageAssaultWalkBlockedCells, VILLAGE_ASSAULT_MAP_ID } from "./battlefield.js";
 import { nextUint32, normalizeSeed } from "./random.js";
 import { isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState } from "./simulation.js";
@@ -14,6 +14,7 @@ import type {
   PublicEntityState,
   ResourceKind,
   ResourceWallet,
+  SettlementTier,
   UnitType,
 } from "./protocol.js";
 
@@ -29,6 +30,12 @@ export interface AiObservation {
   readonly selfPlayerId: PlayerId;
   readonly wallet: ResourceWallet;
   readonly population: { readonly used: number; readonly capacity: number };
+  readonly settlementTier: SettlementTier;
+  readonly advancement: {
+    readonly producerId: EntityId;
+    readonly targetTier: SettlementTier;
+    readonly remainingTicks: number;
+  } | null;
   readonly map: { readonly id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; readonly width: number; readonly height: number };
   readonly ownEntities: readonly PublicEntityState[];
   readonly ownTrainingQueueDepth: Readonly<Record<EntityId, number>>;
@@ -54,14 +61,15 @@ export interface AiProfile {
   readonly preferredUnits: readonly UnitType[];
   readonly preferredBuildings: readonly BuildingType[];
   readonly targetPriority: readonly ("townCenter" | "military" | "economy" | "villager")[];
+  readonly advanceAfterTick: Readonly<Record<Exclude<SettlementTier, "frontier">, number>>;
 }
 
 export const AI_PROFILES: Readonly<Record<AiPersonality, AiProfile>> = {
-  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "siegeWorkshop", "house"], targetPriority: ["townCenter", "military", "villager", "economy"] },
-  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "barracks", "archeryRange", "house"], targetPriority: ["military", "townCenter", "villager", "economy"] },
-  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "archeryRange", "siegeWorkshop", "house"], targetPriority: ["economy", "townCenter", "military", "villager"] },
-  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "archeryRange", "mageSanctum", "gunWorkshop", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"] },
-  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["beastStable", "archeryRange", "barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"] },
+  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "siegeWorkshop", "house"], targetPriority: ["townCenter", "military", "villager", "economy"], advanceAfterTick: { stronghold: 260, artificer: 11_000 } },
+  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "barracks", "archeryRange", "house"], targetPriority: ["military", "townCenter", "villager", "economy"], advanceAfterTick: { stronghold: 420, artificer: 14_000 } },
+  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "archeryRange", "siegeWorkshop", "house"], targetPriority: ["economy", "townCenter", "military", "villager"], advanceAfterTick: { stronghold: 520, artificer: 13_000 } },
+  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "archeryRange", "mageSanctum", "gunWorkshop", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"], advanceAfterTick: { stronghold: 360, artificer: 12_000 } },
+  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["beastStable", "archeryRange", "barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"], advanceAfterTick: { stronghold: 220, artificer: 10_500 } },
 };
 
 const DIFFICULTY_INTERVAL: Readonly<Record<AiDifficulty, number>> = { novice: 40, standard: 20, veteran: 10 };
@@ -97,6 +105,8 @@ export function getAiObservation(state: MatchState, playerId: PlayerId, remember
     selfPlayerId: playerId,
     wallet: { ...player.resources },
     population: { ...player.population },
+    settlementTier: player.settlementTier,
+    advancement: player.advancement ? { ...player.advancement } : null,
     map: { ...state.map },
     ownEntities,
     ownTrainingQueueDepth: Object.fromEntries(
@@ -125,12 +135,18 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
   const incompleteBuilding = incompleteIds.size > 0;
   const visibleTarget = chooseTarget(profile, observation.visibleEnemyEntities, randomValue);
 
+  if (observation.advancement) {
+    return advancementSupportCommand(observation, villagers, incompleteBuilding, randomValue);
+  }
+  const progression = settlementProgressionCommand(profile, observation, villagers, randomValue);
+  if (progression) return progression;
+
   switch (profile.id) {
     case "aggressor":
       if (visibleTarget && military.length >= 2) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
       if (military.length >= 3) return advanceTowardEnemy(observation, military);
       if (incompleteBuilding) return null;
-      return productionCommand(observation, villagers, "militia", 1, randomValue);
+      return productionCommand(profile, observation, villagers, "militia", 1, randomValue);
     case "guardian": {
       const home = townCenter?.position;
       const closeEnemy = home && [...observation.visibleEnemyEntities]
@@ -138,11 +154,13 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
         .sort((left, right) => distanceSquared(home, left.position) - distanceSquared(home, right.position) || left.id.localeCompare(right.id))[0];
       if (closeEnemy && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: closeEnemy.id };
       if (incompleteBuilding) return null;
-      if (!observation.ownEntities.some((entity) => entity.kind === "building" && entity.typeId === "defenseTower")) return affordableBuild(observation, villagers, "defenseTower", 2);
+      if (!observation.ownEntities.some((entity) => entity.kind === "building" && entity.typeId === "defenseTower")) {
+        return affordableBuild(observation, villagers, "defenseTower", 2) ?? economyCommand(observation, villagers, randomValue);
+      }
       if (military.length >= 3) return visibleTarget
         ? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
         : defensivePatrol(observation, military, home ?? military[0]!.position);
-      return productionCommand(observation, villagers, "spearman", 1, randomValue);
+      return productionCommand(profile, observation, villagers, "spearman", 1, randomValue);
     }
     case "prosperer":
       if (townCenter && villagers.length < 5 && observation.population.used + 1 <= observation.population.capacity) {
@@ -151,7 +169,7 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
         return economyCommand(observation, villagers, randomValue);
       }
       if (incompleteBuilding) return null;
-      if (military.length < 3) return productionCommand(observation, villagers, "archer", 1, randomValue);
+      if (military.length < 3) return productionCommand(profile, observation, villagers, "archer", 1, randomValue);
       if (military.length >= 3) return visibleTarget
         ? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
         : advanceTowardEnemy(observation, military);
@@ -161,10 +179,13 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
       if (military.length >= 3) return advanceTowardEnemy(observation, military);
       if (incompleteBuilding) return null;
       if (observation.serverTick === 0) return economyCommand(observation, villagers, randomValue);
+      const availableBalancedUnits = (["spearman", "archer", "mage", "musketeer"] as const)
+        .filter((unitType) => tierReached(observation.settlementTier, UNITS[unitType].requiredTier));
       return productionCommand(
+        profile,
         observation,
         villagers,
-        (["spearman", "archer", "mage", "musketeer"] as const)[military.length % 4]!,
+        availableBalancedUnits[military.length % availableBalancedUnits.length]!,
         1,
         randomValue,
       );
@@ -173,7 +194,7 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
       if (military.length >= 2) return advanceTowardEnemy(observation, military);
       if (incompleteBuilding) return null;
       if (military.length > 0) return flankPatrol(observation, military[0]!, randomValue);
-      return productionCommand(observation, villagers, "scout", -1, randomValue);
+      return productionCommand(profile, observation, villagers, "scout", -1, randomValue);
   }
 }
 
@@ -211,6 +232,7 @@ function economyCommand(observation: AiObservation, villagers: readonly PublicEn
 
 function affordableTrain(observation: AiObservation, producerId: EntityId, unitType: UnitType): GameCommand | null {
   const definition = UNITS[unitType];
+  if (!tierReached(observation.settlementTier, definition.requiredTier)) return null;
   if (observation.ownTrainingQueueDepth[producerId] === undefined) return null;
   if (observation.ownTrainingQueueDepth[producerId] >= MAX_TRAINING_QUEUE_DEPTH) return null;
   if (!canAfford(observation.wallet, definition.cost) || observation.population.used + definition.population > observation.population.capacity) return null;
@@ -218,12 +240,17 @@ function affordableTrain(observation: AiObservation, producerId: EntityId, unitT
 }
 
 function productionCommand(
+  profile: AiProfile,
   observation: AiObservation,
   villagers: readonly PublicEntityState[],
   unitType: UnitType,
   direction: number,
   randomValue: number,
 ): GameCommand | null {
+  if (!tierReached(observation.settlementTier, UNITS[unitType].requiredTier)) {
+    return settlementProgressionCommand(profile, observation, villagers, randomValue)
+      ?? economyCommand(observation, villagers, randomValue);
+  }
   const producerType = UNITS[unitType].producers[0];
   if (!producerType) return economyCommand(observation, villagers, randomValue);
   const producer = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === producerType);
@@ -235,10 +262,62 @@ function productionCommand(
 }
 
 function affordableBuild(observation: AiObservation, villagers: readonly PublicEntityState[], buildingType: BuildingType, direction: number): GameCommand | null {
+  if (!tierReached(observation.settlementTier, BUILDINGS[buildingType].requiredTier)) return null;
   if (villagers.length === 0 || !canAfford(observation.wallet, BUILDINGS[buildingType].cost)) return null;
   const anchor = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? villagers[0]!.position;
   const origin = findOpenPoint(observation, anchor, buildingType, direction);
   return origin ? { type: "build", builderIds: [villagers[0]!.id], buildingType, origin } : null;
+}
+
+function settlementProgressionCommand(
+  profile: AiProfile,
+  observation: AiObservation,
+  villagers: readonly PublicEntityState[],
+  randomValue: number,
+): GameCommand | null {
+  const targetTier = nextSettlementTier(observation.settlementTier);
+  if (!targetTier || observation.serverTick < profile.advanceAfterTick[targetTier]) return null;
+  const definition = SETTLEMENT_TIERS[targetTier];
+  const incompleteIds = new Set(observation.ownIncompleteBuildingIds);
+  for (const prerequisite of definition.prerequisites) {
+    const existing = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === prerequisite);
+    if (existing) {
+      if (incompleteIds.has(existing.id)) return null;
+      continue;
+    }
+    return affordableBuild(observation, villagers, prerequisite, profile.mobilityWeight >= profile.defenseWeight ? -1 : 1)
+      ?? economyCommand(observation, villagers, randomValue);
+  }
+  const townCenter = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter");
+  if (!townCenter || incompleteIds.has(townCenter.id)) return economyCommand(observation, villagers, randomValue);
+  if (!canAfford(observation.wallet, definition.cost)) return economyCommand(observation, villagers, randomValue);
+  return { type: "advanceSettlement", producerId: townCenter.id, targetTier };
+}
+
+function advancementSupportCommand(
+  observation: AiObservation,
+  villagers: readonly PublicEntityState[],
+  hasIncompleteBuilding: boolean,
+  randomValue: number,
+): GameCommand | null {
+  if (hasIncompleteBuilding) return null;
+  const populationHeadroom = observation.population.capacity - observation.population.used;
+  if (populationHeadroom <= 2) {
+    const house = affordableBuild(observation, villagers, "house", 1);
+    if (house) return house;
+  }
+  return economyCommand(observation, villagers, randomValue);
+}
+
+function nextSettlementTier(current: SettlementTier): Exclude<SettlementTier, "frontier"> | null {
+  if (current === "frontier") return "stronghold";
+  if (current === "stronghold") return "artificer";
+  return null;
+}
+
+function tierReached(current: SettlementTier, required: SettlementTier): boolean {
+  const rank: Readonly<Record<SettlementTier, number>> = { frontier: 0, stronghold: 1, artificer: 2 };
+  return rank[current] >= rank[required];
 }
 
 function flankPatrol(observation: AiObservation, unit: PublicEntityState, randomValue: number): GameCommand {

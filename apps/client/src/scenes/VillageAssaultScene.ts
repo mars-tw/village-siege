@@ -6,6 +6,8 @@ import {
   getOccupiedMapCells,
   isBuildLocationAvailable,
   MAX_TRAINING_QUEUE_DEPTH,
+  SETTLEMENT_TIER_ORDER,
+  SETTLEMENT_TIERS,
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   UNITS,
@@ -17,6 +19,7 @@ import {
   type GridPoint,
   type ResourceEntityState,
   type ResourceWallet,
+  type SettlementTier,
   type UnitEntityState,
   type UnitType,
   type VillageId,
@@ -112,6 +115,21 @@ const BUILD_PAGES: readonly (readonly BuildingType[])[] = [
   ["archeryRange", "mageSanctum", "gunWorkshop", "beastStable"],
   ["siegeWorkshop", "defenseTower"],
 ];
+const SETTLEMENT_TIER_LABELS: Readonly<Record<SettlementTier, string>> = {
+  frontier: "拓荒期",
+  stronghold: "城寨期",
+  artificer: "工藝期",
+};
+const SETTLEMENT_TIER_SHORT_LABELS: Readonly<Record<SettlementTier, string>> = {
+  frontier: "拓荒",
+  stronghold: "城寨",
+  artificer: "工藝",
+};
+const SETTLEMENT_ADVANCEMENT_NOTICES: Readonly<Record<SettlementTier, string>> = {
+  frontier: "拓荒旗幟已在村鎮升起",
+  stronghold: "城門銅鐘響徹村道｜聚落邁入城寨期",
+  artificer: "爐火與齒輪照亮工坊｜聚落邁入工藝期",
+};
 const UI_WIDTH = 900;
 const UI_BUTTON_WIDTH = 118;
 const UI_BUTTON_HEIGHT = 118;
@@ -255,6 +273,12 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.paused || this.ended || this.orientationBlocked || !this.runtime) return;
     const result = this.runtime.step(Math.min(delta, 250));
     if (result.steps === 0) return;
+    const advancement = result.events.find((event) => (
+      event.type === "settlementAdvanced" && event.playerId === VILLAGE_ASSAULT_PLAYER_ID
+    ));
+    if (advancement?.type === "settlementAdvanced") {
+      this.setNotice(SETTLEMENT_ADVANCEMENT_NOTICES[advancement.settlementTier], "success");
+    }
     this.prefetchQueuedUnitArt();
     this.syncEntityViews(false);
     this.updateUnitAnimations(result.steps * 100);
@@ -569,9 +593,10 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (!force && this.lastUiTick === this.runtime.state.tick) return;
     this.lastUiTick = this.runtime.state.tick;
     const player = this.playerState();
-    this.resourceText?.setText(this.compactUi
-      ? `糧${Math.floor(player.resources.food)}　木${Math.floor(player.resources.wood)}　石${Math.floor(player.resources.stone)}　人${player.population.used}/${player.population.capacity}`
-      : `糧 ${Math.floor(player.resources.food)}   木 ${Math.floor(player.resources.wood)}   石 ${Math.floor(player.resources.stone)}   人口 ${player.population.used}/${player.population.capacity}`);
+    const tierLabel = SETTLEMENT_TIER_LABELS[player.settlementTier];
+    this.resourceText?.setFontSize(this.compactUi ? 20 : 22).setText(this.compactUi
+      ? `${tierLabel}｜糧${Math.floor(player.resources.food)} 木${Math.floor(player.resources.wood)}\n石${Math.floor(player.resources.stone)} 人${player.population.used}/${player.population.capacity}`
+      : `${tierLabel}  糧 ${Math.floor(player.resources.food)}   木 ${Math.floor(player.resources.wood)}   石 ${Math.floor(player.resources.stone)}   人口 ${player.population.used}/${player.population.capacity}`);
     const enemyTown = this.runtime.state.entities.find((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_AI_ID && entity.typeId === "townCenter");
     const rebuild = this.runtime.state.teamTownCenterLostAt.find((entry) => entry.teamId === "team-ai");
     this.objectiveText?.setText(enemyTown
@@ -641,6 +666,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       const trainable = (Object.keys(UNITS) as UnitType[]).filter((type) => UNITS[type].producers.includes(ownBuilding.typeId));
       const contextual: ActionSpec[] = [
         ...trainable.map((type) => this.trainAction(ownBuilding, type)),
+        ...(ownBuilding.typeId === "townCenter" ? [this.advanceSettlementAction(ownBuilding)] : []),
         this.selectWorkersAction(),
         this.selectArmyAction(),
         { glyph: "⌖", label: "置中建築", run: () => this.centerCameraOn(ownBuilding.position) },
@@ -673,15 +699,21 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private buildAction(type: BuildingType): ActionSpec {
-    const affordable = this.canAfford(BUILDINGS[type].cost);
+    const definition = BUILDINGS[type];
+    const unlocked = this.hasReachedTier(definition.requiredTier);
+    const affordable = this.canAfford(definition.cost);
     return {
-      glyph: ({
+      glyph: unlocked ? ({
         townCenter: "城", house: "屋", lumberCamp: "木", farmstead: "糧", barracks: "兵", defenseTower: "塔",
         archeryRange: "弓", mageSanctum: "法", gunWorkshop: "銃", beastStable: "獸", siegeWorkshop: "械",
-      } satisfies Record<BuildingType, string>)[type],
-      label: `${this.shortBuildingName(type)} ${this.shortCost(BUILDINGS[type].cost)}`,
-      accessibleLabel: `建造 ${buildingDisplayName(type)}`,
-      enabled: affordable,
+      } satisfies Record<BuildingType, string>)[type] : "鎖",
+      label: unlocked
+        ? `${this.shortBuildingName(type)} ${this.shortCost(definition.cost)}`
+        : `${this.shortBuildingName(type)} 需${SETTLEMENT_TIER_SHORT_LABELS[definition.requiredTier]}期`,
+      accessibleLabel: unlocked
+        ? `建造 ${buildingDisplayName(type)}`
+        : `${buildingDisplayName(type)}尚未解鎖，需要${SETTLEMENT_TIER_LABELS[definition.requiredTier]}`,
+      enabled: unlocked && affordable,
       run: () => {
         this.buildingPlacement = type;
         this.buildMenuOpen = false;
@@ -696,12 +728,65 @@ export class VillageAssaultScene extends Phaser.Scene {
     const player = this.playerState();
     const artId = UNIT_ART[type];
     const loading = this.pendingArtIds.has(artId);
-    const enabled = !loading && producer.complete && producer.trainingQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
+    const unlocked = this.hasReachedTier(definition.requiredTier);
+    const enabled = unlocked && !loading && producer.complete && producer.trainingQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
     return {
-      glyph: ({ villager: "工", militia: "劍", spearman: "盾", archer: "弓", mage: "法", musketeer: "銃", scout: "豬", batteringRam: "弩" } satisfies Record<UnitType, string>)[type],
-      label: loading ? `${this.shortUnitName(type)} 載入中` : `${this.shortUnitName(type)} ${this.shortCost(definition.cost)}`,
+      glyph: unlocked ? ({ villager: "工", militia: "劍", spearman: "盾", archer: "弓", mage: "法", musketeer: "銃", scout: "豬", batteringRam: "弩" } satisfies Record<UnitType, string>)[type] : "鎖",
+      label: !unlocked
+        ? `${this.shortUnitName(type)} 需${SETTLEMENT_TIER_SHORT_LABELS[definition.requiredTier]}期`
+        : loading ? `${this.shortUnitName(type)} 載入中` : `${this.shortUnitName(type)} ${this.shortCost(definition.cost)}`,
+      accessibleLabel: unlocked
+        ? `訓練${UNIT_LABELS[type]}`
+        : `${UNIT_LABELS[type]}尚未解鎖，需要${SETTLEMENT_TIER_LABELS[definition.requiredTier]}`,
       enabled,
       run: () => this.queueTrainAfterArt(producer.id, type),
+    };
+  }
+
+  private advanceSettlementAction(producer: BuildingEntityState): ActionSpec {
+    const player = this.playerState();
+    const advancement = player.advancement;
+    if (advancement) {
+      const definition = SETTLEMENT_TIERS[advancement.targetTier];
+      const progress = Math.round(Phaser.Math.Clamp(1 - advancement.remainingTicks / definition.advanceTicks, 0, 1) * 100);
+      return {
+        glyph: "時",
+        label: `${SETTLEMENT_TIER_SHORT_LABELS[advancement.targetTier]}期 ${progress}%`,
+        accessibleLabel: `聚落正在升級至${SETTLEMENT_TIER_LABELS[advancement.targetTier]}，已完成百分之${progress}`,
+        enabled: false,
+        run: () => undefined,
+      };
+    }
+    const targetTier = this.nextSettlementTier(player.settlementTier);
+    if (!targetTier) {
+      return {
+        glyph: "◆",
+        label: "聚落已完備",
+        accessibleLabel: `聚落已達最高階段${SETTLEMENT_TIER_LABELS[player.settlementTier]}`,
+        enabled: false,
+        run: () => undefined,
+      };
+    }
+    const definition = SETTLEMENT_TIERS[targetTier];
+    const completedBuildings = new Set(this.runtime.state.entities
+      .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID && entity.complete && entity.hitPoints > 0)
+      .map((entity) => entity.typeId));
+    const missingPrerequisites = definition.prerequisites.filter((type) => !completedBuildings.has(type));
+    const prerequisitesReady = missingPrerequisites.length === 0;
+    const enabled = producer.complete && prerequisitesReady && this.canAfford(definition.cost);
+    return {
+      glyph: prerequisitesReady ? "升" : "鎖",
+      label: prerequisitesReady
+        ? `升${SETTLEMENT_TIER_SHORT_LABELS[targetTier]} ${this.shortCost(definition.cost)}`
+        : `升${SETTLEMENT_TIER_SHORT_LABELS[targetTier]} 缺前置`,
+      accessibleLabel: prerequisitesReady
+        ? `升級聚落至${SETTLEMENT_TIER_LABELS[targetTier]}，需要${this.spokenCost(definition.cost)}`
+        : `尚不能升級至${SETTLEMENT_TIER_LABELS[targetTier]}，需要先完成${missingPrerequisites.map(buildingDisplayName).join("、")}`,
+      enabled,
+      run: () => this.issue(
+        { type: "advanceSettlement", producerId: producer.id, targetTier },
+        `聚落升級開始｜目標 ${SETTLEMENT_TIER_LABELS[targetTier]}`,
+      ),
     };
   }
 
@@ -922,8 +1007,21 @@ export class VillageAssaultScene extends Phaser.Scene {
     return wallet.food >= cost.food && wallet.wood >= cost.wood && wallet.stone >= cost.stone;
   }
 
+  private hasReachedTier(requiredTier: SettlementTier): boolean {
+    return SETTLEMENT_TIER_ORDER.indexOf(this.playerState().settlementTier) >= SETTLEMENT_TIER_ORDER.indexOf(requiredTier);
+  }
+
+  private nextSettlementTier(currentTier: SettlementTier): SettlementTier | null {
+    const next = SETTLEMENT_TIER_ORDER[SETTLEMENT_TIER_ORDER.indexOf(currentTier) + 1];
+    return next ?? null;
+  }
+
   private shortCost(cost: ResourceWallet): string {
     return [cost.food ? `糧${cost.food}` : "", cost.wood ? `木${cost.wood}` : "", cost.stone ? `石${cost.stone}` : ""].filter(Boolean).join("/");
+  }
+
+  private spokenCost(cost: ResourceWallet): string {
+    return [cost.food ? `糧食${cost.food}` : "", cost.wood ? `木材${cost.wood}` : "", cost.stone ? `石材${cost.stone}` : ""].filter(Boolean).join("、");
   }
 
   private shortBuildingName(type: BuildingType): string {
@@ -944,11 +1042,12 @@ export class VillageAssaultScene extends Phaser.Scene {
   private rejectMessage(code: string | null): string {
     return ({
       INSUFFICIENT_RESOURCES: "材料不足，先派工匠採集",
-      ACTION_ON_COOLDOWN: "人口已滿、佇列已滿或建築尚未完成",
+      ACTION_ON_COOLDOWN: "人口／佇列已滿、建築未完成，或聚落正在升級",
       TARGET_NOT_VISIBLE: "目標不在視野內，先派部隊靠近偵查",
       TARGET_NOT_REACHABLE: "目的地無法到達或已被占用",
       ENTITY_NOT_OWNED: "只能指揮自己的單位",
       INVALID_PAYLOAD: "此建築無法生產該單位，或指令不適用",
+      PREREQUISITE_NOT_MET: "聚落階段或前置建築尚未達成",
       MATCH_NOT_PLAYING: "戰局目前沒有進行",
       NOT_ROOM_MEMBER: "玩家不在這場戰局",
       STALE_OR_DUPLICATE_SEQUENCE: "指令序號已失效",
