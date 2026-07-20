@@ -61,6 +61,7 @@ describe("combat data", () => {
     expect(Object.keys(STATUS_EFFECTS)).toEqual([...STATUS_EFFECT_IDS]);
     expect(STATUS_EFFECTS.stagger.grantsStatusId).toBe("tenacity");
     expect(STATUS_EFFECTS.burn.maxStacks).toBe(1);
+    expect(STATUS_EFFECTS.shieldWall.magnitude).toBe(0.45);
     expect(STATUS_EFFECTS.emplaced.stacking).toBe("state");
 
     expect(COMBAT_UNITS.archer.projectileProfileId).toBe("arrow");

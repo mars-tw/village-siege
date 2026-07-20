@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { nextUint32 } from "./random";
 import { isVillageAssaultWalkableCell } from "./battlefield";
 import { BUILDINGS, RESOURCE_NODES, RULES_VERSION, SETTLEMENT_TIERS, TECHNOLOGIES, TECHNOLOGY_ORDER, UNITS } from "./content";
+import { COMBAT_UNIT_IDS, COMBAT_UNITS, COUNTER_MATRIX, calculateDamage, type CombatUnitId } from "./combat";
+import { getAiObservation } from "./ai";
 import {
   applyCommand,
   cloneMatchState,
@@ -17,9 +19,13 @@ import {
   isBuildLocationAvailable,
   isRallyPointAvailable,
   stepSimulation,
+  toPublicEntity,
+  toPublicProjectile,
   validateCommand,
   type BuildingEntityState,
   type MatchState,
+  type ResourceEntityState,
+  type UnitEntityState,
 } from "./simulation";
 import { isGameCommand, type BuildingType, type CommandEnvelope, type DomainEvent, type GridPoint, type PlayerId } from "./protocol";
 
@@ -41,6 +47,7 @@ function addCompletedBuilding(state: MatchState, ownerId: PlayerId, typeId: Buil
     complete: true,
     constructionRemainingTicks: 0,
     attackCooldownTicks: 0,
+    statuses: [],
     rallyPoint: null,
     productionQueue: [],
   };
@@ -58,11 +65,32 @@ function prepareStrongholdAdvance(state: MatchState): BuildingEntityState {
   ))!;
 }
 
+function configureCombatUnit(state: MatchState, ownerId: PlayerId, index: number, typeId: CombatUnitId, position: GridPoint): UnitEntityState {
+  const unit = state.entities.filter((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === ownerId)[index]!;
+  const definition = UNITS[typeId];
+  unit.typeId = typeId;
+  unit.position = { ...position };
+  unit.hitPoints = definition.maxHitPoints;
+  unit.maxHitPoints = definition.maxHitPoints;
+  unit.order = { type: "idle" };
+  unit.movementProgress = 0;
+  unit.attackCooldownTicks = 0;
+  unit.workCooldownTicks = 0;
+  unit.facing = "e";
+  unit.stance = "holdGround";
+  unit.formation = "line";
+  unit.combat = { phase: "ready", action: null, abilityId: null, target: null, commitTick: null, readyTick: 0 };
+  unit.abilityReadyTick = 0;
+  unit.passive = { stationarySinceTick: state.tick, movedTilesSinceAttack: 0, rhythmTargetId: null, rhythmStacks: 0, rhythmLastHitTick: 0, braceCooldownUntilTick: 0 };
+  unit.statuses = [];
+  return unit;
+}
+
 describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.6.0");
+    expect(RULES_VERSION).toBe("village-siege/0.7.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -84,13 +112,13 @@ describe("deterministic shared simulation", () => {
     });
     expect(Object.fromEntries(Object.entries(UNITS).map(([id, definition]) => [id, definition.requiredTier]))).toEqual({
       villager: "frontier",
-      militia: "frontier",
-      spearman: "frontier",
+      warrior: "frontier",
+      shieldBearer: "frontier",
       archer: "stronghold",
       mage: "artificer",
       musketeer: "artificer",
-      scout: "stronghold",
-      batteringRam: "artificer",
+      boarRider: "stronghold",
+      heavyCrossbowman: "artificer",
     });
     expect(UNITS.villager.carryCapacity).toBe(12);
     expect(Object.values(UNITS).filter((unit) => unit.id !== "villager").every((unit) => unit.carryCapacity === 0)).toBe(true);
@@ -537,12 +565,12 @@ describe("deterministic shared simulation", () => {
 
     expect(getEffectiveGatherRatePermille(state, player.id, "villager", "food")).toBe(1_184);
     expect(getEffectiveGatherRatePermille(state, opponent.id, "villager", "food")).toBe(1_000);
-    expect(getEffectiveUnitAttackDamage(state, player.id, "musketeer")).toBe(27);
-    expect(getEffectiveUnitAttackDamage(state, opponent.id, "musketeer")).toBe(24);
-    expect(getEffectiveUnitMaxHitPoints(state, player.id, "militia")).toBe(95);
-    expect(getEffectiveUnitMaxHitPoints(state, opponent.id, "militia")).toBe(85);
-    expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, player.id, "scout")).toBe(2_070);
-    expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, opponent.id, "scout")).toBe(1_854);
+    expect(getEffectiveUnitAttackDamage(state, player.id, "musketeer")).toBe(52);
+    expect(getEffectiveUnitAttackDamage(state, opponent.id, "musketeer")).toBe(46);
+    expect(getEffectiveUnitMaxHitPoints(state, player.id, "warrior")).toBe(168);
+    expect(getEffectiveUnitMaxHitPoints(state, opponent.id, "warrior")).toBe(150);
+    expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, player.id, "boarRider")).toBe(2_012);
+    expect(getEffectiveUnitSpeedMilliTilesPerSecond(state, opponent.id, "boarRider")).toBe(1_802);
     expect(getEffectiveBuildingMaxHitPoints(state, player.id, "townCenter")).toBe(1_320);
     expect(getEffectiveBuildingMaxHitPoints(state, opponent.id, "townCenter")).toBe(1_200);
 
@@ -598,7 +626,7 @@ describe("deterministic shared simulation", () => {
     if (!unit || unit.kind !== "unit") throw new Error("missing player unit");
 
     const previousUsed = player.population.used;
-    unit.typeId = "batteringRam";
+    unit.typeId = "heavyCrossbowman";
     const next = stepSimulation(initial, [], 1).state;
     const nextPlayer = next.players.find((candidate) => candidate.id === player.id)!;
 
@@ -849,11 +877,11 @@ describe("deterministic shared simulation", () => {
     expect(barracks).toMatchObject({ complete: true, constructionRemainingTicks: 0 });
     if (!barracks || barracks.kind !== "building") throw new Error("barracks was not constructed");
 
-    const militiaBefore = state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "militia").length;
-    const trained = applyCommand(state, envelope(state, 3, { type: "train", producerId: barracks.id, unitType: "militia", count: 1 }));
+    const warriorsBefore = state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "warrior").length;
+    const trained = applyCommand(state, envelope(state, 3, { type: "train", producerId: barracks.id, unitType: "warrior", count: 1 }));
     expect(trained.validation).toEqual({ ok: true });
-    state = stepSimulation(trained.state, [], 150).state;
-    expect(state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "militia")).toHaveLength(militiaBefore + 1);
+    state = stepSimulation(trained.state, [], UNITS.warrior.trainTicks).state;
+    expect(state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "warrior")).toHaveLength(warriorsBefore + 1);
     expect(state.players.find((candidate) => candidate.id === player.id)?.population.used).toBe(4);
   });
 
@@ -1167,16 +1195,662 @@ describe("deterministic shared simulation", () => {
     expect(moved.movementProgress).toBeCloseTo(1133);
   });
 
+  it("strictly parses tactical, formation, repair, and ability commands", () => {
+    expect(isGameCommand({ type: "attackMove", entityIds: ["unit-1"], target: { x: 4, y: 5 } })).toBe(true);
+    expect(isGameCommand({ type: "repair", entityIds: ["unit-1"], targetId: "building-1" })).toBe(true);
+    expect(isGameCommand({ type: "setStance", entityIds: ["unit-1"], stance: "holdGround" })).toBe(true);
+    expect(isGameCommand({ type: "setFormation", entityIds: ["unit-1"], formation: "wedge" })).toBe(true);
+    expect(isGameCommand({ type: "castAbility", casterId: "unit-1", abilityId: "armorSunder", target: { kind: "entity", entityId: "unit-2" } })).toBe(true);
+    expect(isGameCommand({ type: "castAbility", casterId: "unit-1", abilityId: "tuskCharge", target: { kind: "direction", vector: { x: 0, y: 0 } } })).toBe(false);
+    expect(isGameCommand({ type: "attackMove", entityIds: ["unit-1"], target: { x: 4, y: 5 }, extra: true })).toBe(false);
+    expect(isGameCommand({ type: "setStance", entityIds: ["unit-1"], stance: "berserk" })).toBe(false);
+  });
+
+  it("uses the seven illustrated combat roles as the single canonical RTS roster", () => {
+    expect(Object.keys(UNITS)).toEqual(["villager", ...COMBAT_UNIT_IDS]);
+    for (const id of COMBAT_UNIT_IDS) {
+      expect(UNITS[id]).toMatchObject({
+        id,
+        cost: COMBAT_UNITS[id].cost,
+        maxHitPoints: COMBAT_UNITS[id].maxHitPoints,
+        attackDamage: COMBAT_UNITS[id].baseDamage,
+        attackRange: COMBAT_UNITS[id].attackRange,
+        population: COMBAT_UNITS[id].population,
+      });
+    }
+  });
+
+  it("rejects allied attacks and excludes allied forces from tower and AI enemy targeting", () => {
+    let state = createInitialState({
+      seed: 320,
+      matchId: "team-safety",
+      players: [
+        { id: "player-1", teamId: "alliance", villageId: "pinehold" },
+        { id: "player-2", teamId: "enemy", villageId: "riverstead" },
+        { id: "player-3", teamId: "alliance", villageId: "highcrag" },
+      ],
+    });
+    const attacker = configureCombatUnit(state, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const enemy = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 5 });
+    const ally = configureCombatUnit(state, "player-3", 0, "warrior", { x: 5, y: 6 });
+    expect(validateCommand(state, envelope(state, 0, { type: "attack", entityIds: [attacker.id], targetId: ally.id }))).toEqual({ ok: false, code: "INVALID_PAYLOAD" });
+    expect(validateCommand(state, envelope(state, 0, { type: "attack", entityIds: [attacker.id], targetId: enemy.id }))).toEqual({ ok: true });
+
+    const tower = addCompletedBuilding(state, "player-1", "defenseTower", "team-tower", { x: 9, y: 9 });
+    ally.position = { x: 10, y: 9 };
+    enemy.position = { x: 25, y: 25 };
+    const allyHp = ally.hitPoints;
+    state = stepSimulation(state, [], BUILDINGS.defenseTower.attackCooldownTicks + 5).state;
+    expect(state.entities.find((entity) => entity.id === ally.id)?.hitPoints).toBe(allyHp);
+    expect(getAiObservation(state, "player-1").visibleEnemyEntities.some((entity) => entity.id === ally.id)).toBe(false);
+    expect(tower.hitPoints).toBeGreaterThan(0);
+  });
+
+  it("applies canonical armor and counter damage through the formal simulation", () => {
+    let state = createInitialState({ seed: 321, matchId: "counter-integration" });
+    const attacker = configureCombatUnit(state, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const defender = configureCombatUnit(state, "player-2", 0, "shieldBearer", { x: 6, y: 5 });
+    const expected = calculateDamage({
+      baseDamage: COMBAT_UNITS.warrior.baseDamage,
+      armor: COMBAT_UNITS.shieldBearer.armor,
+      counterMultiplier: COUNTER_MATRIX.warrior.shieldBearer,
+    });
+    state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [attacker.id], targetId: defender.id })).state;
+    const result = stepSimulation(state, [], UNITS.warrior.attackCooldownTicks);
+    expect(result.events).toContainEqual({ type: "entityDamaged", sourceId: attacker.id, targetId: defender.id, amount: expected, hitPoints: COMBAT_UNITS.shieldBearer.maxHitPoints - expected });
+  });
+
+  it("delays ranged damage until its deterministic projectile impact tick", () => {
+    let state = createInitialState({ seed: 322, matchId: "projectile-impact" });
+    const archer = configureCombatUnit(state, "player-1", 0, "archer", { x: 5, y: 5 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 8, y: 5 });
+    state.entities = [archer, target];
+    const initialHp = target.hitPoints;
+    state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [archer.id], targetId: target.id })).state;
+    const launched = stepSimulation(state, [], 4);
+    expect(launched.events.some((event) => event.type === "projectileSpawned" && event.projectile.profileId === "arrow")).toBe(true);
+    expect(launched.state.entities.find((entity) => entity.id === target.id)?.hitPoints).toBe(initialHp);
+    const impacted = stepSimulation(launched.state, [], 3);
+    expect(impacted.events.some((event) => event.type === "projectileImpacted" && event.targetIds.includes(target.id))).toBe(true);
+    expect(impacted.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBeLessThan(initialHp);
+  });
+
+  it("fizzles an entity-target ability when the target leaves range during windup", () => {
+    let state = createInitialState({ seed: 323, matchId: "ability-range-recheck" });
+    const caster = configureCombatUnit(state, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 5 });
+    state.entities = [caster, target];
+    const initialHp = target.hitPoints;
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility",
+      casterId: caster.id,
+      abilityId: "armorSunder",
+      target: { kind: "entity", entityId: target.id },
+    })).state;
+    state.entities.find((entity) => entity.id === target.id)!.position = { x: 7, y: 5 };
+    const result = stepSimulation(state, [], 5);
+    expect(result.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBe(initialHp);
+    expect(result.events.some((event) => event.type === "entityDamaged" && event.targetId === target.id)).toBe(false);
+  });
+
+  it("rejects unit-target abilities against buildings without mutating state", () => {
+    const state = createInitialState({ seed: 325, matchId: "ability-unit-filter" });
+    const caster = configureCombatUnit(state, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const building = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-2")!;
+    building.position = { x: 6, y: 5 };
+    const before = hashMatchState(state);
+    const result = applyCommand(state, envelope(state, 0, {
+      type: "castAbility",
+      casterId: caster.id,
+      abilityId: "armorSunder",
+      target: { kind: "entity", entityId: building.id },
+    }));
+    expect(result.validation).toEqual({ ok: false, code: "INVALID_PAYLOAD" });
+    expect(hashMatchState(result.state)).toBe(before);
+  });
+
+  it("interrupts an active windup when stagger is applied", () => {
+    let state = createInitialState({ seed: 326, matchId: "stagger-interrupt" });
+    const caster = configureCombatUnit(state, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 5 });
+    state.entities = [caster, target];
+    const initialHp = target.hitPoints;
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility",
+      casterId: caster.id,
+      abilityId: "armorSunder",
+      target: { kind: "entity", entityId: target.id },
+    })).state;
+    const activeCaster = state.entities.find((entity): entity is UnitEntityState => entity.id === caster.id && entity.kind === "unit")!;
+    activeCaster.statuses.push({ id: "stagger", sourceId: target.id, expiresAtTick: state.tick + 8, nextTickAt: null });
+    const result = stepSimulation(state, [], 5);
+    expect(result.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBe(initialHp);
+    expect(result.events).toContainEqual({ type: "combatPhaseChanged", entityId: caster.id, phase: "ready", action: null });
+  });
+
+  it("blocks terrain-sensitive heavy bolts at the village ridge", () => {
+    let state = createInitialState({
+      seed: 324,
+      matchId: "projectile-terrain-block",
+      map: { id: "villageAssault", width: 18, height: 16 },
+      spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
+    });
+    const crossbow = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 10, y: 2 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 2 });
+    state.entities = [crossbow, target];
+    const initialHp = target.hitPoints;
+    state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [crossbow.id], targetId: target.id })).state;
+    const result = stepSimulation(state, [], 12);
+    const projectile = result.events.find((event) => event.type === "projectileSpawned");
+    expect(projectile?.type === "projectileSpawned" ? projectile.projectile.targetId : "missing").toBeNull();
+    expect(result.events.some((event) => event.type === "projectileImpacted" && event.targetIds.length === 0)).toBe(true);
+    expect(result.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBe(initialHp);
+  });
+
+  it("keeps ground-area projectiles fixed instead of homing after launch", () => {
+    let state = createInitialState({ seed: 327, matchId: "fixed-ground-projectile" });
+    const caster = configureCombatUnit(state, "player-1", 0, "archer", { x: 5, y: 5 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 8, y: 5 });
+    const entrant = configureCombatUnit(state, "player-2", 1, "warrior", { x: 14, y: 12 });
+    state.entities = [caster, target, entrant];
+    const initialHp = target.hitPoints;
+    const entrantHp = entrant.hitPoints;
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: caster.id, abilityId: "pinningVolley", target: { kind: "ground", point: { x: 8, y: 5 } },
+    })).state;
+    const launched = stepSimulation(state, [], 6);
+    const launchedTarget = launched.state.entities.find((entity) => entity.id === target.id)!;
+    launchedTarget.position = { x: 14, y: 12 };
+    launched.state.entities.find((entity) => entity.id === entrant.id)!.position = { x: 8, y: 5 };
+    const impacted = stepSimulation(launched.state, [], 4);
+    expect(impacted.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBe(initialHp);
+    expect(impacted.state.entities.find((entity) => entity.id === entrant.id)!.hitPoints).toBeLessThan(entrantHp);
+    expect(impacted.events.some((event) => event.type === "projectileImpacted" && event.targetIds.includes(entrant.id))).toBe(true);
+  });
+
+  it("resolves a three-arrow volley at impact with a two-hit cap per target", () => {
+    let state = createInitialState({ seed: 341, matchId: "volley-impact-allocation" });
+    const caster = configureCombatUnit(state, "player-1", 0, "archer", { x: 5, y: 5 });
+    const first = configureCombatUnit(state, "player-2", 0, "warrior", { x: 14, y: 12 });
+    const second = configureCombatUnit(state, "player-2", 1, "warrior", { x: 14, y: 13 });
+    state.entities = [caster, first, second];
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: caster.id, abilityId: "pinningVolley", target: { kind: "ground", point: { x: 8, y: 5 } },
+    })).state;
+    const launched = stepSimulation(state, [], 6);
+    expect(launched.events.filter((event) => event.type === "projectileSpawned" && event.projectile.profileId === "pinningVolley")).toHaveLength(3);
+    launched.state.entities.find((entity) => entity.id === first.id)!.position = { x: 8, y: 5 };
+    launched.state.entities.find((entity) => entity.id === second.id)!.position = { x: 9, y: 5 };
+    const impacted = stepSimulation(launched.state, [], 4);
+    const hits = impacted.events.filter((event): event is Extract<DomainEvent, { type: "entityDamaged" }> => event.type === "entityDamaged");
+    expect(hits).toHaveLength(3);
+    expect(hits.filter((event) => event.targetId === first.id)).toHaveLength(2);
+    expect(hits.filter((event) => event.targetId === second.id)).toHaveLength(1);
+    const arrowDamage = calculateDamage({
+      baseDamage: COMBAT_UNITS.archer.baseDamage,
+      armor: COMBAT_UNITS.warrior.armor,
+      counterMultiplier: COUNTER_MATRIX.archer.warrior,
+      skillMultiplier: 0.55,
+    });
+    expect(hits.every((event) => event.amount === arrowDamage)).toBe(true);
+    expect(impacted.events.filter((event) => event.type === "statusApplied" && event.statusId === "slow")).toHaveLength(2);
+  });
+
+  it("lets enemies enter an empty ember sigil before authoritative impact", () => {
+    let state = createInitialState({ seed: 342, matchId: "ember-impact-entry" });
+    const caster = configureCombatUnit(state, "player-1", 0, "mage", { x: 5, y: 5 });
+    const entrant = configureCombatUnit(state, "player-2", 0, "warrior", { x: 14, y: 12 });
+    state.entities = [caster, entrant];
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: caster.id, abilityId: "emberSigil", target: { kind: "ground", point: { x: 8, y: 5 } },
+    })).state;
+    const launched = stepSimulation(state, [], 8);
+    const beforeHp = launched.state.entities.find((entity) => entity.id === entrant.id)!.hitPoints;
+    launched.state.entities.find((entity) => entity.id === entrant.id)!.position = { x: 8, y: 5 };
+    const impacted = stepSimulation(launched.state, [], 5);
+    expect(impacted.state.entities.find((entity) => entity.id === entrant.id)!.hitPoints).toBeLessThan(beforeHp);
+    const emberDamage = calculateDamage({
+      baseDamage: COMBAT_UNITS.mage.baseDamage,
+      armor: COMBAT_UNITS.warrior.armor,
+      counterMultiplier: COUNTER_MATRIX.mage.warrior,
+      skillMultiplier: 32 / 30,
+      armorIgnore: 0.35,
+    });
+    expect(impacted.events.some((event) => event.type === "entityDamaged" && event.targetId === entrant.id && event.amount === emberDamage)).toBe(true);
+    expect(impacted.events.some((event) => event.type === "statusApplied" && event.targetId === entrant.id && event.statusId === "burn")).toBe(true);
+  });
+
+  it("resolves a line bolt against impact-time entrants and stops at a building", () => {
+    let state = createInitialState({ seed: 343, matchId: "line-impact-collision" });
+    const caster = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 5, y: 5 });
+    caster.statuses.push({ id: "emplaced", sourceId: caster.id, expiresAtTick: Number.MAX_SAFE_INTEGER, nextTickAt: null });
+    const front = configureCombatUnit(state, "player-2", 0, "warrior", { x: 14, y: 12 });
+    const behind = configureCombatUnit(state, "player-2", 1, "warrior", { x: 14, y: 13 });
+    const building = addCompletedBuilding(state, "player-2", "house", "line-blocking-house", { x: 14, y: 14 });
+    state.entities = [caster, front, behind, building];
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: caster.id, abilityId: "breachingBolt", target: { kind: "direction", vector: { x: 9, y: 0 } },
+    })).state;
+    const launched = stepSimulation(state, [], 12);
+    const frontBefore = launched.state.entities.find((entity) => entity.id === front.id)!.hitPoints;
+    const behindBefore = launched.state.entities.find((entity) => entity.id === behind.id)!.hitPoints;
+    const buildingBefore = launched.state.entities.find((entity) => entity.id === building.id)!.hitPoints;
+    launched.state.entities.find((entity) => entity.id === front.id)!.position = { x: 8, y: 5 };
+    launched.state.entities.find((entity) => entity.id === building.id)!.position = { x: 10, y: 5 };
+    launched.state.entities.find((entity) => entity.id === behind.id)!.position = { x: 12, y: 5 };
+    const impacted = stepSimulation(launched.state, [], 8);
+    expect(impacted.state.entities.find((entity) => entity.id === front.id)!.hitPoints).toBeLessThan(frontBefore);
+    expect(impacted.state.entities.find((entity) => entity.id === building.id)!.hitPoints).toBeLessThan(buildingBefore);
+    expect(impacted.state.entities.find((entity) => entity.id === behind.id)!.hitPoints).toBe(behindBefore);
+    const impact = impacted.events.find((event) => event.type === "projectileImpacted");
+    expect(impact?.type === "projectileImpacted" ? impact.targetIds : []).toEqual([front.id, building.id]);
+    expect(impact?.type === "projectileImpacted" ? impact.position : null).toEqual({ x: 10, y: 5 });
+    expect(frontBefore - impacted.state.entities.find((entity) => entity.id === front.id)!.hitPoints).toBe(calculateDamage({
+      baseDamage: COMBAT_UNITS.heavyCrossbowman.baseDamage,
+      armor: COMBAT_UNITS.warrior.armor,
+      counterMultiplier: COUNTER_MATRIX.heavyCrossbowman.warrior,
+      skillMultiplier: 1.6,
+    }));
+    expect(buildingBefore - impacted.state.entities.find((entity) => entity.id === building.id)!.hitPoints).toBe(calculateDamage({
+      baseDamage: COMBAT_UNITS.heavyCrossbowman.baseDamage,
+      armor: 6,
+      skillMultiplier: 1.6 * 0.75,
+      structureMultiplier: 1.45 * 1.2,
+    }));
+  });
+
+  it("does not hit a unit that enters a line bolt after the projectile has passed", () => {
+    let state = createInitialState({ seed: 353, matchId: "line-passed-entry" });
+    const caster = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 5, y: 5 });
+    const early = configureCombatUnit(state, "player-2", 0, "warrior", { x: 8, y: 5 });
+    const late = configureCombatUnit(state, "player-2", 1, "warrior", { x: 14, y: 12 });
+    state.entities = [caster, early, late];
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: caster.id, abilityId: "breachingBolt", target: { kind: "direction", vector: { x: 9, y: 0 } },
+    })).state;
+    state = stepSimulation(state, [], 15).state;
+    const inFlight = state.projectiles.find((projectile) => projectile.profileId === "breachingBolt")!;
+    expect(inFlight.position.x).toBeGreaterThan(5);
+    expect(toPublicProjectile(inFlight).position).toEqual(inFlight.position);
+    const lateHp = state.entities.find((entity) => entity.id === late.id)!.hitPoints;
+    state.entities.find((entity) => entity.id === late.id)!.position = { x: 7, y: 5 };
+    const finished = stepSimulation(state, [], 6);
+    expect(finished.state.entities.find((entity) => entity.id === late.id)!.hitPoints).toBe(lateHp);
+    const impact = finished.events.find((event) => event.type === "projectileImpacted");
+    expect(impact?.type === "projectileImpacted" ? impact.targetIds : []).toEqual([early.id]);
+  });
+
+  it("stops breaching bolts at village terrain before targets beyond the ridge", () => {
+    let state = createInitialState({
+      seed: 354,
+      matchId: "line-terrain-block",
+      map: { id: "villageAssault", width: 18, height: 16 },
+      spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
+    });
+    const caster = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 10, y: 2 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 2 });
+    state.entities = [caster, target];
+    const initialHp = target.hitPoints;
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: caster.id, abilityId: "breachingBolt", target: { kind: "direction", vector: { x: -9, y: 0 } },
+    })).state;
+    const result = stepSimulation(state, [], 25);
+    expect(result.state.entities.find((entity) => entity.id === target.id)!.hitPoints).toBe(initialHp);
+    expect(result.events.some((event) => event.type === "projectileImpacted" && event.targetIds.length === 0)).toBe(true);
+  });
+
+  it("uses partial cooldown for cancelled windup and preserves committed recovery", () => {
+    let cancelled = createInitialState({ seed: 328, matchId: "ability-cancel-cooldown" });
+    const cancelledCaster = configureCombatUnit(cancelled, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const cancelledTarget = configureCombatUnit(cancelled, "player-2", 0, "warrior", { x: 6, y: 5 });
+    cancelled.entities = [cancelledCaster, cancelledTarget];
+    cancelled = applyCommand(cancelled, envelope(cancelled, 0, {
+      type: "castAbility", casterId: cancelledCaster.id, abilityId: "armorSunder", target: { kind: "entity", entityId: cancelledTarget.id },
+    })).state;
+    cancelled = applyCommand(cancelled, envelope(cancelled, 1, { type: "move", entityIds: [cancelledCaster.id], target: { x: 4, y: 5 } })).state;
+    const afterCancel = cancelled.entities.find((entity): entity is UnitEntityState => entity.id === cancelledCaster.id && entity.kind === "unit")!;
+    expect(afterCancel.combat.phase).toBe("ready");
+    expect(afterCancel.abilityReadyTick).toBe(36);
+
+    let committed = createInitialState({ seed: 329, matchId: "ability-recovery-lock" });
+    const committedCaster = configureCombatUnit(committed, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const committedTarget = configureCombatUnit(committed, "player-2", 0, "warrior", { x: 6, y: 5 });
+    committed.entities = [committedCaster, committedTarget];
+    committed = applyCommand(committed, envelope(committed, 0, {
+      type: "castAbility", casterId: committedCaster.id, abilityId: "armorSunder", target: { kind: "entity", entityId: committedTarget.id },
+    })).state;
+    committed = stepSimulation(committed, [], 4).state;
+    committed = applyCommand(committed, envelope(committed, 1, { type: "move", entityIds: [committedCaster.id], target: { x: 4, y: 5 } })).state;
+    const queuedMove = committed.entities.find((entity): entity is UnitEntityState => entity.id === committedCaster.id && entity.kind === "unit")!;
+    expect(queuedMove.combat.phase).toBe("recovery");
+    const beforeRecovery = { ...queuedMove.position };
+    committed = stepSimulation(committed, [], 5).state;
+    const duringRecovery = committed.entities.find((entity): entity is UnitEntityState => entity.id === committedCaster.id && entity.kind === "unit")!;
+    expect(duringRecovery.position).toEqual(beforeRecovery);
+    expect(duringRecovery.combat.phase).toBe("recovery");
+  });
+
+  it("rotates line formation perpendicular to an eastbound march", () => {
+    let state = createInitialState({ seed: 330, matchId: "formation-heading" });
+    const units = [0, 1, 2].map((index) => configureCombatUnit(state, "player-1", index, "warrior", { x: 2, y: 2 + index }));
+    state.entities = [...units];
+    state = applyCommand(state, envelope(state, 0, { type: "move", entityIds: units.map((unit) => unit.id), target: { x: 10, y: 3 } })).state;
+    const destinations = state.entities
+      .filter((entity): entity is UnitEntityState => entity.kind === "unit")
+      .map((unit) => unit.order.type === "move" ? unit.order.target : { x: -1, y: -1 });
+    expect(destinations.map((point) => point.x)).toEqual([10, 10, 10]);
+    expect(destinations.map((point) => point.y).sort((left, right) => left - right)).toEqual([2, 3, 4]);
+  });
+
+  it("cancels a villager attack windup when gathering is ordered", () => {
+    let state = createInitialState({ seed: 331, matchId: "gather-cancels-attack" });
+    const villager = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    const enemy = configureCombatUnit(state, "player-2", 0, "warrior", { x: villager.position.x + 1, y: villager.position.y });
+    const resource = state.entities.find((entity): entity is ResourceEntityState => entity.kind === "resource" && entity.ownerId === null)!;
+    resource.position = { x: villager.position.x, y: villager.position.y + 1 };
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    if (townCenter.kind === "building") townCenter.attackCooldownTicks = 1_000;
+    state.entities = [townCenter, villager, enemy, resource];
+    const initialHp = enemy.hitPoints;
+    state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [villager.id], targetId: enemy.id })).state;
+    state = stepSimulation(state, [], 1).state;
+    state = applyCommand(state, envelope(state, 1, { type: "gather", entityIds: [villager.id], targetId: resource.id })).state;
+    const result = stepSimulation(state, [], UNITS.villager.attackCooldownTicks);
+    expect(result.state.entities.find((entity) => entity.id === enemy.id)!.hitPoints).toBe(initialHp);
+    expect(result.events.some((event) => event.type === "entityDamaged" && event.targetId === enemy.id)).toBe(false);
+  });
+
+  it("applies aimed-shot armor penetration and moves a tusk charge along its line", () => {
+    let aimed = createInitialState({ seed: 332, matchId: "aimed-shot-penetration" });
+    const musketeer = configureCombatUnit(aimed, "player-1", 0, "musketeer", { x: 5, y: 5 });
+    const shield = configureCombatUnit(aimed, "player-2", 0, "shieldBearer", { x: 6, y: 5 });
+    aimed.entities = [musketeer, shield];
+    aimed = applyCommand(aimed, envelope(aimed, 0, {
+      type: "castAbility", casterId: musketeer.id, abilityId: "aimedShot", target: { kind: "entity", entityId: shield.id },
+    })).state;
+    const aimedResult = stepSimulation(aimed, [], 11);
+    const expected = calculateDamage({
+      baseDamage: COMBAT_UNITS.musketeer.baseDamage,
+      armor: COMBAT_UNITS.shieldBearer.armor,
+      counterMultiplier: COUNTER_MATRIX.musketeer.shieldBearer,
+      skillMultiplier: 1.6,
+      armorIgnore: 0.6,
+    });
+    expect(aimedResult.events).toContainEqual({
+      type: "entityDamaged", sourceId: musketeer.id, targetId: shield.id, amount: expected, hitPoints: COMBAT_UNITS.shieldBearer.maxHitPoints - expected,
+    });
+
+    let charge = createInitialState({ seed: 333, matchId: "tusk-charge-movement" });
+    const rider = configureCombatUnit(charge, "player-1", 0, "boarRider", { x: 5, y: 5 });
+    const chargeTarget = configureCombatUnit(charge, "player-2", 0, "warrior", { x: 7, y: 5 });
+    charge.entities = [rider, chargeTarget];
+    charge = applyCommand(charge, envelope(charge, 0, {
+      type: "castAbility", casterId: rider.id, abilityId: "tuskCharge", target: { kind: "direction", vector: { x: 6, y: 0 } },
+    })).state;
+    const chargeResult = stepSimulation(charge, [], 4);
+    expect(chargeResult.state.entities.find((entity) => entity.id === rider.id)!.position).toEqual({ x: 11, y: 5 });
+    expect(chargeResult.events.some((event) => event.type === "statusApplied" && event.targetId === chargeTarget.id && event.statusId === "stagger")).toBe(true);
+  });
+
+  it("reduces projectile damage only inside the active shield-wall front arc", () => {
+    const damageFrom = (attackerX: number): number => {
+      let state = createInitialState({ seed: 334 + attackerX, matchId: `shield-front-${attackerX}` });
+      const archer = configureCombatUnit(state, "player-1", 0, "archer", { x: attackerX, y: 5 });
+      const defender = configureCombatUnit(state, "player-2", 0, "shieldBearer", { x: 5, y: 5 });
+      defender.facing = "e";
+      defender.statuses.push({ id: "shieldWall", sourceId: defender.id, expiresAtTick: 100, nextTickAt: null });
+      state.entities = [archer, defender];
+      state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [archer.id], targetId: defender.id })).state;
+      const result = stepSimulation(state, [], 8);
+      return COMBAT_UNITS.shieldBearer.maxHitPoints - result.state.entities.find((entity) => entity.id === defender.id)!.hitPoints;
+    };
+    const frontDamage = damageFrom(8);
+    const rearDamage = damageFrom(2);
+    expect(frontDamage).toBe(Math.max(1, Math.round(rearDamage * 0.45)));
+  });
+
+  it("builds and expires warrior combat rhythm on authoritative hit timing", () => {
+    let state = createInitialState({ seed: 344, matchId: "warrior-rhythm" });
+    const warrior = configureCombatUnit(state, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const target = configureCombatUnit(state, "player-2", 0, "shieldBearer", { x: 6, y: 5 });
+    state.entities = [warrior, target];
+    state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [warrior.id], targetId: target.id })).state;
+    const result = stepSimulation(state, [], 40);
+    const amounts = result.events
+      .filter((event): event is Extract<DomainEvent, { type: "entityDamaged" }> => event.type === "entityDamaged" && event.sourceId === warrior.id)
+      .map((event) => event.amount);
+    expect(amounts.slice(0, 4)).toEqual([1, 1.05, 1.1, 1.15].map((skillMultiplier) => calculateDamage({
+      baseDamage: COMBAT_UNITS.warrior.baseDamage,
+      armor: COMBAT_UNITS.shieldBearer.armor,
+      counterMultiplier: COUNTER_MATRIX.warrior.shieldBearer,
+      skillMultiplier,
+    })));
+    const resolvedWarrior = result.state.entities.find((entity): entity is UnitEntityState => entity.id === warrior.id && entity.kind === "unit")!;
+    resolvedWarrior.order = { type: "idle" };
+    const expired = stepSimulation(result.state, [], 21).state.entities.find((entity): entity is UnitEntityState => entity.id === warrior.id && entity.kind === "unit")!;
+    expect(expired.passive.rhythmStacks).toBe(0);
+    expect(expired.passive.rhythmTargetId).toBeNull();
+  });
+
+  it("braces after eight ticks and reverses a frontal tusk charge", () => {
+    let state = createInitialState({ seed: 345, matchId: "shield-brace-charge" });
+    const rider = configureCombatUnit(state, "player-1", 0, "boarRider", { x: 5, y: 5 });
+    const shield = configureCombatUnit(state, "player-2", 0, "shieldBearer", { x: 7, y: 5 });
+    shield.facing = "w";
+    state.entities = [rider, shield];
+    state = stepSimulation(state, [], 8).state;
+    expect((state.entities.find((entity) => entity.id === shield.id) as UnitEntityState).statuses.some((status) => status.id === "braced")).toBe(true);
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: rider.id, abilityId: "tuskCharge", target: { kind: "direction", vector: { x: 6, y: 0 } },
+    })).state;
+    const result = stepSimulation(state, [], 4);
+    const expected = calculateDamage({
+      baseDamage: COMBAT_UNITS.boarRider.baseDamage,
+      armor: COMBAT_UNITS.shieldBearer.armor,
+      counterMultiplier: COUNTER_MATRIX.boarRider.shieldBearer,
+      skillMultiplier: 1.6 * 0.6,
+    });
+    expect(result.events.some((event) => event.type === "entityDamaged" && event.targetId === shield.id && event.amount === expected)).toBe(true);
+    expect(result.events.some((event) => event.type === "statusApplied" && event.targetId === rider.id && event.statusId === "stagger")).toBe(true);
+    const resolvedShield = result.state.entities.find((entity): entity is UnitEntityState => entity.id === shield.id && entity.kind === "unit")!;
+    expect(resolvedShield.statuses.some((status) => status.id === "braced")).toBe(false);
+    expect(resolvedShield.passive.braceCooldownUntilTick).toBeGreaterThan(result.state.tick);
+  });
+
+  it("consumes matchlock rest and boar momentum on the next basic attack", () => {
+    let rested = createInitialState({ seed: 346, matchId: "matchlock-rest" });
+    const musketeer = configureCombatUnit(rested, "player-1", 0, "musketeer", { x: 5, y: 5 });
+    const spotter = configureCombatUnit(rested, "player-1", 1, "warrior", { x: 13, y: 6 });
+    const distant = configureCombatUnit(rested, "player-2", 0, "warrior", { x: 14, y: 5 });
+    rested.entities = [musketeer, spotter];
+    rested = stepSimulation(rested, [], 15).state;
+    rested.entities.push(distant);
+    const restedAttack = applyCommand(rested, envelope(rested, 0, { type: "attack", entityIds: [musketeer.id], targetId: distant.id }));
+    expect(restedAttack.validation).toEqual({ ok: true });
+    rested = restedAttack.state;
+    rested = stepSimulation(rested, [], 1).state;
+    const activeMusketeer = rested.entities.find((entity): entity is UnitEntityState => entity.id === musketeer.id && entity.kind === "unit")!;
+    expect(activeMusketeer.combat.phase).toBe("windup");
+    expect(activeMusketeer.combat.readyTick - rested.tick).toBe(Math.floor(UNITS.musketeer.attackCooldownTicks * 0.8));
+
+    let momentum = createInitialState({ seed: 347, matchId: "boar-momentum" });
+    const rider = configureCombatUnit(momentum, "player-1", 0, "boarRider", { x: 2, y: 5 });
+    const target = configureCombatUnit(momentum, "player-2", 0, "warrior", { x: 14, y: 12 });
+    momentum.entities = [rider, target];
+    momentum = applyCommand(momentum, envelope(momentum, 0, { type: "move", entityIds: [rider.id], target: { x: 5, y: 5 } })).state;
+    momentum = stepSimulation(momentum, [], 18).state;
+    momentum.entities.find((entity) => entity.id === target.id)!.position = { x: 6, y: 5 };
+    momentum = applyCommand(momentum, envelope(momentum, 1, { type: "attack", entityIds: [rider.id], targetId: target.id })).state;
+    const charged = stepSimulation(momentum, [], 4);
+    const expected = calculateDamage({
+      baseDamage: COMBAT_UNITS.boarRider.baseDamage,
+      armor: COMBAT_UNITS.warrior.armor,
+      counterMultiplier: COUNTER_MATRIX.boarRider.warrior,
+      skillMultiplier: 1.2,
+    });
+    expect(charged.events.some((event) => event.type === "entityDamaged" && event.targetId === target.id && event.amount === expected)).toBe(true);
+    expect((charged.state.entities.find((entity) => entity.id === rider.id) as UnitEntityState).passive.movedTilesSinceAttack).toBe(0);
+  });
+
+  it("automatically emplaces a stationary heavy crossbow and clears it on redeploy", () => {
+    let state = createInitialState({ seed: 348, matchId: "heavy-emplacement" });
+    const crossbow = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 5, y: 5 });
+    state.entities = [crossbow];
+    state = stepSimulation(state, [], 20).state;
+    const emplaced = state.entities.find((entity) => entity.id === crossbow.id) as UnitEntityState;
+    expect(emplaced.statuses.some((status) => status.id === "emplaced")).toBe(true);
+    expect(toPublicEntity(emplaced).passiveProgress).toMatchObject({ stationarySinceTick: 0, movedTilesSinceAttack: 0, rhythmStacks: 0 });
+    const redeploy = applyCommand(state, envelope(state, 0, { type: "move", entityIds: [crossbow.id], target: { x: 6, y: 5 } }));
+    expect(redeploy.events).toContainEqual({ type: "statusExpired", entityId: crossbow.id, statusId: "emplaced" });
+    state = redeploy.state;
+    expect((state.entities.find((entity) => entity.id === crossbow.id) as UnitEntityState).statuses.some((status) => status.id === "emplaced")).toBe(false);
+  });
+
+  it("clears warrior rhythm immediately when an attack order switches targets", () => {
+    let state = createInitialState({ seed: 349, matchId: "rhythm-target-switch" });
+    const warrior = configureCombatUnit(state, "player-1", 0, "warrior", { x: 5, y: 5 });
+    const first = configureCombatUnit(state, "player-2", 0, "shieldBearer", { x: 6, y: 5 });
+    const second = configureCombatUnit(state, "player-2", 1, "shieldBearer", { x: 5, y: 6 });
+    warrior.passive.rhythmTargetId = first.id;
+    warrior.passive.rhythmStacks = 3;
+    warrior.passive.rhythmLastHitTick = state.tick;
+    state.entities = [warrior, first, second];
+    state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [warrior.id], targetId: second.id })).state;
+    let resolvedWarrior = state.entities.find((entity): entity is UnitEntityState => entity.id === warrior.id && entity.kind === "unit")!;
+    expect(resolvedWarrior.passive.rhythmStacks).toBe(0);
+    state = applyCommand(state, envelope(state, 1, { type: "attack", entityIds: [warrior.id], targetId: first.id })).state;
+    const result = stepSimulation(state, [], 4);
+    const baseDamage = calculateDamage({
+      baseDamage: COMBAT_UNITS.warrior.baseDamage,
+      armor: COMBAT_UNITS.shieldBearer.armor,
+      counterMultiplier: COUNTER_MATRIX.warrior.shieldBearer,
+    });
+    expect(result.events.some((event) => event.type === "entityDamaged" && event.targetId === first.id && event.amount === baseDamage)).toBe(true);
+    resolvedWarrior = result.state.entities.find((entity): entity is UnitEntityState => entity.id === warrior.id && entity.kind === "unit")!;
+    expect(resolvedWarrior.passive.rhythmStacks).toBe(1);
+  });
+
+  it("applies the archer gap-hunter bonus only to an emplaced heavy crossbow", () => {
+    const damageAgainst = (emplaced: boolean): number => {
+      let state = createInitialState({ seed: emplaced ? 351 : 350, matchId: `gap-hunter-${emplaced}` });
+      const archer = configureCombatUnit(state, "player-1", 0, "archer", { x: 5, y: 5 });
+      const target = configureCombatUnit(state, "player-2", 0, "heavyCrossbowman", { x: 8, y: 5 });
+      if (emplaced) target.statuses.push({ id: "emplaced", sourceId: target.id, expiresAtTick: Number.MAX_SAFE_INTEGER, nextTickAt: null });
+      state.entities = [archer, target];
+      state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [archer.id], targetId: target.id })).state;
+      const result = stepSimulation(state, [], 8);
+      return COMBAT_UNITS.heavyCrossbowman.maxHitPoints - result.state.entities.find((entity) => entity.id === target.id)!.hitPoints;
+    };
+    expect(damageAgainst(false)).toBe(calculateDamage({
+      baseDamage: COMBAT_UNITS.archer.baseDamage,
+      armor: COMBAT_UNITS.heavyCrossbowman.armor,
+      counterMultiplier: 1,
+    }));
+    expect(damageAgainst(true)).toBe(calculateDamage({
+      baseDamage: COMBAT_UNITS.archer.baseDamage,
+      armor: COMBAT_UNITS.heavyCrossbowman.armor,
+      counterMultiplier: COUNTER_MATRIX.archer.heavyCrossbowman,
+    }));
+  });
+
+  it("knocks a heavy crossbow out of emplacement during a tusk charge", () => {
+    let state = createInitialState({ seed: 352, matchId: "charge-breaks-emplacement" });
+    const rider = configureCombatUnit(state, "player-1", 0, "boarRider", { x: 5, y: 5 });
+    const crossbow = configureCombatUnit(state, "player-2", 0, "heavyCrossbowman", { x: 7, y: 5 });
+    state.entities = [rider, crossbow];
+    state = stepSimulation(state, [], 20).state;
+    expect((state.entities.find((entity) => entity.id === crossbow.id) as UnitEntityState).statuses.some((status) => status.id === "emplaced")).toBe(true);
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: rider.id, abilityId: "tuskCharge", target: { kind: "direction", vector: { x: 6, y: 0 } },
+    })).state;
+    const result = stepSimulation(state, [], 4);
+    const pushed = result.state.entities.find((entity): entity is UnitEntityState => entity.id === crossbow.id && entity.kind === "unit")!;
+    expect(pushed.position).toEqual({ x: 8, y: 5 });
+    expect(pushed.statuses.some((status) => status.id === "emplaced")).toBe(false);
+    expect(result.events).toContainEqual({ type: "statusExpired", entityId: crossbow.id, statusId: "emplaced" });
+  });
+
+  it("repeats a projectile and status battle identically across 10,000 ticks", () => {
+    const initial = createInitialState({ seed: 355, matchId: "combat-determinism-10000" });
+    const caster = configureCombatUnit(initial, "player-1", 0, "archer", { x: 5, y: 5 });
+    const target = configureCombatUnit(initial, "player-2", 0, "warrior", { x: 8, y: 5 });
+    const centers = initial.entities.filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.typeId === "townCenter");
+    centers[0]!.position = { x: 1, y: 1 };
+    centers[1]!.position = { x: 29, y: 29 };
+    centers.forEach((center) => { center.attackCooldownTicks = 20_000; });
+    initial.entities = [centers[0]!, centers[1]!, caster, target];
+    const commands = [envelope(initial, 0, {
+      type: "castAbility", casterId: caster.id, abilityId: "pinningVolley", target: { kind: "ground", point: { x: 8, y: 5 } },
+    })];
+    const first = stepSimulation(initial, commands, 10_000);
+    const second = stepSimulation(initial, commands, 10_000);
+    expect(hashMatchState(first.state)).toBe(hashMatchState(second.state));
+    expect(first.events).toEqual(second.events);
+  }, 60_000);
+
+  it("executes every combat role active ability through validated authoritative commands", () => {
+    for (const [index, typeId] of COMBAT_UNIT_IDS.entries()) {
+      let state = createInitialState({ seed: 330 + index, matchId: `ability-${typeId}` });
+      const caster = configureCombatUnit(state, "player-1", 0, typeId, { x: 5, y: 5 });
+      const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 5 });
+      const ability = COMBAT_UNITS[typeId].activeAbility;
+      const abilityTarget = ability.targeting === "self"
+        ? { kind: "self" as const }
+        : ability.targeting === "unit"
+          ? { kind: "entity" as const, entityId: target.id }
+          : ability.targeting === "ground"
+            ? { kind: "ground" as const, point: { ...target.position } }
+            : { kind: "direction" as const, vector: { x: 1, y: 0 } };
+      const cast = applyCommand(state, envelope(state, 0, { type: "castAbility", casterId: caster.id, abilityId: ability.id, target: abilityTarget }));
+      expect(cast.validation, `${typeId} ability should validate`).toEqual({ ok: true });
+      const resolved = stepSimulation(cast.state, [], 40);
+      expect(resolved.events.some((event) => event.type === "combatPhaseChanged" && event.entityId === caster.id && event.action === "ability"), `${typeId} should enter ability phase`).toBe(true);
+      expect(
+        resolved.events.some((event) => event.type === "entityDamaged" || event.type === "statusApplied" || event.type === "projectileSpawned"),
+        `${typeId} should produce a combat result`,
+      ).toBe(true);
+      state = resolved.state;
+      expect((state.entities.find((entity) => entity.id === caster.id) as UnitEntityState | undefined)?.abilityReadyTick).toBeGreaterThan(0);
+    }
+  });
+
+  it("assigns distinct formation destinations, attack-moves through contact, and repairs with exact wood cost", () => {
+    let state = createInitialState({ seed: 340, matchId: "tactical-orders" });
+    const units = [0, 1].map((index) => configureCombatUnit(state, "player-1", index, "warrior", { x: 2, y: 2 + index }));
+    const enemy = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 3 });
+    enemy.hitPoints = 1;
+    state = applyCommand(state, envelope(state, 0, { type: "setFormation", entityIds: units.map((unit) => unit.id), formation: "wedge" })).state;
+    state = applyCommand(state, envelope(state, 1, { type: "attackMove", entityIds: units.map((unit) => unit.id), target: { x: 10, y: 3 } })).state;
+    const destinations = state.entities
+      .filter((entity): entity is UnitEntityState => entity.kind === "unit" && units.some((unit) => unit.id === entity.id))
+      .map((unit) => unit.order.type === "attackMove" ? `${unit.order.target.x},${unit.order.target.y}` : "invalid");
+    expect(new Set(destinations).size).toBe(units.length);
+    state = stepSimulation(state, [], 100).state;
+    expect(state.entities.some((entity) => entity.id === enemy.id)).toBe(false);
+
+    const villager = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
+    const center = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    villager.position = { x: center.position.x - 1, y: center.position.y };
+    center.hitPoints -= 20;
+    const beforeWood = state.players[0]!.resources.wood;
+    const beforeHp = center.hitPoints;
+    const repaired = applyCommand(state, envelope(state, 2, { type: "repair", entityIds: [villager.id], targetId: center.id }));
+    expect(repaired.validation).toEqual({ ok: true });
+    const repairTick = stepSimulation(repaired.state, [], 1).state;
+    expect(repairTick.players[0]!.resources.wood).toBe(beforeWood - 1);
+    expect(repairTick.entities.find((entity) => entity.id === center.id)?.hitPoints).toBe(beforeHp + 10);
+  });
+
   it("finishes conquest after an enemy town center is destroyed and its rebuild grace expires", () => {
     const initial = createInitialState({ seed: 31, matchId: "town-center-conquest" });
     const attacker = initial.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
     const enemyCenter = initial.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
     enemyCenter.position = { x: attacker.position.x, y: attacker.position.y + 1 };
-    enemyCenter.hitPoints = 4;
+    enemyCenter.hitPoints = 1;
 
     const attack = applyCommand(initial, envelope(initial, 0, { type: "attack", entityIds: [attacker.id], targetId: enemyCenter.id }));
     expect(attack.validation).toEqual({ ok: true });
-    const result = stepSimulation(attack.state, [], 601);
+    const result = stepSimulation(attack.state, [], 610);
 
     expect(result.state.phase).toBe("finished");
     expect(result.state.finishReason).toBe("conquest");

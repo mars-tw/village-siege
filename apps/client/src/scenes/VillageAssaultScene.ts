@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
   BUILDINGS,
+  COMBAT_UNITS,
   findPathToAny,
   getEntityFootprintCells,
   getFootprintCells,
@@ -14,13 +15,19 @@ import {
   SETTLEMENT_TIERS,
   TECHNOLOGIES,
   TECHNOLOGY_ORDER,
+  TICK_MILLISECONDS,
   TICKS_PER_SECOND,
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   UNITS,
+  validateCommand,
   type AiPersonality,
   type BuildingEntityState,
   type BuildingType,
+  type CombatStance,
+  type CombatUnitId,
+  type DomainEvent,
   type EntityState,
+  type FormationKind,
   type GameCommand,
   type GridPoint,
   type ResourceEntityState,
@@ -40,6 +47,7 @@ import {
   assertCombatAnimationManifestValid,
 } from "../game/combatAnimationManifest";
 import { DEFAULT_TEAM_PALETTES } from "../game/combatArt";
+import { launchProjectile, spawnFloatingText, spawnImpactBurst, spawnSkillTelegraph } from "../game/combatEffects";
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
 import {
@@ -106,26 +114,33 @@ type ProductionUiMode =
   | { readonly kind: "confirm"; readonly producerId: string; readonly jobId: ProductionJobId; readonly page: number }
   | { readonly kind: "rally"; readonly producerId: string };
 
+type TacticalUiMode =
+  | { readonly kind: "none" }
+  | { readonly kind: "attackMove"; readonly entityIds: readonly string[] }
+  | { readonly kind: "patrol"; readonly entityIds: readonly string[]; readonly firstPoint: GridPoint | null }
+  | { readonly kind: "repair"; readonly entityIds: readonly string[] }
+  | { readonly kind: "ability"; readonly casterId: string; readonly abilityId: string; readonly targeting: "unit" | "ground" | "direction" };
+
 const UNIT_ART: Readonly<Record<UnitType, CombatArtId>> = {
   villager: "warrior",
-  militia: "warrior",
-  spearman: "shieldbearer",
+  warrior: "warrior",
+  shieldBearer: "shieldbearer",
   archer: "archer",
   mage: "mage",
   musketeer: "musketeer",
-  scout: "boar_rider",
-  batteringRam: "heavy_crossbow",
+  boarRider: "boar_rider",
+  heavyCrossbowman: "heavy_crossbow",
 };
 
 const UNIT_LABELS: Readonly<Record<UnitType, string>> = {
   villager: "拓荒工匠",
-  militia: "邊境戰士",
-  spearman: "持盾槍衛",
+  warrior: "邊境戰士",
+  shieldBearer: "持盾槍衛",
   archer: "林地弓手",
   mage: "星火法師",
   musketeer: "黑火銃兵",
-  scout: "野豬斥候",
-  batteringRam: "重弩攻城組",
+  boarRider: "野豬騎士",
+  heavyCrossbowman: "重弩攻城手",
 };
 
 const BUILD_PAGES: readonly (readonly BuildingType[])[] = [
@@ -163,15 +178,18 @@ export class VillageAssaultScene extends Phaser.Scene {
   private settlementOverlay?: SettlementOverlay;
   private readonly unitViews = new Map<string, UnitView>();
   private readonly entityViews = new Map<string, AssaultEntityView>();
+  private readonly projectileEffects = new Map<string, Phaser.GameObjects.Container>();
   private readonly selectedIds = new Set<string>();
   private buildMenuOpen = false;
   private buildPage = 0;
   private researchMenuOpen = false;
   private researchPage = 0;
   private productionUiMode: ProductionUiMode = { kind: "none" };
+  private tacticalUiMode: TacticalUiMode = { kind: "none" };
   private buildingPlacement: BuildingType | null = null;
   private systemPanelOpen = false;
   private hoverGrid: GridPoint | null = null;
+  private hoverEntityId: string | null = null;
   private paused = false;
   private ended = false;
   private lastUiTick = -1;
@@ -212,15 +230,18 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.returnScene = data.returnScene ?? "VillageSelectScene";
     this.unitViews.clear();
     this.entityViews.clear();
+    this.projectileEffects.clear();
     this.selectedIds.clear();
     this.buildMenuOpen = false;
     this.buildPage = 0;
     this.researchMenuOpen = false;
     this.researchPage = 0;
     this.productionUiMode = { kind: "none" };
+    this.tacticalUiMode = { kind: "none" };
     this.buildingPlacement = null;
     this.systemPanelOpen = false;
     this.hoverGrid = null;
+    this.hoverEntityId = null;
     this.paused = false;
     this.ended = false;
     this.lastUiTick = -1;
@@ -310,6 +331,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (completedResearch?.type === "technologyResearched") {
       this.setNotice(`${TECHNOLOGIES[completedResearch.technologyId].displayName}研究完成`, "success");
     }
+    this.renderCombatEvents(result.events);
     this.prefetchQueuedUnitArt();
     this.syncEntityViews(false);
     this.updateUnitAnimations(result.steps * 100);
@@ -393,11 +415,16 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.entityViews.set(entity.id, view);
       view.setCompact(this.compactUi);
       this.uiCamera?.ignore(view.container);
-      view.container.setInteractive({ useHandCursor: true });
-      view.container.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => event.stopPropagation());
+      view.container.setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+      view.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
+      view.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
+      view.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+        event.stopPropagation();
+        this.beginPointerGesture(pointer);
+      });
       view.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
         event.stopPropagation();
-        this.handleEntityTap(entity.id, pointer);
+        this.completeEntityGesture(entity.id, pointer);
       });
     }
     const cells = getEntityFootprintCells(entity);
@@ -442,10 +469,15 @@ export class VillageAssaultScene extends Phaser.Scene {
     actor.container.addAt(selection, 0);
     actor.container.add([health, cargoPack, label, cargoLabel]);
     actor.container.setSize(112, 136).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
-    actor.container.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => event.stopPropagation());
+    actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+      event.stopPropagation();
+      this.beginPointerGesture(pointer);
+    });
     actor.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
       event.stopPropagation();
-      this.handleEntityTap(entity.id, pointer);
+      this.completeEntityGesture(entity.id, pointer);
     });
     this.uiCamera?.ignore(actor.container);
     return { actor, selection, health, label, cargoPack, cargoLabel, grid: { ...entity.position }, hitPoints: entity.hitPoints, action: "idle" };
@@ -453,6 +485,8 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private actionForUnit(entity: UnitEntityState, view: UnitView): CombatAction {
     if (entity.hitPoints < view.hitPoints) return "hurt";
+    if (entity.combat.phase === "windup" && entity.combat.action === "ability") return "cast";
+    if (entity.combat.phase === "windup" && entity.combat.action === "attack") return "attack";
     if (entity.order.type === "attack") return "attack";
     if (entity.order.type === "construct") return "cast";
     if (entity.order.type === "gather") {
@@ -461,7 +495,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       if (target?.kind === "resource" && target.amount <= 0) return "idle";
       return target && this.isAdjacentToEntity(entity.position, target) ? "attack" : "walk";
     }
-    if (entity.order.type === "deliver" || entity.order.type === "move" || entity.order.type === "patrol") return "walk";
+    if (entity.order.type === "deliver" || entity.order.type === "move" || entity.order.type === "attackMove" || entity.order.type === "patrol" || entity.order.type === "repair") return "walk";
     return "idle";
   }
 
@@ -469,10 +503,59 @@ export class VillageAssaultScene extends Phaser.Scene {
     for (const view of this.unitViews.values()) view.actor.update(deltaMs);
   }
 
+  private renderCombatEvents(events: readonly DomainEvent[]): void {
+    for (const event of events) {
+      if (event.type === "projectileSpawned") {
+        const from = gridToWorld(event.projectile.position, VILLAGE_ASSAULT_ORIGIN);
+        const to = gridToWorld(event.projectile.targetPoint, VILLAGE_ASSAULT_ORIGIN);
+        const kind = event.projectile.profileId.includes("musket") ? "musket"
+          : event.projectile.profileId.includes("arcane") ? "arcane"
+            : event.projectile.profileId.toLowerCase().includes("bolt") ? "bolt" : "arrow";
+        const durationMs = Math.max(40, (event.projectile.impactTick - this.runtime.state.tick) * TICK_MILLISECONDS);
+        let effect!: Phaser.GameObjects.Container;
+        effect = launchProjectile(this, {
+          from,
+          to,
+          kind,
+          durationMs,
+          spawnImpactOnComplete: false,
+          onImpact: () => this.projectileEffects.delete(event.projectile.id),
+        });
+        this.projectileEffects.set(event.projectile.id, effect);
+        this.uiCamera?.ignore(effect);
+      } else if (event.type === "projectileImpacted") {
+        const effect = this.projectileEffects.get(event.projectileId);
+        if (effect) {
+          this.tweens.killTweensOf(effect);
+          effect.destroy();
+          this.projectileEffects.delete(event.projectileId);
+        }
+        const world = gridToWorld(event.position, VILLAGE_ASSAULT_ORIGIN);
+        spawnImpactBurst(this, world);
+      } else if (event.type === "entityDamaged") {
+        const target = this.entityById(event.targetId);
+        if (!target) continue;
+        const world = gridToWorld(target.position, VILLAGE_ASSAULT_ORIGIN);
+        const text = spawnFloatingText(this, { x: world.x, y: world.y - 42 }, `-${event.amount}`, "#ffd0ad");
+        this.uiCamera?.ignore(text);
+      } else if (event.type === "statusApplied") {
+        const target = this.entityById(event.targetId);
+        if (!target) continue;
+        const world = gridToWorld(target.position, VILLAGE_ASSAULT_ORIGIN);
+        const telegraph = spawnSkillTelegraph(this, world, 0xe0b866, 30, 360);
+        this.uiCamera?.ignore(telegraph);
+      }
+    }
+  }
+
   private handleEntityTap(id: string, pointer: Phaser.Input.Pointer): void {
     if (this.ended || this.paused) return;
     const entity = this.entityById(id);
     if (!entity) return;
+    if (this.tacticalUiMode.kind !== "none") {
+      this.commitTacticalTarget(entity.position, entity);
+      return;
+    }
     if (this.productionUiMode.kind === "rally") {
       this.setNotice("集結點必須設在可通行的空地；目前仍在選點模式。", "warning");
       return;
@@ -561,12 +644,38 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.handleGroundCommand(pointer);
       return;
     }
-    this.pointerStart = { x: pointer.x, y: pointer.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY };
-    this.pointerDragged = false;
+    this.beginPointerGesture(pointer);
   };
 
-  private readonly onPointerMove = (pointer: Phaser.Input.Pointer): void => {
-    if (this.productionUiMode.kind === "rally") {
+  private beginPointerGesture(pointer: Phaser.Input.Pointer): void {
+    this.pointerStart = { x: pointer.x, y: pointer.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY };
+    this.pointerDragged = false;
+  }
+
+  private completeEntityGesture(entityId: string, pointer: Phaser.Input.Pointer): void {
+    if (!this.pointerDragged) this.handleEntityTap(entityId, pointer);
+    this.pointerStart = undefined;
+    this.pointerDragged = false;
+  }
+
+  private previewTacticalEntity(entityId: string): void {
+    if (this.tacticalUiMode.kind === "none") return;
+    const entity = this.entityById(entityId);
+    if (!entity) return;
+    this.hoverEntityId = entityId;
+    this.hoverGrid = { ...entity.position };
+    this.drawTacticalMarker(this.hoverGrid, this.isTacticalTargetValid(this.hoverGrid, entity));
+  }
+
+  private readonly onPointerMove = (pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[] = []): void => {
+    if (this.tacticalUiMode.kind !== "none") {
+      this.hoverGrid = this.pointerGrid(pointer);
+      this.hoverEntityId = currentlyOver
+        .map((object) => object.getData?.("entityId") as string | undefined)
+        .find((entityId): entityId is string => Boolean(entityId)) ?? null;
+      const hoverEntity = this.hoverEntityId ? this.entityById(this.hoverEntityId) ?? null : null;
+      this.drawTacticalMarker(this.hoverGrid, this.isTacticalTargetValid(this.hoverGrid, hoverEntity));
+    } else if (this.productionUiMode.kind === "rally") {
       this.hoverGrid = this.pointerGrid(pointer);
       this.drawRallyMarker(this.hoverGrid, isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid), true);
     } else if (this.buildingPlacement) {
@@ -588,6 +697,10 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer): void => {
     if (pointer.rightButtonReleased()) return;
+    if (!this.pointerStart) {
+      this.pointerDragged = false;
+      return;
+    }
     if (!this.pointerDragged) this.handleGroundCommand(pointer);
     this.pointerStart = undefined;
     this.pointerDragged = false;
@@ -596,6 +709,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   private handleGroundCommand(pointer: Phaser.Input.Pointer): void {
     if (this.ended || this.paused) return;
     const point = this.pointerGrid(pointer);
+    if (this.tacticalUiMode.kind !== "none") {
+      this.commitTacticalTarget(point, null);
+      return;
+    }
     if (this.productionUiMode.kind === "rally") {
       const producerId = this.productionUiMode.producerId;
       if (!isRallyPointAvailable(this.runtime.state, producerId, point)) {
@@ -735,7 +852,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.actionButtons.forEach((button, index) => {
       const spec = this.currentActions[index];
       button.setVisible(Boolean(spec));
-      button.setActive(spec?.active ?? false);
+      button.setActive(spec?.active ?? null);
       if (!spec) return;
       button.setLabel(spec.glyph, spec.label, spec.accessibleLabel);
       button.setEnabled(spec.enabled ?? true);
@@ -829,7 +946,6 @@ export class VillageAssaultScene extends Phaser.Scene {
               glyph: "列",
               label: `佇列 ${ownBuilding.productionQueue.length}/${MAX_TRAINING_QUEUE_DEPTH}`,
               accessibleLabel: `${buildingDisplayName(ownBuilding.typeId)}生產佇列，共${ownBuilding.productionQueue.length}項`,
-              active: ownBuilding.productionQueue.length > 0,
               run: () => this.openProductionQueue(ownBuilding.id),
             }
           : { glyph: "◎", label: "置中", run: () => this.centerCameraOn(ownBuilding.position) },
@@ -840,7 +956,6 @@ export class VillageAssaultScene extends Phaser.Scene {
               accessibleLabel: ownBuilding.rallyPoint
                 ? `變更集結點，目前${ownBuilding.rallyPoint.x},${ownBuilding.rallyPoint.y}`
                 : `設定${buildingDisplayName(ownBuilding.typeId)}集結點`,
-              active: ownBuilding.rallyPoint !== null,
               run: () => this.openRallyPlacement(ownBuilding.id),
             }
           : { glyph: "◎", label: "置中", run: () => this.centerCameraOn(ownBuilding.position) },
@@ -848,12 +963,26 @@ export class VillageAssaultScene extends Phaser.Scene {
       ];
     }
     if (ownUnits.length > 0) {
+      const military = ownUnits.filter((unit): unit is UnitEntityState & { typeId: CombatUnitId } => unit.typeId !== "villager");
+      if (military.length === ownUnits.length) {
+        const entityIds = military.map((unit) => unit.id);
+        return [
+          { glyph: "⚔", label: "攻擊移動", active: this.tacticalUiMode.kind === "attackMove", run: () => this.tacticalUiMode.kind === "attackMove" ? this.cancelTacticalMode("已取消攻擊移動選點") : this.openTacticalMode({ kind: "attackMove", entityIds }) },
+          { glyph: "巡", label: "巡邏", active: this.tacticalUiMode.kind === "patrol", run: () => this.tacticalUiMode.kind === "patrol" ? this.cancelTacticalMode("已取消巡邏選點") : this.openTacticalMode({ kind: "patrol", entityIds, firstPoint: null }) },
+          this.formationAction(military),
+          this.stanceAction(military),
+          this.abilityAction(military),
+          { glyph: "■", label: "停止", run: () => { this.cancelTacticalMode(); this.issue({ type: "stop", entityIds }, "單位停止目前命令"); } },
+          this.systemAction(),
+        ];
+      }
       const hasVillager = ownUnits.some((unit) => unit.typeId === "villager");
       const unload = this.dropOffAction(ownUnits);
       const contextual: ActionSpec[] = [
         ...(hasVillager ? [{ glyph: "⌂", label: "建造", run: () => this.openBuildMenu() } satisfies ActionSpec] : []),
         ...(unload ? [unload] : []),
-        { glyph: "■", label: "停止", run: () => this.issue({ type: "stop", entityIds: ownUnits.map((unit) => unit.id) }, "單位停止目前工作") },
+        ...(hasVillager ? [{ glyph: "修", label: "修復", active: this.tacticalUiMode.kind === "repair", run: () => this.tacticalUiMode.kind === "repair" ? this.cancelTacticalMode("已取消修復選取") : this.openTacticalMode({ kind: "repair", entityIds: ownUnits.filter((unit) => unit.typeId === "villager").map((unit) => unit.id) }) } satisfies ActionSpec] : []),
+        { glyph: "■", label: "停止", run: () => { this.cancelTacticalMode(); this.issue({ type: "stop", entityIds: ownUnits.map((unit) => unit.id) }, "單位停止目前工作"); } },
         this.selectWorkersAction(),
         this.selectArmyAction(),
         { glyph: "Ⅱ", label: this.paused ? "繼續" : "暫停", run: () => this.togglePause() },
@@ -873,6 +1002,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private openProductionQueue(producerId: string): void {
+    this.tacticalUiMode = { kind: "none" };
     this.productionUiMode = { kind: "queue", producerId, page: 0 };
     this.buildMenuOpen = false;
     this.researchMenuOpen = false;
@@ -883,6 +1013,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private openRallyPlacement(producerId: string): void {
+    this.tacticalUiMode = { kind: "none" };
     this.productionUiMode = { kind: "rally", producerId };
     this.buildMenuOpen = false;
     this.researchMenuOpen = false;
@@ -935,7 +1066,6 @@ export class VillageAssaultScene extends Phaser.Scene {
         glyph: job.kind === "train" ? "兵" : "研",
         label: `第${queueIndex + 1}項 ${name}`,
         accessibleLabel: `已選取生產佇列第${queueIndex + 1}項，${name}`,
-        active: true,
         enabled: false,
         run: () => undefined,
       },
@@ -975,7 +1105,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       { glyph: "◎", label: "置中建築", run: () => this.centerCameraOn(producer.position) },
       { glyph: "座", label: producer.rallyPoint ? `${producer.rallyPoint.x},${producer.rallyPoint.y}` : "尚未設定", enabled: false, run: () => undefined },
       { glyph: "↩", label: "返回指令", run: () => { this.productionUiMode = { kind: "none" }; this.hoverGrid = null; this.refreshInterface(true); } },
-      { glyph: "⚑", label: "設定中", active: true, run: () => undefined },
+      { glyph: "⚑", label: "設定中", enabled: false, run: () => undefined },
       this.systemAction(),
     ];
   }
@@ -1028,7 +1158,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     const unlocked = this.hasReachedTier(definition.requiredTier);
     const enabled = unlocked && !loading && producer.complete && player.advancement?.producerId !== producer.id && producer.productionQueue.length < MAX_TRAINING_QUEUE_DEPTH && this.canAfford(definition.cost) && player.population.used + definition.population <= player.population.capacity;
     return {
-      glyph: unlocked ? ({ villager: "工", militia: "劍", spearman: "盾", archer: "弓", mage: "法", musketeer: "銃", scout: "豬", batteringRam: "弩" } satisfies Record<UnitType, string>)[type] : "鎖",
+      glyph: unlocked ? ({ villager: "工", warrior: "劍", shieldBearer: "盾", archer: "弓", mage: "法", musketeer: "銃", boarRider: "豬", heavyCrossbowman: "弩" } satisfies Record<UnitType, string>)[type] : "鎖",
       label: !unlocked
         ? `${this.shortUnitName(type)} 需${SETTLEMENT_TIER_SHORT_LABELS[definition.requiredTier]}期`
         : loading ? `${this.shortUnitName(type)} 載入中` : `${this.shortUnitName(type)} ${this.shortCost(definition.cost)}`,
@@ -1282,6 +1412,185 @@ export class VillageAssaultScene extends Phaser.Scene {
     return { glyph: "⚔", label: "全選軍隊", enabled: military.length > 0, run: () => this.selectUnitGroup("military") };
   }
 
+  private formationAction(units: readonly (UnitEntityState & { typeId: CombatUnitId })[]): ActionSpec {
+    const order: readonly FormationKind[] = ["line", "wedge", "box"];
+    const current = units[0]?.formation ?? "line";
+    const next = order[(order.indexOf(current) + 1) % order.length]!;
+    const labels: Record<FormationKind, string> = { line: "橫列", wedge: "楔形", box: "方陣" };
+    return {
+      glyph: current === "line" ? "一" : current === "wedge" ? "Λ" : "▦",
+      label: labels[current],
+      accessibleLabel: `目前${labels[current]}，切換為${labels[next]}`,
+      run: () => this.issue({ type: "setFormation", entityIds: units.map((unit) => unit.id), formation: next }, `部隊改為${labels[next]}`),
+    };
+  }
+
+  private stanceAction(units: readonly (UnitEntityState & { typeId: CombatUnitId })[]): ActionSpec {
+    const order: readonly CombatStance[] = ["aggressive", "defensive", "holdGround"];
+    const current = units[0]?.stance ?? "aggressive";
+    const next = order[(order.indexOf(current) + 1) % order.length]!;
+    const labels: Record<CombatStance, string> = { aggressive: "主動", defensive: "守備", holdGround: "堅守" };
+    return {
+      glyph: current === "aggressive" ? "猛" : current === "defensive" ? "守" : "止",
+      label: labels[current],
+      accessibleLabel: `目前${labels[current]}站姿，切換為${labels[next]}`,
+      run: () => this.issue({ type: "setStance", entityIds: units.map((unit) => unit.id), stance: next }, `部隊站姿：${labels[next]}`),
+    };
+  }
+
+  private abilityAction(units: readonly (UnitEntityState & { typeId: CombatUnitId })[]): ActionSpec {
+    const caster = [...units].sort((left, right) => left.id.localeCompare(right.id))[0]!;
+    const ability = COMBAT_UNITS[caster.typeId].activeAbility;
+    const ready = caster.combat.phase === "ready" && caster.abilityReadyTick <= this.runtime.state.tick;
+    const targeting: "unit" | "ground" | "direction" = ability.targeting === "unit" ? "unit" : ability.targeting === "ground" ? "ground" : "direction";
+    return {
+      glyph: "技",
+      label: ready ? ability.displayName : `冷卻 ${Math.max(0, Math.ceil((caster.abilityReadyTick - this.runtime.state.tick) / TICKS_PER_SECOND))}s`,
+      accessibleLabel: `${UNIT_LABELS[caster.typeId]}技能${ability.displayName}${ready ? "已就緒" : "冷卻中"}`,
+      enabled: ready,
+      active: ability.targeting === "self" ? undefined : this.tacticalUiMode.kind === "ability" && this.tacticalUiMode.casterId === caster.id,
+      run: () => {
+        if (ability.targeting === "self") {
+          if (this.issue({ type: "castAbility", casterId: caster.id, abilityId: ability.id, target: { kind: "self" } }, `${ability.displayName}已啟動`)) this.cancelTacticalMode();
+          return;
+        }
+        if (this.tacticalUiMode.kind === "ability" && this.tacticalUiMode.casterId === caster.id) this.cancelTacticalMode("已取消技能瞄準");
+        else this.openTacticalMode({ kind: "ability", casterId: caster.id, abilityId: ability.id, targeting });
+      },
+    };
+  }
+
+  private openTacticalMode(mode: Exclude<TacticalUiMode, { kind: "none" }>): void {
+    this.tacticalUiMode = mode;
+    this.productionUiMode = { kind: "none" };
+    this.buildMenuOpen = false;
+    this.researchMenuOpen = false;
+    this.buildingPlacement = null;
+    this.systemPanelOpen = false;
+    this.hoverGrid = null;
+    this.hoverEntityId = null;
+    const message = mode.kind === "attackMove" ? "點地圖下達攻擊移動" : mode.kind === "patrol" ? "依序點選兩個巡邏點" : mode.kind === "repair" ? "點選受損友方建築" : "選擇技能目標";
+    this.setNotice(message, "normal");
+    this.refreshInterface(true);
+  }
+
+  private cancelTacticalMode(message?: string): void {
+    this.tacticalUiMode = { kind: "none" };
+    this.hoverGrid = null;
+    this.hoverEntityId = null;
+    if (!this.buildingPlacement && this.productionUiMode.kind !== "rally") this.settlementOverlay?.placement.clear();
+    if (message) this.setNotice(message, "normal");
+    this.refreshInterface(true);
+  }
+
+  private commitTacticalTarget(point: GridPoint, entity: EntityState | null): void {
+    const mode = this.tacticalUiMode;
+    if (mode.kind === "none") return;
+    if (mode.kind === "attackMove") {
+      const command: GameCommand = entity && this.isHostileTarget(entity)
+        ? { type: "attack", entityIds: mode.entityIds, targetId: entity.id }
+        : { type: "attackMove", entityIds: mode.entityIds, target: point };
+      const notice = command.type === "attack" ? `集中攻擊 ${this.entityDisplayName(entity!)}` : `攻擊移動至 ${point.x},${point.y}`;
+      if (this.issue(command, notice)) this.cancelTacticalMode();
+      return;
+    }
+    if (mode.kind === "patrol") {
+      if (!mode.firstPoint) {
+        if (!this.isTacticalTargetValid(point, entity)) {
+          this.drawTacticalMarker(point, false);
+          this.setNotice("巡邏點必須設在可通行空地", "warning");
+          return;
+        }
+        this.tacticalUiMode = { ...mode, firstPoint: { ...point } };
+        this.setNotice("第一巡邏點已設定，請點第二點", "normal");
+        this.refreshInterface(true);
+        return;
+      }
+      if (this.issue({ type: "patrol", entityIds: mode.entityIds, waypoints: [mode.firstPoint, point] }, "開始雙點巡邏")) this.cancelTacticalMode();
+      return;
+    }
+    if (mode.kind === "repair") {
+      if (!entity || entity.kind !== "building") {
+        this.setNotice("修復必須點選受損友方建築", "warning");
+        return;
+      }
+      if (this.issue({ type: "repair", entityIds: mode.entityIds, targetId: entity.id }, `開始修復 ${buildingDisplayName(entity.typeId)}`)) this.cancelTacticalMode();
+      return;
+    }
+    const caster = this.entityById(mode.casterId);
+    if (!caster || caster.kind !== "unit") {
+      this.cancelTacticalMode("施法者已失效");
+      return;
+    }
+    const target = mode.targeting === "unit"
+      ? entity ? { kind: "entity" as const, entityId: entity.id } : null
+      : mode.targeting === "ground"
+        ? { kind: "ground" as const, point: { ...point } }
+        : { kind: "direction" as const, vector: { x: point.x - caster.position.x, y: point.y - caster.position.y } };
+    if (!target || (target.kind === "direction" && target.vector.x === 0 && target.vector.y === 0)) {
+      this.setNotice("技能目標無效，請重新選擇", "warning");
+      return;
+    }
+    if (this.issue({ type: "castAbility", casterId: caster.id, abilityId: mode.abilityId, target }, `${mode.abilityId} 已施放`)) this.cancelTacticalMode();
+  }
+
+  private drawTacticalMarker(point: GridPoint, valid: boolean): void {
+    const graphics = this.settlementOverlay?.placement;
+    if (!graphics) return;
+    const world = gridToWorld(point, { x: 0, y: 0 });
+    const color = valid ? 0xf0c86d : 0xef735f;
+    graphics.clear().fillStyle(color, 0.2).beginPath()
+      .moveTo(world.x, world.y - 22).lineTo(world.x + 44, world.y).lineTo(world.x, world.y + 22).lineTo(world.x - 44, world.y).closePath().fillPath();
+    graphics.lineStyle(4, color, 0.95).strokePath();
+    graphics.lineStyle(4, color, 0.95).lineBetween(world.x - 14, world.y, world.x + 16, world.y).lineBetween(world.x + 16, world.y, world.x + 7, world.y - 8).lineBetween(world.x + 16, world.y, world.x + 7, world.y + 8);
+    if (this.tacticalUiMode.kind === "patrol" && this.tacticalUiMode.firstPoint) {
+      const first = gridToWorld(this.tacticalUiMode.firstPoint, { x: 0, y: 0 });
+      graphics.lineStyle(3, 0x9ed486, 0.9).lineBetween(first.x, first.y, world.x, world.y).strokeCircle(first.x, first.y, 12);
+    }
+  }
+
+  private isTacticalTargetValid(point: GridPoint, entity: EntityState | null): boolean {
+    const mode = this.tacticalUiMode;
+    let command: GameCommand | null = null;
+    if (mode.kind === "attackMove") {
+      command = entity && this.isHostileTarget(entity)
+        ? { type: "attack", entityIds: mode.entityIds, targetId: entity.id }
+        : { type: "attackMove", entityIds: mode.entityIds, target: point };
+    } else if (mode.kind === "patrol") {
+      command = { type: "patrol", entityIds: mode.entityIds, waypoints: [mode.firstPoint ?? point, point] };
+    } else if (mode.kind === "repair" && entity?.kind === "building") {
+      command = { type: "repair", entityIds: mode.entityIds, targetId: entity.id };
+    } else if (mode.kind === "ability") {
+      const caster = this.entityById(mode.casterId);
+      if (!caster || caster.kind !== "unit") return false;
+      const target = mode.targeting === "unit"
+        ? entity ? { kind: "entity" as const, entityId: entity.id } : null
+        : mode.targeting === "ground"
+          ? { kind: "ground" as const, point }
+          : { kind: "direction" as const, vector: { x: point.x - caster.position.x, y: point.y - caster.position.y } };
+      if (target && (target.kind !== "direction" || target.vector.x !== 0 || target.vector.y !== 0)) {
+        command = { type: "castAbility", casterId: mode.casterId, abilityId: mode.abilityId, target };
+      }
+    }
+    if (!command) return false;
+    const player = this.runtime.state.players.find((candidate) => candidate.id === VILLAGE_ASSAULT_PLAYER_ID);
+    if (!player) return false;
+    return validateCommand(this.runtime.state, {
+      matchId: this.runtime.state.matchId,
+      playerId: VILLAGE_ASSAULT_PLAYER_ID,
+      sequence: player.lastSequence + 1,
+      clientTick: this.runtime.state.tick,
+      command,
+    }).ok;
+  }
+
+  private isHostileTarget(entity: EntityState): boolean {
+    if (entity.kind === "resource" || entity.ownerId === null) return false;
+    const player = this.runtime.state.players.find((candidate) => candidate.id === VILLAGE_ASSAULT_PLAYER_ID);
+    const owner = this.runtime.state.players.find((candidate) => candidate.id === entity.ownerId);
+    return Boolean(player && owner && player.teamId !== owner.teamId);
+  }
+
   private zoomAction(amount: number): ActionSpec {
     return { glyph: amount > 0 ? "+" : "−", label: amount > 0 ? "放大" : "縮小", run: () => this.zoomCamera(amount) };
   }
@@ -1292,7 +1601,15 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private systemAction(): ActionSpec {
-    return { glyph: "⋯", label: "系統", run: () => { this.systemPanelOpen = true; this.refreshInterface(true); } };
+    return {
+      glyph: "⋯",
+      label: "系統",
+      run: () => {
+        if (this.tacticalUiMode.kind !== "none") this.cancelTacticalMode();
+        this.systemPanelOpen = true;
+        this.refreshInterface(true);
+      },
+    };
   }
 
   private openBuildMenu(): void {
@@ -1302,6 +1619,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     this.buildMenuOpen = true;
+    this.tacticalUiMode = { kind: "none" };
     this.buildPage = 0;
     this.researchMenuOpen = false;
     this.researchPage = 0;
@@ -1366,6 +1684,38 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.researchPage = 0;
     }
     this.sanitizeProductionMode();
+    this.sanitizeTacticalMode();
+  }
+
+  private sanitizeTacticalMode(): void {
+    const mode = this.tacticalUiMode;
+    if (mode.kind === "none") return;
+    if (mode.kind === "ability") {
+      const caster = this.entityById(mode.casterId);
+      if (caster?.kind === "unit" && caster.ownerId === VILLAGE_ASSAULT_PLAYER_ID && caster.typeId !== "villager" && COMBAT_UNITS[caster.typeId].activeAbility.id === mode.abilityId) return;
+      this.tacticalUiMode = { kind: "none" };
+      this.hoverGrid = null;
+      this.hoverEntityId = null;
+      return;
+    }
+    const requiredType = mode.kind === "repair" ? "villager" : "military";
+    const entityIds = mode.entityIds.filter((id) => {
+      const unit = this.entityById(id);
+      return unit?.kind === "unit"
+        && unit.ownerId === VILLAGE_ASSAULT_PLAYER_ID
+        && (requiredType === "villager" ? unit.typeId === "villager" : unit.typeId !== "villager");
+    });
+    if (entityIds.length === 0) {
+      this.tacticalUiMode = { kind: "none" };
+      this.hoverGrid = null;
+      this.hoverEntityId = null;
+    } else if (mode.kind === "attackMove") {
+      this.tacticalUiMode = { ...mode, entityIds };
+    } else if (mode.kind === "patrol") {
+      this.tacticalUiMode = { ...mode, entityIds };
+    } else {
+      this.tacticalUiMode = { ...mode, entityIds };
+    }
   }
 
   private sanitizeProductionMode(): void {
@@ -1391,6 +1741,12 @@ export class VillageAssaultScene extends Phaser.Scene {
   private refreshRallyOverlay(): void {
     const graphics = this.settlementOverlay?.placement;
     if (!graphics || this.buildingPlacement) return;
+    if (this.tacticalUiMode.kind !== "none") {
+      const hoverEntity = this.hoverEntityId ? this.entityById(this.hoverEntityId) ?? null : null;
+      if (this.hoverGrid) this.drawTacticalMarker(this.hoverGrid, this.isTacticalTargetValid(this.hoverGrid, hoverEntity));
+      else graphics.clear();
+      return;
+    }
     if (this.productionUiMode.kind === "rally" && this.hoverGrid) {
       this.drawRallyMarker(this.hoverGrid, isRallyPointAvailable(this.runtime.state, this.productionUiMode.producerId, this.hoverGrid), true);
       return;
@@ -1586,7 +1942,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private shortUnitName(type: UnitType): string {
-    return ({ villager: "工匠", militia: "戰士", spearman: "槍衛", archer: "弓手", mage: "法師", musketeer: "銃兵", scout: "斥候", batteringRam: "攻城弩" } satisfies Record<UnitType, string>)[type];
+    return ({ villager: "工匠", warrior: "戰士", shieldBearer: "盾牌手", archer: "弓箭手", mage: "法師", musketeer: "火槍兵", boarRider: "野豬騎士", heavyCrossbowman: "重弩攻手" } satisfies Record<UnitType, string>)[type];
   }
 
   private compactNotice(value: string): string {
@@ -1787,6 +2143,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private handleEscape(): void {
+    if (!this.systemPanelOpen && this.tacticalUiMode.kind !== "none") {
+      this.cancelTacticalMode("已取消戰術目標模式");
+      return;
+    }
     if (!this.systemPanelOpen && this.productionUiMode.kind === "confirm") {
       this.productionUiMode = { kind: "queue", producerId: this.productionUiMode.producerId, page: this.productionUiMode.page };
       this.refreshInterface(true);
@@ -1860,8 +2220,13 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.actionButtons.length = 0;
     for (const view of this.unitViews.values()) view.actor.destroy();
     for (const view of this.entityViews.values()) view.destroy();
+    for (const effect of this.projectileEffects.values()) {
+      this.tweens.killTweensOf(effect);
+      effect.destroy();
+    }
     this.unitViews.clear();
     this.entityViews.clear();
+    this.projectileEffects.clear();
     this.selectedIds.clear();
     this.mapView?.destroy();
     this.settlementOverlay?.destroy();

@@ -1,3 +1,12 @@
+import {
+  COMBAT_UNIT_IDS,
+  type AbilityPhase,
+  type CombatUnitId,
+  type Facing,
+  type ProjectileProfileId,
+  type StatusEffectId,
+} from "./combat.js";
+
 export type MatchId = string;
 export type PlayerId = string;
 export type EntityId = string;
@@ -28,7 +37,9 @@ export type BuildingType =
   | "gunWorkshop"
   | "beastStable"
   | "siegeWorkshop";
-export type UnitType = "villager" | "militia" | "spearman" | "archer" | "mage" | "musketeer" | "scout" | "batteringRam";
+export type UnitType = "villager" | CombatUnitId;
+export type CombatStance = "aggressive" | "defensive" | "holdGround";
+export type FormationKind = "line" | "wedge" | "box";
 
 export interface GridPoint {
   readonly x: number;
@@ -52,8 +63,15 @@ export interface ProductionJobId {
   readonly itemIndex: number;
 }
 
+export type AbilityTarget =
+  | { readonly kind: "self" }
+  | { readonly kind: "entity"; readonly entityId: EntityId }
+  | { readonly kind: "ground"; readonly point: GridPoint }
+  | { readonly kind: "direction"; readonly vector: GridPoint };
+
 export type GameCommand =
   | { readonly type: "move"; readonly entityIds: readonly EntityId[]; readonly target: GridPoint }
+  | { readonly type: "attackMove"; readonly entityIds: readonly EntityId[]; readonly target: GridPoint }
   | { readonly type: "attack"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
   | { readonly type: "gather"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
   | { readonly type: "dropOff"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
@@ -64,6 +82,10 @@ export type GameCommand =
   | { readonly type: "setRallyPoint"; readonly producerId: EntityId; readonly target: GridPoint | null }
   | { readonly type: "advanceSettlement"; readonly producerId: EntityId; readonly targetTier: SettlementTier }
   | { readonly type: "patrol"; readonly entityIds: readonly EntityId[]; readonly waypoints: readonly GridPoint[] }
+  | { readonly type: "repair"; readonly entityIds: readonly EntityId[]; readonly targetId: EntityId }
+  | { readonly type: "setStance"; readonly entityIds: readonly EntityId[]; readonly stance: CombatStance }
+  | { readonly type: "setFormation"; readonly entityIds: readonly EntityId[]; readonly formation: FormationKind }
+  | { readonly type: "castAbility"; readonly casterId: EntityId; readonly abilityId: string; readonly target: AbilityTarget }
   | { readonly type: "stop"; readonly entityIds: readonly EntityId[] }
   | { readonly type: "surrender" };
 
@@ -86,6 +108,7 @@ export type CommandRejectCode =
   | "DUPLICATE_RESEARCH"
   | "PRODUCTION_JOB_NOT_FOUND"
   | "PREREQUISITE_NOT_MET"
+  | "ABILITY_NOT_READY"
   | "ACTION_ON_COOLDOWN"
   | "TARGET_NOT_VISIBLE"
   | "TARGET_NOT_REACHABLE";
@@ -99,6 +122,19 @@ export interface PublicEntityState {
   readonly hitPoints: number;
   readonly maxHitPoints: number;
   readonly stateRevision: number;
+  readonly facing?: Facing;
+  readonly stance?: CombatStance;
+  readonly formation?: FormationKind;
+  readonly combatPhase?: AbilityPhase;
+  readonly abilityReadyTick?: number;
+  readonly statuses?: readonly { readonly id: StatusEffectId; readonly expiresAtTick: number }[];
+  readonly passiveProgress?: {
+    readonly stationarySinceTick: number;
+    readonly movedTilesSinceAttack: number;
+    readonly rhythmStacks: number;
+    readonly rhythmExpiresAtTick: number;
+    readonly braceCooldownUntilTick: number;
+  };
   readonly cargo?: ResourceCargo;
   readonly resourceNode?: {
     readonly amount: number;
@@ -107,11 +143,28 @@ export interface PublicEntityState {
   };
 }
 
+export interface PublicProjectileState {
+  readonly id: EntityId;
+  readonly ownerId: PlayerId;
+  readonly sourceId: EntityId;
+  readonly profileId: ProjectileProfileId;
+  readonly position: GridPoint;
+  readonly targetId: EntityId | null;
+  readonly targetPoint: GridPoint;
+  readonly impactTick: number;
+}
+
 export type DomainEvent =
   | { readonly type: "commandAccepted"; readonly sequence: number; readonly serverTick: number }
   | { readonly type: "commandRejected"; readonly sequence: number; readonly code: CommandRejectCode }
   | { readonly type: "entitySpawned"; readonly entity: PublicEntityState }
   | { readonly type: "entityUpdated"; readonly entity: PublicEntityState }
+  | { readonly type: "combatPhaseChanged"; readonly entityId: EntityId; readonly phase: AbilityPhase; readonly action: "attack" | "ability" | null }
+  | { readonly type: "projectileSpawned"; readonly projectile: PublicProjectileState }
+  | { readonly type: "projectileImpacted"; readonly projectileId: EntityId; readonly position: GridPoint; readonly targetIds: readonly EntityId[] }
+  | { readonly type: "entityDamaged"; readonly sourceId: EntityId; readonly targetId: EntityId; readonly amount: number; readonly hitPoints: number }
+  | { readonly type: "statusApplied"; readonly sourceId: EntityId; readonly targetId: EntityId; readonly statusId: StatusEffectId; readonly expiresAtTick: number }
+  | { readonly type: "statusExpired"; readonly entityId: EntityId; readonly statusId: StatusEffectId }
   | { readonly type: "entityRemoved"; readonly entityId: EntityId; readonly reason: "destroyed" | "completed" | "depleted" | "despawned" }
   | { readonly type: "settlementAdvanced"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly settlementTier: SettlementTier }
   | { readonly type: "technologyResearched"; readonly playerId: PlayerId; readonly producerId: EntityId; readonly technologyId: TechnologyType }
@@ -140,6 +193,7 @@ export function isGameCommand(value: unknown): value is GameCommand {
   if (!isRecord(value) || typeof value.type !== "string") return false;
   switch (value.type) {
     case "move":
+    case "attackMove":
       return hasOnlyKeys(value, ["type", "entityIds", "target"]) && isIdArray(value.entityIds) && isGridPoint(value.target);
     case "attack":
     case "gather":
@@ -159,6 +213,19 @@ export function isGameCommand(value: unknown): value is GameCommand {
       return hasOnlyKeys(value, ["type", "producerId", "targetTier"]) && typeof value.producerId === "string" && value.producerId.length > 0 && isSettlementTier(value.targetTier);
     case "patrol":
       return hasOnlyKeys(value, ["type", "entityIds", "waypoints"]) && isIdArray(value.entityIds) && Array.isArray(value.waypoints) && value.waypoints.length >= 2 && value.waypoints.length <= 8 && value.waypoints.every(isGridPoint);
+    case "repair":
+      return hasOnlyKeys(value, ["type", "entityIds", "targetId"]) && isIdArray(value.entityIds) && typeof value.targetId === "string" && value.targetId.length > 0;
+    case "setStance":
+      return hasOnlyKeys(value, ["type", "entityIds", "stance"]) && isIdArray(value.entityIds) && isCombatStance(value.stance);
+    case "setFormation":
+      return hasOnlyKeys(value, ["type", "entityIds", "formation"]) && isIdArray(value.entityIds) && isFormationKind(value.formation);
+    case "castAbility":
+      return hasOnlyKeys(value, ["type", "casterId", "abilityId", "target"])
+        && typeof value.casterId === "string"
+        && value.casterId.length > 0
+        && typeof value.abilityId === "string"
+        && value.abilityId.length > 0
+        && isAbilityTarget(value.target);
     case "stop":
       return hasOnlyKeys(value, ["type", "entityIds"]) && isIdArray(value.entityIds);
     case "surrender":
@@ -197,7 +264,26 @@ export function isBuildingType(value: unknown): value is BuildingType {
 }
 
 export function isUnitType(value: unknown): value is UnitType {
-  return typeof value === "string" && (["villager", "militia", "spearman", "archer", "mage", "musketeer", "scout", "batteringRam"] as const).includes(value as UnitType);
+  return value === "villager" || (typeof value === "string" && COMBAT_UNIT_IDS.includes(value as CombatUnitId));
+}
+
+export function isCombatStance(value: unknown): value is CombatStance {
+  return typeof value === "string" && (["aggressive", "defensive", "holdGround"] as const).includes(value as CombatStance);
+}
+
+export function isFormationKind(value: unknown): value is FormationKind {
+  return typeof value === "string" && (["line", "wedge", "box"] as const).includes(value as FormationKind);
+}
+
+export function isAbilityTarget(value: unknown): value is AbilityTarget {
+  if (!isRecord(value) || typeof value.kind !== "string") return false;
+  if (value.kind === "self") return hasOnlyKeys(value, ["kind"]);
+  if (value.kind === "entity") return hasOnlyKeys(value, ["kind", "entityId"]) && typeof value.entityId === "string" && value.entityId.length > 0;
+  if (value.kind === "ground") return hasOnlyKeys(value, ["kind", "point"]) && isGridPoint(value.point);
+  return value.kind === "direction"
+    && hasOnlyKeys(value, ["kind", "vector"])
+    && isGridPoint(value.vector)
+    && (value.vector.x !== 0 || value.vector.y !== 0);
 }
 
 function isProductionJobId(value: unknown): value is ProductionJobId {

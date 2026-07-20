@@ -60,7 +60,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 | TASK-007 | Expose settlement tier, requirements, progress and locked content in `VillageAssaultScene.ts` without exceeding the seven-slot mobile dock. | Yes | 2026-07-20 |
 | TASK-008 | Teach all five AI profiles legal prerequisite building and distinct deterministic settlement-advance timing in `packages/shared/src/ai.ts`. | Yes | 2026-07-20 |
 | TASK-027 | Add data-driven technology research contracts, queues, duplicate checks, effects, AI priorities and fixed-dock presentation. | Yes | 2026-07-20 |
-| TASK-028 | Add rally points, production queue cancellation and their deterministic shared/client contracts. |  |  |
+| TASK-028 | Add rally points, production queue cancellation and their deterministic shared/client contracts. | Yes | 2026-07-20 |
 
 ### Implementation Phase 3 - Tactical combat, fog and fortified villages
 
@@ -68,7 +68,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-009 | Implement attack-move, repair, stance, formation, active ability and deterministic projectile-impact commands in shared simulation and client input. |  |  |
+| TASK-009 | Implement attack-move, repair, stance, formation, active abilities, per-role passives and deterministic locked, area and line-projectile commands in shared simulation and client input. | Yes | 2026-07-20 |
 | TASK-010 | Implement explored/visible fog grids, stale sightings and per-player filtered public snapshots in `packages/shared/src/visibility.ts`. |  |  |
 | TASK-011 | Add wall, gate, landmark and rubble entities with open, closed, damaged and destroyed pathing transitions. |  |  |
 | TASK-012 | Add original continuous terrain, fortified village layouts, neutral monsters, civilian activity and breach effects for three to five map starts. |  |  |

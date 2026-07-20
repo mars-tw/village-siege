@@ -101,11 +101,11 @@ describe("shared AI personalities", () => {
       ...observation,
       ownEntities: [
         ...observation.ownEntities,
-        entity("pressure-militia", player.id, "unit", "militia", 8, 8),
-        entity("pressure-spearman", player.id, "unit", "spearman", 9, 8),
+        entity("pressure-warrior", player.id, "unit", "warrior", 8, 8),
+        entity("pressure-shield", player.id, "unit", "shieldBearer", 9, 8),
         entity("pressure-archer", player.id, "unit", "archer", 10, 8),
       ],
-      visibleEnemyEntities: [entity("pressure-enemy", "player-2", "unit", "militia", 12, 8)],
+      visibleEnemyEntities: [entity("pressure-enemy", "player-2", "unit", "warrior", 12, 8)],
     };
     const command = createAiController("balanced", player.id, 751, "veteran").decide(pressured, 5)[0];
     expect(command).toMatchObject({ type: "research", producerId: "pressure-lumber-camp", technologyId: "resinboundKits" });
@@ -159,18 +159,47 @@ describe("shared AI personalities", () => {
     expect(createAiController("balanced", "player-1", 80).decide(capped, 5)[0]).toMatchObject({ type: "build", buildingType: "house" });
   });
 
-  it("uses distinct target and production priorities when enemies are visible", () => {
+  it("uses personality priorities and legal active abilities when enemies are visible", () => {
     const observation = combatObservation();
     const decisions = Object.fromEntries(PERSONALITIES.map((personality) => [
       personality,
       createAiController(personality, "player-1", 91).decide(observation, 5)[0],
     ]));
 
-    expect(decisions.aggressor).toMatchObject({ type: "attack", targetId: "enemy-town-center" });
-    expect(decisions.guardian).toMatchObject({ type: "attack", targetId: "enemy-militia" });
+    expect(decisions.aggressor).toMatchObject({ type: "castAbility", abilityId: "pinningVolley", target: { kind: "ground", point: { x: 12, y: 6 } } });
+    expect(decisions.guardian).toMatchObject({ type: "castAbility", abilityId: "shieldWall", target: { kind: "self" } });
     expect(decisions.prosperer).toMatchObject({ type: "train", unitType: "villager" });
-    expect(decisions.balanced).toMatchObject({ type: "attack", targetId: "enemy-militia" });
-    expect(decisions.raider).toMatchObject({ type: "attack", targetId: "enemy-villager" });
+    expect(decisions.balanced).toMatchObject({ type: "castAbility", abilityId: "shieldWall", target: { kind: "self" } });
+    expect(decisions.raider).toMatchObject({ type: "castAbility", abilityId: "pinningVolley", target: { kind: "ground", point: { x: 11, y: 7 } } });
+  });
+
+  it("skips staggered casters when selecting an active ability", () => {
+    const observation = combatObservation();
+    const pressured: AiObservation = {
+      ...observation,
+      ownEntities: observation.ownEntities.map((candidate) => candidate.id === "own-warrior"
+        ? { ...candidate, position: { x: 11, y: 6 }, statuses: [{ id: "stagger", expiresAtTick: 8 }] }
+        : candidate),
+    };
+    const command = createAiController("aggressor", "player-1", 911).decide(pressured, 5)[0];
+    expect(command).toMatchObject({ type: "castAbility", casterId: "own-archer", abilityId: "pinningVolley" });
+  });
+
+  it("selects a canonical counter unit from the visible enemy composition", () => {
+    const state = createInitialState({ seed: 92, matchId: "ai-counter-composition" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const home = state.entities.find((candidate) => candidate.kind === "building" && candidate.ownerId === player.id && candidate.typeId === "townCenter")!;
+    const enemy = state.entities.find((candidate) => candidate.kind === "unit" && candidate.ownerId === "player-2")!;
+    player.settlementTier = "artificer";
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    state.tick = 20;
+    enemy.typeId = "archer";
+    enemy.position = { x: home.position.x + 4, y: home.position.y };
+
+    const command = createAiController("balanced", player.id, 92, "veteran")
+      .decide(getAiObservation(state, player.id), 5)[0];
+    expect(command).toMatchObject({ type: "build", buildingType: "beastStable" });
+    expect(validateCommand(state, envelope(state, 0, command!))).toEqual({ ok: true });
   });
 
   it("does not expose or react to enemy state outside current vision", () => {
@@ -273,7 +302,7 @@ describe("shared AI personalities", () => {
     state = applyCommand(state, envelope(state, 0, rally!)).state;
     state = stepSimulation(state, [], 20).state;
     const train = controller.decide(getAiObservation(state, "player-1"), 5)[0];
-    expect(train).toMatchObject({ type: "train", producerId: "ai-rally-barracks", unitType: "militia" });
+    expect(train).toMatchObject({ type: "train", producerId: "ai-rally-barracks", unitType: "warrior" });
     expect(validateCommand(state, envelope(state, 1, train!))).toEqual({ ok: true });
   });
 
@@ -308,11 +337,11 @@ describe("shared AI personalities", () => {
 
   it("keeps every personality command legal until advancement or a legitimate victory", () => {
     const expectedProduction = {
-      aggressor: { building: "barracks", unit: "militia" },
-      guardian: { building: "barracks", unit: "spearman" },
+      aggressor: { building: "barracks", unit: "warrior" },
+      guardian: { building: "barracks", unit: "shieldBearer" },
       prosperer: { building: "archeryRange", unit: "archer" },
-      balanced: { building: "barracks", unit: "spearman" },
-      raider: { building: "beastStable", unit: "scout" },
+      balanced: { building: "barracks", unit: "shieldBearer" },
+      raider: { building: "beastStable", unit: "boarRider" },
     } as const;
     for (const personality of PERSONALITIES) {
       const result = runAiForTicks(personality, 10_000);
@@ -424,8 +453,8 @@ function combatObservation(): AiObservation {
     entity("own-town-center", "player-1", "building", "townCenter", 6, 6),
     entity("own-barracks", "player-1", "building", "barracks", 7, 6),
     entity("own-villager", "player-1", "unit", "villager", 6, 7),
-    entity("own-militia", "player-1", "unit", "militia", 7, 7),
-    entity("own-spearman", "player-1", "unit", "spearman", 8, 7),
+    entity("own-warrior", "player-1", "unit", "warrior", 7, 7),
+    entity("own-shield", "player-1", "unit", "shieldBearer", 8, 7),
     entity("own-archer", "player-1", "unit", "archer", 9, 7),
   ];
   return {
@@ -444,7 +473,7 @@ function combatObservation(): AiObservation {
     visibleEnemyEntities: [
       entity("enemy-town-center", "player-2", "building", "townCenter", 12, 6),
       entity("enemy-villager", "player-2", "unit", "villager", 11, 7),
-      entity("enemy-militia", "player-2", "unit", "militia", 8, 6),
+      entity("enemy-warrior", "player-2", "unit", "warrior", 8, 6),
     ],
     visibleResourceEntities: [],
     rememberedEnemySites: [],

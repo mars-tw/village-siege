@@ -23,21 +23,39 @@ import {
   isVillageAssaultWalkableCell,
 } from "./battlefield.js";
 import { normalizeSeed } from "./random.js";
+import {
+  COMBAT_UNITS,
+  PROJECTILE_PROFILES,
+  STATUS_EFFECTS,
+  calculateDamage,
+  quantizeFacing,
+  type AbilityPhase,
+  type AbilityTargeting,
+  type CombatUnitId,
+  type Facing,
+  type ProjectileProfileId,
+  type StatusEffectDefinition,
+  type StatusEffectId,
+} from "./combat.js";
 import { findNextPathStep, findPathRoute, findPathToAny, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import {
   isCommandEnvelope,
+  type AbilityTarget,
   type BuildingType,
+  type CombatStance,
   type CommandEnvelope,
   type CommandRejectCode,
   type DomainEvent,
   type EntityId,
   type GameCommand,
   type GridPoint,
+  type FormationKind,
   type MatchId,
   type MatchPhase,
   type PlayerId,
   type ProductionJobId,
   type PublicEntityState,
+  type PublicProjectileState,
   type ResourceKind,
   type ResourceWallet,
   type SettlementTier,
@@ -49,11 +67,38 @@ import {
 export type UnitOrder =
   | { type: "idle" }
   | { type: "move"; target: GridPoint }
+  | { type: "attackMove"; target: GridPoint; engagedTargetId: EntityId | null }
   | { type: "attack"; targetId: EntityId }
   | { type: "gather"; targetId: EntityId; resourceKind: ResourceKind; phase: "toSource" | "toDropOff"; dropOffId: EntityId | null }
   | { type: "deliver"; targetId: EntityId }
   | { type: "construct"; targetId: EntityId }
+  | { type: "repair"; targetId: EntityId }
   | { type: "patrol"; waypoints: GridPoint[]; waypointIndex: number };
+
+export interface ActiveStatusState {
+  id: StatusEffectId;
+  sourceId: EntityId;
+  expiresAtTick: number;
+  nextTickAt: number | null;
+}
+
+export interface UnitCombatState {
+  phase: AbilityPhase;
+  action: "attack" | "ability" | null;
+  abilityId: string | null;
+  target: AbilityTarget | null;
+  commitTick: number | null;
+  readyTick: number;
+}
+
+export interface UnitPassiveState {
+  stationarySinceTick: number;
+  movedTilesSinceAttack: number;
+  rhythmTargetId: EntityId | null;
+  rhythmStacks: number;
+  rhythmLastHitTick: number;
+  braceCooldownUntilTick: number;
+}
 
 export interface UnitEntityState {
   id: EntityId;
@@ -68,6 +113,13 @@ export interface UnitEntityState {
   movementProgress: number;
   attackCooldownTicks: number;
   workCooldownTicks: number;
+  facing: Facing;
+  stance: CombatStance;
+  formation: FormationKind;
+  combat: UnitCombatState;
+  abilityReadyTick: number;
+  passive: UnitPassiveState;
+  statuses: ActiveStatusState[];
   cargo: { kind: ResourceKind | null; amount: number };
   gatherRemainderMilli: ResourceWallet;
 }
@@ -88,6 +140,7 @@ export interface BuildingEntityState {
   complete: boolean;
   constructionRemainingTicks: number;
   attackCooldownTicks: number;
+  statuses: ActiveStatusState[];
   rallyPoint: GridPoint | null;
   productionQueue: ProductionJob[];
 }
@@ -106,6 +159,35 @@ export interface ResourceEntityState {
 }
 
 export type EntityState = UnitEntityState | BuildingEntityState | ResourceEntityState;
+
+interface ProjectileDamageSpec {
+  sourceUnitType: CombatUnitId;
+  baseDamage: number;
+  abilityId: string;
+  skillMultiplier: number;
+  structureMultiplierBonus: number;
+}
+
+type ProjectileResolution =
+  | { kind: "groundArea"; groupId: string; hitAll: boolean; maxHitsPerTarget: number; radiusSquared: number; damage: ProjectileDamageSpec }
+  | { kind: "line"; origin: GridPoint; maxTargets: number; halfWidth: number; lastResolvedDistance: number; hitTargetIds: EntityId[]; damage: ProjectileDamageSpec }
+  | null;
+
+export interface ProjectileState {
+  id: EntityId;
+  ownerId: PlayerId;
+  sourceId: EntityId;
+  profileId: ProjectileProfileId;
+  position: GridPoint;
+  targetId: EntityId | null;
+  targetPoint: GridPoint;
+  fixedImpact: boolean;
+  launchTick: number;
+  impactTick: number;
+  damage: number;
+  statusEffects: StatusEffectId[];
+  resolution: ProjectileResolution;
+}
 
 export interface PlayerState {
   id: PlayerId;
@@ -132,6 +214,7 @@ export interface MatchState {
   map: { id: "open" | typeof VILLAGE_ASSAULT_MAP_ID; width: number; height: number };
   players: PlayerState[];
   entities: EntityState[];
+  projectiles: ProjectileState[];
   nextEntityNumber: number;
   teamTownCenterLostAt: { teamId: string; tick: number }[];
   winningTeamIds: string[];
@@ -221,6 +304,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
       eliminated: false,
     })),
     entities: [],
+    projectiles: [],
     nextEntityNumber: 1,
     teamTownCenterLostAt: [],
     winningTeamIds: [],
@@ -316,6 +400,19 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
   if (entity.kind === "unit") {
     return {
       ...publicEntity,
+      facing: entity.facing,
+      stance: entity.stance,
+      formation: entity.formation,
+      combatPhase: entity.combat.phase,
+      abilityReadyTick: entity.abilityReadyTick,
+      statuses: entity.statuses.map((status) => ({ id: status.id, expiresAtTick: status.expiresAtTick })),
+      passiveProgress: {
+        stationarySinceTick: entity.passive.stationarySinceTick,
+        movedTilesSinceAttack: entity.passive.movedTilesSinceAttack,
+        rhythmStacks: entity.passive.rhythmStacks,
+        rhythmExpiresAtTick: entity.passive.rhythmTargetId === null ? 0 : entity.passive.rhythmLastHitTick + 20,
+        braceCooldownUntilTick: entity.passive.braceCooldownUntilTick,
+      },
       cargo: {
         kind: entity.cargo.kind,
         amount: entity.cargo.amount,
@@ -333,7 +430,23 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
       },
     };
   }
-  return publicEntity;
+  return {
+    ...publicEntity,
+    statuses: entity.statuses.map((status) => ({ id: status.id, expiresAtTick: status.expiresAtTick })),
+  };
+}
+
+export function toPublicProjectile(projectile: ProjectileState): PublicProjectileState {
+  return {
+    id: projectile.id,
+    ownerId: projectile.ownerId,
+    sourceId: projectile.sourceId,
+    profileId: projectile.profileId,
+    position: { ...projectile.position },
+    targetId: projectile.targetId,
+    targetPoint: { ...projectile.targetPoint },
+    impactTick: projectile.impactTick,
+  };
 }
 
 export function isEntityVisibleToPlayer(state: MatchState, playerId: PlayerId, target: EntityState): boolean {
@@ -446,11 +559,21 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
       ? { ok: true }
       : rejected("TARGET_NOT_REACHABLE");
   }
+  if (command.type === "castAbility") {
+    const caster = state.entities.find((entity): entity is UnitEntityState => entity.id === command.casterId && entity.kind === "unit");
+    if (!caster || caster.ownerId !== player.id) return rejected("ENTITY_NOT_OWNED");
+    if (caster.typeId === "villager") return rejected("INVALID_PAYLOAD");
+    const ability = COMBAT_UNITS[caster.typeId].activeAbility;
+    if (command.abilityId !== ability.id || !abilityTargetMatches(ability.targeting, command.target)) return rejected("INVALID_PAYLOAD");
+    if (caster.hitPoints <= 0 || caster.combat.phase !== "ready" || state.tick < caster.abilityReadyTick || hasStatus(caster, "stagger")) return rejected("ABILITY_NOT_READY");
+    return validateAbilityTarget(state, player.id, caster, command.target);
+  }
   const ids = command.entityIds;
   const units = ownedUnits(state, player.id, ids);
   if (!units) return rejected("ENTITY_NOT_OWNED");
-  if (command.type === "move") return isPointInBounds(command.target, state) && isMapCellWalkable(state, command.target) && !isMapCellBlocked(state, command.target) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+  if (command.type === "move" || command.type === "attackMove") return isPointInBounds(command.target, state) && isMapCellWalkable(state, command.target) && !isMapCellBlocked(state, command.target) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
   if (command.type === "patrol") return command.waypoints.every((point) => isPointInBounds(point, state) && isMapCellWalkable(state, point) && !isMapCellBlocked(state, point)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+  if (command.type === "setStance" || command.type === "setFormation") return { ok: true };
   if (command.type === "stop") return { ok: true };
   const target = state.entities.find((entity) => entity.id === command.targetId);
   if (!target) return rejected("INVALID_PAYLOAD");
@@ -474,17 +597,25 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     if (units.some((unit) => !isEntityReachable(state, unit.position, target))) return rejected("TARGET_NOT_REACHABLE");
     return { ok: true };
   }
-  if (target.kind === "resource" || target.ownerId === player.id) return rejected("INVALID_PAYLOAD");
+  if (command.type === "repair") {
+    if (units.some((unit) => unit.typeId !== "villager") || target.kind !== "building" || !arePlayersAllied(state, player.id, target.ownerId) || !target.complete || target.hitPoints <= 0 || target.hitPoints >= target.maxHitPoints) return rejected("INVALID_PAYLOAD");
+    if (player.resources.wood < 1) return rejected("INSUFFICIENT_RESOURCES");
+    return units.every((unit) => isEntityReachable(state, unit.position, target)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+  }
+  if (target.kind === "resource" || target.ownerId === null || !arePlayersHostile(state, player.id, target.ownerId)) return rejected("INVALID_PAYLOAD");
   return { ok: true };
 }
 
 function applyGameCommand(state: MatchState, player: PlayerState, commandSequence: number, command: GameCommand, events: DomainEvent[]): void {
   switch (command.type) {
     case "move":
-      setOrders(state, command.entityIds, { type: "move", target: command.target });
+      setFormationMovementOrders(state, command.entityIds, command.target, "move", events);
+      break;
+    case "attackMove":
+      setFormationMovementOrders(state, command.entityIds, command.target, "attackMove", events);
       break;
     case "attack":
-      setOrders(state, command.entityIds, { type: "attack", targetId: command.targetId });
+      setOrders(state, command.entityIds, { type: "attack", targetId: command.targetId }, events);
       break;
     case "gather": {
       const target = state.entities.find((entity) => entity.id === command.targetId)!;
@@ -501,24 +632,47 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
           phase: mustDeposit ? "toDropOff" : "toSource",
           dropOffId: mustDeposit ? findNearestDropOff(state, unit.ownerId, unit.cargo.kind!, unit.position)?.id ?? null : null,
         };
+        cancelCombatAction(state, unit, events);
         unit.stateRevision += 1;
       }
       break;
     }
     case "dropOff":
-      setOrders(state, command.entityIds, { type: "deliver", targetId: command.targetId });
+      setOrders(state, command.entityIds, { type: "deliver", targetId: command.targetId }, events);
+      break;
+    case "repair":
+      setOrders(state, command.entityIds, { type: "repair", targetId: command.targetId }, events);
       break;
     case "patrol":
-      setOrders(state, command.entityIds, { type: "patrol", waypoints: [...command.waypoints], waypointIndex: 0 });
+      setOrders(state, command.entityIds, { type: "patrol", waypoints: [...command.waypoints], waypointIndex: 0 }, events);
       break;
     case "stop":
-      setOrders(state, command.entityIds, { type: "idle" });
+      setOrders(state, command.entityIds, { type: "idle" }, events);
       break;
+    case "setStance":
+      for (const id of command.entityIds) {
+        const unit = state.entities.find((entity): entity is UnitEntityState => entity.id === id && entity.kind === "unit")!;
+        unit.stance = command.stance;
+        unit.stateRevision += 1;
+      }
+      break;
+    case "setFormation":
+      for (const id of command.entityIds) {
+        const unit = state.entities.find((entity): entity is UnitEntityState => entity.id === id && entity.kind === "unit")!;
+        unit.formation = command.formation;
+        unit.stateRevision += 1;
+      }
+      break;
+    case "castAbility": {
+      const caster = state.entities.find((entity): entity is UnitEntityState => entity.id === command.casterId && entity.kind === "unit")!;
+      beginAbility(state, caster, command.abilityId, command.target, events);
+      break;
+    }
     case "build": {
       const building = createBuilding(state, player.id, command.buildingType, command.origin, false);
       state.entities.push(building);
       subtractWallet(player, BUILDINGS[command.buildingType].cost);
-      setOrders(state, command.builderIds, { type: "construct", targetId: building.id });
+      setOrders(state, command.builderIds, { type: "construct", targetId: building.id }, events);
       events.push({ type: "entitySpawned", entity: toPublicEntity(building) });
       break;
     }
@@ -611,6 +765,8 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   for (const unit of units) {
     unit.attackCooldownTicks = Math.max(0, unit.attackCooldownTicks - 1);
     unit.workCooldownTicks = Math.max(0, unit.workCooldownTicks - 1);
+    updateStatuses(state, unit, events);
+    if (unit.hitPoints <= 0) continue;
     updateUnit(state, unit, events);
   }
   const buildings = state.entities
@@ -618,8 +774,10 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
     .sort((left, right) => compareText(left.id, right.id));
   for (const building of buildings) {
     building.attackCooldownTicks = Math.max(0, building.attackCooldownTicks - 1);
-    updateTower(state, building);
+    updateStatuses(state, building, events);
+    updateTower(state, building, events);
   }
+  updateProjectiles(state, events);
   // Resolve every production job only after unit and tower actions. A research
   // completion therefore benefits all entities uniformly from the next action tick.
   for (const building of buildings) updateProduction(state, building, events);
@@ -639,13 +797,41 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
 }
 
 function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
+  updateUnitPassives(state, unit, events);
+  if (hasStatus(unit, "stagger")) {
+    if (unit.combat.phase !== "ready") cancelCombatAction(state, unit, events);
+    return;
+  }
+  if (progressCombatAction(state, unit, events)) return;
   const order = unit.order;
-  if (order.type === "idle") return;
+  if (order.type === "idle") {
+    const target = findAutomaticTarget(state, unit);
+    if (target) unit.order = { type: "attack", targetId: target.id };
+    return;
+  }
   if (order.type === "move") {
     if (moveToward(state, unit, order.target)) unit.order = { type: "idle" };
     return;
   }
+  if (order.type === "attackMove") {
+    const engaged = order.engagedTargetId ? state.entities.find((entity) => entity.id === order.engagedTargetId) : undefined;
+    const target = engaged && isValidHostileTarget(state, unit.ownerId, engaged) && isEntityVisibleToPlayer(state, unit.ownerId, engaged)
+      ? engaged
+      : findAutomaticTarget(state, unit, true);
+    order.engagedTargetId = target?.id ?? null;
+    if (target) {
+      updateAttackOrder(state, unit, target, events);
+      return;
+    }
+    if (moveToward(state, unit, order.target)) unit.order = { type: "idle" };
+    return;
+  }
   if (order.type === "patrol") {
+    const automaticTarget = findAutomaticTarget(state, unit, true);
+    if (automaticTarget) {
+      updateAttackOrder(state, unit, automaticTarget, events);
+      return;
+    }
     const target = order.waypoints[order.waypointIndex];
     if (!target) { unit.order = { type: "idle" }; return; }
     if (moveToward(state, unit, target)) order.waypointIndex = (order.waypointIndex + 1) % order.waypoints.length;
@@ -661,6 +847,10 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
   }
   const target = state.entities.find((entity) => entity.id === order.targetId);
   if (!target) { unit.order = { type: "idle" }; return; }
+  if (order.type === "repair") {
+    updateRepairOrder(state, unit, target);
+    return;
+  }
   if (order.type === "construct") {
     if (target.kind !== "building" || target.complete) { unit.order = { type: "idle" }; return; }
     if (!isEntityInteractionCell(unit.position, target)) { moveTowardEntity(state, unit, target); return; }
@@ -674,13 +864,819 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
     }
     return;
   }
-  const stats = UNITS[unit.typeId];
-  if (distanceSquaredToEntity(unit.position, target) > stats.attackRange * stats.attackRange) { moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target)); return; }
-  if (unit.attackCooldownTicks === 0) {
-    target.hitPoints = Math.max(0, target.hitPoints - damageAfterVillageTrait(state, target, getEffectiveUnitAttackDamage(state, unit.ownerId, unit.typeId)));
-    target.stateRevision += 1;
-    unit.attackCooldownTicks = stats.attackCooldownTicks;
+  updateAttackOrder(state, unit, target, events);
+}
+
+function updateAttackOrder(state: MatchState, unit: UnitEntityState, target: EntityState, events: DomainEvent[]): void {
+  if (!isValidHostileTarget(state, unit.ownerId, target) || !isEntityVisibleToPlayer(state, unit.ownerId, target)) {
+    if (unit.order.type === "attack") unit.order = { type: "idle" };
+    return;
   }
+  clearWarriorRhythmForTarget(unit, target.id);
+  const attackRange = effectiveBasicAttackRange(state, unit);
+  if (distanceSquaredToEntity(unit.position, target) > attackRange * attackRange) {
+    beginMovementForPassive(state, unit, events);
+    moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target));
+    return;
+  }
+  if (unit.attackCooldownTicks > 0 || unit.combat.phase !== "ready") return;
+  beginBasicAttack(state, unit, target, events);
+}
+
+function beginBasicAttack(state: MatchState, unit: UnitEntityState, target: EntityState, events: DomainEvent[]): void {
+  const hasRestedMatchlock = unit.typeId === "musketeer" && isStationaryForTicks(state, unit, 15);
+  const cooldownTicks = hasRestedMatchlock
+    ? Math.max(1, Math.floor(UNITS[unit.typeId].attackCooldownTicks * 0.8))
+    : UNITS[unit.typeId].attackCooldownTicks;
+  const windupTicks = Math.max(1, Math.min(5, Math.floor(cooldownTicks / 4)));
+  unit.facing = quantizeFacing(target.position.x - unit.position.x, target.position.y - unit.position.y, unit.facing);
+  unit.combat = {
+    phase: "windup",
+    action: "attack",
+    abilityId: null,
+    target: { kind: "entity", entityId: target.id },
+    commitTick: state.tick + windupTicks,
+    readyTick: state.tick + cooldownTicks,
+  };
+  unit.attackCooldownTicks = cooldownTicks;
+  unit.stateRevision += 1;
+  events.push({ type: "combatPhaseChanged", entityId: unit.id, phase: "windup", action: "attack" });
+}
+
+function beginAbility(state: MatchState, unit: UnitEntityState, abilityId: string, target: AbilityTarget, events: DomainEvent[]): void {
+  if (unit.typeId === "villager") return;
+  const ability = COMBAT_UNITS[unit.typeId].activeAbility;
+  const windupTicks = millisecondsToTicks(ability.windupMs);
+  const recoveryTicks = millisecondsToTicks(ability.recoveryMs);
+  unit.combat = {
+    phase: "windup",
+    action: "ability",
+    abilityId,
+    target: cloneAbilityTarget(target),
+    commitTick: state.tick + windupTicks,
+    readyTick: state.tick + windupTicks + recoveryTicks,
+  };
+  unit.stateRevision += 1;
+  events.push({ type: "combatPhaseChanged", entityId: unit.id, phase: "windup", action: "ability" });
+}
+
+function progressCombatAction(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): boolean {
+  if (unit.combat.phase === "ready") return false;
+  if (unit.combat.phase === "windup") {
+    if (unit.combat.commitTick === null || state.tick < unit.combat.commitTick) return true;
+    if (unit.combat.action === "attack") commitBasicAttack(state, unit, events);
+    else if (unit.combat.action === "ability") commitAbility(state, unit, events);
+    setCombatPhase(unit, "recovery", unit.combat.action, events);
+  }
+  if (state.tick < unit.combat.readyTick) return true;
+  setCombatPhase(unit, "ready", null, events);
+  return false;
+}
+
+function commitBasicAttack(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
+  const targetId = unit.combat.target?.kind === "entity" ? unit.combat.target.entityId : null;
+  const target = targetId ? state.entities.find((entity) => entity.id === targetId) : undefined;
+  if (!target || !isValidHostileTarget(state, unit.ownerId, target)) return;
+  const attackRange = effectiveBasicAttackRange(state, unit);
+  if (distanceSquaredToEntity(unit.position, target) > attackRange * attackRange) return;
+  const profileId = unit.typeId === "villager" ? undefined : COMBAT_UNITS[unit.typeId].projectileProfileId;
+  const rhythmMultiplier = unit.typeId === "warrior" && unit.passive.rhythmTargetId === target.id && state.tick - unit.passive.rhythmLastHitTick <= 20
+    ? 1 + Math.min(3, unit.passive.rhythmStacks) * 0.05
+    : 1;
+  const momentumMultiplier = unit.typeId === "boarRider" && unit.passive.movedTilesSinceAttack >= 3 ? 1.2 : 1;
+  const emplacedStructureMultiplier = unit.typeId === "heavyCrossbowman" && target.kind === "building" && hasStatus(unit, "emplaced") ? 1.6 * 1.2 : null;
+  const damage = calculateUnitDamage(state, unit, target, rhythmMultiplier * momentumMultiplier, null, profileId !== undefined, emplacedStructureMultiplier);
+  if (profileId) spawnProjectile(state, unit.ownerId, unit.id, unit.position, target, profileId, damage, [], events);
+  else applyDamage(state, unit.id, target, damage, events);
+  if (unit.typeId === "warrior") {
+    unit.passive.rhythmStacks = unit.passive.rhythmTargetId === target.id && state.tick - unit.passive.rhythmLastHitTick <= 20
+      ? Math.min(3, unit.passive.rhythmStacks + 1)
+      : 1;
+    unit.passive.rhythmTargetId = target.id;
+    unit.passive.rhythmLastHitTick = state.tick;
+  } else if (unit.typeId === "musketeer" && isStationaryForTicks(state, unit, 15)) {
+    unit.passive.stationarySinceTick = state.tick;
+  } else if (unit.typeId === "boarRider") {
+    unit.passive.movedTilesSinceAttack = 0;
+  }
+}
+
+function commitAbility(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
+  if (unit.typeId === "villager" || unit.combat.abilityId === null || unit.combat.target === null) return;
+  const definition = COMBAT_UNITS[unit.typeId];
+  const ability = definition.activeAbility;
+  if (ability.id !== unit.combat.abilityId) return;
+  unit.abilityReadyTick = state.tick + millisecondsToTicks(ability.cooldownMs);
+  const target = unit.combat.target;
+  if (target.kind === "self") {
+    for (const statusId of ability.statusEffects) applyStatus(state, unit.id, unit, statusId, events);
+    return;
+  }
+  if (target.kind === "ground" && (ability.id === "pinningVolley" || ability.id === "emberSigil")) {
+    spawnGroundAreaProjectiles(state, unit, target.point, ability.id, ability.damageMultiplier ?? 1, [...ability.statusEffects], events);
+    return;
+  }
+  if (target.kind === "direction" && ability.id === "breachingBolt") {
+    spawnLineProjectile(state, unit, target.vector, ability.id, ability.damageMultiplier ?? 1, events);
+    return;
+  }
+  let candidates = abilityCandidates(state, unit, target)
+    .slice(0, ability.projectileProfileId ? PROJECTILE_PROFILES[ability.projectileProfileId].maxTargets : 6);
+  const bracedChargeTargets = new Set<EntityId>();
+  if (ability.id === "tuskCharge" && target.kind === "direction") {
+    candidates = candidates.slice(0, 1);
+    for (const candidate of candidates) {
+      if (candidate.kind === "unit" && candidate.typeId === "shieldBearer" && hasStatus(candidate, "braced") && isInFrontArc(candidate, unit.position)) {
+        bracedChargeTargets.add(candidate.id);
+      }
+    }
+    moveAlongChargeLine(state, unit, target.vector, 6, events);
+  }
+  if (ability.id === "breachingBolt") {
+    const firstBuilding = candidates.findIndex((candidate) => candidate.kind === "building");
+    if (firstBuilding >= 0) candidates = candidates.slice(0, firstBuilding + 1);
+  }
+  for (const [candidateIndex, candidate] of candidates.entries()) {
+    const projectileProfileId = ability.projectileProfileId ?? definition.projectileProfileId;
+    const chargeBraceMultiplier = bracedChargeTargets.has(candidate.id) ? STATUS_EFFECTS.braced.magnitude : 1;
+    const skillMultiplier = (ability.damageMultiplier ?? 1) * (ability.id === "breachingBolt" && candidateIndex === 1 ? 0.75 : 1) * chargeBraceMultiplier;
+    const structureMultiplier = ability.id === "breachingBolt" && candidate.kind === "building" ? 1.45 : null;
+    const damage = calculateUnitDamage(state, unit, candidate, skillMultiplier, ability.id, projectileProfileId !== undefined, structureMultiplier);
+    if (projectileProfileId) {
+      const fixedImpactPoint = target.kind === "ground" ? target.point : target.kind === "direction" ? candidate.position : null;
+      spawnProjectile(state, unit.ownerId, unit.id, unit.position, candidate, projectileProfileId, damage, [...ability.statusEffects], events, fixedImpactPoint);
+    } else {
+      applyDamage(state, unit.id, candidate, damage, events);
+      if (candidate.kind !== "resource") {
+        for (const statusId of ability.statusEffects) {
+          if (!bracedChargeTargets.has(candidate.id)) applyStatus(state, unit.id, candidate, statusId, events);
+        }
+      }
+    }
+    if (bracedChargeTargets.has(candidate.id) && candidate.kind === "unit") {
+      removeStatus(candidate, "braced", events);
+      candidate.passive.braceCooldownUntilTick = state.tick + 60;
+      applyStatus(state, candidate.id, unit, "stagger", events);
+    } else if (ability.id === "tuskCharge" && target.kind === "direction" && candidate.kind === "unit") {
+      pushUnitByForce(state, candidate, target.vector, events);
+    }
+  }
+}
+
+function pushUnitByForce(state: MatchState, unit: UnitEntityState, vector: GridPoint, events: DomainEvent[]): void {
+  const dx = Math.sign(vector.x);
+  const dy = Math.sign(vector.y);
+  if (dx === 0 && dy === 0) return;
+  const destination = { x: unit.position.x + dx, y: unit.position.y + dy };
+  if (!isPointInBounds(destination, state) || !isMapCellWalkable(state, destination) || isMapCellBlocked(state, destination)) return;
+  unit.facing = quantizeFacing(dx, dy, unit.facing);
+  unit.position = destination;
+  recordUnitMovement(state, unit, 1, events);
+  unit.movementProgress = 0;
+  unit.stateRevision += 1;
+}
+
+function moveAlongChargeLine(state: MatchState, unit: UnitEntityState, vector: GridPoint, maximumTiles: number, events: DomainEvent[]): void {
+  const length = Math.hypot(vector.x, vector.y);
+  if (length <= 0) return;
+  const origin = { ...unit.position };
+  let destination = origin;
+  for (let distance = 1; distance <= maximumTiles; distance += 1) {
+    const point = {
+      x: origin.x + Math.round(vector.x / length * distance),
+      y: origin.y + Math.round(vector.y / length * distance),
+    };
+    if (samePoint(point, destination)) continue;
+    if (!isPointInBounds(point, state) || !isMapCellWalkable(state, point) || isMapCellBlocked(state, point)) break;
+    destination = point;
+  }
+  if (samePoint(origin, destination)) return;
+  unit.facing = quantizeFacing(destination.x - origin.x, destination.y - origin.y, unit.facing);
+  unit.position = destination;
+  recordUnitMovement(state, unit, Math.hypot(destination.x - origin.x, destination.y - origin.y), events);
+  unit.movementProgress = 0;
+  unit.stateRevision += 1;
+}
+
+function abilityCandidates(state: MatchState, unit: UnitEntityState, target: Exclude<AbilityTarget, { kind: "self" }>): EntityState[] {
+  if (target.kind === "entity") {
+    const entity = state.entities.find((candidate) => candidate.id === target.entityId);
+    return entity
+      && entity.kind === "unit"
+      && isValidHostileTarget(state, unit.ownerId, entity)
+      && isEntityVisibleToPlayer(state, unit.ownerId, entity)
+      && distanceSquaredToEntity(unit.position, entity) <= UNITS[unit.typeId].attackRange ** 2
+      ? [entity]
+      : [];
+  }
+  if (target.kind === "ground") {
+    return state.entities
+      .filter((entity) => isValidHostileTarget(state, unit.ownerId, entity) && distanceSquaredToEntity(target.point, entity) <= 4)
+      .sort((left, right) => distanceSquaredToEntity(target.point, left) - distanceSquaredToEntity(target.point, right) || compareText(left.id, right.id));
+  }
+  const length = Math.hypot(target.vector.x, target.vector.y);
+  const dx = target.vector.x / length;
+  const dy = target.vector.y / length;
+  const range = unit.typeId === "boarRider" ? 6 : Math.max(3, UNITS[unit.typeId].attackRange);
+  return state.entities
+    .filter((entity) => {
+      if (!isValidHostileTarget(state, unit.ownerId, entity)) return false;
+      const ex = entity.position.x - unit.position.x;
+      const ey = entity.position.y - unit.position.y;
+      const forward = ex * dx + ey * dy;
+      const lateral = Math.abs(ex * dy - ey * dx);
+      return forward > 0 && forward <= range && lateral <= 1;
+    })
+    .sort((left, right) => distanceSquared(unit.position, left.position) - distanceSquared(unit.position, right.position) || compareText(left.id, right.id));
+}
+
+function setCombatPhase(unit: UnitEntityState, phase: AbilityPhase, action: "attack" | "ability" | null, events: DomainEvent[]): void {
+  if (unit.combat.phase === phase && unit.combat.action === action) return;
+  unit.combat.phase = phase;
+  unit.combat.action = action;
+  if (phase === "ready") {
+    unit.combat.abilityId = null;
+    unit.combat.target = null;
+    unit.combat.commitTick = null;
+    unit.combat.readyTick = 0;
+  }
+  unit.stateRevision += 1;
+  events.push({ type: "combatPhaseChanged", entityId: unit.id, phase, action });
+}
+
+function cancelCombatAction(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
+  if (unit.combat.phase === "recovery") return;
+  if (unit.combat.phase === "windup" && unit.combat.action === "ability" && unit.typeId !== "villager") {
+    const fullCooldown = millisecondsToTicks(COMBAT_UNITS[unit.typeId].activeAbility.cooldownMs);
+    unit.abilityReadyTick = Math.max(unit.abilityReadyTick, state.tick + Math.ceil(fullCooldown * 0.3));
+  }
+  setCombatPhase(unit, "ready", null, events);
+}
+
+function calculateUnitDamage(
+  state: MatchState,
+  attacker: UnitEntityState,
+  target: EntityState,
+  skillMultiplier: number,
+  abilityId: string | null = null,
+  deferProjectileShield = false,
+  structureMultiplierOverride: number | null = null,
+): number {
+  const targetArmor = entityArmor(target);
+  const armorBreak = target.kind !== "resource" && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
+  const attackerDefinition = attacker.typeId === "villager" ? null : COMBAT_UNITS[attacker.typeId];
+  const shieldWallApplies = target.kind === "unit"
+    && hasStatus(target, "shieldWall")
+    && attackerDefinition !== null
+    && attackerDefinition.damageType !== "arcane"
+    && attackerDefinition.projectileProfileId !== undefined
+    && isInFrontArc(target, attacker.position);
+  const statusMultiplier = shieldWallApplies && !deferProjectileShield ? STATUS_EFFECTS.shieldWall.magnitude : 1;
+  const counterMultiplier = combatCounterMultiplier(attacker.typeId, target);
+  const structureMultiplier = structureMultiplierOverride ?? (target.kind === "building"
+    ? attacker.typeId === "heavyCrossbowman" ? 1.6 : attacker.typeId === "boarRider" ? 0.8 : 1
+    : 1);
+  return calculateDamage({
+    baseDamage: getEffectiveUnitAttackDamage(state, attacker.ownerId, attacker.typeId),
+    armor: targetArmor,
+    armorBreak,
+    counterMultiplier,
+    skillMultiplier,
+    statusMultiplier,
+    structureMultiplier,
+    armorIgnore: abilityId === "aimedShot" ? 0.6 : attacker.typeId === "mage" ? 0.35 : 0,
+  });
+}
+
+function isInFrontArc(unit: UnitEntityState, source: GridPoint): boolean {
+  const facing = ({
+    e: { x: 1, y: 0 }, ne: { x: 0.5, y: -0.866 }, nw: { x: -0.5, y: -0.866 },
+    w: { x: -1, y: 0 }, sw: { x: -0.5, y: 0.866 }, se: { x: 0.5, y: 0.866 },
+  } satisfies Record<Facing, { x: number; y: number }>)[unit.facing];
+  const dx = source.x - unit.position.x;
+  const dy = source.y - unit.position.y;
+  const length = Math.hypot(dx, dy);
+  return length > 0 && (facing.x * dx + facing.y * dy) / length >= 0.5;
+}
+
+function applyDamage(state: MatchState, sourceId: EntityId, target: EntityState, rawDamage: number, events: DomainEvent[]): void {
+  if (target.kind === "resource" || target.hitPoints <= 0) return;
+  const damage = damageAfterVillageTrait(state, target, Math.max(1, Math.floor(rawDamage)));
+  target.hitPoints = Math.max(0, target.hitPoints - damage);
+  target.stateRevision += 1;
+  events.push({ type: "entityDamaged", sourceId, targetId: target.id, amount: damage, hitPoints: target.hitPoints });
+}
+
+function spawnGroundAreaProjectiles(
+  state: MatchState,
+  unit: UnitEntityState,
+  targetPoint: GridPoint,
+  abilityId: string,
+  skillMultiplier: number,
+  statusEffects: readonly StatusEffectId[],
+  events: DomainEvent[],
+): void {
+  const isVolley = abilityId === "pinningVolley";
+  const profileId: ProjectileProfileId = isVolley ? "pinningVolley" : "arcaneCinder";
+  const groupId = `projectile-group-${state.nextEntityNumber}`;
+  const damage: ProjectileDamageSpec = {
+    sourceUnitType: unit.typeId as CombatUnitId,
+    baseDamage: getEffectiveUnitAttackDamage(state, unit.ownerId, unit.typeId),
+    abilityId,
+    skillMultiplier,
+    structureMultiplierBonus: 1,
+  };
+  const count = isVolley ? 3 : 1;
+  for (let index = 0; index < count; index += 1) {
+    spawnResolvingProjectile(state, unit, profileId, targetPoint, statusEffects, {
+      kind: "groundArea",
+      groupId,
+      hitAll: !isVolley,
+      maxHitsPerTarget: isVolley ? 2 : 1,
+      radiusSquared: 2.25,
+      damage,
+    }, events);
+  }
+}
+
+function spawnLineProjectile(
+  state: MatchState,
+  unit: UnitEntityState,
+  vector: GridPoint,
+  abilityId: string,
+  skillMultiplier: number,
+  events: DomainEvent[],
+): void {
+  const length = Math.hypot(vector.x, vector.y);
+  if (length <= 0) return;
+  const range = Math.max(3, UNITS[unit.typeId].attackRange);
+  const targetPoint = clampPoint({
+    x: Math.round(unit.position.x + vector.x / length * range),
+    y: Math.round(unit.position.y + vector.y / length * range),
+  }, state);
+  spawnResolvingProjectile(state, unit, "breachingBolt", targetPoint, [], {
+    kind: "line",
+    origin: { ...unit.position },
+    maxTargets: 2,
+    halfWidth: 1,
+    lastResolvedDistance: 0,
+    hitTargetIds: [],
+    damage: {
+      sourceUnitType: unit.typeId as CombatUnitId,
+      baseDamage: getEffectiveUnitAttackDamage(state, unit.ownerId, unit.typeId),
+      abilityId,
+      skillMultiplier,
+      structureMultiplierBonus: hasStatus(unit, "emplaced") ? 1.2 : 1,
+    },
+  }, events);
+}
+
+function spawnResolvingProjectile(
+  state: MatchState,
+  unit: UnitEntityState,
+  profileId: ProjectileProfileId,
+  intendedTargetPoint: GridPoint,
+  statusEffects: readonly StatusEffectId[],
+  resolution: Exclude<ProjectileResolution, null>,
+  events: DomainEvent[],
+): void {
+  const profile = PROJECTILE_PROFILES[profileId];
+  const terrainImpact = profile.blockedByTerrain ? firstProjectileTerrainImpact(state, unit.position, intendedTargetPoint) : null;
+  const targetPoint = terrainImpact ?? intendedTargetPoint;
+  const minimumTicks = millisecondsToTicks(profile.minTravelMs);
+  const travelTicks = profile.speedTilesPerSecond === null
+    ? minimumTicks
+    : Math.ceil(Math.sqrt(distanceSquared(unit.position, targetPoint)) / profile.speedTilesPerSecond * TICKS_PER_SECOND);
+  const projectile: ProjectileState = {
+    id: nextId(state, "projectile"),
+    ownerId: unit.ownerId,
+    sourceId: unit.id,
+    profileId,
+    position: { ...unit.position },
+    targetId: null,
+    targetPoint: { ...targetPoint },
+    fixedImpact: true,
+    launchTick: state.tick,
+    impactTick: state.tick + Math.max(minimumTicks, travelTicks),
+    damage: 0,
+    statusEffects: [...statusEffects],
+    resolution,
+  };
+  state.projectiles.push(projectile);
+  events.push({ type: "projectileSpawned", projectile: toPublicProjectile(projectile) });
+}
+
+function spawnProjectile(
+  state: MatchState,
+  ownerId: PlayerId,
+  sourceId: EntityId,
+  origin: GridPoint,
+  target: EntityState,
+  profileId: ProjectileProfileId,
+  damage: number,
+  statusEffects: readonly StatusEffectId[],
+  events: DomainEvent[],
+  fixedImpactPoint: GridPoint | null = null,
+): void {
+  const profile = PROJECTILE_PROFILES[profileId];
+  const intendedTargetPoint = fixedImpactPoint ?? target.position;
+  const terrainImpact = profile.blockedByTerrain ? firstProjectileTerrainImpact(state, origin, intendedTargetPoint) : null;
+  const targetPoint = terrainImpact ?? intendedTargetPoint;
+  const minimumTicks = millisecondsToTicks(profile.minTravelMs);
+  const travelTicks = profile.speedTilesPerSecond === null
+    ? minimumTicks
+    : Math.ceil(Math.sqrt(distanceSquared(origin, targetPoint)) / profile.speedTilesPerSecond * TICKS_PER_SECOND);
+  const projectile: ProjectileState = {
+    id: nextId(state, "projectile"),
+    ownerId,
+    sourceId,
+    profileId,
+    position: { ...origin },
+    targetId: terrainImpact ? null : target.id,
+    targetPoint: { ...targetPoint },
+    fixedImpact: fixedImpactPoint !== null,
+    launchTick: state.tick,
+    impactTick: state.tick + Math.max(minimumTicks, travelTicks),
+    damage,
+    statusEffects: [...statusEffects],
+    resolution: null,
+  };
+  state.projectiles.push(projectile);
+  events.push({ type: "projectileSpawned", projectile: toPublicProjectile(projectile) });
+}
+
+function firstProjectileTerrainImpact(state: MatchState, origin: GridPoint, target: GridPoint): GridPoint | null {
+  if (state.map.id !== VILLAGE_ASSAULT_MAP_ID) return null;
+  const blocked = new Set(getVillageAssaultWalkBlockedCells().map(pointKey));
+  let x = origin.x;
+  let y = origin.y;
+  const dx = Math.abs(target.x - origin.x);
+  const dy = Math.abs(target.y - origin.y);
+  const stepX = origin.x < target.x ? 1 : -1;
+  const stepY = origin.y < target.y ? 1 : -1;
+  let error = dx - dy;
+  while (x !== target.x || y !== target.y) {
+    const doubled = error * 2;
+    if (doubled > -dy) { error -= dy; x += stepX; }
+    if (doubled < dx) { error += dx; y += stepY; }
+    const point = { x, y };
+    if (blocked.has(pointKey(point))) return point;
+  }
+  return null;
+}
+
+function updateProjectiles(state: MatchState, events: DomainEvent[]): void {
+  const active = state.projectiles
+    .filter((projectile) => projectile.resolution?.kind === "line" || projectile.impactTick <= state.tick)
+    .sort((left, right) => compareText(left.id, right.id));
+  if (active.length === 0) return;
+  const completedIds = new Set<EntityId>();
+  const areaHitCounts = new Map<string, Map<EntityId, number>>();
+  for (const projectile of active) {
+    if (projectile.resolution?.kind === "line") {
+      const result = advanceLineProjectile(state, projectile, events);
+      if (result !== null) {
+        events.push({ type: "projectileImpacted", projectileId: projectile.id, position: result.position, targetIds: result.targetIds });
+        completedIds.add(projectile.id);
+      }
+      continue;
+    }
+    const impacted: EntityId[] = [];
+    let impactPosition = projectile.targetPoint;
+    if (projectile.resolution?.kind === "groundArea") {
+      const resolution = projectile.resolution;
+      const groupCounts = areaHitCounts.get(resolution.groupId) ?? new Map<EntityId, number>();
+      areaHitCounts.set(resolution.groupId, groupCounts);
+      const candidates = state.entities
+        .filter((entity) => isValidHostileTarget(state, projectile.ownerId, entity) && distanceSquaredToEntity(projectile.targetPoint, entity) <= resolution.radiusSquared)
+        .sort((left, right) => distanceSquaredToEntity(projectile.targetPoint, left) - distanceSquaredToEntity(projectile.targetPoint, right) || compareText(left.id, right.id));
+      const targets = resolution.hitAll
+        ? candidates
+        : candidates.filter((candidate) => (groupCounts.get(candidate.id) ?? 0) < resolution.maxHitsPerTarget).slice(0, 1);
+      for (const target of targets) {
+        const priorHits = groupCounts.get(target.id) ?? 0;
+        const rawDamage = projectileDamageFromSpec(state, projectile, target, 1);
+        applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target, rawDamage), events);
+        if (target.kind !== "resource" && priorHits === 0) {
+          for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
+        }
+        groupCounts.set(target.id, priorHits + 1);
+        impacted.push(target.id);
+      }
+    } else {
+      const target = projectile.targetId ? state.entities.find((entity) => entity.id === projectile.targetId) : undefined;
+      const remainsInFixedArea = !projectile.fixedImpact || (target !== undefined && distanceSquaredToEntity(projectile.targetPoint, target) <= 4);
+      if (target && remainsInFixedArea && isValidHostileTarget(state, projectile.ownerId, target)) {
+        if (!projectile.fixedImpact) impactPosition = target.position;
+        applyDamage(state, projectile.sourceId, target, projectileDamageAtImpact(projectile, target), events);
+        if (target.kind !== "resource") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, target, statusId, events);
+        impacted.push(target.id);
+      }
+    }
+    events.push({ type: "projectileImpacted", projectileId: projectile.id, position: { ...impactPosition }, targetIds: impacted });
+    completedIds.add(projectile.id);
+  }
+  state.projectiles = state.projectiles.filter((projectile) => !completedIds.has(projectile.id));
+}
+
+function projectileDamageAtImpact(projectile: ProjectileState, target: EntityState, rawDamage = projectile.damage): number {
+  if (target.kind !== "unit" || !hasStatus(target, "shieldWall") || projectile.profileId === "arcaneCinder") return rawDamage;
+  return isInFrontArc(target, projectile.position)
+    ? Math.max(1, Math.round(rawDamage * STATUS_EFFECTS.shieldWall.magnitude))
+    : rawDamage;
+}
+
+function projectileDamageFromSpec(state: MatchState, projectile: ProjectileState, target: EntityState, hitMultiplier: number): number {
+  const resolution = projectile.resolution;
+  if (resolution === null) return projectile.damage;
+  const spec = resolution.damage;
+  const targetArmor = entityArmor(target);
+  const armorBreak = target.kind !== "resource" && hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
+  const counterMultiplier = combatCounterMultiplier(spec.sourceUnitType, target);
+  const structureMultiplier = target.kind === "building"
+    ? (spec.abilityId === "breachingBolt" ? 1.45 : spec.sourceUnitType === "heavyCrossbowman" ? 1.6 : spec.sourceUnitType === "boarRider" ? 0.8 : 1) * spec.structureMultiplierBonus
+    : 1;
+  return calculateDamage({
+    baseDamage: spec.baseDamage,
+    armor: targetArmor,
+    armorBreak,
+    counterMultiplier,
+    skillMultiplier: spec.skillMultiplier * hitMultiplier,
+    structureMultiplier,
+    armorIgnore: spec.sourceUnitType === "mage" ? 0.35 : 0,
+  });
+}
+
+function advanceLineProjectile(
+  state: MatchState,
+  projectile: ProjectileState,
+  events: DomainEvent[],
+): { position: GridPoint; targetIds: EntityId[] } | null {
+  if (projectile.resolution?.kind !== "line") return null;
+  const resolution = projectile.resolution;
+  const dx = projectile.targetPoint.x - resolution.origin.x;
+  const dy = projectile.targetPoint.y - resolution.origin.y;
+  const length = Math.hypot(dx, dy);
+  if (length <= 0) return { position: { ...projectile.targetPoint }, targetIds: [...resolution.hitTargetIds] };
+  const durationTicks = Math.max(1, projectile.impactTick - projectile.launchTick);
+  const progress = Math.max(0, Math.min(1, (state.tick - projectile.launchTick) / durationTicks));
+  const currentDistance = length * progress;
+  const ux = dx / length;
+  const uy = dy / length;
+  const candidates = lineProjectileTargetsBetween(state, projectile, resolution.lastResolvedDistance, currentDistance, ux, uy);
+  let stopDistance: number | null = null;
+  for (const { entity, forward } of candidates) {
+    if (resolution.hitTargetIds.includes(entity.id)) continue;
+    const hitIndex = resolution.hitTargetIds.length;
+    const rawDamage = projectileDamageFromSpec(state, projectile, entity, hitIndex === 0 ? 1 : 0.75);
+    applyDamage(state, projectile.sourceId, entity, projectileDamageAtImpact(projectile, entity, rawDamage), events);
+    if (entity.kind !== "resource") for (const statusId of projectile.statusEffects) applyStatus(state, projectile.sourceId, entity, statusId, events);
+    resolution.hitTargetIds.push(entity.id);
+    if (entity.kind === "building" || resolution.hitTargetIds.length >= resolution.maxTargets) {
+      stopDistance = forward;
+      break;
+    }
+  }
+  resolution.lastResolvedDistance = currentDistance;
+  const resolvedDistance = stopDistance ?? currentDistance;
+  projectile.position = {
+    x: Math.round(resolution.origin.x + ux * resolvedDistance),
+    y: Math.round(resolution.origin.y + uy * resolvedDistance),
+  };
+  if (stopDistance === null && state.tick < projectile.impactTick) return null;
+  return {
+    position: { ...projectile.position },
+    targetIds: [...resolution.hitTargetIds],
+  };
+}
+
+function lineProjectileTargetsBetween(
+  state: MatchState,
+  projectile: ProjectileState,
+  fromDistance: number,
+  toDistance: number,
+  ux: number,
+  uy: number,
+): { entity: EntityState; forward: number }[] {
+  if (projectile.resolution?.kind !== "line" || toDistance <= fromDistance) return [];
+  const resolution = projectile.resolution;
+  return state.entities
+    .map((entity) => {
+      const intersections = getEntityFootprintCells(entity)
+        .map((cell) => {
+          const ex = cell.x - resolution.origin.x;
+          const ey = cell.y - resolution.origin.y;
+          return { forward: ex * ux + ey * uy, lateral: Math.abs(ex * uy - ey * ux) };
+        })
+        .filter(({ forward, lateral }) => forward > fromDistance + Number.EPSILON && forward <= toDistance + Number.EPSILON && lateral <= resolution.halfWidth)
+        .sort((left, right) => left.forward - right.forward || left.lateral - right.lateral);
+      return { entity, forward: intersections[0]?.forward ?? Number.POSITIVE_INFINITY };
+    })
+    .filter(({ entity, forward }) => isValidHostileTarget(state, projectile.ownerId, entity) && Number.isFinite(forward))
+    .sort((left, right) => left.forward - right.forward || compareText(left.entity.id, right.entity.id));
+}
+
+function applyStatus(state: MatchState, sourceId: EntityId, target: UnitEntityState | BuildingEntityState, statusId: StatusEffectId, events: DomainEvent[]): void {
+  target.statuses ??= [];
+  if (statusId === "stagger" && hasStatus(target, "tenacity")) return;
+  const definition: StatusEffectDefinition = STATUS_EFFECTS[statusId];
+  const durationTicks = millisecondsToTicks(definition.durationMs);
+  const expiresAtTick = durationTicks === 0 ? Number.MAX_SAFE_INTEGER : state.tick + durationTicks;
+  const existing = target.statuses.find((status) => status.id === statusId);
+  const nextTickAt = definition.tickIntervalMs === undefined ? null : state.tick + millisecondsToTicks(definition.tickIntervalMs);
+  if (existing) {
+    existing.sourceId = sourceId;
+    existing.expiresAtTick = expiresAtTick;
+    existing.nextTickAt = nextTickAt;
+  } else {
+    target.statuses.push({ id: statusId, sourceId, expiresAtTick, nextTickAt });
+    target.statuses.sort((left, right) => compareText(left.id, right.id) || compareText(left.sourceId, right.sourceId));
+  }
+  target.stateRevision += 1;
+  events.push({ type: "statusApplied", sourceId, targetId: target.id, statusId, expiresAtTick });
+  if (statusId === "stagger" && target.kind === "unit" && target.combat.phase !== "ready") {
+    cancelCombatAction(state, target, events);
+  }
+}
+
+function updateStatuses(state: MatchState, target: UnitEntityState | BuildingEntityState, events: DomainEvent[]): void {
+  target.statuses ??= [];
+  for (const status of target.statuses) {
+    const definition: StatusEffectDefinition = STATUS_EFFECTS[status.id];
+    if (status.id === "burn" && status.nextTickAt !== null && status.nextTickAt <= state.tick && target.hitPoints > 0) {
+      applyDamage(state, status.sourceId, target, Math.max(1, Math.floor(definition.magnitude)), events);
+      status.nextTickAt += millisecondsToTicks(definition.tickIntervalMs ?? 1_000);
+    }
+  }
+  const expired = target.statuses.filter((status) => status.expiresAtTick <= state.tick);
+  if (expired.length === 0) return;
+  const expiredIds = new Set(expired.map((status) => status.id));
+  target.statuses = target.statuses.filter((status) => !expiredIds.has(status.id));
+  target.stateRevision += 1;
+  for (const status of expired) {
+    events.push({ type: "statusExpired", entityId: target.id, statusId: status.id });
+    const granted = (STATUS_EFFECTS[status.id] as StatusEffectDefinition).grantsStatusId;
+    if (granted) applyStatus(state, status.sourceId, target, granted, events);
+  }
+}
+
+function updateRepairOrder(state: MatchState, unit: UnitEntityState, target: EntityState): void {
+  if (unit.typeId !== "villager" || target.kind !== "building" || !target.complete || target.hitPoints <= 0 || !arePlayersAllied(state, unit.ownerId, target.ownerId)) {
+    unit.order = { type: "idle" };
+    return;
+  }
+  if (target.hitPoints >= target.maxHitPoints) {
+    unit.order = { type: "idle" };
+    return;
+  }
+  if (!isEntityInteractionCell(unit.position, target)) {
+    moveTowardEntity(state, unit, target);
+    return;
+  }
+  if (unit.workCooldownTicks > 0) return;
+  const player = state.players.find((candidate) => candidate.id === unit.ownerId)!;
+  if (player.resources.wood < 1) return;
+  player.resources = { ...player.resources, wood: player.resources.wood - 1 };
+  target.hitPoints = Math.min(target.maxHitPoints, target.hitPoints + 10);
+  target.stateRevision += 1;
+  unit.workCooldownTicks = 10;
+}
+
+function findAutomaticTarget(state: MatchState, unit: UnitEntityState, force = false): EntityState | undefined {
+  if (unit.typeId === "villager" || (!force && unit.stance === "holdGround")) return undefined;
+  const sight = UNITS[unit.typeId].sightRadius;
+  const radius = !force && unit.stance === "defensive" ? Math.max(1, Math.floor(sight / 2)) : sight;
+  return state.entities
+    .filter((entity) => isValidHostileTarget(state, unit.ownerId, entity) && isEntityVisibleToPlayer(state, unit.ownerId, entity) && distanceSquaredToEntity(unit.position, entity) <= radius * radius)
+    .sort((left, right) => distanceSquaredToEntity(unit.position, left) - distanceSquaredToEntity(unit.position, right) || compareText(left.id, right.id))[0];
+}
+
+function isValidHostileTarget(state: MatchState, ownerId: PlayerId, target: EntityState): boolean {
+  return target.kind !== "resource" && target.ownerId !== null && target.hitPoints > 0 && arePlayersHostile(state, ownerId, target.ownerId);
+}
+
+function hasStatus(entity: UnitEntityState | BuildingEntityState, statusId: StatusEffectId): boolean {
+  return (entity.statuses ?? []).some((status) => status.id === statusId);
+}
+
+function removeStatus(entity: UnitEntityState | BuildingEntityState, statusId: StatusEffectId, events?: DomainEvent[]): void {
+  if (!hasStatus(entity, statusId)) return;
+  entity.statuses = entity.statuses.filter((status) => status.id !== statusId);
+  entity.stateRevision += 1;
+  events?.push({ type: "statusExpired", entityId: entity.id, statusId });
+}
+
+function clearWarriorRhythmForTarget(unit: UnitEntityState, targetId: EntityId): void {
+  if (unit.typeId !== "warrior" || unit.passive.rhythmTargetId === null || unit.passive.rhythmTargetId === targetId) return;
+  unit.passive.rhythmTargetId = null;
+  unit.passive.rhythmStacks = 0;
+  unit.passive.rhythmLastHitTick = 0;
+}
+
+function combatCounterMultiplier(attackerType: UnitType, target: EntityState): number {
+  if (attackerType === "villager" || target.kind !== "unit" || target.typeId === "villager") return 1;
+  if (attackerType === "archer" && target.typeId === "heavyCrossbowman" && !hasStatus(target, "emplaced")) return 1;
+  return COMBAT_UNITS[attackerType].counterModifiers[target.typeId];
+}
+
+function updateUnitPassives(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
+  if (unit.typeId === "warrior" && unit.passive.rhythmTargetId !== null && state.tick - unit.passive.rhythmLastHitTick > 20) {
+    unit.passive.rhythmTargetId = null;
+    unit.passive.rhythmStacks = 0;
+  }
+  if (unit.typeId === "boarRider" && unit.passive.movedTilesSinceAttack > 0 && state.tick - unit.passive.stationarySinceTick > 10) {
+    unit.passive.movedTilesSinceAttack = 0;
+  }
+  const stationary = isStationaryForPassive(state, unit);
+  if (unit.typeId === "shieldBearer") {
+    if (stationary && !hasStatus(unit, "stagger") && state.tick >= unit.passive.braceCooldownUntilTick && isStationaryForTicks(state, unit, 8)) {
+      if (!hasStatus(unit, "braced")) applyStatus(state, unit.id, unit, "braced", events);
+    } else if (!stationary) {
+      removeStatus(unit, "braced", events);
+    }
+  }
+  if (unit.typeId === "heavyCrossbowman") {
+    if (stationary && !hasStatus(unit, "stagger") && isStationaryForTicks(state, unit, 20)) {
+      if (!hasStatus(unit, "emplaced")) applyStatus(state, unit.id, unit, "emplaced", events);
+    } else if (!stationary) {
+      removeStatus(unit, "emplaced", events);
+    }
+  }
+}
+
+function isStationaryForTicks(state: MatchState, unit: UnitEntityState, ticks: number): boolean {
+  return isStationaryForPassive(state, unit) && state.tick - unit.passive.stationarySinceTick >= ticks;
+}
+
+function isStationaryForPassive(state: MatchState, unit: UnitEntityState): boolean {
+  if (unit.order.type === "idle") return true;
+  if (unit.order.type === "attack") {
+    const targetId = unit.order.targetId;
+    const target = state.entities.find((entity) => entity.id === targetId);
+    return target !== undefined && distanceSquaredToEntity(unit.position, target) <= effectiveBasicAttackRange(state, unit) ** 2;
+  }
+  if (unit.order.type === "attackMove" && unit.order.engagedTargetId !== null) {
+    const targetId = unit.order.engagedTargetId;
+    const target = state.entities.find((entity) => entity.id === targetId);
+    return target !== undefined && distanceSquaredToEntity(unit.position, target) <= effectiveBasicAttackRange(state, unit) ** 2;
+  }
+  return false;
+}
+
+function effectiveBasicAttackRange(state: MatchState, unit: UnitEntityState): number {
+  const base = UNITS[unit.typeId].attackRange;
+  if (unit.typeId === "heavyCrossbowman" && hasStatus(unit, "emplaced")) return base + 1;
+  if (unit.typeId === "musketeer" && state.tick - unit.passive.stationarySinceTick >= 15) {
+    if (unit.order.type === "idle") return base + 1;
+    if (unit.order.type === "attack") {
+      const targetId = unit.order.targetId;
+      const target = state.entities.find((entity) => entity.id === targetId);
+      if (target !== undefined && distanceSquaredToEntity(unit.position, target) <= (base + 1) ** 2) return base + 1;
+    }
+    if (unit.order.type === "attackMove" && unit.order.engagedTargetId !== null) {
+      const targetId = unit.order.engagedTargetId;
+      const target = state.entities.find((entity) => entity.id === targetId);
+      if (target !== undefined && distanceSquaredToEntity(unit.position, target) <= (base + 1) ** 2) return base + 1;
+    }
+  }
+  return base;
+}
+
+function beginMovementForPassive(state: MatchState, unit: UnitEntityState, events?: DomainEvent[]): void {
+  unit.passive.stationarySinceTick = state.tick;
+  removeStatus(unit, "braced", events);
+  removeStatus(unit, "emplaced", events);
+}
+
+function recordUnitMovement(state: MatchState, unit: UnitEntityState, tiles: number, events?: DomainEvent[]): void {
+  unit.passive.stationarySinceTick = state.tick;
+  unit.passive.movedTilesSinceAttack += Math.max(0, tiles);
+  removeStatus(unit, "braced", events);
+  removeStatus(unit, "emplaced", events);
+}
+
+function entityArmor(entity: EntityState): number {
+  if (entity.kind === "resource") return 0;
+  if (entity.kind === "unit") return entity.typeId === "villager" ? 0 : COMBAT_UNITS[entity.typeId].armor;
+  return ({ townCenter: 18, house: 6, lumberCamp: 8, farmstead: 8, barracks: 12, defenseTower: 24, archeryRange: 10, mageSanctum: 8, gunWorkshop: 10, beastStable: 10, siegeWorkshop: 16 } satisfies Record<BuildingType, number>)[entity.typeId];
+}
+
+function statusAdjustedSpeed(state: MatchState, unit: UnitEntityState): number {
+  const base = getEffectiveUnitSpeedMilliTilesPerSecond(state, unit.ownerId, unit.typeId);
+  const slowMultiplier = hasStatus(unit, "slow") ? 1 - STATUS_EFFECTS.slow.magnitude : 1;
+  const shieldMultiplier = hasStatus(unit, "shieldWall") ? 0.65 : 1;
+  return Math.max(1, Math.floor(base * slowMultiplier * shieldMultiplier));
+}
+
+function millisecondsToTicks(milliseconds: number): number {
+  return Math.max(0, Math.ceil(milliseconds / (1_000 / TICKS_PER_SECOND)));
+}
+
+function cloneAbilityTarget(target: AbilityTarget): AbilityTarget {
+  if (target.kind === "self") return { kind: "self" };
+  if (target.kind === "entity") return { kind: "entity", entityId: target.entityId };
+  if (target.kind === "ground") return { kind: "ground", point: { ...target.point } };
+  return { kind: "direction", vector: { ...target.vector } };
 }
 
 function updateGatherOrder(
@@ -949,17 +1945,18 @@ function updateProduction(state: MatchState, building: BuildingEntityState, even
   events.push({ type: "entitySpawned", entity: toPublicEntity(unit) });
 }
 
-function updateTower(state: MatchState, building: BuildingEntityState): void {
-  if (!building.complete || building.attackCooldownTicks > 0) return;
+function updateTower(state: MatchState, building: BuildingEntityState, events: DomainEvent[]): void {
+  if (!building.complete || building.hitPoints <= 0 || building.attackCooldownTicks > 0) return;
   const stats = BUILDINGS[building.typeId];
   if (stats.attackDamage <= 0) return;
   const enemies = state.entities
-    .filter((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId !== building.ownerId && distanceSquared(entity.position, building.position) <= stats.attackRange * stats.attackRange)
+    .filter((entity): entity is UnitEntityState => entity.kind === "unit" && arePlayersHostile(state, building.ownerId, entity.ownerId) && distanceSquared(entity.position, building.position) <= stats.attackRange * stats.attackRange)
     .sort((left, right) => distanceSquared(left.position, building.position) - distanceSquared(right.position, building.position) || compareText(left.id, right.id));
   const target = enemies[0];
   if (!target) return;
-  target.hitPoints = Math.max(0, target.hitPoints - stats.attackDamage);
-  target.stateRevision += 1;
+  const armorBreak = hasStatus(target, "armorBreak") ? STATUS_EFFECTS.armorBreak.magnitude : 0;
+  const damage = calculateDamage({ baseDamage: stats.attackDamage, armor: entityArmor(target), armorBreak });
+  spawnProjectile(state, building.ownerId, building.id, building.position, target, "arrow", damage, [], events);
   building.attackCooldownTicks = stats.attackCooldownTicks;
 }
 
@@ -993,14 +1990,17 @@ function evaluateVictory(state: MatchState, events: DomainEvent[]): void {
 
 function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint): boolean {
   if (samePoint(unit.position, target)) return true;
-  const speed = getEffectiveUnitSpeedMilliTilesPerSecond(state, unit.ownerId, unit.typeId);
+  const speed = statusAdjustedSpeed(state, unit);
   unit.movementProgress += speed;
   if (unit.movementProgress < 1000 * TICKS_PER_SECOND) return false;
   unit.movementProgress -= 1000 * TICKS_PER_SECOND;
   const next = findNextPathStep(unit.position, target, state.map.width, state.map.height, getPathBlockedCells(state));
   if (!next) { unit.order = { type: "idle" }; return true; }
   if (samePoint(next, unit.position)) return true;
+  const origin = { ...unit.position };
+  unit.facing = quantizeFacing(next.x - unit.position.x, next.y - unit.position.y, unit.facing);
   unit.position = next;
+  recordUnitMovement(state, unit, Math.max(Math.abs(next.x - origin.x), Math.abs(next.y - origin.y)));
   unit.stateRevision += 1;
   return samePoint(next, target);
 }
@@ -1009,7 +2009,7 @@ type EntityMovementResult = "arrived" | "moving" | "blocked";
 
 function moveTowardEntity(state: MatchState, unit: UnitEntityState, entity: EntityState): EntityMovementResult {
   if (isEntityInteractionCell(unit.position, entity)) return "arrived";
-  const speed = getEffectiveUnitSpeedMilliTilesPerSecond(state, unit.ownerId, unit.typeId);
+  const speed = statusAdjustedSpeed(state, unit);
   const stepCost = 1000 * TICKS_PER_SECOND;
   unit.movementProgress += speed;
   if (unit.movementProgress < stepCost) return "moving";
@@ -1020,7 +2020,10 @@ function moveTowardEntity(state: MatchState, unit: UnitEntityState, entity: Enti
   }
   unit.movementProgress -= stepCost;
   if (samePoint(route.firstStep, unit.position)) return "arrived";
+  const origin = { ...unit.position };
+  unit.facing = quantizeFacing(route.firstStep.x - unit.position.x, route.firstStep.y - unit.position.y, unit.facing);
   unit.position = route.firstStep;
+  recordUnitMovement(state, unit, Math.max(Math.abs(route.firstStep.x - origin.x), Math.abs(route.firstStep.y - origin.y)));
   unit.stateRevision += 1;
   return isEntityInteractionCell(unit.position, entity) ? "arrived" : "moving";
 }
@@ -1029,12 +2032,20 @@ function damageAfterVillageTrait(state: MatchState, target: EntityState, damage:
   if (target.kind !== "building" || target.typeId !== "defenseTower") return damage;
   const player = state.players.find((candidate) => candidate.id === target.ownerId);
   const trait = player ? getVillage(player.villageId)?.trait : undefined;
-  return trait?.metric === "towerArmor" ? damage * 1000 / trait.multiplierPermille : damage;
+  return trait?.metric === "towerArmor" ? Math.max(1, Math.floor(damage * 1000 / trait.multiplierPermille)) : damage;
 }
 
 function createUnit(state: MatchState, ownerId: PlayerId, typeId: UnitType, position: GridPoint): UnitEntityState {
   const maxHitPoints = getEffectiveUnitMaxHitPoints(state, ownerId, typeId);
-  return { id: nextId(state, "unit"), ownerId, kind: "unit", typeId, position, hitPoints: maxHitPoints, maxHitPoints, stateRevision: 0, order: { type: "idle" }, movementProgress: 0, attackCooldownTicks: 0, workCooldownTicks: 0, cargo: { kind: null, amount: 0 }, gatherRemainderMilli: { food: 0, wood: 0, stone: 0 } };
+  return {
+    id: nextId(state, "unit"), ownerId, kind: "unit", typeId, position, hitPoints: maxHitPoints, maxHitPoints, stateRevision: 0,
+    order: { type: "idle" }, movementProgress: 0, attackCooldownTicks: 0, workCooldownTicks: 0,
+    facing: ownerId === state.players[0]?.id ? "ne" : "sw", stance: "aggressive", formation: "line",
+    combat: { phase: "ready", action: null, abilityId: null, target: null, commitTick: null, readyTick: 0 },
+    abilityReadyTick: 0,
+    passive: { stationarySinceTick: state.tick, movedTilesSinceAttack: 0, rhythmTargetId: null, rhythmStacks: 0, rhythmLastHitTick: 0, braceCooldownUntilTick: 0 },
+    statuses: [], cargo: { kind: null, amount: 0 }, gatherRemainderMilli: { food: 0, wood: 0, stone: 0 },
+  };
 }
 
 function createBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingType, position: GridPoint, complete: boolean): BuildingEntityState {
@@ -1052,6 +2063,7 @@ function createBuilding(state: MatchState, ownerId: PlayerId, typeId: BuildingTy
     complete,
     constructionRemainingTicks: complete ? 0 : definition.buildTicks,
     attackCooldownTicks: 0,
+    statuses: [],
     rallyPoint: null,
     productionQueue: [],
   };
@@ -1068,12 +2080,79 @@ function nextId(state: MatchState, prefix: string): EntityId {
   return id;
 }
 
-function setOrders(state: MatchState, ids: readonly EntityId[], order: UnitOrder): void {
+function setOrders(state: MatchState, ids: readonly EntityId[], order: UnitOrder, events: DomainEvent[]): void {
   for (const id of ids) {
     const unit = state.entities.find((entity): entity is UnitEntityState => entity.id === id && entity.kind === "unit")!;
+    if (order.type === "attack") clearWarriorRhythmForTarget(unit, order.targetId);
+    if (order.type === "patrol") beginMovementForPassive(state, unit, events);
     unit.order = cloneOrder(order);
+    cancelCombatAction(state, unit, events);
     unit.stateRevision += 1;
   }
+}
+
+function setFormationMovementOrders(state: MatchState, ids: readonly EntityId[], target: GridPoint, kind: "move" | "attackMove", events: DomainEvent[]): void {
+  const units = ids
+    .map((id) => state.entities.find((entity): entity is UnitEntityState => entity.id === id && entity.kind === "unit")!)
+    .sort((left, right) => compareText(left.id, right.id));
+  const formation = units[0]?.formation ?? "line";
+  const center = units.length === 0 ? target : {
+    x: units.reduce((sum, unit) => sum + unit.position.x, 0) / units.length,
+    y: units.reduce((sum, unit) => sum + unit.position.y, 0) / units.length,
+  };
+  const heading = { x: Math.sign(target.x - center.x), y: Math.sign(target.y - center.y) };
+  if (heading.x === 0 && heading.y === 0) heading.y = 1;
+  const reserved = new Set<string>();
+  units.forEach((unit, index) => {
+    const offset = formationOffset(formation, index, units.length, heading);
+    const desired = { x: target.x + offset.x, y: target.y + offset.y };
+    const destination = formationDestination(state, unit, desired, target, reserved);
+    reserved.add(pointKey(destination));
+    unit.order = kind === "move"
+      ? { type: "move", target: destination }
+      : { type: "attackMove", target: destination, engagedTargetId: null };
+    beginMovementForPassive(state, unit, events);
+    cancelCombatAction(state, unit, events);
+    unit.stateRevision += 1;
+  });
+}
+
+function formationOffset(formation: FormationKind, index: number, count: number, heading: GridPoint): GridPoint {
+  let local: GridPoint;
+  if (formation === "line") local = { x: index - Math.floor((count - 1) / 2), y: 0 };
+  else if (formation === "box") {
+    const width = Math.ceil(Math.sqrt(count));
+    local = { x: index % width - Math.floor((width - 1) / 2), y: Math.floor(index / width) };
+  } else if (index === 0) local = { x: 0, y: 0 };
+  else {
+    const row = Math.ceil((Math.sqrt(1 + 8 * index) - 1) / 2);
+    const rowStart = row * (row - 1) / 2;
+    local = { x: index - rowStart - Math.floor(row / 2), y: row };
+  }
+  const right = { x: -heading.y, y: heading.x };
+  return {
+    x: local.x * right.x - local.y * heading.x,
+    y: local.x * right.y - local.y * heading.y,
+  };
+}
+
+function formationDestination(state: MatchState, unit: UnitEntityState, desired: GridPoint, fallback: GridPoint, reserved: ReadonlySet<string>): GridPoint {
+  const candidates = [desired, fallback];
+  const maximumRadius = Math.max(state.map.width, state.map.height);
+  for (let radius = 1; radius <= maximumRadius; radius += 1) {
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+        candidates.push({ x: fallback.x + dx, y: fallback.y + dy });
+      }
+    }
+  }
+  candidates.push(unit.position);
+  return candidates.find((candidate) => (
+    !reserved.has(pointKey(candidate))
+    && isExactWalkTargetAvailable(state, candidate)
+    && findPathRoute(unit.position, candidate, state.map.width, state.map.height, getPathBlockedCells(state)) !== null
+  )) ?? fallback;
 }
 
 function cloneOrder(order: UnitOrder): UnitOrder {
@@ -1089,6 +2168,43 @@ function ownedUnits(state: MatchState, ownerId: PlayerId, ids: readonly EntityId
     units.push(entity);
   }
   return units;
+}
+
+export function arePlayersHostile(state: MatchState, leftId: PlayerId, rightId: PlayerId): boolean {
+  if (leftId === rightId) return false;
+  const left = state.players.find((player) => player.id === leftId);
+  const right = state.players.find((player) => player.id === rightId);
+  return Boolean(left && right && left.teamId !== right.teamId);
+}
+
+export function arePlayersAllied(state: MatchState, leftId: PlayerId, rightId: PlayerId): boolean {
+  const left = state.players.find((player) => player.id === leftId);
+  const right = state.players.find((player) => player.id === rightId);
+  return Boolean(left && right && left.teamId === right.teamId);
+}
+
+function abilityTargetMatches(targeting: AbilityTargeting, target: AbilityTarget): boolean {
+  return (targeting === "self" && target.kind === "self")
+    || (targeting === "unit" && target.kind === "entity")
+    || (targeting === "ground" && target.kind === "ground")
+    || (targeting === "direction" && target.kind === "direction");
+}
+
+function validateAbilityTarget(state: MatchState, playerId: PlayerId, caster: UnitEntityState, target: AbilityTarget): CommandValidation {
+  if (target.kind === "self") return { ok: true };
+  if (target.kind === "direction") return { ok: true };
+  if (target.kind === "ground") {
+    return isPointInBounds(target.point, state) && distanceSquared(caster.position, target.point) <= UNITS[caster.typeId].attackRange ** 2
+      ? { ok: true }
+      : rejected("TARGET_NOT_REACHABLE");
+  }
+  const entity = state.entities.find((candidate) => candidate.id === target.entityId);
+  if (!entity || !isEntityVisibleToPlayer(state, playerId, entity)) return rejected("TARGET_NOT_VISIBLE");
+  if (entity.kind !== "unit") return rejected("INVALID_PAYLOAD");
+  if (!isValidHostileTarget(state, playerId, entity)) return rejected("INVALID_PAYLOAD");
+  return distanceSquaredToEntity(caster.position, entity) <= UNITS[caster.typeId].attackRange ** 2
+    ? { ok: true }
+    : rejected("TARGET_NOT_REACHABLE");
 }
 
 function hasCompletedPrerequisites(state: MatchState, playerId: PlayerId, prerequisites: readonly BuildingType[]): boolean {

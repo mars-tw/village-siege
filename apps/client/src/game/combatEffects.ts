@@ -11,6 +11,7 @@ export interface ProjectileEffectOptions {
   readonly tint?: number;
   readonly durationMs?: number;
   readonly depth?: number;
+  readonly spawnImpactOnComplete?: boolean;
   readonly onImpact?: () => void;
 }
 
@@ -57,7 +58,7 @@ export function launchProjectile(scene: Phaser.Scene, options: ProjectileEffectO
     projectile.setVisible(false).setPosition(options.to.x, options.to.y);
     scene.time.delayedCall(duration, () => {
       projectile.destroy();
-      spawnImpactBurst(scene, options.to, color, options.kind === "musket" ? 12 : 8);
+      if (options.spawnImpactOnComplete !== false) spawnImpactBurst(scene, options.to, color, options.kind === "musket" ? 12 : 8);
       options.onImpact?.();
     });
     return projectile;
@@ -70,7 +71,7 @@ export function launchProjectile(scene: Phaser.Scene, options: ProjectileEffectO
     ease: "Sine.easeIn",
     onComplete: () => {
       projectile.destroy();
-      spawnImpactBurst(scene, options.to, color, options.kind === "musket" ? 12 : 8);
+      if (options.spawnImpactOnComplete !== false) spawnImpactBurst(scene, options.to, color, options.kind === "musket" ? 12 : 8);
       options.onImpact?.();
     },
   });

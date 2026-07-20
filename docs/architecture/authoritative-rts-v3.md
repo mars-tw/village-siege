@@ -77,6 +77,20 @@ Only completed, living buildings that train units may store a rally point. The t
 
 Production queues, job identities and rally points are owner-only state. They are intentionally absent from `PublicEntityState`; an authoritative online transport must filter the related events to the owning player. AI receives only `ownProductionQueues` and `ownRallyPoints`, sets a stable local military rally once before affordable production, and cancels a tail training job only to recover from a real population-capacity deficit.
 
+## Tactical combat contract
+
+Rules version `village-siege/0.7.0` has one canonical combat roster: `villager` plus `warrior`, `shieldBearer`, `archer`, `mage`, `musketeer`, `boarRider` and `heavyCrossbowman`. Formal unit content derives combat hit points, damage, cadence, range, speed, cost, population and training time from that roster rather than maintaining a second simulation table.
+
+Move, attack, attack-move, patrol, stop, repair, stance, formation and active-ability intents are strictly parsed and validated by the shared simulation. Attack-move acquires only currently visible hostile targets and resumes its deterministic formation destination after contact. Formation cells are assigned in stable entity-ID order. Repair accepts living completed allied buildings, charges one wood per ten repaired hit points and stops at full durability or an empty wallet.
+
+Combat advances through fixed windup, commit, recovery and ready phases. Unit-target abilities recheck unit type, hostility, visibility and range at commit; stagger interrupts an active windup. Armor, counter modifiers, technology, status and structure multipliers resolve through the shared integer damage path. Ranged commits create authoritative projectile IDs and impact ticks; terrain-sensitive heavy bolts stop at the first blocked village cell. Damage, phase, projectile and status events drive presentation effects but never grant the client combat authority.
+
+Every combat role also owns an authoritative passive transition. Warrior rhythm resets on a target switch or a twenty-tick miss window; shield bearers brace after eight stationary ticks and reverse frontal boar charges for a sixty-tick lockout; rested musketeers gain one range and twenty-percent shorter recovery for one basic shot; boar riders consume three moved tiles for a twenty-percent basic-hit bonus; and heavy crossbow crews emplace after twenty stationary ticks, gaining one range and twenty-percent building damage until movement or forced displacement. Archer gap-hunter bonus applies to heavy crossbows only while they are emplaced, while mage armor ignore remains part of the common damage formula. Public unit state exposes deterministic passive progress without exposing hidden orders.
+
+Projectile kind controls collision authority. Locked arrows retain their commit target, ground-area skills scan the target circle at impact, and the three-arrow volley caps one target at two hits. Line bolts advance along their segment every simulation tick, remember already-hit targets, stop after two hits or the first building footprint, and terminate early at blocked terrain. A unit entering a segment after the bolt has passed is not retroactively hit. Projectile impact events report the real terminal cell, not an unrelated endpoint.
+
+Diplomacy uses team IDs in direct attacks, automatic acquisition, towers, projectiles and AI observations. Same-team entities are never valid hostile targets. AI uses only visible hostile composition to score canonical counter units and submits the same validated ability commands as a player.
+
 ## Server validation
 
 Every command validates membership, ownership, entity life, resource balance, population, settlement tier, research, cooldown, visibility, diplomacy, range, footprint, terrain, route, rate limit, payload size and sequence. Client timestamps, positions, damage, resources and completion times are untrusted.

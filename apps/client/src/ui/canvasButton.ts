@@ -14,7 +14,7 @@ export interface CanvasButtonOptions {
 export interface CanvasButtonControl {
   readonly container: Phaser.GameObjects.Container;
   readonly name: string;
-  setActive(active: boolean): void;
+  setActive(active: boolean | null): void;
   setEnabled(enabled: boolean): void;
   setLabel(glyph: string, label: string, accessibleLabel?: string): void;
   setVisible(visible: boolean): void;
@@ -149,9 +149,10 @@ export function createCanvasButton(
   return {
     container,
     name: options.name,
-    setActive(value: boolean): void {
-      active = value;
-      accessibilityButton.setAttribute("aria-pressed", String(value));
+    setActive(value: boolean | null): void {
+      active = value ?? false;
+      if (value === null) accessibilityButton.removeAttribute("aria-pressed");
+      else accessibilityButton.setAttribute("aria-pressed", String(value));
       draw();
     },
     setEnabled(value: boolean): void {

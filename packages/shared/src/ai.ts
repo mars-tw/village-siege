@@ -1,7 +1,8 @@
 import { BUILDINGS, MAX_TRAINING_QUEUE_DEPTH, SETTLEMENT_TIERS, TECHNOLOGIES, TECHNOLOGY_ORDER, UNITS } from "./content.js";
 import { getVillageAssaultBuildBlockedCells, getVillageAssaultWalkBlockedCells, VILLAGE_ASSAULT_MAP_ID } from "./battlefield.js";
 import { nextUint32, normalizeSeed } from "./random.js";
-import { isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState, type ProductionJob } from "./simulation.js";
+import { COMBAT_UNITS, COUNTER_MATRIX, type CombatUnitId } from "./combat.js";
+import { arePlayersHostile, isEntityVisibleToPlayer, toPublicEntity, type BuildingEntityState, type MatchState, type ProductionJob } from "./simulation.js";
 import { findPathRoute, getFootprintCells, getFootprintPerimeterCells, validateFootprintPlacement } from "./spatial.js";
 import type {
   AiDifficulty,
@@ -72,11 +73,11 @@ export interface AiProfile {
 }
 
 export const AI_PROFILES: Readonly<Record<AiPersonality, AiProfile>> = {
-  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["militia", "spearman", "batteringRam"], preferredBuildings: ["barracks", "siegeWorkshop", "house"], targetPriority: ["townCenter", "military", "villager", "economy"], advanceAfterTick: { stronghold: 260, artificer: 11_000 }, preferredTechnologies: ["layeredHarness", "starfireBores", "torsionCradles"], researchAfterTick: 1_500, researchIntervalTicks: 2_200 },
-  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["spearman", "archer", "militia"], preferredBuildings: ["defenseTower", "barracks", "archeryRange", "house"], targetPriority: ["military", "townCenter", "villager", "economy"], advanceAfterTick: { stronghold: 420, artificer: 14_000 }, preferredTechnologies: ["surveyedFoundations", "layeredHarness", "resinboundKits"], researchAfterTick: 2_200, researchIntervalTicks: 2_600 },
-  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "batteringRam"], preferredBuildings: ["lumberCamp", "farmstead", "archeryRange", "siegeWorkshop", "house"], targetPriority: ["economy", "townCenter", "military", "villager"], advanceAfterTick: { stronghold: 520, artificer: 13_000 }, preferredTechnologies: ["hearthlandAlmanac", "resinboundKits", "surveyedFoundations"], researchAfterTick: 1_200, researchIntervalTicks: 1_600 },
-  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["spearman", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "archeryRange", "mageSanctum", "gunWorkshop", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"], advanceAfterTick: { stronghold: 360, artificer: 12_000 }, preferredTechnologies: ["resinboundKits", "layeredHarness", "surveyedFoundations", "starfireBores"], researchAfterTick: 1_800, researchIntervalTicks: 2_000 },
-  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["scout", "archer", "militia"], preferredBuildings: ["beastStable", "archeryRange", "barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"], advanceAfterTick: { stronghold: 220, artificer: 10_500 }, preferredTechnologies: ["windspurRigging", "resinboundKits", "layeredHarness"], researchAfterTick: 1_400, researchIntervalTicks: 1_800 },
+  aggressor: { id: "aggressor", economyWeight: 15, defenseWeight: 10, aggressionWeight: 60, mobilityWeight: 15, preferredUnits: ["warrior", "shieldBearer", "heavyCrossbowman"], preferredBuildings: ["barracks", "siegeWorkshop", "house"], targetPriority: ["townCenter", "military", "villager", "economy"], advanceAfterTick: { stronghold: 260, artificer: 11_000 }, preferredTechnologies: ["layeredHarness", "starfireBores", "torsionCradles"], researchAfterTick: 1_500, researchIntervalTicks: 2_200 },
+  guardian: { id: "guardian", economyWeight: 20, defenseWeight: 55, aggressionWeight: 10, mobilityWeight: 15, preferredUnits: ["shieldBearer", "archer", "warrior"], preferredBuildings: ["defenseTower", "barracks", "archeryRange", "house"], targetPriority: ["military", "townCenter", "villager", "economy"], advanceAfterTick: { stronghold: 420, artificer: 14_000 }, preferredTechnologies: ["surveyedFoundations", "layeredHarness", "resinboundKits"], researchAfterTick: 2_200, researchIntervalTicks: 2_600 },
+  prosperer: { id: "prosperer", economyWeight: 60, defenseWeight: 15, aggressionWeight: 15, mobilityWeight: 10, preferredUnits: ["villager", "archer", "heavyCrossbowman"], preferredBuildings: ["lumberCamp", "farmstead", "archeryRange", "siegeWorkshop", "house"], targetPriority: ["economy", "townCenter", "military", "villager"], advanceAfterTick: { stronghold: 520, artificer: 13_000 }, preferredTechnologies: ["hearthlandAlmanac", "resinboundKits", "surveyedFoundations"], researchAfterTick: 1_200, researchIntervalTicks: 1_600 },
+  balanced: { id: "balanced", economyWeight: 30, defenseWeight: 25, aggressionWeight: 25, mobilityWeight: 20, preferredUnits: ["shieldBearer", "archer", "mage", "musketeer"], preferredBuildings: ["house", "barracks", "archeryRange", "mageSanctum", "gunWorkshop", "defenseTower"], targetPriority: ["military", "economy", "townCenter", "villager"], advanceAfterTick: { stronghold: 360, artificer: 12_000 }, preferredTechnologies: ["resinboundKits", "layeredHarness", "surveyedFoundations", "starfireBores"], researchAfterTick: 1_800, researchIntervalTicks: 2_000 },
+  raider: { id: "raider", economyWeight: 15, defenseWeight: 10, aggressionWeight: 35, mobilityWeight: 40, preferredUnits: ["boarRider", "archer", "warrior"], preferredBuildings: ["beastStable", "archeryRange", "barracks", "house"], targetPriority: ["villager", "economy", "military", "townCenter"], advanceAfterTick: { stronghold: 220, artificer: 10_500 }, preferredTechnologies: ["windspurRigging", "resinboundKits", "layeredHarness"], researchAfterTick: 1_400, researchIntervalTicks: 1_800 },
 };
 
 const DIFFICULTY_INTERVAL: Readonly<Record<AiDifficulty, number>> = { novice: 40, standard: 20, veteran: 10 };
@@ -139,7 +140,7 @@ export function getAiObservation(state: MatchState, playerId: PlayerId, remember
       .filter((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === playerId && !entity.complete)
       .map((building) => building.id)
       .sort(compareText),
-    visibleEnemyEntities: sortPublicEntities(visible.filter((entity) => entity.ownerId !== null).map(toPublicEntity)),
+    visibleEnemyEntities: sortPublicEntities(visible.filter((entity) => entity.ownerId !== null && arePlayersHostile(state, playerId, entity.ownerId)).map(toPublicEntity)),
     // Keep fallow renewable fields in spatial knowledge so the AI will not try
     // to build over them. Economy selection separately filters empty nodes.
     visibleResourceEntities: sortPublicEntities(visible.filter((entity) => entity.kind === "resource").map(toPublicEntity)),
@@ -171,27 +172,26 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
     const research = researchProgressionCommand(profile, observation, villagers, randomValue);
     if (research) return research;
   }
-
   switch (profile.id) {
     case "aggressor":
-      if (visibleTarget && military.length >= 2) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
+      if (visibleTarget && military.length >= 2) return abilityCommand(profile, observation, military, visibleTarget) ?? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
       if (military.length >= 3) return advanceTowardEnemy(observation, military);
       if (incompleteBuilding) return null;
-      return productionCommand(profile, observation, villagers, "militia", 1, randomValue);
+      return productionCommand(profile, observation, villagers, "warrior", 1, randomValue);
     case "guardian": {
       const home = townCenter?.position;
       const closeEnemy = home && [...observation.visibleEnemyEntities]
         .filter((enemy) => distanceSquared(home, enemy.position) <= 64)
         .sort((left, right) => distanceSquared(home, left.position) - distanceSquared(home, right.position) || compareText(left.id, right.id))[0];
-      if (closeEnemy && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: closeEnemy.id };
+      if (closeEnemy && military.length > 0) return abilityCommand(profile, observation, military, closeEnemy) ?? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: closeEnemy.id };
       if (incompleteBuilding) return null;
       if (!observation.ownEntities.some((entity) => entity.kind === "building" && entity.typeId === "defenseTower")) {
         return affordableBuild(observation, villagers, "defenseTower", 2) ?? economyCommand(observation, villagers, randomValue);
       }
       if (military.length >= 3) return visibleTarget
-        ? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
+        ? abilityCommand(profile, observation, military, visibleTarget) ?? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id }
         : defensivePatrol(observation, military, home ?? military[0]!.position);
-      return productionCommand(profile, observation, villagers, "spearman", 1, randomValue);
+      return productionCommand(profile, observation, villagers, "shieldBearer", 1, randomValue);
     }
     case "prosperer":
       if (townCenter && villagers.length < 5 && observation.population.used + 1 <= observation.population.capacity) {
@@ -206,11 +206,11 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
         : advanceTowardEnemy(observation, military);
       return economyCommand(observation, villagers, randomValue) ?? affordableBuild(observation, villagers, "lumberCamp", 2);
     case "balanced":
-      if (visibleTarget && military.length >= 3) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
+      if (visibleTarget && military.length >= 3) return abilityCommand(profile, observation, military, visibleTarget) ?? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
       if (military.length >= 3) return advanceTowardEnemy(observation, military);
       if (incompleteBuilding) return null;
       if (observation.serverTick === 0) return economyCommand(observation, villagers, randomValue);
-      const availableBalancedUnits = (["spearman", "archer", "mage", "musketeer"] as const)
+      const availableBalancedUnits = (["shieldBearer", "archer", "mage", "musketeer"] as const)
         .filter((unitType) => tierReached(observation.settlementTier, UNITS[unitType].requiredTier));
       return productionCommand(
         profile,
@@ -221,11 +221,11 @@ function decideForProfile(profile: AiProfile, observation: AiObservation, random
         randomValue,
       );
     case "raider":
-      if (visibleTarget && military.length > 0) return { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
+      if (visibleTarget && military.length > 0) return abilityCommand(profile, observation, military, visibleTarget) ?? { type: "attack", entityIds: military.map((unit) => unit.id), targetId: visibleTarget.id };
       if (military.length >= 2) return advanceTowardEnemy(observation, military);
       if (incompleteBuilding) return null;
       if (military.length > 0) return flankPatrol(observation, military[0]!, randomValue);
-      return productionCommand(profile, observation, villagers, "scout", -1, randomValue);
+      return productionCommand(profile, observation, villagers, "boarRider", -1, randomValue);
   }
 }
 
@@ -246,10 +246,45 @@ function advanceTowardEnemy(observation: AiObservation, military: readonly Publi
     y: Math.max(1, Math.min(observation.map.height - 2, home.y)),
   };
   return {
-    type: "move",
+    type: "attackMove",
     entityIds: military.map((unit) => unit.id),
     target: nearestOpenWaypoint(observation, desired) ?? military[0]!.position,
   };
+}
+
+function abilityCommand(profile: AiProfile, observation: AiObservation, military: readonly PublicEntityState[], target: PublicEntityState): GameCommand | null {
+  const preference = new Map(profile.preferredUnits.map((unitType, index) => [unitType, index]));
+  const casters = [...military]
+    .filter((unit) => isCombatUnitType(unit.typeId)
+      && (unit.combatPhase === undefined || unit.combatPhase === "ready")
+      && (unit.abilityReadyTick === undefined || unit.abilityReadyTick <= observation.serverTick)
+      && !unit.statuses?.some((status) => status.id === "stagger"))
+    .sort((left, right) => (preference.get(left.typeId as UnitType) ?? 999) - (preference.get(right.typeId as UnitType) ?? 999)
+      || distanceSquared(left.position, target.position) - distanceSquared(right.position, target.position)
+      || compareText(left.id, right.id));
+  for (const caster of casters) {
+    if (!isCombatUnitType(caster.typeId)) continue;
+    const ability = COMBAT_UNITS[caster.typeId].activeAbility;
+    const rangeSquared = UNITS[caster.typeId].attackRange ** 2;
+    if (ability.targeting === "self") {
+      if (distanceSquared(caster.position, target.position) > rangeSquared) continue;
+      return { type: "castAbility", casterId: caster.id, abilityId: ability.id, target: { kind: "self" } };
+    }
+    if (ability.targeting === "unit") {
+      const unitTarget = observation.visibleEnemyEntities
+        .filter((candidate) => candidate.kind === "unit" && distanceSquared(caster.position, candidate.position) <= rangeSquared)
+        .sort((left, right) => distanceSquared(caster.position, left.position) - distanceSquared(caster.position, right.position) || compareText(left.id, right.id))[0];
+      if (unitTarget) return { type: "castAbility", casterId: caster.id, abilityId: ability.id, target: { kind: "entity", entityId: unitTarget.id } };
+      continue;
+    }
+    if (ability.targeting === "ground") {
+      if (distanceSquared(caster.position, target.position) > rangeSquared) continue;
+      return { type: "castAbility", casterId: caster.id, abilityId: ability.id, target: { kind: "ground", point: { ...target.position } } };
+    }
+    const vector = { x: target.position.x - caster.position.x, y: target.position.y - caster.position.y };
+    if (vector.x !== 0 || vector.y !== 0) return { type: "castAbility", casterId: caster.id, abilityId: ability.id, target: { kind: "direction", vector } };
+  }
+  return null;
 }
 
 function economyCommand(
@@ -354,6 +389,8 @@ function productionCommand(
   direction: number,
   randomValue: number,
 ): GameCommand | null {
+  const counterUnit = chooseCounterUnit(observation);
+  unitType = counterUnit ?? unitType;
   if (!tierReached(observation.settlementTier, UNITS[unitType].requiredTier)) {
     return settlementProgressionCommand(profile, observation, villagers, randomValue)
       ?? economyCommand(observation, villagers, randomValue);
@@ -380,6 +417,24 @@ function affordableBuild(observation: AiObservation, villagers: readonly PublicE
   const anchor = observation.ownEntities.find((entity) => entity.kind === "building" && entity.typeId === "townCenter")?.position ?? builder.position;
   const origin = findOpenPoint(observation, anchor, buildingType, direction);
   return origin ? { type: "build", builderIds: [builder.id], buildingType, origin } : null;
+}
+
+function chooseCounterUnit(observation: AiObservation): CombatUnitId | null {
+  const enemyTypes = observation.visibleEnemyEntities
+    .filter((entity) => entity.kind === "unit" && isCombatUnitType(entity.typeId))
+    .map((entity) => entity.typeId as CombatUnitId);
+  if (enemyTypes.length === 0) return null;
+  return (Object.keys(COMBAT_UNITS) as CombatUnitId[])
+    .filter((candidate) => tierReached(observation.settlementTier, UNITS[candidate].requiredTier))
+    .map((candidate) => ({
+      candidate,
+      score: enemyTypes.reduce((sum, enemy) => sum + COUNTER_MATRIX[candidate][enemy], 0) / enemyTypes.length,
+    }))
+    .sort((left, right) => right.score - left.score || compareText(left.candidate, right.candidate))[0]?.candidate ?? null;
+}
+
+function isCombatUnitType(value: unknown): value is CombatUnitId {
+  return typeof value === "string" && value in COMBAT_UNITS;
 }
 
 function populationRecoveryCommand(profile: AiProfile, observation: AiObservation): GameCommand | null {

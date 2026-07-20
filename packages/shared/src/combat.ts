@@ -18,6 +18,7 @@ export const STATUS_EFFECT_IDS = [
   "stagger",
   "tenacity",
   "shieldWall",
+  "braced",
   "emplaced",
 ] as const;
 export const PROJECTILE_PROFILE_IDS = [
@@ -162,13 +163,14 @@ export const STATUS_EFFECTS = {
   burn: { id: "burn", displayName: "燃燒", durationMs: 3_000, stacking: "refresh", maxStacks: 1, magnitude: 5, tickIntervalMs: 1_000 },
   stagger: { id: "stagger", displayName: "踉蹌", durationMs: 800, stacking: "immuneWindow", maxStacks: 1, magnitude: 1, grantsStatusId: "tenacity" },
   tenacity: { id: "tenacity", displayName: "韌性", durationMs: 2_000, stacking: "refresh", maxStacks: 1, magnitude: 1 },
-  shieldWall: { id: "shieldWall", displayName: "盾牆", durationMs: 4_000, stacking: "refresh", maxStacks: 1, magnitude: 0.55 },
+  shieldWall: { id: "shieldWall", displayName: "盾牆", durationMs: 4_000, stacking: "refresh", maxStacks: 1, magnitude: 0.45 },
+  braced: { id: "braced", displayName: "架盾拒馬", durationMs: 0, stacking: "state", maxStacks: 1, magnitude: 0.6 },
   emplaced: { id: "emplaced", displayName: "架設", durationMs: 0, stacking: "state", maxStacks: 1, magnitude: 0.2 },
 } as const satisfies Readonly<Record<StatusEffectId, StatusEffectDefinition>>;
 
 export const PROJECTILE_PROFILES = {
   arrow: projectile("arrow", "locked", 11, 200, 1, false, "proj.arrow.flight", "fx.arrowHit"),
-  pinningVolley: projectile("pinningVolley", "groundArea", 11, 200, 6, false, "proj.arrow.flight", "fx.arrowHit"),
+  pinningVolley: projectile("pinningVolley", "groundArea", 11, 200, 3, false, "proj.arrow.flight", "fx.arrowHit"),
   arcaneCinder: projectile("arcaneCinder", "locked", 8, 200, 1, false, "proj.arcaneCinder.flight", "fx.arcaneHit"),
   musketTrace: projectile("musketTrace", "hitscan", null, 0, 1, false, "proj.musketTrace.flight", "fx.musketHit"),
   heavyBolt: projectile("heavyBolt", "locked", 14, 200, 1, true, "proj.heavyBolt.flight", "fx.boltHit"),
@@ -216,7 +218,7 @@ export const COMBAT_UNITS = {
     id: "mage", displayName: "法師", role: "忽略護甲的範圍壓力", maxHitPoints: 75, armorClass: "cloth", armor: 2,
     damageType: "arcane", baseDamage: 30, attackIntervalMs: 1_800, attackRange: 6, moveSpeed: 0.92,
     cost: cost(75, 30, 60), population: 2, trainTimeMs: 26_000,
-    activeAbility: ability("emberSigil", "餘燼法印", 18_000, 800, 700, "ground", "在地面法印造成奧術傷害並附加燃燒。", ["burn"]),
+    activeAbility: ability("emberSigil", "餘燼法印", 18_000, 800, 700, "ground", "在地面法印造成 32 點奧術傷害並附加燃燒。", ["burn"], 32 / 30),
     passive: passive("arcaneAttunement", "奧術調諧", "奧術傷害忽略目標 35% 護甲。"),
     counterModifiers: COUNTER_MATRIX.mage, animationProfileId: "unit.mage", projectileProfileId: "arcaneCinder",
   }),

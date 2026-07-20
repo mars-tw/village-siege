@@ -1,6 +1,7 @@
 import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, TechnologyType, UnitType, VillageId } from "./protocol.js";
+import { COMBAT_UNITS, type CombatUnitId } from "./combat.js";
 
-export const RULES_VERSION = "village-siege/0.6.0";
+export const RULES_VERSION = "village-siege/0.7.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;
@@ -90,7 +91,7 @@ export const TECHNOLOGIES: Readonly<Record<TechnologyType, TechnologyDefinition>
   layeredHarness: {
     id: "layeredHarness", displayName: "疊革戰具", shortName: "疊革具", category: "offense",
     producer: "barracks", requiredTier: "stronghold", cost: wallet(250, 120, 80), researchTicks: 360, prerequisites: [],
-    effect: { kind: "unitMaxHitPoints", unitTypes: ["militia", "spearman"], multiplierPermille: 1_120 },
+    effect: { kind: "unitMaxHitPoints", unitTypes: ["warrior", "shieldBearer"], multiplierPermille: 1_120 },
   },
   surveyedFoundations: {
     id: "surveyedFoundations", displayName: "方繩基準法", shortName: "基準法", category: "defense",
@@ -100,7 +101,7 @@ export const TECHNOLOGIES: Readonly<Record<TechnologyType, TechnologyDefinition>
   windspurRigging: {
     id: "windspurRigging", displayName: "逐風鞍索", shortName: "逐風索", category: "mobility",
     producer: "beastStable", requiredTier: "stronghold", cost: wallet(240, 150, 40), researchTicks: 340, prerequisites: [],
-    effect: { kind: "unitSpeed", unitTypes: ["scout"], multiplierPermille: 1_150 },
+    effect: { kind: "unitSpeed", unitTypes: ["boarRider"], multiplierPermille: 1_150 },
   },
   starfireBores: {
     id: "starfireBores", displayName: "星火膛鑽", shortName: "星火鑽", category: "offense",
@@ -110,7 +111,7 @@ export const TECHNOLOGIES: Readonly<Record<TechnologyType, TechnologyDefinition>
   torsionCradles: {
     id: "torsionCradles", displayName: "絞索衝架", shortName: "絞索架", category: "siege",
     producer: "siegeWorkshop", requiredTier: "artificer", cost: wallet(200, 300, 220), researchTicks: 450, prerequisites: ["surveyedFoundations"],
-    effect: { kind: "unitAttack", unitTypes: ["batteringRam"], multiplierPermille: 1_250 },
+    effect: { kind: "unitAttack", unitTypes: ["heavyCrossbowman"], multiplierPermille: 1_250 },
   },
 };
 
@@ -133,13 +134,13 @@ export interface UnitDefinition {
 
 export const UNITS: Readonly<Record<UnitType, UnitDefinition>> = {
   villager: { id: "villager", requiredTier: "frontier", carryCapacity: 12, cost: wallet(50, 0, 0), maxHitPoints: 55, attackDamage: 4, attackRange: 1, attackCooldownTicks: 12, speedMilliTilesPerSecond: 1100, sightRadius: 6, population: 1, trainTicks: 120, producers: ["townCenter"], gatherPerSecond: { food: 6, wood: 6, stone: 4 } },
-  militia: { id: "militia", requiredTier: "frontier", carryCapacity: 0, cost: wallet(60, 25, 0), maxHitPoints: 85, attackDamage: 11, attackRange: 1, attackCooldownTicks: 10, speedMilliTilesPerSecond: 1050, sightRadius: 6, population: 1, trainTicks: 150, producers: ["barracks"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  spearman: { id: "spearman", requiredTier: "frontier", carryCapacity: 0, cost: wallet(45, 35, 0), maxHitPoints: 75, attackDamage: 13, attackRange: 2, attackCooldownTicks: 12, speedMilliTilesPerSecond: 1000, sightRadius: 7, population: 1, trainTicks: 160, producers: ["barracks"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  archer: { id: "archer", requiredTier: "stronghold", carryCapacity: 0, cost: wallet(45, 50, 0), maxHitPoints: 60, attackDamage: 10, attackRange: 5, attackCooldownTicks: 14, speedMilliTilesPerSecond: 1050, sightRadius: 8, population: 1, trainTicks: 180, producers: ["archeryRange"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  mage: { id: "mage", requiredTier: "artificer", carryCapacity: 0, cost: wallet(70, 0, 75), maxHitPoints: 55, attackDamage: 20, attackRange: 4, attackCooldownTicks: 18, speedMilliTilesPerSecond: 950, sightRadius: 8, population: 2, trainTicks: 240, producers: ["mageSanctum"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  musketeer: { id: "musketeer", requiredTier: "artificer", carryCapacity: 0, cost: wallet(70, 65, 20), maxHitPoints: 65, attackDamage: 24, attackRange: 5, attackCooldownTicks: 20, speedMilliTilesPerSecond: 920, sightRadius: 8, population: 2, trainTicks: 260, producers: ["gunWorkshop"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  scout: { id: "scout", requiredTier: "stronghold", carryCapacity: 0, cost: wallet(80, 20, 0), maxHitPoints: 95, attackDamage: 9, attackRange: 1, attackCooldownTicks: 9, speedMilliTilesPerSecond: 1800, sightRadius: 9, population: 1, trainTicks: 200, producers: ["beastStable"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
-  batteringRam: { id: "batteringRam", requiredTier: "artificer", carryCapacity: 0, cost: wallet(0, 140, 80), maxHitPoints: 230, attackDamage: 35, attackRange: 1, attackCooldownTicks: 20, speedMilliTilesPerSecond: 650, sightRadius: 5, population: 3, trainTicks: 300, producers: ["siegeWorkshop"], gatherPerSecond: { food: 0, wood: 0, stone: 0 } },
+  warrior: combatUnit("warrior", "frontier", ["barracks"], 6),
+  shieldBearer: combatUnit("shieldBearer", "frontier", ["barracks"], 7),
+  archer: combatUnit("archer", "stronghold", ["archeryRange"], 8),
+  mage: combatUnit("mage", "artificer", ["mageSanctum"], 8),
+  musketeer: combatUnit("musketeer", "artificer", ["gunWorkshop"], 8),
+  boarRider: combatUnit("boarRider", "stronghold", ["beastStable"], 9),
+  heavyCrossbowman: combatUnit("heavyCrossbowman", "artificer", ["siegeWorkshop"], 7),
 };
 
 export interface BuildingDefinition {
@@ -187,6 +188,26 @@ export const RESOURCE_NODES: Readonly<Record<ResourceKind, ResourceNodeDefinitio
 
 export function getVillage(id: VillageId): VillageDefinition | undefined {
   return VILLAGES.find((village) => village.id === id);
+}
+
+function combatUnit(id: CombatUnitId, requiredTier: SettlementTier, producers: readonly BuildingType[], sightRadius: number): UnitDefinition {
+  const combat = COMBAT_UNITS[id];
+  return {
+    id,
+    requiredTier,
+    carryCapacity: 0,
+    cost: { ...combat.cost },
+    maxHitPoints: combat.maxHitPoints,
+    attackDamage: combat.baseDamage,
+    attackRange: combat.attackRange,
+    attackCooldownTicks: Math.max(1, Math.round(combat.attackIntervalMs / TICK_MILLISECONDS)),
+    speedMilliTilesPerSecond: Math.round(combat.moveSpeed * 1_000),
+    sightRadius,
+    population: combat.population,
+    trainTicks: Math.max(1, Math.round(combat.trainTimeMs / TICK_MILLISECONDS)),
+    producers,
+    gatherPerSecond: { food: 0, wood: 0, stone: 0 },
+  };
 }
 
 function wallet(food: number, wood: number, stone: number): ResourceWallet {
