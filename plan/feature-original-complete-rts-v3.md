@@ -24,7 +24,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 - **REQ-006**: Maps shall support explored and visible fog states, neutral threats, continuous terrain, walls, gates, towers, chokepoints and destructible navigation changes.
 - **REQ-007**: Three to five original villages and five AI personalities shall have measurable build-order, economy, research, composition and attack-timing differences.
 - **REQ-008**: Victory conditions shall include command-center conquest, elimination and configurable landmark or timed-control objectives with explicit defeat and surrender states.
-- **REQ-009**: Save files, command journals and deterministic replays shall declare schema, protocol and rules versions and reject incompatible data explicitly.
+- **REQ-009**: Owner-private save files, tick command journals and deterministic replays shall each declare schema, protocol and rules versions, require an exact supported three-layer tuple and reject incompatible data atomically. They contain full authority and shall not be exposed as recipient-filtered public snapshots.
 - **REQ-010**: Multiplayer move, economy, build, train, research, combat, fog, victory and reconnect state shall be server-authoritative before the public UI calls it multiplayer combat.
 - **REQ-011**: Desktop and 667x375 or 844x390 landscape phone users shall be able to complete every required operation through a fixed viewport with targets at least 44 CSS pixels.
 - **REQ-012**: Runtime visuals, unit names, factions, balance values, maps, sounds and interface composition shall remain original Village Siege intellectual property.
@@ -82,7 +82,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 |------|-------------|-----------|------|
 | TASK-014 | Add strategic AI scouting memory, counter-composition, wall defense, repair, retreat, regroup and multi-wave assault planners. | Yes | 2026-07-21 |
 | TASK-015 | Add conquest, elimination, landmark and timed-control victory policies with deterministic scoring and result events. | Yes | 2026-07-21 |
-| TASK-016 | Add versioned save snapshots, command journals, replay import/export and incompatible-version rejection. |  |  |
+| TASK-016 | Add owner-private versioned save snapshots, tick command journals, replay import/export, exact schema/protocol/rules compatibility rejection and a 10,000-tick deterministic hash gate. | Yes | 2026-07-21 |
 | TASK-017 | Add an interactive touch-completable tutorial covering economy, era, research, fog, combat, breach and victory. |  |  |
 
 ### Implementation Phase 5 - Server-authoritative multiplayer
@@ -138,7 +138,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 
 ## 6. Testing
 
-- **TEST-001**: Fixed-seed economy, era, technology, combat, victory and replay tests produce identical state hashes across repeated runs.
+- **TEST-001**: Fixed-seed economy, era, technology, combat and victory tests remain deterministic; replaying 10,000 fixed ticks twice from the same version-compatible snapshot and journal produces identical checkpoint and final canonical state hashes.
 - **TEST-002**: Every invalid ownership, cost, population, era, duplicate research, visibility, range, placement and sequence command is rejected without mutation.
 - **TEST-003**: Five AI profiles finish 30-minute simulated matches with distinct telemetry and zero rejected self-issued commands.
 - **TEST-004**: Fog serialization tests prove hidden enemy entities and orders never reach an unauthorized client.
@@ -153,6 +153,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 - **RISK-002**: A complete RTS is a multi-release effort; premature publication claims could misrepresent lobby, fog, AI or combat completeness.
 - **RISK-003**: Full authoritative snapshots may exceed browser bandwidth; filtered deltas, periodic full snapshots and canonical hashes must be profiled before production.
 - **RISK-004**: Mobile seven-slot controls can become inaccessible as commands grow; contextual paging and automated geometry tests are mandatory.
+- **RISK-005**: Authoritative save and replay files include hidden fog state and private AI plans; they must not be exposed as public player snapshots. FNV hashes diagnose accidental corruption or desync only and do not authenticate hostile files.
 - **ASSUMPTION-001**: “Private design” means original Village Siege branding, gameplay, art and worldbuilding while the entire reusable project remains MIT open source.
 - **ASSUMPTION-002**: Three original eras and three to five villages satisfy the intended classic-RTS progression without copying a commercial title's exact era system.
 

@@ -50,8 +50,8 @@ export function createVictoryPresentation(
       compactObjectiveText: victory.triggeredReasons.length > 1
         ? "和局\n同刻達成勝途"
         : `和局\n${COMPACT_FINISH_REASON_LABELS[victory.finishReason]}`,
-      selectionText: "戰局已結束｜選擇再戰或返回",
-      announcement: `${headline}。戰局於 ${elapsedSeconds} 秒結束。可選擇再戰或返回。`,
+      selectionText: "戰局已結束｜再戰、下載重播或返回",
+      announcement: `${headline}。戰局於 ${elapsedSeconds} 秒結束。可選擇再戰、下載重播或返回。`,
       tone: "normal",
     };
   }
@@ -62,8 +62,8 @@ export function createVictoryPresentation(
     outcome: won ? "victory" : "defeat",
     objectiveText: headline,
     compactObjectiveText: `${won ? "勝利" : "戰敗"}\n${COMPACT_FINISH_REASON_LABELS[victory.finishReason]}`,
-    selectionText: "戰局已結束｜選擇再戰或返回",
-    announcement: `${headline}。戰局於 ${elapsedSeconds} 秒結束。可選擇再戰或返回。`,
+    selectionText: "戰局已結束｜再戰、下載重播或返回",
+    announcement: `${headline}。戰局於 ${elapsedSeconds} 秒結束。可選擇再戰、下載重播或返回。`,
     tone: won ? "success" : "warning",
   };
 }

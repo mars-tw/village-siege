@@ -16,6 +16,8 @@ import {
   isEntityVisibleToPlayer,
   isTileVisibleToPlayer,
   isRallyPointAvailable,
+  MATCH_REPLAY_MAX_BYTES,
+  MATCH_SAVE_MAX_BYTES,
   MAX_TRAINING_QUEUE_DEPTH,
   SETTLEMENT_TIER_ORDER,
   SETTLEMENT_TIERS,
@@ -134,6 +136,9 @@ interface ActionSpec {
   readonly run: () => void;
 }
 
+type DataArchiveKind = "save" | "replay" | "journal";
+type ImportableDataArchiveKind = Exclude<DataArchiveKind, "journal">;
+
 interface MonsterView {
   readonly actor: FrameAnimatedCombatActorView;
   readonly selection: Phaser.GameObjects.Graphics;
@@ -235,6 +240,11 @@ export class VillageAssaultScene extends Phaser.Scene {
   private buildingPlacement: BuildingType | null = null;
   private buildingOrientation: StructureOrientation = "ne";
   private systemPanelOpen = false;
+  private systemPanelPage: "root" | "view" | "data" = "root";
+  private archiveBusy = false;
+  private archiveInput?: HTMLInputElement;
+  private archiveInputCleanup?: () => void;
+  private archiveOperationGeneration = 0;
   private hoverGrid: GridPoint | null = null;
   private hoverEntityId: string | null = null;
   private paused = false;
@@ -293,6 +303,12 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.tacticalUiMode = { kind: "none" };
     this.buildingPlacement = null;
     this.systemPanelOpen = false;
+    this.systemPanelPage = "root";
+    this.archiveInputCleanup?.();
+    this.archiveInput = undefined;
+    this.archiveInputCleanup = undefined;
+    this.archiveBusy = false;
+    this.archiveOperationGeneration += 1;
     this.hoverGrid = null;
     this.hoverEntityId = null;
     this.paused = false;
@@ -1289,14 +1305,24 @@ export class VillageAssaultScene extends Phaser.Scene {
   private actionsForSelection(selected: readonly EntityState[]): readonly ActionSpec[] {
     if (this.ended) return [
       { glyph: "↻", label: "再戰", run: () => this.restartBattle() },
+      { glyph: "播", label: "下載重播", run: () => this.exportDataArchive("replay") },
       { glyph: "⌂", label: "返回", run: () => this.leaveBattle() },
     ];
     if (this.systemPanelOpen) {
+      if (this.systemPanelPage === "view") {
+        return [
+          this.zoomAction(-0.12),
+          this.zoomAction(0.12),
+          { glyph: "◎", label: "置中基地", run: () => this.centerCameraOn({ x: 5, y: 8 }) },
+          { glyph: "←", label: "返回系統", run: () => { this.systemPanelPage = "root"; this.refreshInterface(true); } },
+        ];
+      }
+      if (this.systemPanelPage === "data") return this.dataArchiveActions();
       return [
         { glyph: "↻", label: "重新開始", run: () => this.restartBattle() },
         { glyph: this.paused ? "▶" : "Ⅱ", label: this.paused ? "繼續" : "暫停", run: () => this.togglePause() },
-        this.zoomAction(-0.12),
-        this.zoomAction(0.12),
+        { glyph: "◉", label: "鏡頭視角", run: () => { this.systemPanelPage = "view"; this.refreshInterface(true); } },
+        { glyph: "▣", label: "存檔重播", run: () => { this.systemPanelPage = "data"; this.refreshInterface(true); } },
         this.fullscreenAction(),
         { glyph: "⌂", label: "離開戰役", run: () => this.leaveBattle() },
         { glyph: "←", label: "返回", run: () => { this.systemPanelOpen = false; this.refreshInterface(true); } },
@@ -2058,9 +2084,253 @@ export class VillageAssaultScene extends Phaser.Scene {
       run: () => {
         this.cancelWorldTargetModes();
         this.systemPanelOpen = true;
+        this.systemPanelPage = "root";
         this.refreshInterface(true);
       },
     };
+  }
+
+  private dataArchiveActions(): readonly ActionSpec[] {
+    const enabled = !this.archiveBusy;
+    return [
+      {
+        glyph: "存",
+        label: "匯出存檔",
+        accessibleLabel: "將目前戰局匯出為 Village Siege 存檔",
+        enabled,
+        run: () => this.exportDataArchive("save"),
+      },
+      {
+        glyph: "讀",
+        label: "匯入存檔",
+        accessibleLabel: "選擇 Village Siege 存檔；驗證失敗不會變更目前戰局",
+        enabled,
+        run: () => this.openDataArchiveInput("save"),
+      },
+      {
+        glyph: "播",
+        label: "匯出重播",
+        accessibleLabel: "匯出目前戰局的確定性重播",
+        enabled,
+        run: () => this.exportDataArchive("replay"),
+      },
+      {
+        glyph: "載",
+        label: "匯入重播",
+        accessibleLabel: "選擇 Village Siege 重播；驗證失敗不會變更目前戰局",
+        enabled,
+        run: () => this.openDataArchiveInput("replay"),
+      },
+      {
+        glyph: "誌",
+        label: "匯出日誌",
+        accessibleLabel: "匯出目前戰局已接受的命令日誌",
+        enabled,
+        run: () => this.exportDataArchive("journal"),
+      },
+      {
+        glyph: "?",
+        label: "格式說明",
+        accessibleLabel: "檔案使用嚴格版本 JSON；版本或規則不相容時會拒絕匯入",
+        enabled,
+        run: () => this.setNotice("JSON格式｜版本不合拒絕", "normal", 5_000),
+      },
+      {
+        glyph: "←",
+        label: "返回",
+        run: () => {
+          this.systemPanelPage = "root";
+          this.refreshInterface(true);
+        },
+      },
+    ];
+  }
+
+  private exportDataArchive(kind: DataArchiveKind): void {
+    if (this.archiveBusy) return;
+    this.archiveBusy = true;
+    this.refreshInterface(true);
+    let link: HTMLAnchorElement | undefined;
+    let objectUrl: string | undefined;
+    try {
+      const json = kind === "save"
+        ? this.runtime.exportSaveJson()
+        : kind === "replay"
+          ? this.runtime.exportReplayJson()
+          : this.runtime.exportJournalJson();
+      if (typeof json !== "string") throw new TypeError("Archive exporter did not return JSON text");
+      const maxBytes = kind === "save" ? MATCH_SAVE_MAX_BYTES : MATCH_REPLAY_MAX_BYTES;
+      if (new TextEncoder().encode(json).byteLength > maxBytes) throw new RangeError("Archive exceeds export byte limit");
+
+      objectUrl = URL.createObjectURL(new Blob([json], { type: "application/json;charset=utf-8" }));
+      link = document.createElement("a");
+      link.hidden = true;
+      link.setAttribute("aria-hidden", "true");
+      link.href = objectUrl;
+      link.download = this.dataArchiveFilename(kind);
+      (this.game.canvas.parentElement ?? document.body).append(link);
+      link.click();
+      this.setNotice(kind === "save" ? "存檔已匯出" : kind === "replay" ? "重播已匯出" : "日誌已匯出", "success");
+    } catch {
+      this.setNotice(kind === "save" ? "存檔匯出失敗" : kind === "replay" ? "重播匯出失敗" : "日誌匯出失敗", "warning", 5_000);
+    } finally {
+      link?.remove();
+      if (objectUrl) window.setTimeout(() => URL.revokeObjectURL(objectUrl!), 0);
+      this.archiveBusy = false;
+      this.refreshInterface(true);
+    }
+  }
+
+  private openDataArchiveInput(kind: ImportableDataArchiveKind): void {
+    if (this.archiveBusy) return;
+    this.archiveInputCleanup?.();
+    this.archiveBusy = true;
+    const operationGeneration = ++this.archiveOperationGeneration;
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.className = "canvas-control-proxy";
+    input.tabIndex = -1;
+    input.accept = kind === "save"
+      ? ".vssave,.json,application/json"
+      : ".vsreplay,.json,application/json";
+    input.setAttribute("aria-label", kind === "save" ? "選擇要匯入的 Village Siege 存檔" : "選擇要匯入的 Village Siege 重播");
+
+    let finished = false;
+    let reading = false;
+    const onWindowFocus = (): void => {
+      window.setTimeout(() => {
+        if (!reading && !input.files?.length) finish();
+      }, 0);
+    };
+    const finish = (): void => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener("focus", onWindowFocus);
+      input.value = "";
+      input.remove();
+      if (this.archiveInput === input) this.archiveInput = undefined;
+      if (this.archiveInputCleanup === finish) this.archiveInputCleanup = undefined;
+      if (operationGeneration !== this.archiveOperationGeneration) return;
+      this.archiveBusy = false;
+      if (this.sys.isActive()) {
+        this.refreshInterface(true);
+        if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+      }
+    };
+
+    input.addEventListener("cancel", finish, { once: true });
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (!file) {
+        finish();
+        return;
+      }
+      reading = true;
+      void this.importDataArchiveFile(kind, file, operationGeneration).finally(finish);
+    }, { once: true });
+    this.archiveInput = input;
+    this.archiveInputCleanup = finish;
+    (this.game.canvas.parentElement ?? document.body).append(input);
+    window.addEventListener("focus", onWindowFocus, { once: true });
+    this.refreshInterface(true);
+    try {
+      input.click();
+    } catch {
+      finish();
+      this.setNotice("無法開啟檔案選擇器", "warning", 5_000);
+    }
+  }
+
+  private async importDataArchiveFile(
+    kind: ImportableDataArchiveKind,
+    file: File,
+    operationGeneration: number,
+  ): Promise<void> {
+    const maxBytes = kind === "save" ? MATCH_SAVE_MAX_BYTES : MATCH_REPLAY_MAX_BYTES;
+    if (file.size > maxBytes) {
+      if (this.sys.isActive()) this.setNotice(kind === "save" ? "存檔過大｜拒絕匯入" : "重播過大｜拒絕匯入", "warning", 5_000);
+      return;
+    }
+
+    try {
+      const json = await file.text();
+      if (operationGeneration !== this.archiveOperationGeneration || !this.sys.isActive()) return;
+      if (new TextEncoder().encode(json).byteLength > maxBytes) {
+        this.setNotice(kind === "save" ? "存檔過大｜拒絕匯入" : "重播過大｜拒絕匯入", "warning", 5_000);
+        return;
+      }
+
+      // Import into an isolated runtime first. The live match is exchanged only
+      // after the complete archive has passed schema, version and hash checks.
+      const candidate = createVillageAssaultRuntime({
+        playerVillageId: this.villageId,
+        aiPersonality: this.aiPersonality,
+        aiDifficulty: "standard",
+      });
+      const outcome: unknown = await Promise.resolve(kind === "save"
+        ? candidate.importSaveJson(json)
+        : candidate.importReplayJson(json));
+      if (this.isRejectedArchiveImport(outcome)) throw new Error("Archive import was rejected");
+      if (operationGeneration !== this.archiveOperationGeneration || !this.sys.isActive()) return;
+
+      const previousLayoutId = this.runtime.state.map.layoutId;
+      this.runtime = candidate;
+      this.applyImportedArchive(kind, previousLayoutId);
+    } catch {
+      if (operationGeneration === this.archiveOperationGeneration && this.sys.isActive()) {
+        this.setNotice(kind === "save" ? "存檔失敗｜格式版本不符" : "重播失敗｜格式版本不符", "warning", 6_000);
+      }
+    }
+  }
+
+  private isRejectedArchiveImport(outcome: unknown): boolean {
+    if (outcome === false) return true;
+    if (typeof outcome !== "object" || outcome === null || !("ok" in outcome)) return false;
+    return (outcome as { readonly ok?: unknown }).ok === false;
+  }
+
+  private applyImportedArchive(kind: ImportableDataArchiveKind, previousLayoutId?: VillageId): void {
+    this.cancelWorldTargetModes();
+    this.selectedIds.clear();
+    this.ended = false;
+    this.lastUiTick = -1;
+    this.lastFogRevision = -1;
+    this.resultLiveRegion && (this.resultLiveRegion.textContent = "");
+    for (const actor of this.retiringActors) {
+      this.tweens.killTweensOf(actor.container);
+      actor.destroy();
+    }
+    this.retiringActors.clear();
+
+    const importedPlayer = this.runtime.state.players.find((player) => player.id === VILLAGE_ASSAULT_PLAYER_ID);
+    const importedAi = this.runtime.state.aiControllers.find((controller) => controller.playerId === VILLAGE_ASSAULT_AI_ID);
+    if (importedPlayer) this.villageId = importedPlayer.villageId;
+    if (importedAi) this.aiPersonality = importedAi.personality;
+
+    const nextLayoutId = this.runtime.state.map.layoutId;
+    if (nextLayoutId && nextLayoutId !== previousLayoutId) {
+      this.mapView?.destroy();
+      this.mapView = drawBattleMap(this, VILLAGE_ASSAULT_ORIGIN, nextLayoutId);
+      this.mapView.container.setDepth(-10_000);
+      this.uiCamera?.ignore(this.mapView.container);
+    }
+    this.fogOverlay?.clear();
+    this.syncEntityViews(true);
+    this.prefetchQueuedUnitArt();
+    this.systemPanelOpen = true;
+    this.systemPanelPage = "data";
+    if (this.runtime.view.phase === "finished") this.finishBattle();
+    else {
+      this.setNotice(kind === "save" ? "存檔已匯入" : "重播已匯入", "success", 5_000);
+      this.refreshInterface(true);
+    }
+  }
+
+  private dataArchiveFilename(kind: DataArchiveKind): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const extension = kind === "save" ? "vssave" : kind === "replay" ? "vsreplay" : "vsjournal";
+    return `village-siege-${timestamp}.${extension}`;
   }
 
   private cancelWorldTargetModes(): void {
@@ -2661,7 +2931,8 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     if (this.systemPanelOpen) {
-      this.systemPanelOpen = false;
+      if (this.systemPanelPage !== "root") this.systemPanelPage = "root";
+      else this.systemPanelOpen = false;
       this.refreshInterface(true);
     } else if (this.buildingPlacement) this.cancelBuildPlacement("已取消建造", true);
     else if (this.buildMenuOpen) this.closeBuildMenu();
@@ -2703,6 +2974,11 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private cleanup(): void {
     this.artLoadGeneration += 1;
+    this.archiveOperationGeneration += 1;
+    this.archiveInputCleanup?.();
+    this.archiveInput = undefined;
+    this.archiveInputCleanup = undefined;
+    this.archiveBusy = false;
     this.input.off("pointerdown", this.onPointerDown, this);
     this.input.off("pointermove", this.onPointerMove, this);
     this.input.off("pointerup", this.onPointerUp, this);

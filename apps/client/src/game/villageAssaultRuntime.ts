@@ -6,12 +6,24 @@ import {
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   VILLAGE_ASSAULT_CONTROL_OBJECTIVE,
   VILLAGE_ASSAULT_MAP_ID,
+  MatchPersistenceError,
+  appendJournalAdvance,
+  appendJournalAiAuthority,
+  appendJournalCommand,
   applyCommand,
+  createMatchCommandJournalFile,
+  createMatchReplayFile,
+  createMatchSaveFile,
   createInitialState,
   getAiObservation,
+  parseMatchReplayFile,
+  parseMatchSaveFile,
   projectDomainEventsForPlayer,
   reduceAi,
-  stepSimulation,
+  replayMatchReplay,
+  serializeMatchCommandJournalFile,
+  serializeMatchReplayFile,
+  serializeMatchSaveFile,
   toVisibleSnapshot,
   type AiDifficulty,
   type AiPersonality,
@@ -21,6 +33,9 @@ import {
   type GameCommand,
   type GridPoint,
   type MatchState,
+  type MatchCommandJournalFile,
+  type MatchRuntimeSaveMetadata,
+  type MatchSaveFile,
   type VisibleSnapshot,
   type VictoryPolicy,
   type VillageId,
@@ -97,9 +112,11 @@ export class VillageAssaultRuntime {
   readonly aiPlayerId = VILLAGE_ASSAULT_AI_ID;
 
   private matchState: MatchState;
-  private readonly aiBudgetMs: number;
+  private aiBudgetMs: number;
   private playerSequence = 0;
   private accumulatorMs = 0;
+  private replayBaseSave: MatchSaveFile;
+  private commandJournal: MatchCommandJournalFile;
   private latestEvents: readonly DomainEvent[] = [];
   private rejectedCommand: VillageAssaultRejectedCommand | null = null;
   private cachedViewState?: MatchState;
@@ -130,6 +147,9 @@ export class VillageAssaultRuntime {
       victoryPolicy,
     });
     this.aiBudgetMs = normalizeAiBudget(options.aiBudgetMs);
+    this.replayBaseSave = createMatchSaveFile(this.matchState, this.runtimeSaveMetadata());
+    this.matchState = this.replayBaseSave.snapshot.state;
+    this.commandJournal = createMatchCommandJournalFile(this.matchState);
   }
 
   get state(): MatchState {
@@ -152,16 +172,65 @@ export class VillageAssaultRuntime {
     return this.rejectedCommand;
   }
 
+  /** Owner-private authoritative save. It includes hidden fog and AI state. */
+  exportSaveJson(): string {
+    return serializeMatchSaveFile(createMatchSaveFile(this.matchState, this.runtimeSaveMetadata()));
+  }
+
+  /** Ordered operation journal rooted at the latest new-game/import checkpoint. */
+  exportJournalJson(): string {
+    return serializeMatchCommandJournalFile(this.commandJournal);
+  }
+
+  /** Owner-private replay. It is not a recipient-filtered share-safe snapshot. */
+  exportReplayJson(): string {
+    return serializeMatchReplayFile(createMatchReplayFile(
+      this.replayBaseSave,
+      this.commandJournal,
+      this.runtimeSaveMetadata(),
+      this.matchState,
+    ));
+  }
+
+  /** Transactional restore: parsing and validation finish before runtime mutation. */
+  importSaveJson(serialized: string): void {
+    const save = parseMatchSaveFile(serialized);
+    this.restoreRuntime(save.snapshot.state, save.runtime);
+    this.replayBaseSave = save;
+    this.commandJournal = createMatchCommandJournalFile(this.matchState);
+  }
+
+  /** Transactional verified replay reconstruction. */
+  importReplayJson(serialized: string): void {
+    const replay = parseMatchReplayFile(serialized);
+    const reconstructed = replayMatchReplay(replay);
+    this.restoreRuntime(reconstructed.state, reconstructed.runtime);
+    // Import verifies the complete historical chain. Continuing play starts a
+    // fresh checkpoint at the reconstructed final state so the imported file
+    // remains immutable and the next local operation owns a clean cursor.
+    this.replayBaseSave = createMatchSaveFile(this.matchState, this.runtimeSaveMetadata());
+    this.commandJournal = createMatchCommandJournalFile(this.matchState);
+  }
+
   issuePlayerCommand(command: GameCommand): VillageAssaultCommandResult {
     const sequence = this.playerSequence;
     this.playerSequence += 1;
     const envelope = this.createEnvelope(this.playerId, sequence, command);
-    const applied = applyCommand(this.matchState, envelope);
-    this.matchState = applied.state;
+    const before = this.matchState;
+    const applied = applyCommand(before, envelope);
+    let domainEvents = applied.events;
+    if (applied.validation.ok) {
+      const journaled = appendJournalCommand(this.commandJournal, before, envelope, "human");
+      this.commandJournal = journaled.journal;
+      this.matchState = journaled.state;
+      domainEvents = journaled.events;
+    } else {
+      this.matchState = before;
+    }
     const visibleEvents = projectDomainEventsForPlayer(
       this.matchState,
       this.playerId,
-      { serverTick: this.matchState.tick, events: applied.events },
+      { serverTick: this.matchState.tick, events: domainEvents },
       [sequence],
     );
     this.latestEvents = visibleEvents;
@@ -198,9 +267,12 @@ export class VillageAssaultRuntime {
     ) {
       const tickEvents: DomainEvent[] = [];
       this.runAiDecision(tickEvents);
-      const advanced = stepSimulation(this.matchState, [], 1);
-      this.matchState = advanced.state;
-      tickEvents.push(...advanced.events);
+      if (this.matchState.phase === "playing") {
+        const advanced = appendJournalAdvance(this.commandJournal, this.matchState);
+        this.commandJournal = advanced.journal;
+        this.matchState = advanced.state;
+        tickEvents.push(...advanced.events);
+      }
       visibleEvents.push(...projectDomainEventsForPlayer(
         this.matchState,
         this.playerId,
@@ -239,18 +311,26 @@ export class VillageAssaultRuntime {
         reduced.commands,
       );
       let phaseActionCommitted = reduced.commands.length === 0;
+      const acceptedCommandSequences: number[] = [];
 
       for (const command of reduced.commands) {
         const player = this.matchState.players.find((candidate) => candidate.id === playerId);
         if (!player) break;
         const sequence = player.lastSequence + 1;
-        const applied = applyCommand(
-          this.matchState,
-          this.createEnvelope(playerId, sequence, command),
-        );
-        this.matchState = applied.state;
-        events.push(...applied.events);
-        if (applied.validation.ok) phaseActionCommitted = true;
+        const before = this.matchState;
+        const envelope = this.createEnvelope(playerId, sequence, command);
+        const applied = applyCommand(before, envelope);
+        if (applied.validation.ok) {
+          const journaled = appendJournalCommand(this.commandJournal, before, envelope, "ai");
+          this.commandJournal = journaled.journal;
+          this.matchState = journaled.state;
+          events.push(...journaled.events);
+          acceptedCommandSequences.push(sequence);
+          phaseActionCommitted = true;
+        } else {
+          this.matchState = before;
+          events.push(...applied.events);
+        }
         if (!applied.validation.ok) {
           this.rejectedCommand = {
             source: "ai",
@@ -259,16 +339,54 @@ export class VillageAssaultRuntime {
           };
         }
       }
-      if (phaseActionCommitted) {
-        this.matchState = {
-          ...this.matchState,
-          aiControllers: this.matchState.aiControllers
-            .map((candidate) => candidate.playerId === playerId ? reduced.authority : candidate)
-            .sort((left, right) => compareText(left.playerId, right.playerId)),
-        };
+      const authorityChanged = stableJsonString(authority) !== stableJsonString(reduced.authority);
+      if (phaseActionCommitted && authorityChanged) {
+        const committed = appendJournalAiAuthority(
+          this.commandJournal,
+          this.matchState,
+          reduced.authority,
+          reduced.commands.length === 0 ? "commandless" : "accepted-command",
+          acceptedCommandSequences,
+        );
+        this.commandJournal = committed.journal;
+        this.matchState = committed.state;
         if (tacticalSignal) events.push(tacticalSignal);
       }
     }
+  }
+
+  private runtimeSaveMetadata(): MatchRuntimeSaveMetadata {
+    return {
+      humanPlayerId: this.playerId,
+      nextPlayerSequence: this.playerSequence,
+      accumulatorMs: this.accumulatorMs,
+      aiBudgetMs: this.aiBudgetMs,
+    };
+  }
+
+  private restoreRuntime(state: MatchState, runtime: MatchRuntimeSaveMetadata): void {
+    if (runtime.humanPlayerId !== this.playerId) {
+      throw new MatchPersistenceError("INVALID_SCHEMA", "Village Assault save belongs to a different local player");
+    }
+    if (state.map.id !== VILLAGE_ASSAULT_MAP_ID
+      || state.map.width !== VILLAGE_ASSAULT_MAP_SIZE.width
+      || state.map.height !== VILLAGE_ASSAULT_MAP_SIZE.height
+      || !state.map.layoutId) {
+      throw new MatchPersistenceError("INVALID_SCHEMA", "Save does not use a supported Village Assault map");
+    }
+    if (!state.players.some((player) => player.id === this.aiPlayerId)
+      || !state.aiControllers.some((authority) => authority.playerId === this.aiPlayerId)) {
+      throw new MatchPersistenceError("INVALID_SCHEMA", "Save is missing the Village Assault opponent authority");
+    }
+    const validated = createMatchSaveFile(state, runtime);
+    this.matchState = validated.snapshot.state;
+    this.playerSequence = runtime.nextPlayerSequence;
+    this.accumulatorMs = runtime.accumulatorMs;
+    this.aiBudgetMs = normalizeAiBudget(runtime.aiBudgetMs);
+    this.latestEvents = [];
+    this.rejectedCommand = null;
+    this.cachedViewState = undefined;
+    this.cachedView = undefined;
   }
 
   private createEnvelope(playerId: string, sequence: number, command: GameCommand): CommandEnvelope {
@@ -314,4 +432,11 @@ function normalizeAiBudget(value: number | undefined): number {
 
 function compareText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function stableJsonString(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJsonString).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJsonString(record[key])}`).join(",")}}`;
 }

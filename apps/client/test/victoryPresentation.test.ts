@@ -42,9 +42,9 @@ describe("victory presentation", () => {
     ["disconnect", "連線中斷判負"],
   ] as const)("maps %s to a complete persistent result", (reason, label) => {
     const result = createVictoryPresentation(finished(reason, ["team-player"]), "team-player", 420);
-    expect(result).toMatchObject({ outcome: "victory", tone: "success", selectionText: "戰局已結束｜選擇再戰或返回" });
+    expect(result).toMatchObject({ outcome: "victory", tone: "success", selectionText: "戰局已結束｜再戰、下載重播或返回" });
     expect(result.objectiveText).toBe(`勝利｜${label}`);
-    expect(result.announcement).toContain("可選擇再戰或返回");
+    expect(result.announcement).toContain("可選擇再戰、下載重播或返回");
     expect(result.compactObjectiveText.split("\n")).toHaveLength(2);
   });
 

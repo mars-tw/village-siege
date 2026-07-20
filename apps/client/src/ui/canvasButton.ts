@@ -72,8 +72,10 @@ export function createCanvasButton(
   let focused = false;
   let pressed = false;
   let pressedPointerId: number | null = null;
+  let destroyed = false;
 
   const draw = (): void => {
+    if (destroyed || !container.scene || !background.scene || !glyph.scene || !label.scene) return;
     const fill = !enabled
       ? COLORS.charcoal
       : active || pressed
@@ -151,12 +153,14 @@ export function createCanvasButton(
     container,
     name: options.name,
     setActive(value: boolean | null): void {
+      if (destroyed) return;
       active = value ?? false;
       if (value === null) accessibilityButton.removeAttribute("aria-pressed");
       else accessibilityButton.setAttribute("aria-pressed", String(value));
       draw();
     },
     setEnabled(value: boolean): void {
+      if (destroyed) return;
       enabled = value;
       if (!value) {
         pressed = false;
@@ -167,6 +171,7 @@ export function createCanvasButton(
       draw();
     },
     setLabel(nextGlyph: string, nextLabel: string, nextAccessibleLabel?: string): void {
+      if (destroyed) return;
       glyph.setText(nextGlyph);
       label.setText(nextLabel);
       accessibilityButton.setAttribute("aria-label", nextAccessibleLabel ?? nextLabel);
@@ -174,14 +179,20 @@ export function createCanvasButton(
       draw();
     },
     setVisible(visible: boolean): void {
+      if (destroyed) return;
       container.setVisible(visible).setActive(visible);
       if (hitZone.input) hitZone.input.enabled = visible && enabled;
       accessibilityButton.hidden = !visible;
     },
     focus(): void {
-      if (!accessibilityButton.hidden && !accessibilityButton.disabled) accessibilityButton.focus();
+      if (!destroyed && !accessibilityButton.hidden && !accessibilityButton.disabled) accessibilityButton.focus();
     },
     destroy(): void {
+      if (destroyed) return;
+      // Removing a focused proxy synchronously emits blur in Chromium. Mark
+      // the control dead first so that blur cannot redraw destroyed Phaser
+      // Text/Graphics objects during scene shutdown or restart.
+      destroyed = true;
       accessibilityButton.remove();
       container.destroy(true);
     },

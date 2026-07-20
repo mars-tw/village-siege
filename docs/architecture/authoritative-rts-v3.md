@@ -61,6 +61,14 @@ The server rejects unsupported protocol or rules versions before joining a match
 
 Snapshots include player/team state, resources, population, settlement tier, research, visibility, entities, orders, queues, projectiles, AI seed/state, victory state, server tick and PRNG state. Fog filtering occurs before serialization, so hidden live enemy data never reaches the browser.
 
+## Versioned save, journal and replay contract
+
+Rules version `village-siege/0.13.0` defines three owner-private persistence documents: a complete authoritative save snapshot, an ordered tick command journal and a deterministic replay that binds an initial snapshot to its journal. Each document declares its own `schemaVersion` plus the command `protocolVersion` and simulation `rulesVersion`. Import accepts data only when all three layers exactly match a supported tuple; missing, older, newer or mixed versions fail explicitly before any live runtime state is replaced. Compatibility is never inferred from package SemVer and v1 performs no best-effort migration.
+
+The snapshot preserves the complete canonical `MatchState`, including server tick, PRNG state, AI authority and memory, fog authority, hidden entities, production queues, projectiles and victory progress. The operation journal preserves accepted human and AI commands, the exact conditionally committed private AI authority, and each fixed-tick advance in authoritative order. Replay re-runs every recorded command through the validator, installs AI authority only at its recorded commit point, advances the shared simulation one fixed tick at a time and checks the pre/post hash chain. It deliberately does not re-run the AI reducer: this proves deterministic recovery from the recorded private authority, but it is not independent evidence that the authority was originally produced by the claimed observation, PRNG and reducer. Rejected commands are not replay operations, while final runtime metadata preserves consumed local sequence gaps, the sub-tick accumulator and deterministic AI budget. A domain-separated continuation hash binds those four runtime fields to the actual final canonical state hash. Import verifies document shape, match identity, complete AI/entity discriminated state, monotonic operation order, command results and hash checkpoints atomically; any mismatch rejects the entire load without partially mutating the active match.
+
+These files are authoritative-private recovery and audit artifacts, not recipient-filtered `VisibleSnapshot` payloads. They may reveal unexplored enemies and private AI plans and therefore must remain local to the owner or inside an authenticated server boundary. FNV-1a hashes detect accidental corruption and deterministic desynchronization only; they do not authenticate a file, preserve secrecy or prevent an attacker from recomputing a modified hash. The release gate records an accepted human attack, real AI reducer authority commit and combat damage/removal inside 10,000 fixed ticks, replays that journal twice and requires identical checkpoint and final canonical state hashes.
+
 ## Technology research contract
 
 Version `village-siege/0.6.0` defines seven original technologies in shared content. A `research` command names the producing building and technology; the server or offline shared simulation validates ownership, building completion and survival, settlement tier, prerequisite technologies, player-global duplicate state, resources and the five-slot queue limit before charging once. Pending or completed duplicates return the explicit `DUPLICATE_RESEARCH` rejection instead of being conflated with a missing prerequisite.
@@ -99,9 +107,9 @@ Defeat rewards are deterministic and divided across active members of the credit
 
 ## Strategic AI authority contract
 
-Rules version `village-siege/0.11.0` stores every configured AI controller in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator.
+Beginning with rules version `village-siege/0.11.0`, every configured AI controller is stored in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator.
 
-The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Versioned command-journal export and replay orchestration remain explicitly scoped to `TASK-016`.
+The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Rules version `village-siege/0.13.0` carries this private authority through the versioned save and deterministic replay contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
 
 AI observation is an owner-private view assembled from current fog authority. Mobile enemy memories expire after a fixed lifetime; static enemy topology persists only while the authoritative last-sighting record remains, and is removed when its footprint is re-scouted empty. Hidden unit, gate, wall or tower mutations cannot change planner output. Human `VisibleSnapshot` data never contains AI authority state, internal thresholds, target paths, force counts or wave numbers.
 
@@ -117,7 +125,7 @@ Every ordered command in one server-tick batch is applied before victory is eval
 
 Walls, gates, rubble, projectiles and orphaned construction sites do not preserve strategic presence. An incomplete site counts only while a living active builder is assigned to it. Surrendered or eliminated players cannot move, attack, produce, occupy objectives or preserve a victory condition, even when an allied player keeps their team in the match. A terminal result atomically records outcome, sorted winners, causal reason, trigger set, score and finish tick; it emits `matchFinished` exactly once and rejects later commands without mutation.
 
-The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and retains the existing two end actions. This contract does not make the current Colyseus room an authoritative battlefield: online fixed-step simulation, command routing and two-client result synchronization remain `TASK-018` through `TASK-022`. Versioned snapshot and command-journal replay remain `TASK-016`.
+The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. This contract does not make the current Colyseus room an authoritative battlefield: online fixed-step simulation, command routing and two-client result synchronization remain `TASK-018` through `TASK-022`. Versioned snapshot and command-journal replay belong to the owner-private TASK-016 boundary and are not evidence of authoritative online combat.
 
 ## Tactical combat contract
 
@@ -162,7 +170,7 @@ Multiplayer may be called playable only after automation proves:
 2. Repeating a `commandId` ten times applies it once.
 3. Forged ownership, resource, era, visibility and range commands are rejected without mutation.
 4. Fog payloads contain no hidden enemy state.
-5. A 10,000-tick replay produces the same canonical hash.
+5. Replaying 10,000 fixed ticks twice from the same compatible authoritative snapshot and command journal produces identical checkpoint and final canonical hashes.
 6. Five players plus AI remain stable under 50, 100 and 200 ms latency, two-percent packet loss and packet reordering.
 7. Reconnect restores the same server tick, wallet, queues, entities and final hash.
-8. Protocol/rules mismatches fail explicitly.
+8. Save/replay schema, command protocol and simulation rules mismatches each fail explicitly and atomically.

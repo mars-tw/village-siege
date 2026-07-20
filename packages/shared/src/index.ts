@@ -8,3 +8,4 @@ export * from "./combat.js";
 export * from "./spatial.js";
 export * from "./battlefield.js";
 export * from "./visibility.js";
+export * from "./persistence.js";
