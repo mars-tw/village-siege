@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
-import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
+import { toggleGameFullscreen } from "../game/gameFullscreen";
 
 export type VillageId = "pinehold" | "riverstead" | "highcrag";
 export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" | "raider";
@@ -42,7 +42,7 @@ export class VillageSelectScene extends Phaser.Scene {
       <section class="ai-roster"><div class="section-heading"><span>02</span><div><h2>電腦對手</h2><p>只套用於單機模式。</p></div></div><div class="ai-options">
         ${AI_PROFILES.map((profile) => `<button type="button" class="ai-choice" data-ai="${profile.id}" aria-pressed="false"><span class="ai-mark">${profile.mark}</span><strong>${profile.name}</strong><small>${profile.detail}</small><span class="choice-state">選擇</span></button>`).join("")}
       </div></section>
-      <footer class="march-actions"><p class="selection-readout" role="status"></p><div><button type="button" class="secondary-action" data-fullscreen>⛶ 全螢幕</button><button type="button" class="secondary-action" data-multiplayer>多人連線 <small>2–4 人</small></button><button type="button" class="primary-action" data-start>開始單機戰役</button></div></footer>`;
+      <footer class="march-actions"><p class="selection-readout" role="status"></p><div><button type="button" class="secondary-action" data-tutorial>互動教學 <small>7 個實戰目標</small></button><button type="button" class="secondary-action" data-multiplayer>多人連線 <small>2–4 人</small></button><button type="button" class="primary-action" data-start>開始單機戰役</button></div></footer>`;
     host.append(root);
     this.root = root;
     root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach((button) => button.addEventListener("click", () => { this.villageId = button.dataset.village as VillageId; this.syncSelection(); }));
@@ -54,18 +54,21 @@ export class VillageSelectScene extends Phaser.Scene {
         villageId: this.villageId,
         aiPersonality: this.aiPersonality,
         returnScene: "VillageSelectScene",
+        tutorial: false,
       });
     });
-    root.querySelector("[data-fullscreen]")?.addEventListener("click", () => {
-      toggleGameFullscreen(this);
-      this.syncFullscreenButton();
+    root.querySelector("[data-tutorial]")?.addEventListener("click", () => {
+      const profile = getDeviceViewportProfile();
+      if (profile.mobile && !this.scale.isFullscreen) toggleGameFullscreen(this);
+      this.scene.start("VillageAssaultScene", {
+        villageId: "pinehold",
+        aiPersonality: "balanced",
+        returnScene: "VillageSelectScene",
+        tutorial: true,
+      });
     });
     root.querySelector("[data-multiplayer]")?.addEventListener("click", () => this.scene.start("MultiplayerLobbyScene", { villageId: this.villageId }));
     this.syncSelection();
-    this.syncFullscreenButton();
-    this.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
-    this.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
-    this.events.on(GAME_FULLSCREEN_FALLBACK_EVENT, this.syncFullscreenButton, this);
     this.events.once("shutdown", this.destroySelector, this);
     this.events.once("destroy", this.destroySelector, this);
   }
@@ -80,13 +83,6 @@ export class VillageSelectScene extends Phaser.Scene {
     if (readout) readout.textContent = `${village?.name ?? ""} · ${profile?.name ?? ""}`;
   }
 
-  private syncFullscreenButton(): void {
-    const button = this.root?.querySelector<HTMLButtonElement>("[data-fullscreen]");
-    if (!button) return;
-    const label = fullscreenButtonLabel(this);
-    button.textContent = `${label.glyph} ${label.label}`;
-  }
-
   private selectButton(button: HTMLButtonElement, selected: boolean): void {
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", String(selected));
@@ -95,9 +91,6 @@ export class VillageSelectScene extends Phaser.Scene {
   }
 
   private destroySelector(): void {
-    this.scale.off(Phaser.Scale.Events.ENTER_FULLSCREEN, this.syncFullscreenButton, this);
-    this.scale.off(Phaser.Scale.Events.LEAVE_FULLSCREEN, this.syncFullscreenButton, this);
-    this.events.off(GAME_FULLSCREEN_FALLBACK_EVENT, this.syncFullscreenButton, this);
     this.root?.remove();
     (this.game.canvas.parentElement ?? document.body).classList.remove("selection-active");
     this.root = undefined;

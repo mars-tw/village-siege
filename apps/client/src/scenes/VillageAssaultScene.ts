@@ -77,6 +77,16 @@ import {
 } from "../game/frameAnimatedCombatActor";
 import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
 import { gridToWorld, worldToGrid } from "../game/isometric";
+import {
+  TUTORIAL_STEPS,
+  createTutorialProgress,
+  currentTutorialStep,
+  recordTutorialAcceptedCommand,
+  tutorialProgressLabel,
+  tutorialProgressSummary,
+  updateTutorialProgress,
+  type TutorialProgress,
+} from "../game/tutorialProgress";
 import { createVictoryPresentation } from "../game/victoryPresentation";
 import {
   buildingDisplayName,
@@ -113,6 +123,7 @@ interface VillageAssaultSceneData {
   readonly villageId?: VillageId;
   readonly aiPersonality?: AiPersonality;
   readonly returnScene?: string;
+  readonly tutorial?: boolean;
 }
 
 interface UnitView {
@@ -240,7 +251,9 @@ export class VillageAssaultScene extends Phaser.Scene {
   private buildingPlacement: BuildingType | null = null;
   private buildingOrientation: StructureOrientation = "ne";
   private systemPanelOpen = false;
-  private systemPanelPage: "root" | "view" | "data" = "root";
+  private systemPanelPage: "root" | "view" | "data" | "tutorial" = "root";
+  private tutorialEnabled = false;
+  private tutorialProgress?: TutorialProgress;
   private archiveBusy = false;
   private archiveInput?: HTMLInputElement;
   private archiveInputCleanup?: () => void;
@@ -288,6 +301,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.villageId = data.villageId ?? "pinehold";
     this.aiPersonality = data.aiPersonality ?? "balanced";
     this.returnScene = data.returnScene ?? "VillageSelectScene";
+    this.tutorialEnabled = data.tutorial ?? false;
+    this.tutorialProgress = undefined;
     this.unitViews.clear();
     this.monsterViews.clear();
     this.entityViews.clear();
@@ -352,7 +367,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.runtime = createVillageAssaultRuntime({
       playerVillageId: this.villageId,
       aiPersonality: this.aiPersonality,
-      aiDifficulty: "standard",
+      aiDifficulty: this.tutorialEnabled ? "novice" : "standard",
       seed: 20260719,
     });
     this.cameras.main.setBackgroundColor("#17241f");
@@ -368,6 +383,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.uiCamera = this.cameras.add(0, 0, this.scale.gameSize.width, this.scale.gameSize.height, false, "assault-ui");
     this.uiCamera.ignore([this.mapView.container, this.settlementOverlay.container, this.fogOverlay]);
     this.createInterface();
+    if (this.tutorialEnabled) {
+      this.tutorialProgress = createTutorialProgress(this.runtime.view);
+      const firstStep = currentTutorialStep(this.tutorialProgress);
+      if (firstStep) this.setNotice(firstStep.hint, "normal", 8_000);
+    }
     this.syncEntityViews(true);
     this.centerCameraOn({ x: 5, y: 8 });
     this.input.mouse?.disableContextMenu();
@@ -420,6 +440,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.prefetchQueuedUnitArt();
     this.syncEntityViews(false);
     this.updateUnitAnimations(result.steps * 100);
+    this.syncTutorialProgress(result.events);
     if (result.latestRejection?.source === "ai") {
       // AI rejection is kept for audit telemetry; player-facing UI stays focused on their own command.
     }
@@ -931,7 +952,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private handleEntityTap(id: string, pointer: Phaser.Input.Pointer): void {
-    if (this.ended || this.paused || this.systemPanelOpen) return;
+    if (this.ended || this.paused || this.systemPanelOpen || this.orientationBlocked) return;
     const entity = this.entityById(id);
     if (!entity) return;
     if (this.tacticalUiMode.kind !== "none") {
@@ -974,26 +995,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     if (entity.kind === "resource" && selectedVillagers.length > 0) {
-      const gatherers = selectedVillagers.filter((unit) => {
-        const capacity = UNITS[unit.typeId].carryCapacity;
-        const depositKind = unit.cargo.amount > 0 && (unit.cargo.kind !== entity.typeId || unit.cargo.amount >= capacity)
-          ? unit.cargo.kind
-          : entity.typeId;
-        return this.approachDistance(unit.position, entity) !== null
-          && depositKind !== null
-          && this.nearestDropOff(unit.position, depositKind) !== null;
-      });
-      if (gatherers.length === 0) {
-        this.setNotice("所選工匠目前無法到達資源或合法卸貨點", "warning");
-        return;
-      }
-      const skipped = selectedVillagers.length - gatherers.length;
-      this.issue(
-        { type: "gather", entityIds: gatherers.map((unit) => unit.id), targetId: entity.id },
-        skipped > 0
-          ? `${gatherers.length} 名工匠前往採集；${skipped} 名因路線受阻保留原指令`
-          : `工匠前往採集${resourceDisplayName(entity.typeId)}`,
-      );
+      this.issueGatherCommand(entity, selectedVillagers);
       return;
     }
     if (entity.ownerId === VILLAGE_ASSAULT_AI_ID && selectedMilitary.length > 0) {
@@ -1022,7 +1024,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer): void => {
-    if (!this.isPointerInPlayViewport(pointer)) {
+    if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) {
       this.pointerStart = undefined;
       this.pointerDragged = false;
       return;
@@ -1035,18 +1037,24 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private beginPointerGesture(pointer: Phaser.Input.Pointer): void {
+    if (this.orientationBlocked) return;
     this.pointerStart = { x: pointer.x, y: pointer.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY };
     this.pointerDragged = false;
   }
 
   private completeEntityGesture(entityId: string, pointer: Phaser.Input.Pointer): void {
+    if (this.orientationBlocked) {
+      this.pointerStart = undefined;
+      this.pointerDragged = false;
+      return;
+    }
     if (!this.pointerDragged) this.handleEntityTap(entityId, pointer);
     this.pointerStart = undefined;
     this.pointerDragged = false;
   }
 
   private previewTacticalEntity(entityId: string): void {
-    if (this.tacticalUiMode.kind === "none") return;
+    if (this.orientationBlocked || this.tacticalUiMode.kind === "none") return;
     const entity = this.entityById(entityId);
     if (!entity) return;
     this.hoverEntityId = entityId;
@@ -1055,7 +1063,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[] = []): void => {
-    if (!this.isPointerInPlayViewport(pointer)) return;
+    if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) return;
     if (this.tacticalUiMode.kind !== "none") {
       this.hoverGrid = this.pointerGrid(pointer);
       this.hoverEntityId = currentlyOver
@@ -1097,7 +1105,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer): void => {
-    if (!this.isPointerInPlayViewport(pointer)) {
+    if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) {
       this.pointerStart = undefined;
       this.pointerDragged = false;
       return;
@@ -1113,7 +1121,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private handleGroundCommand(pointer: Phaser.Input.Pointer): void {
-    if (this.ended || this.paused || this.systemPanelOpen || !this.isPointerInPlayViewport(pointer)) return;
+    if (this.ended || this.paused || this.systemPanelOpen || this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) return;
     const point = this.pointerGrid(pointer);
     if (this.tacticalUiMode.kind !== "none") {
       this.commitTacticalTarget(point, null);
@@ -1159,6 +1167,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private issue(command: GameCommand, success: string): boolean {
+    const beforeView = this.runtime.view;
     const result = this.runtime.issuePlayerCommand(command);
     if (!result.accepted) {
       this.setNotice(this.rejectMessage(result.rejectCode), "warning");
@@ -1166,6 +1175,15 @@ export class VillageAssaultScene extends Phaser.Scene {
       return false;
     }
     this.setNotice(success, "success");
+    if (this.tutorialProgress) {
+      this.tutorialProgress = recordTutorialAcceptedCommand(
+        this.tutorialProgress,
+        command,
+        beforeView,
+        VILLAGE_ASSAULT_PLAYER_ID,
+        VILLAGE_ASSAULT_AI_ID,
+      );
+    }
     this.syncEntityViews(false);
     if (this.runtime.view.phase === "finished") this.finishBattle();
     else this.refreshInterface(true);
@@ -1263,9 +1281,11 @@ export class VillageAssaultScene extends Phaser.Scene {
           : `敵城情報 ${Math.max(0, Math.floor((view.serverTick - staleEnemyTown.observedAtTick) / TICKS_PER_SECOND))} 秒前`
         : "敵城尚未偵察";
     const objective = victoryPresentation.outcome === "playing"
-      ? this.compactUi
-        ? victoryPresentation.compactObjectiveText
-        : `${enemyObjective}｜${victoryPresentation.objectiveText.replace("勝途｜", "")}`
+      ? this.tutorialProgress
+        ? tutorialProgressLabel(this.tutorialProgress)
+        : this.compactUi
+          ? victoryPresentation.compactObjectiveText
+          : `${enemyObjective}｜${victoryPresentation.objectiveText.replace("勝途｜", "")}`
       : this.compactUi
         ? victoryPresentation.compactObjectiveText
         : victoryPresentation.objectiveText;
@@ -1318,8 +1338,11 @@ export class VillageAssaultScene extends Phaser.Scene {
         ];
       }
       if (this.systemPanelPage === "data") return this.dataArchiveActions();
+      if (this.systemPanelPage === "tutorial") return this.tutorialActions();
       return [
-        { glyph: "↻", label: "重新開始", run: () => this.restartBattle() },
+        this.tutorialProgress
+          ? { glyph: "學", label: tutorialProgressLabel(this.tutorialProgress), run: () => this.openTutorialPanel() }
+          : { glyph: "↻", label: "重新開始", run: () => this.restartBattle() },
         { glyph: this.paused ? "▶" : "Ⅱ", label: this.paused ? "繼續" : "暫停", run: () => this.togglePause() },
         { glyph: "◉", label: "鏡頭視角", run: () => { this.systemPanelPage = "view"; this.refreshInterface(true); } },
         { glyph: "▣", label: "存檔重播", run: () => { this.systemPanelPage = "data"; this.refreshInterface(true); } },
@@ -1444,11 +1467,28 @@ export class VillageAssaultScene extends Phaser.Scene {
         ];
       }
       const hasVillager = ownUnits.some((unit) => unit.typeId === "villager");
+      const villagers = ownUnits.filter((unit) => unit.typeId === "villager");
       const unload = this.dropOffAction(ownUnits);
+      if (hasVillager) {
+        return [
+          this.gatherAction("food", villagers),
+          this.gatherAction("wood", villagers),
+          this.gatherAction("stone", villagers),
+          { glyph: "⌂", label: "建造", run: () => this.openBuildMenu() },
+          unload ?? {
+            glyph: "修",
+            label: "修復",
+            active: this.tacticalUiMode.kind === "repair",
+            run: () => this.tacticalUiMode.kind === "repair"
+              ? this.cancelTacticalMode("已取消修復選取")
+              : this.openTacticalMode({ kind: "repair", entityIds: villagers.map((unit) => unit.id) }),
+          },
+          { glyph: "■", label: "停止", run: () => { this.cancelTacticalMode(); this.issue({ type: "stop", entityIds: ownUnits.map((unit) => unit.id) }, "單位停止目前工作"); } },
+          this.systemAction(),
+        ];
+      }
       const contextual: ActionSpec[] = [
-        ...(hasVillager ? [{ glyph: "⌂", label: "建造", run: () => this.openBuildMenu() } satisfies ActionSpec] : []),
         ...(unload ? [unload] : []),
-        ...(hasVillager ? [{ glyph: "修", label: "修復", active: this.tacticalUiMode.kind === "repair", run: () => this.tacticalUiMode.kind === "repair" ? this.cancelTacticalMode("已取消修復選取") : this.openTacticalMode({ kind: "repair", entityIds: ownUnits.filter((unit) => unit.typeId === "villager").map((unit) => unit.id) }) } satisfies ActionSpec] : []),
         { glyph: "■", label: "停止", run: () => { this.cancelTacticalMode(); this.issue({ type: "stop", entityIds: ownUnits.map((unit) => unit.id) }, "單位停止目前工作"); } },
         this.selectWorkersAction(),
         this.selectArmyAction(),
@@ -2086,6 +2126,7 @@ export class VillageAssaultScene extends Phaser.Scene {
         this.systemPanelOpen = true;
         this.systemPanelPage = "root";
         this.refreshInterface(true);
+        this.focusFirstActionSoon();
       },
     };
   }
@@ -2144,6 +2185,85 @@ export class VillageAssaultScene extends Phaser.Scene {
         },
       },
     ];
+  }
+
+  private tutorialActions(): readonly ActionSpec[] {
+    const progress = this.tutorialProgress;
+    if (!progress) {
+      return [{ glyph: "←", label: "返回", run: () => { this.systemPanelPage = "root"; this.refreshInterface(true); } }];
+    }
+    const step = currentTutorialStep(progress);
+    return [
+      {
+        glyph: progress.complete ? "✓" : `${progress.stepIndex + 1}`,
+        label: progress.complete ? "教學完成" : `目標 ${step?.shortTitle ?? "完成"}`,
+        accessibleLabel: progress.complete ? "互動教學全部完成" : step?.title,
+        enabled: false,
+        run: () => undefined,
+      },
+      {
+        glyph: "?",
+        label: "顯示提示",
+        accessibleLabel: step ? `${step.title}：${step.hint}` : "教學已完成",
+        run: () => this.setNotice(step?.hint ?? "你已完成全部互動教學", "normal", 10_000),
+      },
+      {
+        glyph: "表",
+        label: `進度 ${progress.stepIndex}/${TUTORIAL_STEPS.length}`,
+        accessibleLabel: `教學進度：${tutorialProgressSummary(progress)}`,
+        run: () => this.setNotice(tutorialProgressSummary(progress), "normal", 8_000),
+      },
+      { glyph: "↻", label: "重開教學", run: () => this.restartBattle() },
+      { glyph: "止", label: "結束引導", run: () => this.stopTutorial() },
+      { glyph: "←", label: "返回系統", run: () => { this.systemPanelPage = "root"; this.refreshInterface(true); this.focusFirstActionSoon(); } },
+    ];
+  }
+
+  private openTutorialPanel(): void {
+    this.systemPanelPage = "tutorial";
+    this.refreshInterface(true);
+    this.focusFirstActionSoon();
+  }
+
+  private stopTutorial(): void {
+    this.tutorialEnabled = false;
+    this.tutorialProgress = undefined;
+    this.systemPanelPage = "root";
+    this.setNotice("互動教學已關閉；戰局仍可繼續", "normal", 5_000);
+    this.refreshInterface(true);
+    this.focusFirstActionSoon();
+  }
+
+  private syncTutorialProgress(events: readonly DomainEvent[], announce = true): void {
+    if (!this.tutorialProgress) return;
+    const update = updateTutorialProgress(
+      this.tutorialProgress,
+      this.runtime.view,
+      events,
+      VILLAGE_ASSAULT_PLAYER_ID,
+      "team-player",
+      VILLAGE_ASSAULT_AI_ID,
+    );
+    this.tutorialProgress = update.progress;
+    if (!announce || update.newlyCompletedStepIds.length === 0) return;
+    const completedTitle = update.newlyCompletedStepIds
+      .map((id) => TUTORIAL_STEPS.find((step) => step.id === id)?.shortTitle)
+      .filter((label): label is string => Boolean(label))
+      .join("、");
+    const nextStep = currentTutorialStep(update.progress);
+    if (update.progress.complete) {
+      this.setNotice("互動教學完成｜你已完成完整 Village Siege 戰役", "success", 10_000);
+    } else if (nextStep) {
+      this.setNotice(`完成 ${completedTitle}｜下一步：${nextStep.hint}`, "success", 10_000);
+    }
+  }
+
+  private focusFirstActionSoon(): void {
+    this.time.delayedCall(0, () => {
+      for (const button of this.actionButtons) {
+        if (button.focus()) break;
+      }
+    });
   }
 
   private exportDataArchive(kind: DataArchiveKind): void {
@@ -2266,7 +2386,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       const candidate = createVillageAssaultRuntime({
         playerVillageId: this.villageId,
         aiPersonality: this.aiPersonality,
-        aiDifficulty: "standard",
+        aiDifficulty: this.tutorialEnabled ? "novice" : "standard",
       });
       const outcome: unknown = await Promise.resolve(kind === "save"
         ? candidate.importSaveJson(json)
@@ -2317,12 +2437,26 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     this.fogOverlay?.clear();
     this.syncEntityViews(true);
+    const importedDuringTutorial = Boolean(this.tutorialProgress);
+    if (importedDuringTutorial) {
+      this.tutorialEnabled = false;
+      this.tutorialProgress = undefined;
+    }
     this.prefetchQueuedUnitArt();
     this.systemPanelOpen = true;
     this.systemPanelPage = "data";
-    if (this.runtime.view.phase === "finished") this.finishBattle();
+    if (this.runtime.view.phase === "finished") {
+      this.finishBattle();
+      if (importedDuringTutorial && this.noticeLiveRegion) {
+        this.noticeLiveRegion.textContent = "已匯入結束戰局；互動教學已關閉。";
+      }
+    }
     else {
-      this.setNotice(kind === "save" ? "存檔已匯入" : "重播已匯入", "success", 5_000);
+      this.setNotice(
+        `${kind === "save" ? "存檔已匯入" : "重播已匯入"}${importedDuringTutorial ? "｜互動教學已關閉" : ""}`,
+        "success",
+        5_000,
+      );
       this.refreshInterface(true);
     }
   }
@@ -2345,6 +2479,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private openBuildMenu(): void {
+    if (this.orientationBlocked) return;
     const villagers = this.selectedUnits().filter((unit) => unit.typeId === "villager");
     if (villagers.length === 0) {
       this.setNotice("先選取至少一名工匠再建造", "warning");
@@ -2614,6 +2749,61 @@ export class VillageAssaultScene extends Phaser.Scene {
     };
   }
 
+  private gatherAction(kind: ResourceKind, villagers: readonly UnitEntityState[]): ActionSpec {
+    const candidates = this.runtime.state.entities
+      .filter((entity): entity is ResourceEntityState => (
+        entity.kind === "resource"
+        && entity.typeId === kind
+        && entity.amount > 0
+        && isEntityVisibleToPlayer(this.runtime.state, VILLAGE_ASSAULT_PLAYER_ID, entity)
+      ))
+      .map((resource) => ({
+        resource,
+        distance: Math.min(...villagers.map((unit) => Math.hypot(unit.position.x - resource.position.x, unit.position.y - resource.position.y))),
+      }))
+      .sort((left, right) => left.distance - right.distance || left.resource.id.localeCompare(right.resource.id));
+    const target = candidates.find(({ resource }) => villagers.some((unit) => (
+      this.approachDistance(unit.position, resource) !== null
+      && this.nearestDropOff(unit.position, kind) !== null
+    )))?.resource;
+    const presentation = {
+      food: { glyph: "糧", label: "採糧" },
+      wood: { glyph: "木", label: "伐木" },
+      stone: { glyph: "石", label: "採石" },
+    } satisfies Record<ResourceKind, { readonly glyph: string; readonly label: string }>;
+    return {
+      ...presentation[kind],
+      accessibleLabel: target ? `派所選工匠採集最近的${resourceDisplayName(kind)}` : `目前沒有可到達的${resourceDisplayName(kind)}`,
+      enabled: Boolean(target),
+      run: () => {
+        if (target) this.issueGatherCommand(target, villagers);
+      },
+    };
+  }
+
+  private issueGatherCommand(resource: ResourceEntityState, selectedVillagers: readonly UnitEntityState[]): boolean {
+    const gatherers = selectedVillagers.filter((unit) => {
+      const capacity = UNITS[unit.typeId].carryCapacity;
+      const depositKind = unit.cargo.amount > 0 && (unit.cargo.kind !== resource.typeId || unit.cargo.amount >= capacity)
+        ? unit.cargo.kind
+        : resource.typeId;
+      return this.approachDistance(unit.position, resource) !== null
+        && depositKind !== null
+        && this.nearestDropOff(unit.position, depositKind) !== null;
+    });
+    if (gatherers.length === 0) {
+      this.setNotice("所選工匠目前無法到達資源或合法卸貨點", "warning");
+      return false;
+    }
+    const skipped = selectedVillagers.length - gatherers.length;
+    return this.issue(
+      { type: "gather", entityIds: gatherers.map((unit) => unit.id), targetId: resource.id },
+      skipped > 0
+        ? `${gatherers.length} 名工匠前往採集；${skipped} 名因路線受阻保留原指令`
+        : `工匠前往採集${resourceDisplayName(resource.typeId)}`,
+    );
+  }
+
   private nearestDropOff(position: GridPoint, resourceKind: ResourceKind): BuildingEntityState | null {
     return this.runtime.state.entities
       .filter((entity): entity is BuildingEntityState => (
@@ -2817,12 +3007,12 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private readonly onWheel = (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number): void => {
-    if (!this.isPointerInPlayViewport(pointer)) return;
+    if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) return;
     this.zoomCamera(deltaY > 0 ? -0.08 : 0.08);
   };
 
   private updateCamera(delta: number): void {
-    if (!this.cameraKeys) return;
+    if (this.orientationBlocked || !this.cameraKeys) return;
     const speed = 620 * (delta / 1000) / this.cameras.main.zoom;
     if (this.cameraKeys.left.isDown) this.cameras.main.scrollX -= speed;
     if (this.cameraKeys.right.isDown) this.cameras.main.scrollX += speed;
@@ -2831,6 +3021,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private readonly layoutInterface = (): void => {
+    const wasOrientationBlocked = this.orientationBlocked;
     const width = this.scale.gameSize.width;
     const height = this.scale.gameSize.height;
     const worldCamera = this.cameras.main;
@@ -2869,9 +3060,17 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     worldCamera.setZoom(worldZoom).centerOn(focusX, focusY);
     this.orientationBlocked = profile.mobile && !profile.landscape;
+    for (const button of this.actionButtons) button.setSuspended(this.orientationBlocked);
     this.rotateBlocker?.setSize(width * 2, height * 2).setDisplaySize(width * 2, height * 2);
     this.rotateRoot?.setPosition(width / 2, height / 2).setVisible(this.orientationBlocked).setActive(this.orientationBlocked);
+    if (!wasOrientationBlocked && this.orientationBlocked && this.noticeLiveRegion) {
+      this.noticeLiveRegion.textContent = "請將手機橫向；旋轉完成後操作按鈕會恢復。";
+    }
     this.refreshInterface(true);
+    if (wasOrientationBlocked && !this.orientationBlocked) {
+      if (this.noticeLiveRegion) this.noticeLiveRegion.textContent = `橫向操作已恢復。${this.notice}`;
+      this.focusFirstActionSoon();
+    }
   };
 
   private createRotatePrompt(): Phaser.GameObjects.Container {
@@ -2898,7 +3097,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private togglePause(): void {
-    if (this.ended) return;
+    if (this.ended || this.orientationBlocked) return;
     this.paused = !this.paused;
     this.setNotice(this.paused ? "戰局暫停" : "戰局繼續", "normal");
     this.refreshInterface(true);
@@ -2911,10 +3110,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.noticeText?.setText("");
     if (this.resultLiveRegion) this.resultLiveRegion.textContent = presentation.announcement;
     this.refreshInterface(true);
-    this.time.delayedCall(0, () => this.actionButtons[0]?.focus());
+    this.focusFirstActionSoon();
   }
 
   private handleEscape(): void {
+    if (this.orientationBlocked) return;
     if (!this.systemPanelOpen && this.tacticalUiMode.kind !== "none") {
       this.cancelTacticalMode("已取消戰術目標模式");
       return;
@@ -2941,7 +3141,13 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private restartBattle(): void {
-    this.scene.restart({ villageId: this.villageId, aiPersonality: this.aiPersonality, returnScene: this.returnScene });
+    if (this.orientationBlocked) return;
+    this.scene.restart({
+      villageId: this.villageId,
+      aiPersonality: this.aiPersonality,
+      returnScene: this.returnScene,
+      tutorial: this.tutorialEnabled,
+    });
   }
 
   private leaveBattle(): void {

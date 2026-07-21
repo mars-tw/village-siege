@@ -17,8 +17,9 @@ export interface CanvasButtonControl {
   setActive(active: boolean | null): void;
   setEnabled(enabled: boolean): void;
   setLabel(glyph: string, label: string, accessibleLabel?: string): void;
+  setSuspended(suspended: boolean): void;
   setVisible(visible: boolean): void;
-  focus(): void;
+  focus(): boolean;
   destroy(): void;
 }
 
@@ -72,22 +73,24 @@ export function createCanvasButton(
   let focused = false;
   let pressed = false;
   let pressedPointerId: number | null = null;
+  let suspended = false;
   let destroyed = false;
 
   const draw = (): void => {
     if (destroyed || !container.scene || !background.scene || !glyph.scene || !label.scene) return;
-    const fill = !enabled
+    const interactive = enabled && !suspended;
+    const fill = !interactive
       ? COLORS.charcoal
       : active || pressed
         ? COLORS.copper
         : hovered
           ? COLORS.pine
           : COLORS.pineDark;
-    const foreground = active || pressed ? COLORS.charcoal : enabled ? COLORS.chalk : COLORS.muted;
+    const foreground = active || pressed ? COLORS.charcoal : interactive ? COLORS.chalk : COLORS.muted;
     background.clear();
     background.fillStyle(COLORS.charcoal, 0.78).fillRect(-options.width / 2 + 5, -options.height / 2 + 7, options.width, options.height);
-    background.fillStyle(fill, enabled ? 0.98 : 0.72).fillRect(-options.width / 2, -options.height / 2, options.width - 5, options.height - 7);
-    background.lineStyle(active ? 4 : 3, options.accent || active ? COLORS.copper : COLORS.chalk, enabled ? 0.95 : 0.38)
+    background.fillStyle(fill, interactive ? 0.98 : 0.72).fillRect(-options.width / 2, -options.height / 2, options.width - 5, options.height - 7);
+    background.lineStyle(active ? 4 : 3, options.accent || active ? COLORS.copper : COLORS.chalk, interactive ? 0.95 : 0.38)
       .strokeRect(-options.width / 2, -options.height / 2, options.width - 5, options.height - 7);
     background.lineStyle(1, COLORS.charcoal, 0.88)
       .strokeRect(-options.width / 2 + 5, -options.height / 2 + 5, options.width - 15, options.height - 17);
@@ -97,7 +100,7 @@ export function createCanvasButton(
     }
     glyph.setColor(Phaser.Display.Color.IntegerToColor(foreground).rgba);
     label.setColor(Phaser.Display.Color.IntegerToColor(foreground).rgba);
-    container.setAlpha(enabled ? 1 : 0.62);
+    container.setAlpha(interactive ? 1 : 0.62);
   };
 
   hitZone.on("pointerover", (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
@@ -113,14 +116,14 @@ export function createCanvasButton(
   });
   hitZone.on("pointerdown", (pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
     event.stopPropagation();
-    if (!enabled) return;
+    if (!enabled || suspended) return;
     pressed = true;
     pressedPointerId = pointer.id;
     draw();
   });
   hitZone.on("pointerup", (pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
     event.stopPropagation();
-    const shouldPress = enabled && pressed && pressedPointerId === pointer.id;
+    const shouldPress = enabled && !suspended && pressed && pressedPointerId === pointer.id;
     pressed = false;
     pressedPointerId = null;
     draw();
@@ -144,7 +147,7 @@ export function createCanvasButton(
     draw();
   });
   accessibilityButton.addEventListener("click", () => {
-    if (enabled && container.visible) onPress(scene.input.activePointer);
+    if (enabled && !suspended && container.visible) onPress(scene.input.activePointer);
   });
 
   draw();
@@ -166,8 +169,8 @@ export function createCanvasButton(
         pressed = false;
         pressedPointerId = null;
       }
-      if (hitZone.input) hitZone.input.enabled = value && container.visible;
-      accessibilityButton.disabled = !value;
+      if (hitZone.input) hitZone.input.enabled = value && container.visible && !suspended;
+      accessibilityButton.disabled = !value || suspended;
       draw();
     },
     setLabel(nextGlyph: string, nextLabel: string, nextAccessibleLabel?: string): void {
@@ -178,14 +181,31 @@ export function createCanvasButton(
       accessibilityButton.textContent = `${nextGlyph} ${nextLabel}`;
       draw();
     },
+    setSuspended(value: boolean): void {
+      if (destroyed) return;
+      suspended = value;
+      if (value) {
+        hovered = false;
+        focused = false;
+        pressed = false;
+        pressedPointerId = null;
+        if (document.activeElement === accessibilityButton) accessibilityButton.blur();
+      }
+      if (hitZone.input) hitZone.input.enabled = container.visible && enabled && !value;
+      accessibilityButton.disabled = !enabled || value;
+      accessibilityButton.hidden = !container.visible || value;
+      draw();
+    },
     setVisible(visible: boolean): void {
       if (destroyed) return;
       container.setVisible(visible).setActive(visible);
-      if (hitZone.input) hitZone.input.enabled = visible && enabled;
-      accessibilityButton.hidden = !visible;
+      if (hitZone.input) hitZone.input.enabled = visible && enabled && !suspended;
+      accessibilityButton.hidden = !visible || suspended;
     },
-    focus(): void {
-      if (!destroyed && !accessibilityButton.hidden && !accessibilityButton.disabled) accessibilityButton.focus();
+    focus(): boolean {
+      if (destroyed || accessibilityButton.hidden || accessibilityButton.disabled) return false;
+      accessibilityButton.focus();
+      return true;
     },
     destroy(): void {
       if (destroyed) return;
