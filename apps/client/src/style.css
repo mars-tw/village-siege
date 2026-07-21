@@ -302,6 +302,8 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
 .lobby-roster { display: grid; gap: 8px; margin: 16px 0 24px; padding: 0; list-style: none; }
 .lobby-roster li { display: flex; justify-content: space-between; gap: 12px; border-left: 8px solid var(--pine); padding: 11px 13px; background: rgba(240, 235, 207, 0.76); }
 .lobby-roster li.is-disconnected { border-color: var(--danger); opacity: 0.66; }
+.lobby-roster li.is-ai { border-color: var(--copper); background: rgba(238, 215, 165, 0.82); }
+.lobby-roster strong, .lobby-roster span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobby-roster span { color: #4c554e; font-size: 0.78rem; font-weight: 750; }
 .lobby-room-actions { display: flex; justify-content: flex-end; gap: 12px; }
 .lobby-room-actions button:disabled { cursor: not-allowed; filter: grayscale(1); opacity: 0.45; transform: none; }
@@ -343,7 +345,28 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
   .lobby-roster { grid-area: roster; grid-template-columns: repeat(2, minmax(0, 1fr)); align-self: stretch; gap: 4px; min-height: 0; margin: 0; overflow: hidden; }
   .lobby-roster li { min-width: 0; flex-direction: column; gap: 2px; padding: 5px 7px; border-left-width: 5px; font-size: 0.68rem; }
   .lobby-roster span { overflow: hidden; font-size: 0.58rem; text-overflow: ellipsis; white-space: nowrap; }
-  .lobby-room-actions { grid-area: actions; display: grid; grid-template-columns: repeat(3, minmax(44px, 1fr)); align-self: end; gap: 6px; }
+  .lobby-room-actions { grid-area: actions; display: grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); align-self: end; gap: 6px; }
   .lobby-room-actions .primary-action, .lobby-room-actions .secondary-action,
   .lobby-connect-actions .primary-action, .lobby-connect-actions .secondary-action { min-height: 44px; padding: 5px 9px; font-size: 0.7rem; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 640px) {
+  .multiplayer-lobby { place-items: center; overflow: auto; }
+  .lobby-card {
+    width: 100%;
+    grid-template-columns: minmax(150px, 0.72fr) minmax(0, 1.28fr);
+    column-gap: 8px;
+  }
+  .lobby-connect-actions { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .lobby-room-actions { grid-template-columns: repeat(4, minmax(44px, 1fr)); }
+}
+
+@media (orientation: landscape) and (max-height: 340px) {
+  .multiplayer-lobby:focus-within { place-items: start center; overflow: auto; }
+  .multiplayer-lobby:focus-within .lobby-card {
+    height: auto;
+    min-height: 300px;
+    max-height: none;
+    overflow: visible;
+  }
 }

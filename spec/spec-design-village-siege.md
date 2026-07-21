@@ -109,9 +109,9 @@ tags: [design, game, rts, multiplayer, phaser, colyseus, typescript, security]
 - **NET-006**: 伺服器必須以固定 Tick 推進模擬；MVP 基準為每秒 10 Tick，狀態同步頻率可以較低但不得低於每秒 5 次。
 - **NET-007**: 每個玩家 Command 必須包含戰局 ID、玩家 ID、遞增序號、用戶端 Tick、指令種類與有效負載。
 - **NET-008**: 伺服器必須對重複序號做冪等處理，對過期、跳號過大或不屬於該玩家實體的 Command 拒絕並記錄原因。
-- **NET-009**: 玩家斷線後必須保留席位 60 秒；在有效重連憑證與期限內應恢復同一玩家狀態並收到差異或完整 Snapshot。
-- **NET-010**: 斷線超過 60 秒後，房間設定可選擇由 AI 接管或判定投降；選擇結果必須在戰局開始前公開。
-- **NET-011**: 房間若暫時沒有任何連線玩家，伺服器最多保留 60 秒；無人重連即安全終止並清理一次性房間狀態。
+- **NET-009**: 玩家斷線後必須保留席位 120 秒；在有效重連憑證與期限內應恢復同一玩家狀態並收到差異或完整 Snapshot。
+- **NET-010**: 斷線超過 120 秒後，房間設定可選擇由 AI 接管或判定投降；選擇結果必須在戰局開始前公開。
+- **NET-011**: 房間若暫時沒有任何連線玩家，伺服器最多保留 120 秒；無人重連即安全終止並清理一次性房間狀態。
 - **NET-012**: 用戶端必須顯示連線狀態、延遲、重連倒數與伺服器拒絕指令的可理解訊息。
 
 ### 3.4 美術、體驗與授權需求
@@ -187,7 +187,7 @@ export interface MatchConfig {
   readonly villageCount: 3 | 4 | 5;
   readonly maxHumanPlayers: 2 | 3 | 4;
   readonly slots: readonly PlayerSlot[];
-  readonly reconnectGraceSeconds: 60;
+  readonly reconnectGraceSeconds: 120;
   readonly disconnectedPlayerPolicy: "ai-takeover" | "surrender";
 }
 
@@ -358,7 +358,7 @@ export interface VillageDefinition {
 - **AC-008**: Given 四名真人加入同一私人房間，When 所有人就緒且房主開始，Then 所有用戶端載入相同規則版本、地圖種子與權威初始 Snapshot。
 - **AC-009**: Given 用戶端偽造生命值、資源或傷害欄位，When 傳至伺服器，Then 訊息因不符合 Command 契約被拒絕且權威狀態不變。
 - **AC-010**: Given 玩家在戰局中斷線 30 秒，When 使用有效重連憑證返回，Then 恢復原席位並以 Snapshot 或差異同步至目前伺服器 Tick。
-- **AC-011**: Given 玩家斷線超過 60 秒，When 房間設定為 `ai-takeover`，Then AI 透過同一 Command 介面接管；設定為 `surrender` 時則結束該玩家控制權。
+- **AC-011**: Given 玩家斷線超過 120 秒，When 房間設定為 `ai-takeover`，Then AI 透過同一 Command 介面接管；設定為 `surrender` 時則結束該玩家控制權。
 - **AC-012**: Given 相同玩家序號已處理，When 重送同一 Command，Then 伺服器不得重複扣資源、生成單位或造成傷害。
 - **AC-013**: Given 100 個可見單位及 60 個建築，When 執行標準鏡頭巡覽 5 分鐘，Then 基準硬體第 95 百分位 FPS 不低於 50。
 - **AC-014**: Given 四名玩家及總計 300 個單位，When 進行 20 分鐘自動對戰，Then 第 95 百分位伺服器 Tick 計算時間不超過 80 毫秒且無狀態分歧。
@@ -367,7 +367,7 @@ export interface VillageDefinition {
 - **AC-017**: Given 任一合併候選素材，When 查驗資產清單，Then 具有來源、作者、授權、修改與署名資訊；無法證明授權者不得進入發行包。
 - **AC-018**: Given 美術稽核清單，When 比對角色、建築、圖示、色盤、音訊及 UI，Then 發行包不得含從《世紀帝國 II》或其他商業遊戲擷取、重描或可合理混淆的資產。
 - **AC-019**: Given 無效座標、非有限數值、過長文字、未知列舉或超大陣列，When 送入任何公開介面，Then 系統安全拒絕且房間保持可用。
-- **AC-020**: Given 房間最後一名玩家離線且無人於 60 秒內重連，When 清理期限到達，Then 房間進入 `disposed`，停止 Tick 並釋放計時器、監聽器與一次性狀態。
+- **AC-020**: Given 房間最後一名玩家離線且無人於 120 秒內重連，When 清理期限到達，Then 房間進入 `disposed`，停止 Tick 並釋放計時器、監聽器與一次性狀態。
 
 ## 6. Test Automation Strategy
 

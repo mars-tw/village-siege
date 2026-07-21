@@ -1,8 +1,10 @@
 import Phaser from "phaser";
 import {
   VILLAGE_ASSAULT_MAP_HEIGHT,
-  VILLAGE_ASSAULT_MAP_ROWS,
   VILLAGE_ASSAULT_MAP_WIDTH,
+  VILLAGE_ASSAULT_LAYOUT_IDS,
+  getVillageAssaultLayout,
+  type VillageAssaultLayoutId,
 } from "@village-siege/shared";
 import {
   HALF_TILE_HEIGHT,
@@ -77,22 +79,19 @@ const GLYPH_TERRAIN: Readonly<Record<TileGlyph, BattleTerrain>> = {
 
 // The two horizontal lanes remain readable even without objective overlays:
 // the northern assault route is dressed stone, the southern route is churned mud.
-const MAP_ROWS = VILLAGE_ASSAULT_MAP_ROWS;
-
-for (const [rowIndex, row] of MAP_ROWS.entries()) {
-  if (row.length !== BATTLE_MAP_WIDTH) throw new Error(`Battle map row ${rowIndex} must contain ${BATTLE_MAP_WIDTH} tiles`);
-  for (const glyph of row) {
-    if (!(glyph in GLYPH_TERRAIN)) throw new Error(`Unknown battle-map glyph: ${glyph}`);
+const MAP_TILES_BY_LAYOUT = Object.fromEntries(VILLAGE_ASSAULT_LAYOUT_IDS.map((layoutId) => {
+  const rows = getVillageAssaultLayout(layoutId).terrainRows;
+  if (rows.length !== BATTLE_MAP_HEIGHT) throw new Error(`Battle map ${layoutId} must contain ${BATTLE_MAP_HEIGHT} rows`);
+  for (const [rowIndex, row] of rows.entries()) {
+    if (row.length !== BATTLE_MAP_WIDTH) throw new Error(`Battle map ${layoutId} row ${rowIndex} must contain ${BATTLE_MAP_WIDTH} tiles`);
+    for (const glyph of row) if (!(glyph in GLYPH_TERRAIN)) throw new Error(`Unknown battle-map glyph: ${glyph}`);
   }
-}
-if (MAP_ROWS.length !== BATTLE_MAP_HEIGHT) throw new Error(`Battle map must contain ${BATTLE_MAP_HEIGHT} rows`);
-
-const MAP_TILES: readonly BattleTile[] = MAP_ROWS.flatMap((row, y) =>
-  [...row].map((glyph, x) => {
+  const tiles = rows.flatMap((row, y) => [...row].map((glyph, x) => {
     const definition = TERRAIN[GLYPH_TERRAIN[glyph as TileGlyph]];
     return { ...definition, point: { x, y } };
-  })
-);
+  }));
+  return [layoutId, tiles] as const;
+})) as unknown as Readonly<Record<VillageAssaultLayoutId, readonly BattleTile[]>>;
 
 const OBJECTIVE_ZONES: readonly ObjectiveZone[] = [
   { id: "central-crossroads", displayName: "斷橋十字口", kind: "centralControl", center: { x: 8.5, y: 7.5 }, radiusTiles: 2.25 },
@@ -131,24 +130,24 @@ const NEIGHBOR_OFFSETS = [
 
 const MINIMUM_MOVE_COST = TERRAIN.stoneRoad.moveCost;
 
-export function getBattleTile(point: GridPoint): BattleTile | undefined {
+export function getBattleTile(point: GridPoint, layoutId: VillageAssaultLayoutId = "pinehold"): BattleTile | undefined {
   const x = Math.round(point.x);
   const y = Math.round(point.y);
   if (!isInside(x, y)) return undefined;
-  return MAP_TILES[toKey(x, y)];
+  return MAP_TILES_BY_LAYOUT[layoutId][toKey(x, y)];
 }
 
-export function clampToWalkable(point: GridPoint): GridPoint {
+export function clampToWalkable(point: GridPoint, layoutId: VillageAssaultLayoutId = "pinehold"): GridPoint {
   const requestedX = Number.isFinite(point.x) ? Math.round(point.x) : 0;
   const requestedY = Number.isFinite(point.y) ? Math.round(point.y) : 0;
   const clampedX = Math.max(0, Math.min(BATTLE_MAP_WIDTH - 1, requestedX));
   const clampedY = Math.max(0, Math.min(BATTLE_MAP_HEIGHT - 1, requestedY));
-  const direct = getBattleTile({ x: clampedX, y: clampedY });
+  const direct = getBattleTile({ x: clampedX, y: clampedY }, layoutId);
   if (direct?.walkable) return { x: clampedX, y: clampedY };
 
   let best: GridPoint | undefined;
   let bestDistance = Number.POSITIVE_INFINITY;
-  for (const tile of MAP_TILES) {
+  for (const tile of MAP_TILES_BY_LAYOUT[layoutId]) {
     if (!tile.walkable) continue;
     const dx = tile.point.x - clampedX;
     const dy = tile.point.y - clampedY;
@@ -164,9 +163,9 @@ export function clampToWalkable(point: GridPoint): GridPoint {
   return best ? { ...best } : { x: 0, y: 0 };
 }
 
-export function findPath(start: GridPoint, end: GridPoint): readonly GridPoint[] {
-  const origin = clampToWalkable(start);
-  const destination = clampToWalkable(end);
+export function findPath(start: GridPoint, end: GridPoint, layoutId: VillageAssaultLayoutId = "pinehold"): readonly GridPoint[] {
+  const origin = clampToWalkable(start, layoutId);
+  const destination = clampToWalkable(end, layoutId);
   const startKey = toKey(origin.x, origin.y);
   const destinationKey = toKey(destination.x, destination.y);
   if (startKey === destinationKey) return [origin];
@@ -195,9 +194,9 @@ export function findPath(start: GridPoint, end: GridPoint): readonly GridPoint[]
 
     for (const offset of NEIGHBOR_OFFSETS) {
       const next = { x: current.point.x + offset.x, y: current.point.y + offset.y };
-      const tile = getBattleTile(next);
+      const tile = getBattleTile(next, layoutId);
       if (!tile?.walkable) continue;
-      if (offset.diagonal && !canTraverseDiagonal(current.point, offset.x, offset.y)) continue;
+      if (offset.diagonal && !canTraverseDiagonal(current.point, offset.x, offset.y, layoutId)) continue;
       const key = toKey(next.x, next.y);
       if (closed.has(key)) continue;
       const stepCost = tile.moveCost * (offset.diagonal ? Math.SQRT2 : 1);
@@ -228,14 +227,22 @@ export function getSuggestedSpawns(): SuggestedSpawns {
   };
 }
 
-export function drawBattleMap(scene: Phaser.Scene, origin: ScreenPoint): BattleMapView {
+export function drawBattleMap(scene: Phaser.Scene, origin: ScreenPoint, layoutId: VillageAssaultLayoutId = "pinehold"): BattleMapView {
   const terrain = scene.add.graphics();
   const props = scene.add.graphics();
   const objectives = scene.add.graphics();
   const container = scene.add.container(origin.x, origin.y, [terrain, props, objectives]);
-  drawContinuousGround(terrain);
-  drawNaturalProps(props);
-  for (const zone of OBJECTIVE_ZONES) drawObjective(objectives, zone);
+  drawContinuousGround(terrain, layoutId);
+  drawNaturalProps(props, layoutId);
+  const campZones: ObjectiveZone[] = getVillageAssaultLayout(layoutId).neutralCamps.map((camp) => ({
+    id: camp.id,
+    displayName: camp.monsterTypeId,
+    kind: "monsterCamp",
+    center: camp.position,
+    radiusTiles: camp.monsterTypeId === "rootback" ? 1.45 : 1.3,
+    monsterId: camp.monsterTypeId,
+  }));
+  for (const zone of [...OBJECTIVE_ZONES.filter((candidate) => candidate.kind !== "monsterCamp"), ...campZones]) drawObjective(objectives, zone);
 
   return {
     container,
@@ -247,35 +254,46 @@ export function drawBattleMap(scene: Phaser.Scene, origin: ScreenPoint): BattleM
 }
 
 /** Keep the grid for simulation, but paint one continuous RTS landscape. */
-function drawContinuousGround(graphics: Phaser.GameObjects.Graphics): void {
+function drawContinuousGround(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
   const boundary = mapBoundary();
+  const palette = layoutId === "riverstead"
+    ? { base: 0x637d5a, light: 0x76906a, dark: 0x526d55, soil: 0x6f644d }
+    : layoutId === "highcrag"
+      ? { base: 0x6d735d, light: 0x85846b, dark: 0x545b50, soil: 0x786752 }
+      : { base: 0x6f8255, light: 0x82915d, dark: 0x657a50, soil: 0x806847 };
   fillPolygon(graphics, boundary.map((point) => ({ x: point.x, y: point.y + 18 })), 0x1f2923, 0.72);
-  fillPolygon(graphics, boundary, 0x6f8255, 1);
+  fillPolygon(graphics, boundary, palette.base, 1);
 
   drawBlob(graphics, [
     grid(-0.5, 10.4), grid(2.2, 8.8), grid(5.5, 9.7), grid(7.6, 12.2),
     grid(4.5, 16.2), grid(0.2, 15.7)
-  ], 0x78885a, 0.78);
+  ], palette.light, 0.68);
   drawBlob(graphics, [
     grid(9.1, -0.4), grid(14.6, -0.2), grid(18.3, 2.9), grid(16.9, 6.3),
     grid(13.5, 5.4), grid(10.2, 3.1)
-  ], 0x657a50, 0.72);
+  ], palette.dark, 0.72);
   drawBlob(graphics, [
     grid(2.2, 11), grid(5.5, 9.6), grid(9.6, 10.2), grid(13.4, 12.1),
     grid(11.8, 15.7), grid(6.1, 15.9)
-  ], 0x806847, 0.55);
+  ], palette.soil, 0.55);
   drawBlob(graphics, [
     grid(1.4, 1.2), grid(5.2, 0.3), grid(7.3, 2.5), grid(5.1, 5.3),
     grid(1.4, 4.6), grid(-0.2, 2.8)
-  ], 0x82915d, 0.56);
+  ], palette.light, 0.5);
 
   const river = [
     grid(7.1, -1.2), grid(7.25, 1.2), grid(7.7, 3.5), grid(7.35, 5.7),
     grid(7.9, 7.8), grid(7.5, 10.1), grid(7.75, 12.4), grid(7.35, 14.6), grid(7.55, 17)
   ];
-  drawOrganicRibbon(graphics, river, [70, 62, 72, 61, 69, 64, 75, 62, 72], 0x4d533c, 1);
-  drawOrganicRibbon(graphics, river, [54, 48, 56, 47, 53, 49, 58, 48, 55], 0x3d7278, 1);
-  drawOrganicRibbon(graphics, river, [38, 34, 40, 33, 37, 35, 43, 34, 39], 0x568f91, 0.94);
+  const channelColors = layoutId === "highcrag"
+    ? [0x403f39, 0x5d6058, 0x74766b] as const
+    : layoutId === "riverstead"
+      ? [0x384c45, 0x356f77, 0x5a9da0] as const
+      : [0x4d533c, 0x3d7278, 0x568f91] as const;
+  const channelScale = layoutId === "riverstead" ? 1.18 : layoutId === "highcrag" ? 0.82 : 1;
+  drawOrganicRibbon(graphics, river, [70, 62, 72, 61, 69, 64, 75, 62, 72].map((width) => width * channelScale), channelColors[0], 1);
+  drawOrganicRibbon(graphics, river, [54, 48, 56, 47, 53, 49, 58, 48, 55].map((width) => width * channelScale), channelColors[1], 1);
+  drawOrganicRibbon(graphics, river, [38, 34, 40, 33, 37, 35, 43, 34, 39].map((width) => width * channelScale), channelColors[2], 0.94);
 
   const northRoad = [
     grid(-1.1, 4.25), grid(1.6, 4.05), grid(4.2, 4.25), grid(6.4, 4.02),
@@ -290,12 +308,46 @@ function drawContinuousGround(graphics: Phaser.GameObjects.Graphics): void {
   drawOrganicRibbon(graphics, southRoad, [58, 49, 55, 47, 54, 48, 56, 50], 0x594733, 0.9);
   drawOrganicRibbon(graphics, southRoad, [43, 36, 40, 34, 39, 35, 42, 36], 0x806143, 0.98);
 
-  drawRiverDetails(graphics, river);
+  if (layoutId !== "highcrag") drawRiverDetails(graphics, river);
   drawRoadDetails(graphics, northRoad, true);
   drawRoadDetails(graphics, southRoad, false);
-  scatterMeadowDetails(graphics);
+  drawAuthoritativeTerrainPatches(graphics, layoutId);
+  scatterMeadowDetails(graphics, layoutId);
   graphics.lineStyle(3, 0x344434, 0.7);
   strokePolygon(graphics, boundary);
+}
+
+/**
+ * Paint exact authoritative cells as seamless isometric regions on top of the
+ * broad organic underpainting. Adjacent diamonds share one fill and no grid
+ * stroke, so bridges and blockers read accurately without exposing a tile grid.
+ */
+function drawAuthoritativeTerrainPatches(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
+  const rows = getVillageAssaultLayout(layoutId).terrainRows;
+  const colors: Readonly<Record<Exclude<TileGlyph, "G">, number>> = {
+    M: 0x806143,
+    S: layoutId === "highcrag" ? 0x8b8979 : 0x918c78,
+    W: 0x4f8589,
+    R: layoutId === "highcrag" ? 0x565b56 : 0x59645f,
+    T: 0x4f684b,
+  };
+  const alphas: Readonly<Record<Exclude<TileGlyph, "G">, number>> = { M: 0.9, S: 0.96, W: 0.98, R: 0.98, T: 0.72 };
+  const drawOrder: readonly Exclude<TileGlyph, "G">[] = ["W", "R", "T", "M", "S"];
+  for (const targetGlyph of drawOrder) {
+    graphics.fillStyle(colors[targetGlyph], alphas[targetGlyph]);
+    for (let y = 0; y < rows.length; y += 1) {
+      for (let x = 0; x < rows[y]!.length; x += 1) {
+        if (rows[y]![x] !== targetGlyph) continue;
+        const center = grid(x, y);
+        graphics.fillPoints([
+          new Phaser.Math.Vector2(center.x, center.y - HALF_TILE_HEIGHT),
+          new Phaser.Math.Vector2(center.x + HALF_TILE_WIDTH, center.y),
+          new Phaser.Math.Vector2(center.x, center.y + HALF_TILE_HEIGHT),
+          new Phaser.Math.Vector2(center.x - HALF_TILE_WIDTH, center.y),
+        ], true);
+      }
+    }
+  }
 }
 
 function mapBoundary(): ScreenPoint[] {
@@ -385,12 +437,12 @@ function drawRoadDetails(graphics: Phaser.GameObjects.Graphics, road: readonly S
   }
 }
 
-function scatterMeadowDetails(graphics: Phaser.GameObjects.Graphics): void {
+function scatterMeadowDetails(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
   for (let index = 0; index < 72; index += 1) {
     const seed = detailSeed(index, 211);
     const x = (seed % 1700) / 100;
     const y = (Math.floor(seed / 1700) % 1500) / 100;
-    const tile = getBattleTile({ x, y });
+    const tile = getBattleTile({ x, y }, layoutId);
     if (!tile || tile.kind !== "grass") continue;
     const center = grid(x, y);
     graphics.lineStyle(1, index % 4 === 0 ? 0xb0b67a : 0x4e6846, 0.54)
@@ -409,7 +461,7 @@ function samplePolyline(points: readonly ScreenPoint[], t: number): ScreenPoint 
   return { x: left.x + (right.x - left.x) * local, y: left.y + (right.y - left.y) * local };
 }
 
-function drawNaturalProps(graphics: Phaser.GameObjects.Graphics): void {
+function drawNaturalProps(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId = "pinehold"): void {
   const clusters: Array<{ readonly kind: "rock" | "thicket"; readonly point: GridPoint; readonly size: number }> = [
     { kind: "thicket", point: { x: 0.4, y: 0.6 }, size: 4 },
     { kind: "thicket", point: { x: 16.4, y: 0.8 }, size: 4 },
@@ -427,7 +479,8 @@ function drawNaturalProps(graphics: Phaser.GameObjects.Graphics): void {
   clusters.sort((left, right) => left.point.x + left.point.y - right.point.x - right.point.y);
   for (const cluster of clusters) {
     const center = grid(cluster.point.x, cluster.point.y);
-    if (cluster.kind === "rock") drawRockCluster(graphics, center.x, center.y, cluster.point, cluster.size);
+    const kind = layoutId === "highcrag" ? "rock" : layoutId === "riverstead" && cluster.kind === "rock" ? "thicket" : cluster.kind;
+    if (kind === "rock") drawRockCluster(graphics, center.x, center.y, cluster.point, cluster.size);
     else drawThicketCluster(graphics, center.x, center.y, cluster.point, cluster.size);
   }
 }
@@ -519,9 +572,9 @@ function keyToPoint(key: number): GridPoint {
   return { x: key % BATTLE_MAP_WIDTH, y: Math.floor(key / BATTLE_MAP_WIDTH) };
 }
 
-function canTraverseDiagonal(origin: GridPoint, dx: number, dy: number): boolean {
-  return getBattleTile({ x: origin.x + dx, y: origin.y })?.walkable === true
-    && getBattleTile({ x: origin.x, y: origin.y + dy })?.walkable === true;
+function canTraverseDiagonal(origin: GridPoint, dx: number, dy: number, layoutId: VillageAssaultLayoutId): boolean {
+  return getBattleTile({ x: origin.x + dx, y: origin.y }, layoutId)?.walkable === true
+    && getBattleTile({ x: origin.x, y: origin.y + dy }, layoutId)?.walkable === true;
 }
 
 function octileDistance(left: GridPoint, right: GridPoint): number {

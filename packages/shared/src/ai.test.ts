@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { AI_PROFILES, createAiController, getAiObservation, type AiObservation } from "./ai";
-import { MAX_TRAINING_QUEUE_DEPTH } from "./content";
-import { isGameCommand, type AiPersonality, type GameCommand, type PublicEntityState } from "./protocol";
-import { applyCommand, cloneMatchState, createInitialState, stepSimulation, validateCommand, type MatchState } from "./simulation";
+import { AI_PROFILES, createAiController, getAiKnownSpatialModel, getAiObservation, type AiObservation, type AiStrategicSnapshot } from "./ai";
+import { getVillageAssaultBuildBlockedCells, getVillageAssaultWalkBlockedCells } from "./battlefield";
+import { getPlayerVisibilityState, updateVisibilityState } from "./visibility";
+import { getBuildingFootprint, MAX_TRAINING_QUEUE_DEPTH, TECHNOLOGIES, UNITS } from "./content";
+import { isGameCommand, type AiPersonality, type GameCommand, type PublicEntityState, type UnitType } from "./protocol";
+import { applyCommand, cloneMatchState, createInitialState, getEntityFootprintCells, stepSimulation, validateCommand, type BuildingEntityState, type MatchState } from "./simulation";
+import { getFootprintCells } from "./spatial";
 
 const PERSONALITIES: readonly AiPersonality[] = ["aggressor", "guardian", "prosperer", "balanced", "raider"];
 
 describe("shared AI personalities", () => {
   it("publishes the five fixed profile ids", () => {
     expect(Object.keys(AI_PROFILES).sort()).toEqual([...PERSONALITIES].sort());
+    expect(new Set(PERSONALITIES.map((personality) => AI_PROFILES[personality].advanceAfterTick.stronghold)).size).toBe(5);
   });
 
   it("replays the same legal decision sequence for the same seed", () => {
@@ -30,24 +34,176 @@ describe("shared AI personalities", () => {
     const decide = (personality: AiPersonality) => createAiController(personality, "player-1", 1234).decide(observation, 5)[0];
 
     expect(decide("aggressor")).toMatchObject({ type: "build", buildingType: "barracks" });
-    expect(decide("guardian")).toMatchObject({ type: "build", buildingType: "defenseTower" });
+    expect(decide("guardian")).toMatchObject({ type: "gather" });
     expect(decide("prosperer")).toMatchObject({ type: "train", unitType: "villager" });
     expect(decide("balanced")).toMatchObject({ type: "gather" });
-    expect(decide("raider")).toMatchObject({ type: "build", buildingType: "beastStable" });
+    expect(decide("raider")).toMatchObject({ type: "gather" });
   });
 
-  it("uses distinct target and production priorities when enemies are visible", () => {
+  it("uses distinct, legal, data-driven research priorities for all five personalities", () => {
+    const base = createInitialState({ seed: 75, matchId: "ai-research-priorities" });
+    const player = base.players[0]!;
+    const townCenter = base.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    player.settlementTier = "artificer";
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    base.tick = 15_000;
+    for (const [index, typeId] of (["farmstead", "lumberCamp", "barracks", "beastStable"] as const).entries()) {
+      base.entities.push({
+        ...townCenter,
+        id: `research-producer-${typeId}`,
+        typeId,
+        position: { x: 9 + index * 2, y: 10 },
+        hitPoints: 500,
+        maxHitPoints: 500,
+        productionQueue: [],
+      });
+    }
+    updateVisibilityState(base);
+    const expected = {
+      aggressor: "layeredHarness",
+      guardian: "surveyedFoundations",
+      prosperer: "hearthlandAlmanac",
+      balanced: "resinboundKits",
+      raider: "windspurRigging",
+    } as const;
+
+    for (const personality of PERSONALITIES) {
+      const state = cloneMatchState(base);
+      const command = createAiController(personality, player.id, 750 + PERSONALITIES.indexOf(personality), "veteran")
+        .decide(getAiObservation(state, player.id), 5)[0];
+      expect(command).toMatchObject({ type: "research", technologyId: expected[personality] });
+      expect(validateCommand(state, envelope(state, 0, command!)), `${personality} research must be authoritative-valid`).toEqual({ ok: true });
+
+      const queued = applyCommand(state, envelope(state, 0, command!)).state;
+      const next = createAiController(personality, player.id, 850 + PERSONALITIES.indexOf(personality), "veteran")
+        .decide({ ...getAiObservation(queued, player.id), serverTick: queued.tick + 10 }, 5)[0];
+      if (next?.type === "research") expect(next.technologyId).not.toBe(expected[personality]);
+      if (next) expect(validateCommand(queued, envelope(queued, 1, next))).toEqual({ ok: true });
+    }
+  });
+
+  it("continues strategic research under visible pressure after fielding a defensive force", () => {
+    const state = createInitialState({ seed: 751, matchId: "ai-research-under-pressure" });
+    const player = state.players[0]!;
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing town center");
+    state.entities.push({
+      ...townCenter,
+      id: "pressure-lumber-camp",
+      typeId: "lumberCamp",
+      position: { x: 9, y: 10 },
+      hitPoints: 500,
+      maxHitPoints: 500,
+      productionQueue: [],
+    });
+    player.settlementTier = "artificer";
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    state.tick = 15_000;
+    const observation = getAiObservation(state, player.id);
+    const pressured: AiObservation = {
+      ...observation,
+      ownEntities: [
+        ...observation.ownEntities,
+        entity("pressure-warrior", player.id, "unit", "warrior", 8, 8),
+        entity("pressure-shield", player.id, "unit", "shieldBearer", 9, 8),
+        entity("pressure-archer", player.id, "unit", "archer", 10, 8),
+      ],
+      visibleEnemyEntities: [entity("pressure-enemy", "player-2", "unit", "warrior", 12, 8)],
+    };
+    const command = createAiController("balanced", player.id, 751, "veteran").decide(pressured, 5)[0];
+    expect(command).toMatchObject({ type: "research", producerId: "pressure-lumber-camp", technologyId: "resinboundKits" });
+    expect(validateCommand(state, envelope(state, 0, command!))).toEqual({ ok: true });
+  });
+
+  it("never interrupts a loaded villager to construct an AI building", () => {
+    const state = createInitialState({ seed: 76, matchId: "ai-unloaded-builder" });
+    const villagers = state.entities
+      .filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")
+      .sort((left, right) => left.id.localeCompare(right.id));
+    villagers[0]!.cargo = { kind: "wood", amount: 10 };
+    const command = createAiController("aggressor", "player-1", 76).decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(command).toMatchObject({ type: "build", buildingType: "barracks", builderIds: [villagers[1]!.id] });
+
+    for (const villager of villagers) villager.cargo = { kind: "wood", amount: 10 };
+    expect(createAiController("aggressor", "player-1", 77).decide(getAiObservation(state, "player-1"), 5)).toEqual([]);
+  });
+
+  it("builds legal prerequisites before advancing toward a locked raider unit", () => {
+    const base = getAiObservation(createInitialState({ seed: 78 }), "player-1");
+    const ready = {
+      ...base,
+      serverTick: AI_PROFILES.raider.advanceAfterTick.stronghold,
+      wallet: { food: 2_000, wood: 2_000, stone: 2_000 },
+    } satisfies AiObservation;
+    expect(createAiController("raider", "player-1", 78).decide(ready, 5)[0])
+      .toMatchObject({ type: "build", buildingType: "barracks" });
+
+    const prerequisites = [
+      entity("ready-barracks", "player-1", "building", "barracks", 8, 8),
+      entity("ready-lumber", "player-1", "building", "lumberCamp", 10, 8),
+    ];
+    const withPrerequisites: AiObservation = {
+      ...ready,
+      ownEntities: [...ready.ownEntities, ...prerequisites],
+      ownTrainingQueueDepth: { ...ready.ownTrainingQueueDepth, "ready-barracks": 0, "ready-lumber": 0 },
+    };
+    expect(createAiController("raider", "player-1", 79).decide(withPrerequisites, 5)[0])
+      .toMatchObject({ type: "advanceSettlement", targetTier: "stronghold" });
+  });
+
+  it("keeps gathering or adds population capacity while an advancement is active", () => {
+    const base = getAiObservation(createInitialState({ seed: 79 }), "player-1");
+    const advancing: AiObservation = {
+      ...base,
+      advancement: { producerId: base.ownEntities.find((candidate) => candidate.typeId === "townCenter")!.id, targetTier: "stronghold", remainingTicks: 300 },
+    };
+    expect(createAiController("balanced", "player-1", 79).decide(advancing, 5)[0]).toMatchObject({ type: "gather" });
+    const capped = { ...advancing, population: { used: 9, capacity: 10 } } satisfies AiObservation;
+    expect(createAiController("balanced", "player-1", 80).decide(capped, 5)[0]).toMatchObject({ type: "build", buildingType: "house" });
+  });
+
+  it("uses personality priorities and legal active abilities when enemies are visible", () => {
     const observation = combatObservation();
     const decisions = Object.fromEntries(PERSONALITIES.map((personality) => [
       personality,
       createAiController(personality, "player-1", 91).decide(observation, 5)[0],
     ]));
 
-    expect(decisions.aggressor).toMatchObject({ type: "attack", targetId: "enemy-town-center" });
-    expect(decisions.guardian).toMatchObject({ type: "attack", targetId: "enemy-militia" });
+    expect(decisions.aggressor).toMatchObject({ type: "castAbility", abilityId: "pinningVolley", target: { kind: "ground", point: { x: 12, y: 6 } } });
+    expect(decisions.guardian).toMatchObject({ type: "castAbility", abilityId: "shieldWall", target: { kind: "self" } });
     expect(decisions.prosperer).toMatchObject({ type: "train", unitType: "villager" });
-    expect(decisions.balanced).toMatchObject({ type: "attack", targetId: "enemy-militia" });
-    expect(decisions.raider).toMatchObject({ type: "attack", targetId: "enemy-villager" });
+    expect(decisions.balanced).toMatchObject({ type: "castAbility", abilityId: "shieldWall", target: { kind: "self" } });
+    expect(decisions.raider).toMatchObject({ type: "castAbility", abilityId: "pinningVolley", target: { kind: "ground", point: { x: 11, y: 7 } } });
+  });
+
+  it("skips staggered casters when selecting an active ability", () => {
+    const observation = combatObservation();
+    const pressured: AiObservation = {
+      ...observation,
+      ownEntities: observation.ownEntities.map((candidate) => candidate.id === "own-warrior"
+        ? { ...candidate, position: { x: 11, y: 6 }, statuses: [{ id: "stagger", expiresAtTick: 8 }] }
+        : candidate),
+    };
+    const command = createAiController("aggressor", "player-1", 911).decide(pressured, 5)[0];
+    expect(command).toMatchObject({ type: "castAbility", casterId: "own-archer", abilityId: "pinningVolley" });
+  });
+
+  it("selects a canonical counter unit from the visible enemy composition", () => {
+    const state = createInitialState({ seed: 92, matchId: "ai-counter-composition" });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const home = state.entities.find((candidate) => candidate.kind === "building" && candidate.ownerId === player.id && candidate.typeId === "townCenter")!;
+    const enemy = state.entities.find((candidate) => candidate.kind === "unit" && candidate.ownerId === "player-2")!;
+    player.settlementTier = "artificer";
+    player.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    state.tick = 20;
+    enemy.typeId = "archer";
+    enemy.position = { x: home.position.x + 4, y: home.position.y };
+
+    const command = createAiController("balanced", player.id, 92, "veteran")
+      .decide(getAiObservation(state, player.id), 5)[0];
+    expect(command).toMatchObject({ type: "build", buildingType: "beastStable" });
+    expect(validateCommand(state, envelope(state, 0, command!))).toEqual({ ok: true });
   });
 
   it("does not expose or react to enemy state outside current vision", () => {
@@ -60,6 +216,18 @@ describe("shared AI personalities", () => {
     hiddenEnemy!.hitPoints = 1;
     hiddenEnemy!.stateRevision += 100;
     enemyPlayer!.resources = { food: 9999, wood: 9999, stone: 9999 };
+    enemyPlayer!.completedTechnologyIds = ["surveyedFoundations"];
+    if (hiddenEnemy?.kind === "building") {
+      hiddenEnemy.rallyPoint = { x: 20, y: 20 };
+      hiddenEnemy.productionQueue = [{
+        jobId: { commandSequence: 9, itemIndex: 0 },
+        kind: "research",
+        technologyId: "starfireBores",
+        remainingTicks: TECHNOLOGIES.starfireBores.researchTicks,
+        totalTicks: TECHNOLOGIES.starfireBores.researchTicks,
+        paidCost: { ...TECHNOLOGIES.starfireBores.cost },
+      }];
+    }
 
     const baseline = getAiObservation(state, "player-1");
     const afterHiddenChange = getAiObservation(changedHiddenState, "player-1");
@@ -68,6 +236,8 @@ describe("shared AI personalities", () => {
     expect(baseline.ownEntities.every((entity) => entity.ownerId === "player-1")).toBe(true);
     expect(createAiController("balanced", "player-1", 33).decide(afterHiddenChange, 5))
       .toEqual(createAiController("balanced", "player-1", 33).decide(baseline, 5));
+    expect(afterHiddenChange.settlementTier).toBe(state.players[0]!.settlementTier);
+    expect(afterHiddenChange.advancement).toEqual(state.players[0]!.advancement);
   });
 
   it("normalizes entity order and rejects invalid remembered sites", () => {
@@ -85,9 +255,7 @@ describe("shared AI personalities", () => {
     const baseline = getAiObservation(state, "player-1", remembered);
     const reordered = getAiObservation(reversed, "player-1", [...remembered].reverse());
     expect(reordered).toEqual(baseline);
-    expect(baseline.rememberedEnemySites).toEqual([
-      { entityId: "enemy-1", lastKnownPosition: { x: 11, y: 11 }, observedAtTick: 0 },
-    ]);
+    expect(baseline.rememberedEnemySites).toEqual([]);
   });
 
   it("does not train into a saturated town-center queue", () => {
@@ -95,9 +263,14 @@ describe("shared AI personalities", () => {
     const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
     expect(townCenter?.kind).toBe("building");
     if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
-    townCenter.trainingQueue = Array.from({ length: MAX_TRAINING_QUEUE_DEPTH }, () => ({ unitType: "villager" as const, remainingTicks: 120 }));
-    state.players[0]!.population.used += MAX_TRAINING_QUEUE_DEPTH;
-
+    townCenter.productionQueue = Array.from({ length: MAX_TRAINING_QUEUE_DEPTH }, (_, index) => ({
+      jobId: { commandSequence: 0, itemIndex: index },
+      kind: "train" as const,
+      unitType: "villager" as const,
+      remainingTicks: 120,
+      totalTicks: 120,
+      paidCost: { ...UNITS.villager.cost },
+    }));
     const observation = getAiObservation(state, "player-1");
     const commands = createAiController("prosperer", "player-1", 151).decide(observation, 5);
     expect(observation.ownTrainingQueueDepth[townCenter.id]).toBe(MAX_TRAINING_QUEUE_DEPTH);
@@ -106,41 +279,111 @@ describe("shared AI personalities", () => {
     expect(validateCommand(state, envelope(state, 0, commands[0]!))).toEqual({ ok: true });
   });
 
-  it("keeps every personality command legal during a deterministic 10,000-tick run", () => {
+  it("sets one legal personality rally before starting military production", () => {
+    let state = createInitialState({ seed: 152, matchId: "ai-rally-before-training" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
+    state.entities.push({
+      ...townCenter,
+      id: "ai-rally-barracks",
+      typeId: "barracks",
+      position: { x: 10, y: 10 },
+      hitPoints: 650,
+      maxHitPoints: 650,
+      rallyPoint: null,
+      productionQueue: [],
+    });
+    state.players[0]!.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    state.tick = 20;
+    const controller = createAiController("aggressor", "player-1", 152, "standard");
+    const rally = controller.decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(rally).toMatchObject({ type: "setRallyPoint", producerId: "ai-rally-barracks" });
+    expect(validateCommand(state, envelope(state, 0, rally!))).toEqual({ ok: true });
+
+    state = applyCommand(state, envelope(state, 0, rally!)).state;
+    state = stepSimulation(state, [], 20).state;
+    const train = controller.decide(getAiObservation(state, "player-1"), 5)[0];
+    expect(train).toMatchObject({ type: "train", producerId: "ai-rally-barracks", unitType: "warrior" });
+    expect(validateCommand(state, envelope(state, 1, train!))).toEqual({ ok: true });
+  });
+
+  it("cancels only a stable tail training job when queued population exceeds capacity", () => {
+    const state = createInitialState({ seed: 153, matchId: "ai-capacity-recovery" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
+    state.players[0]!.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const queued = applyCommand(state, envelope(state, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 5 })).state;
+    queued.players[0]!.population.capacity = 7;
+    const observation = getAiObservation(queued, "player-1");
+    expect(observation.population.used).toBeGreaterThan(observation.population.capacity);
+    const command = createAiController("prosperer", "player-1", 153, "veteran").decide(observation, 5)[0];
+    expect(command).toEqual({ type: "cancelProduction", producerId: townCenter.id, jobId: { commandSequence: 0, itemIndex: 4 } });
+    expect(validateCommand(queued, envelope(queued, 1, command!))).toEqual({ ok: true });
+  });
+
+  it("does not double-count queued population when capacity still covers the authoritative used total", () => {
+    const state = createInitialState({ seed: 154, matchId: "ai-capacity-no-false-positive" });
+    const townCenter = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter");
+    expect(townCenter?.kind).toBe("building");
+    if (!townCenter || townCenter.kind !== "building") throw new Error("missing player town center");
+    state.players[0]!.resources = { food: 5_000, wood: 5_000, stone: 5_000 };
+    const queued = applyCommand(state, envelope(state, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 5 })).state;
+    const observation = getAiObservation(queued, "player-1");
+    expect(observation.population).toEqual({ used: 8, capacity: 10 });
+    const command = createAiController("prosperer", "player-1", 154, "veteran").decide(observation, 5)[0];
+    expect(command?.type).not.toBe("cancelProduction");
+    if (command) expect(validateCommand(queued, envelope(queued, 1, command))).toEqual({ ok: true });
+  });
+
+  it("keeps every personality command legal until advancement or a legitimate victory", () => {
     const expectedProduction = {
-      aggressor: { building: "barracks", unit: "militia" },
-      guardian: { building: "barracks", unit: "spearman" },
+      aggressor: { building: "barracks", unit: "warrior" },
+      guardian: { building: "barracks", unit: "shieldBearer" },
       prosperer: { building: "archeryRange", unit: "archer" },
-      balanced: { building: "archeryRange", unit: "archer" },
-      raider: { building: "beastStable", unit: "scout" },
+      balanced: { building: "barracks", unit: "shieldBearer" },
+      raider: { building: "beastStable", unit: "boarRider" },
     } as const;
+    const strategicSignatures = new Set<string>();
     for (const personality of PERSONALITIES) {
-      const result = runAiForTicks(personality, 10_000);
+      const result = runAiForTicks(personality, 18_000);
       const expected = expectedProduction[personality];
       const ownedTypes = result.state.entities.filter((entity) => entity.ownerId === "player-1").map((entity) => entity.typeId).sort();
+      const wonByVictory = result.state.phase === "finished"
+        && result.state.winningTeamIds.includes("team-1");
+      const progressionDebug = `tick=${result.state.tick} phase=${result.state.phase} reason=${result.state.finishReason} winners=${result.state.winningTeamIds.join(",")} wallet=${JSON.stringify(result.state.players[0]!.resources)} owns=${ownedTypes.join(",")} deposits=${result.depositCount} advancement=${JSON.stringify(result.state.players[0]!.advancement)}`;
       expect(result.rejections, `${personality} emitted rejected commands`).toEqual([]);
       expect(result.commandCount, `${personality} should exercise at least one decision`).toBeGreaterThan(0);
+      expect(result.depositCount, `${personality} should complete at least one carry and drop-off cycle`).toBeGreaterThan(0);
+      expect(result.strongholdReachedAt !== null || wonByVictory, `${personality} should reach stronghold or win legitimately; ${progressionDebug}`).toBe(true);
+      if (result.strongholdReachedAt !== null) {
+        expect(result.strongholdReachedAt, `${personality} should reach stronghold in a reasonable time`).toBeLessThanOrEqual(6_000);
+      } else {
+        expect(result.state.tick, `${personality} should win in a reasonable time`).toBeLessThanOrEqual(6_000);
+      }
       expect(result.state.entities.some((entity) => (
         entity.kind === "building"
         && entity.ownerId === "player-1"
         && entity.typeId === expected.building
         && entity.complete
       )), `${personality} should complete ${expected.building}; owns ${ownedTypes.join(",")}`).toBe(true);
-      expect(result.state.entities.some((entity) => (
-        entity.kind === "unit"
-        && entity.ownerId === "player-1"
-        && entity.typeId === expected.unit
-      )), `${personality} should train ${expected.unit}`).toBe(true);
+      expect(result.producedUnitTypes, `${personality} should train ${expected.unit}`).toContain(expected.unit);
+      const telemetry = result.strategicSnapshot.telemetry;
+      expect(telemetry.decisions, `${personality} should make strategic decisions`).toBeGreaterThan(0);
+      expect(telemetry.wavesLaunched + telemetry.scoutsSent, `${personality} should scout or launch an assault`).toBeGreaterThan(0);
+      strategicSignatures.add(`${telemetry.wavesLaunched}:${telemetry.scoutsSent}:${telemetry.retreatsOrdered}:${telemetry.repairsOrdered}`);
     }
-  }, 30_000);
+    expect(strategicSignatures.size, "all five AI personalities should produce distinct 30-minute strategic telemetry").toBe(PERSONALITIES.length);
+  }, 300_000);
 
   it("takes the balanced profile from economy through barracks, production, and an advance", () => {
-    const result = runAiForTicks("balanced", 3_000);
+    const result = runAiForTicks("balanced", 7_000);
     expect(result.rejections).toEqual([]);
     expect(result.state.entities.some((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "barracks" && entity.complete)).toBe(true);
     expect(result.peakMilitary).toBeGreaterThanOrEqual(3);
     expect(result.advancedBeyondHome).toBe(true);
-  });
+  }, 60_000);
 
   it("keeps all personalities legal against village terrain and the reserved breach route", () => {
     for (const personality of PERSONALITIES) {
@@ -148,7 +391,7 @@ describe("shared AI personalities", () => {
       expect(result.rejections, `${personality} rejected a village-map command`).toEqual([]);
       expect(result.commandCount).toBeGreaterThan(0);
     }
-  }, 30_000);
+  }, 300_000);
 
   it("distinguishes damaged completed buildings from active construction", () => {
     const state = createInitialState({ seed: 171, matchId: "damaged-complete-building" });
@@ -172,7 +415,7 @@ describe("shared AI personalities", () => {
       typeId: "barracks",
       hitPoints: 625,
       maxHitPoints: 650,
-      trainingQueue: [],
+      productionQueue: [],
     });
     state.players[0]!.resources = { food: 0, wood: 0, stone: 0 };
     const command = createAiController("aggressor", "player-1", 173).decide(getAiObservation(state, "player-1"), 5)[0];
@@ -191,7 +434,7 @@ describe("shared AI personalities", () => {
       typeId: "barracks",
       hitPoints: 650,
       maxHitPoints: 650,
-      trainingQueue: [],
+      productionQueue: [],
     });
     state.players[0]!.resources = { food: 0, wood: 0, stone: 0 };
     state.tick = 20;
@@ -210,6 +453,133 @@ describe("shared AI personalities", () => {
     };
     expect(createAiController("guardian", "player-1", 175).decide(guarded, 5)[0]).toMatchObject({ type: "patrol" });
   });
+
+  it("uses the selected village terrain while treating open gates and rubble as placement-only blockers", () => {
+    const state = createInitialState({
+      seed: 176,
+      map: { id: "villageAssault", width: 18, height: 16, layoutId: "highcrag" },
+    });
+    const gate = state.entities.find((entity): entity is BuildingEntityState => (
+      entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "surveyGate"
+    ));
+    expect(gate).toBeDefined();
+    gate!.gateOpen = true;
+    const gateCells = getEntityFootprintCells(gate!);
+    const openModel = getAiKnownSpatialModel(getAiObservation(state, "player-1"));
+    expect(openModel.walkBlockedCells).not.toEqual(expect.arrayContaining(gateCells));
+    expect(openModel.placementBlockedCells).toEqual(expect.arrayContaining(gateCells));
+    expect(openModel.walkBlockedCells).toEqual(expect.arrayContaining(getVillageAssaultWalkBlockedCells("highcrag")));
+    expect(openModel.placementBlockedCells).toEqual(expect.arrayContaining(getVillageAssaultBuildBlockedCells("highcrag")));
+
+    gate!.hitPoints = 0;
+    const breached = stepSimulation(state, [], 1).state;
+    const observation = getAiObservation(breached, "player-1");
+    const rubble = observation.visibleWorldEntities.find((entity) => entity.kind === "rubble" && entity.typeId === "surveyGate");
+    expect(rubble).toBeDefined();
+    expect(observation.visibleTileIndices).toEqual(getPlayerVisibilityState(breached, "player-1").visibleTileIndices);
+    expect(observation.exploredTileIndices).toEqual(getPlayerVisibilityState(breached, "player-1").exploredTileIndices);
+    const rubbleCells = getFootprintCells(rubble!.position, getBuildingFootprint("surveyGate", rubble!.orientation));
+    const breachedModel = getAiKnownSpatialModel(observation);
+    expect(breachedModel.walkBlockedCells).not.toEqual(expect.arrayContaining(rubbleCells));
+    expect(breachedModel.placementBlockedCells).toEqual(expect.arrayContaining(rubbleCells));
+  });
+
+  it("uses only last-seen fortification topology and never treats a remembered open gate as walk-blocking", () => {
+    const base = combatObservation();
+    const observation: AiObservation = {
+      ...base,
+      map: { id: "open", width: 16, height: 12 },
+      visibleTileIndices: Array.from({ length: 16 * 12 }, (_, index) => index),
+      exploredTileIndices: Array.from({ length: 16 * 12 }, (_, index) => index),
+      rememberedEnemySites: [
+        { entityId: "closed-gate", typeId: "surveyGate", lastKnownPosition: { x: 10, y: 4 }, observedAtTick: 0, orientation: "ne", gateOpen: false, blocksMovement: true },
+        { entityId: "open-gate", typeId: "surveyGate", lastKnownPosition: { x: 10, y: 7 }, observedAtTick: 0, orientation: "se", gateOpen: true, blocksMovement: false },
+      ],
+    };
+    const model = getAiKnownSpatialModel(observation);
+    const closedCells = getFootprintCells({ x: 10, y: 4 }, getBuildingFootprint("surveyGate", "ne"));
+    const openCells = getFootprintCells({ x: 10, y: 7 }, getBuildingFootprint("surveyGate", "se"));
+    expect(model.walkBlockedCells).toEqual(expect.arrayContaining(closedCells));
+    expect(model.walkBlockedCells).not.toEqual(expect.arrayContaining(openCells));
+    expect(model.placementBlockedCells).toEqual(expect.arrayContaining([...closedCells, ...openCells]));
+  });
+
+  it("gathers with only idle villagers that have visible routes to both the source and a drop-off", () => {
+    const width = 10;
+    const height = 7;
+    const walls = Array.from({ length: height }, (_, y) => ({
+      ...entity(`wall-${y}`, "player-1", "building", "resinPalisade", 5, y),
+      complete: true,
+      blocksMovement: true,
+    }));
+    const idle = {
+      ...entity("idle-villager", "player-1", "unit", "villager", 2, 4),
+      cargo: { kind: null, amount: 0, capacity: 10 },
+      civilianActivity: "idle" as const,
+    };
+    const busy = {
+      ...entity("busy-villager", "player-1", "unit", "villager", 3, 4),
+      cargo: { kind: null, amount: 0, capacity: 10 },
+      civilianActivity: "gathering" as const,
+    };
+    const isolated = {
+      ...entity("isolated-villager", "player-1", "unit", "villager", 8, 4),
+      cargo: { kind: null, amount: 0, capacity: 10 },
+      civilianActivity: "idle" as const,
+    };
+    const town = {
+      ...entity("town", "player-1", "building", "townCenter", 0, 0),
+      complete: true,
+      blocksMovement: true,
+    };
+    const resource: PublicEntityState = {
+      id: "wood-node",
+      ownerId: null,
+      kind: "resource",
+      typeId: "wood",
+      position: { x: 3, y: 5 },
+      hitPoints: 500,
+      maxHitPoints: 500,
+      stateRevision: 0,
+      resourceNode: { amount: 500, maxAmount: 500, renewAtTick: null },
+    };
+    const observation: AiObservation = {
+      serverTick: 0,
+      selfPlayerId: "player-1",
+      wallet: { food: 0, wood: 0, stone: 0 },
+      population: { used: 3, capacity: 10 },
+      settlementTier: "frontier",
+      advancement: null,
+      map: { id: "open", width, height },
+      ownEntities: [town, idle, busy, isolated, ...walls],
+      ownTrainingQueueDepth: { town: 0 },
+      ownProductionQueues: { town: [] },
+      ownRallyPoints: { town: null },
+      completedTechnologyIds: [],
+      ownIncompleteBuildingIds: [],
+      visibleEnemyEntities: [],
+      visibleResourceEntities: [resource],
+      visibleWorldEntities: [],
+      visibleTileIndices: Array.from({ length: width * height }, (_, index) => index),
+      exploredTileIndices: Array.from({ length: width * height }, (_, index) => index),
+      rememberedEnemySites: [],
+    };
+    expect(createAiController("balanced", "player-1", 177, "veteran").decide(observation, 5)[0]).toEqual({
+      type: "gather",
+      entityIds: ["idle-villager"],
+      targetId: "wood-node",
+    });
+  });
+
+  it("keeps every personality legal on all authored fortified layouts", () => {
+    for (const layoutId of ["pinehold", "riverstead", "highcrag"] as const) {
+      for (const personality of PERSONALITIES) {
+        const result = runFortifiedAiForTicks(personality, layoutId, 1_500);
+        expect(result.rejections, `${layoutId}/${personality} emitted rejected commands`).toEqual([]);
+        expect(result.commandCount, `${layoutId}/${personality} should exercise at least one decision`).toBeGreaterThan(0);
+      }
+    }
+  }, 300_000);
 });
 
 function combatObservation(): AiObservation {
@@ -217,8 +587,8 @@ function combatObservation(): AiObservation {
     entity("own-town-center", "player-1", "building", "townCenter", 6, 6),
     entity("own-barracks", "player-1", "building", "barracks", 7, 6),
     entity("own-villager", "player-1", "unit", "villager", 6, 7),
-    entity("own-militia", "player-1", "unit", "militia", 7, 7),
-    entity("own-spearman", "player-1", "unit", "spearman", 8, 7),
+    entity("own-warrior", "player-1", "unit", "warrior", 7, 7),
+    entity("own-shield", "player-1", "unit", "shieldBearer", 8, 7),
     entity("own-archer", "player-1", "unit", "archer", 9, 7),
   ];
   return {
@@ -226,16 +596,23 @@ function combatObservation(): AiObservation {
     selfPlayerId: "player-1",
     wallet: { food: 500, wood: 500, stone: 500 },
     population: { used: 4, capacity: 10 },
+    settlementTier: "artificer",
+    advancement: null,
     map: { id: "open", width: 32, height: 32 },
     ownEntities,
     ownTrainingQueueDepth: { "own-town-center": 0, "own-barracks": 0 },
+    ownProductionQueues: { "own-town-center": [], "own-barracks": [] },
+    completedTechnologyIds: [],
     ownIncompleteBuildingIds: [],
     visibleEnemyEntities: [
       entity("enemy-town-center", "player-2", "building", "townCenter", 12, 6),
       entity("enemy-villager", "player-2", "unit", "villager", 11, 7),
-      entity("enemy-militia", "player-2", "unit", "militia", 8, 6),
+      entity("enemy-warrior", "player-2", "unit", "warrior", 8, 6),
     ],
     visibleResourceEntities: [],
+    visibleWorldEntities: [],
+    visibleTileIndices: Array.from({ length: 32 * 32 }, (_, index) => index),
+    exploredTileIndices: Array.from({ length: 32 * 32 }, (_, index) => index),
     rememberedEnemySites: [],
   };
 }
@@ -257,6 +634,10 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
   readonly state: MatchState;
   readonly peakMilitary: number;
   readonly advancedBeyondHome: boolean;
+  readonly strongholdReachedAt: number | null;
+  readonly producedUnitTypes: readonly UnitType[];
+  readonly depositCount: number;
+  readonly strategicSnapshot: AiStrategicSnapshot;
 } {
   let state = createInitialState({
     seed: 20260717,
@@ -272,8 +653,12 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
   let commandCount = 0;
   let peakMilitary = 0;
   let advancedBeyondHome = false;
+  let strongholdReachedAt: number | null = null;
+  let depositCount = 0;
+  const producedUnitTypes = new Set<UnitType>();
 
   for (let index = 0; index < ticks; index += 1) {
+    if (state.phase !== "playing") break;
     const commands = controller.decide(getAiObservation(state, "player-1"), 5);
     for (const command of commands) {
       const commandEnvelope = envelope(state, sequence, command);
@@ -286,13 +671,55 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
       sequence += 1;
       commandCount += 1;
     }
-    state = stepSimulation(state, [], 1).state;
+    const stepped = stepSimulation(state, [], 1);
+    state = stepped.state;
+    depositCount += stepped.events.filter((event) => event.type === "resourcesDeposited" && event.playerId === "player-1").length;
+    if (strongholdReachedAt === null && state.players[0]!.settlementTier !== "frontier") strongholdReachedAt = state.tick;
     const military = state.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId !== "villager");
+    for (const unit of military) producedUnitTypes.add(unit.typeId);
     peakMilitary = Math.max(peakMilitary, military.length);
     advancedBeyondHome ||= military.some((unit) => unit.position.x > 10);
   }
 
-  return { commandCount, rejections, state, peakMilitary, advancedBeyondHome };
+  return {
+    commandCount,
+    rejections,
+    state,
+    peakMilitary,
+    advancedBeyondHome,
+    strongholdReachedAt,
+    producedUnitTypes: [...producedUnitTypes].sort(),
+    depositCount,
+    strategicSnapshot: controller.getStrategicSnapshot(),
+  };
+}
+
+function runFortifiedAiForTicks(
+  personality: AiPersonality,
+  layoutId: "pinehold" | "riverstead" | "highcrag",
+  ticks: number,
+): { readonly commandCount: number; readonly rejections: readonly string[] } {
+  let state = createInitialState({
+    seed: 20260721,
+    matchId: `fortified-${layoutId}-${personality}`,
+    map: { id: "villageAssault", width: 18, height: 16, layoutId },
+  });
+  const controller = createAiController(personality, "player-1", 20260721, "standard");
+  const rejections: string[] = [];
+  let sequence = 0;
+  let commandCount = 0;
+  for (let index = 0; index < ticks && state.phase === "playing"; index += 1) {
+    for (const command of controller.decide(getAiObservation(state, "player-1"), 5)) {
+      const commandEnvelope = envelope(state, sequence, command);
+      const validation = validateCommand(state, commandEnvelope);
+      if (validation.ok) state = applyCommand(state, commandEnvelope).state;
+      else rejections.push(`${state.tick}:${validation.code}:${JSON.stringify(command)}`);
+      sequence += 1;
+      commandCount += 1;
+    }
+    state = stepSimulation(state, [], 1).state;
+  }
+  return { commandCount, rejections };
 }
 
 function envelope(state: MatchState, sequence: number, command: GameCommand) {

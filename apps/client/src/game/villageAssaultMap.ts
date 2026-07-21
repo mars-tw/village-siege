@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { isVillageAssaultBuildableCell, type GridPoint as SharedGridPoint } from "@village-siege/shared";
+import { isVillageAssaultBuildableCell, type GridPoint as SharedGridPoint, type VillageAssaultLayoutId } from "@village-siege/shared";
 import { gridToWorld, type ScreenPoint } from "./isometric";
 
 export const VILLAGE_ASSAULT_ORIGIN: ScreenPoint = { x: 780, y: 70 };
@@ -12,23 +12,17 @@ export interface SettlementOverlay {
 }
 
 export function drawSettlementOverlay(scene: Phaser.Scene, origin = VILLAGE_ASSAULT_ORIGIN): SettlementOverlay {
-  const zones = scene.add.graphics();
   const props = scene.add.graphics();
-  const labels: Phaser.GameObjects.Text[] = [];
   const placement = scene.add.graphics();
-  const container = scene.add.container(origin.x, origin.y, [zones, props, ...labels, placement]);
+  const container = scene.add.container(origin.x, origin.y, [props, placement]);
   container.setName("village-assault-settlement-overlay");
 
-  drawBaseBoundary(zones, { x: 2, y: 7 }, 0x315e4d);
-  drawBaseBoundary(zones, { x: 15, y: 7 }, 0x8f3b3a);
   drawWorksiteProps(props);
-  addSign(scene, container, labels, { x: 2, y: 3 }, "西境營造區", "建屋 · 採集 · 徵召", 0x315e4d);
-  addSign(scene, container, labels, { x: 15, y: 11 }, "東境敵寨", "截斷補給 · 摧毀主城", 0x8f3b3a);
   return { container, placement, destroy: () => container.destroy(true) };
 }
 
-export function isSettlementBuildable(point: SharedGridPoint): boolean {
-  return isVillageAssaultBuildableCell(point);
+export function isSettlementBuildable(point: SharedGridPoint, layoutId?: VillageAssaultLayoutId): boolean {
+  return isVillageAssaultBuildableCell(point, layoutId);
 }
 
 export function drawPlacementFootprint(
@@ -63,23 +57,28 @@ export function drawPlacementFootprint(
   });
 }
 
-function drawBaseBoundary(g: Phaser.GameObjects.Graphics, center: SharedGridPoint, color: number): void {
-  const points = [
-    gridToWorld({ x: center.x - 3.1, y: center.y - 3.1 }, { x: 0, y: 0 }),
-    gridToWorld({ x: center.x + 3.1, y: center.y - 3.1 }, { x: 0, y: 0 }),
-    gridToWorld({ x: center.x + 3.1, y: center.y + 3.1 }, { x: 0, y: 0 }),
-    gridToWorld({ x: center.x - 3.1, y: center.y + 3.1 }, { x: 0, y: 0 }),
-  ];
-  const first = points[0]!;
-  g.fillStyle(color, 0.08).beginPath().moveTo(first.x, first.y);
-  for (let index = 1; index < points.length; index += 1) g.lineTo(points[index]!.x, points[index]!.y);
-  g.closePath().fillPath();
-  g.lineStyle(3, color, 0.42).beginPath().moveTo(first.x, first.y);
-  for (let index = 1; index < points.length; index += 1) g.lineTo(points[index]!.x, points[index]!.y);
-  g.closePath().strokePath();
-  for (const point of points) {
-    g.fillStyle(0x34271e, 1).fillRect(point.x - 4, point.y - 25, 8, 28);
-    g.fillStyle(color, 0.95).fillTriangle(point.x, point.y - 24, point.x + 20, point.y - 17, point.x, point.y - 10);
+export function drawFogOfWar(
+  graphics: Phaser.GameObjects.Graphics,
+  mapWidth: number,
+  mapHeight: number,
+  visibleTileIndices: readonly number[],
+  exploredTileIndices: readonly number[],
+): void {
+  const visible = new Set(visibleTileIndices);
+  const explored = new Set(exploredTileIndices);
+  graphics.clear();
+  for (let y = 0; y < mapHeight; y += 1) {
+    for (let x = 0; x < mapWidth; x += 1) {
+      const index = y * mapWidth + x;
+      if (visible.has(index)) continue;
+      const world = gridToWorld({ x, y }, { x: 0, y: 0 });
+      graphics.fillStyle(explored.has(index) ? 0x13221e : 0x07100e, explored.has(index) ? 0.66 : 0.94).beginPath()
+        .moveTo(world.x, world.y - 25)
+        .lineTo(world.x + 49, world.y)
+        .lineTo(world.x, world.y + 25)
+        .lineTo(world.x - 49, world.y)
+        .closePath().fillPath();
+    }
   }
 }
 
@@ -98,41 +97,4 @@ function drawWorksiteProps(g: Phaser.GameObjects.Graphics): void {
     g.fillStyle(0xc29c43, 0.88).fillRect(world.x - 21, world.y - 7, 42, 4);
     g.lineStyle(3, 0x101917, 0.75).strokeRect(world.x - 25, world.y - 11, 50, 17);
   }
-  const route = [{ x: 5, y: 7 }, { x: 7, y: 7 }, { x: 9, y: 8 }, { x: 11, y: 8 }, { x: 13, y: 7 }];
-  g.lineStyle(4, 0xe0b866, 0.32).beginPath();
-  route.forEach((point, index) => {
-    const world = gridToWorld(point, { x: 0, y: 0 });
-    if (index === 0) g.moveTo(world.x, world.y); else g.lineTo(world.x, world.y);
-  });
-  g.strokePath();
-}
-
-function addSign(
-  scene: Phaser.Scene,
-  container: Phaser.GameObjects.Container,
-  labels: Phaser.GameObjects.Text[],
-  point: SharedGridPoint,
-  title: string,
-  subtitle: string,
-  color: number,
-): void {
-  const world = gridToWorld(point, { x: 0, y: 0 });
-  const titleText = scene.add.text(world.x, world.y - 78, title, {
-    color: "#f0ebcf",
-    fontFamily: 'Georgia, "Noto Serif TC", serif',
-    fontSize: "15px",
-    fontStyle: "bold",
-    backgroundColor: `#${color.toString(16).padStart(6, "0")}ee`,
-    padding: { x: 8, y: 4 },
-  }).setOrigin(0.5).setResolution(2);
-  const subtitleText = scene.add.text(world.x, world.y - 55, subtitle, {
-    color: "#dce9c6",
-    fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
-    fontSize: "10px",
-    fontStyle: "bold",
-    backgroundColor: "#101917c9",
-    padding: { x: 5, y: 2 },
-  }).setOrigin(0.5).setResolution(2);
-  labels.push(titleText, subtitleText);
-  container.add([titleText, subtitleText]);
 }

@@ -37,6 +37,9 @@ jobs:
         run: npm run test --workspace @village-siege/shared -- --testTimeout=120000
 
       - name: Build client for repository Pages path
+        env:
+          # Hidden until TASK026 injects and verifies the public HTTPS/WSS origin.
+          VITE_MULTIPLAYER_ENABLED: "false"
         run: npm run build --workspace @village-siege/client -- --base=/village-siege/
 
       - name: Remove non-runtime art source files

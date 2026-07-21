@@ -1,14 +1,22 @@
 import Phaser from "phaser";
-import { MultiplayerClient, type LobbySnapshot } from "../network/MultiplayerClient";
+import { MultiplayerClient, type LobbySnapshot, type MatchFrame } from "../network/MultiplayerClient";
 
 interface LobbyData { villageId?: string }
+
+const AI_SLOT_PRESETS = [
+  { personality: "aggressor", difficulty: "standard", villageId: "riverstead" },
+  { personality: "guardian", difficulty: "standard", villageId: "highcrag" },
+  { personality: "raider", difficulty: "standard", villageId: "pinehold" },
+] as const;
 
 export class MultiplayerLobbyScene extends Phaser.Scene {
   private root?: HTMLElement;
   private network = new MultiplayerClient();
   private disposers: Array<() => void> = [];
   private state?: LobbySnapshot;
+  private matchFrame?: MatchFrame;
   private villageId = "pinehold";
+  private matchHandoffStarted = false;
 
   constructor() {
     super({ key: "MultiplayerLobbyScene" });
@@ -16,6 +24,8 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
 
   init(data: LobbyData): void {
     this.villageId = data.villageId ?? "pinehold";
+    this.matchHandoffStarted = false;
+    this.matchFrame = undefined;
   }
 
   create(): void {
@@ -25,7 +35,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
     root.className = "multiplayer-lobby";
     root.innerHTML = `
       <section class="lobby-card" aria-labelledby="lobby-title">
-        <p class="select-kicker">Private multiplayer · 2–4 players</p>
+        <p class="select-kicker">Private multiplayer · 2–5 factions</p>
         <h1 id="lobby-title">多人作戰室</h1>
         <p class="lobby-status" data-status>尚未連線</p>
         <label>玩家名稱<input data-name maxlength="24" autocomplete="nickname" value="${this.escape(sessionStorage.getItem("village-siege-name") ?? "Player")}"></label>
@@ -39,12 +49,15 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
         <ul class="lobby-roster" data-roster aria-live="polite"><li>建立或加入房間後，玩家會顯示在這裡。</li></ul>
         <div class="lobby-room-actions">
           <button class="secondary-action" type="button" data-ready disabled>準備</button>
+          <button class="secondary-action" type="button" data-ai disabled>AI 對手 0</button>
           <button class="primary-action" type="button" data-start disabled>開始戰局</button>
           <button class="secondary-action" type="button" data-back>返回</button>
         </div>
       </section>`;
     host.append(root);
     this.root = root;
+    this.events.once("shutdown", this.cleanup, this);
+    this.events.once("destroy", this.cleanup, this);
 
     root.querySelector<HTMLInputElement>("[data-code]")?.addEventListener("input", (event) => {
       const input = event.currentTarget as HTMLInputElement;
@@ -56,16 +69,30 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
       const self = this.state?.players.find((player) => player.sessionId === this.state?.selfId);
       this.network.setReady(!self?.ready);
     });
+    root.querySelector("[data-ai]")?.addEventListener("click", () => this.cycleAiSlots());
     root.querySelector("[data-start]")?.addEventListener("click", () => this.network.startMatch());
     root.querySelector("[data-back]")?.addEventListener("click", () => void this.back());
 
     this.disposers.push(
       this.network.onState((state) => { this.state = state; this.render(); }),
+      this.network.onMatchFrame((frame) => {
+        this.matchFrame = frame;
+        this.render();
+        if (this.matchHandoffStarted) return;
+        this.matchHandoffStarted = true;
+        queueMicrotask(() => {
+          if (!this.sys.isActive()) return;
+          this.scene.start("VillageAssaultScene", {
+            villageId: this.villageId,
+            returnScene: "MultiplayerLobbyScene",
+            multiplayerClient: this.network,
+            firstMatchFrame: frame,
+          });
+        });
+      }),
       this.network.onConnection((status) => this.setText("[data-status]", this.connectionLabel(status))),
       this.network.onError((message) => this.setText("[data-error]", message)),
     );
-    this.events.once("shutdown", this.cleanup, this);
-    this.events.once("destroy", this.cleanup, this);
   }
 
   private async connect(mode: "create" | "join"): Promise<void> {
@@ -88,11 +115,18 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
     const code = this.root.querySelector<HTMLElement>("[data-room-code]");
     if (code) { code.hidden = false; code.textContent = `房碼 ${state.roomCode}`; }
     const roster = this.root.querySelector<HTMLElement>("[data-roster]");
-    if (roster) roster.innerHTML = state.players.map((player) => `
+    if (roster) roster.innerHTML = [
+      ...state.players.map((player) => `
       <li class="${player.connected ? "" : "is-disconnected"}">
         <strong>${this.escape(player.name)}</strong>
         <span>${this.escape(player.villageId)} · ${player.host ? "房主 · " : ""}${player.connected ? (player.ready ? "已準備" : "未準備") : "重新連線中"}</span>
-      </li>`).join("");
+      </li>`),
+      ...state.aiSlots.map((slot) => `
+      <li class="is-ai">
+        <strong>AI · ${this.escape(slot.personality)}</strong>
+        <span>${this.escape(slot.villageId)} · ${this.escape(slot.difficulty)}</span>
+      </li>`),
+    ].join("");
     const ready = this.root.querySelector<HTMLButtonElement>("[data-ready]");
     if (ready) { ready.disabled = state.phase !== "lobby"; ready.textContent = self?.ready ? "取消準備" : "準備"; }
     const start = this.root.querySelector<HTMLButtonElement>("[data-start]");
@@ -100,12 +134,33 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
       start.hidden = !self?.host;
       start.disabled = state.phase !== "lobby" || state.players.length < 2 || state.players.some((player) => !player.ready || !player.connected);
     }
-    this.setText("[data-status]", state.phase === "playing" ? `戰局進行中 · Tick ${state.serverTick}` : "已連線，等待所有玩家準備");
+    const ai = this.root.querySelector<HTMLButtonElement>("[data-ai]");
+    if (ai) {
+      ai.hidden = !self?.host;
+      ai.disabled = state.phase !== "lobby";
+      ai.textContent = `AI 對手 ${state.aiSlots.length}`;
+      ai.setAttribute("aria-label", `目前 ${state.aiSlots.length} 位 AI 對手；按下切換數量`);
+    }
+    const status = this.matchFrame
+      ? `伺服器權威戰局已連線 · Tick ${this.matchFrame.snapshot.serverTick}`
+      : state.phase === "starting"
+        ? "正在轉入獨立戰局房…"
+        : "已連線，等待所有玩家準備";
+    this.setText("[data-status]", status);
   }
 
   private async back(): Promise<void> {
     await this.network.leave();
     this.scene.start("VillageSelectScene");
+  }
+
+  private cycleAiSlots(): void {
+    if (!this.state) return;
+    const self = this.state.players.find((player) => player.sessionId === this.state?.selfId);
+    if (!self?.host || this.state.phase !== "lobby") return;
+    const capacity = Math.max(0, Math.min(AI_SLOT_PRESETS.length, 5 - this.state.players.length));
+    const nextCount = capacity === 0 ? 0 : (this.state.aiSlots.length + 1) % (capacity + 1);
+    this.network.configureAiSlots(AI_SLOT_PRESETS.slice(0, nextCount));
   }
 
   private cleanup(): void {
@@ -120,7 +175,17 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   }
 
   private connectionLabel(status: string): string {
-    return ({ offline: "尚未連線", connecting: "連線中…", connected: "已連線", reconnecting: "連線中斷，60 秒內自動重連…" } as Record<string, string>)[status] ?? status;
+    return ({
+      offline: "尚未連線",
+      connecting: "連線中…",
+      connected: "已連線",
+      reconnecting: "連線中斷，120 秒內自動重連…",
+      transportReconnecting: "連線中斷，120 秒內自動重連…",
+      recoveringHello: "正在重新驗證戰局…",
+      recoveringSnapshot: "正在恢復戰場快照…",
+      replayingCommands: "正在重播尚未確認的指令…",
+      failed: "戰局恢復失敗",
+    } as Record<string, string>)[status] ?? status;
   }
 
   private escape(value: string): string {

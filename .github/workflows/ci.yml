@@ -1,0 +1,176 @@
+name: Verify source and supply chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Type-check, test and build every workspace
+        run: npm run verify
+
+      - name: Validate asset provenance, licenses and committed-secret policy
+        run: npm run validate:compliance
+
+      - name: Validate the stripped runtime asset bundle
+        shell: bash
+        run: |
+          rm -rf apps/client/dist/assets/original/source
+          find apps/client/dist/assets/original -type f -name 'action-sheet-source.png' -delete
+          find apps/client/dist/assets/original -type f -name 'portrait.png' -delete
+          npm run validate:runtime-assets
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Generate CycloneDX SBOM
+        run: npm run --silent sbom > village-siege.cdx.json
+
+      - name: Validate CycloneDX document
+        run: node -e "const fs=require('node:fs');const sbom=JSON.parse(fs.readFileSync('village-siege.cdx.json','utf8'));if(sbom.bomFormat!=='CycloneDX'||!Array.isArray(sbom.components))throw new Error('Invalid CycloneDX SBOM')"
+
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: village-siege-cyclonedx
+          path: village-siege.cdx.json
+          if-no-files-found: error
+          retention-days: 30
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Validate local Compose contract
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: Build non-root client and server images
+        run: docker compose --env-file .env.example build client server
+
+      - name: Start the durable local stack
+        run: docker compose --env-file .env.example up --detach --wait
+
+      - name: Verify health, version and runtime users
+        shell: bash
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:8080/_health
+          curl --fail --silent --show-error http://127.0.0.1:2567/health/ready
+          curl --fail --silent --show-error http://127.0.0.1:2567/version | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const v=JSON.parse(s);if(v.version!=='0.18.0'||v.protocolVersion!=='village-siege-network/4')process.exit(1)})"
+          docker compose --env-file .env.example exec -T client node -e "const f=require('node:fs'),p=require('node:path'),c=require('node:crypto'),walk=d=>f.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(p.join(d,e.name)):[p.join(d,e.name)]);let s='';process.stdin.on('data',x=>s+=x).on('end',()=>{const m=JSON.parse(s),expected=new Map(m.assets.filter(x=>x.runtime).map(x=>[x.file.slice('apps/client/public/'.length),x])),files=walk('/app/public'),pngs=files.filter(x=>x.endsWith('.png')),bad=pngs.filter(x=>x.includes('/source/')||x.endsWith('/portrait.png')||x.endsWith('/action-sheet-source.png')),sizes=files.map(x=>f.statSync(x).size),total=sizes.reduce((a,b)=>a+b,0);for(const file of pngs){const rel=p.relative('/app/public',file).split(p.sep).join('/'),entry=expected.get(rel),hash=c.createHash('sha256').update(f.readFileSync(file)).digest('hex');if(!entry||hash!==entry.sha256){console.error({rel,hash,expected:entry?.sha256});process.exit(1)}expected.delete(rel)}if(bad.length||expected.size||pngs.length!==10||total>m.runtimeBundleBudgetBytes||Math.max(...sizes)>m.perRuntimeFileBudgetBytes){console.error({bad,missing:[...expected.keys()],pngs:pngs.length,total,largest:Math.max(...sizes)});process.exit(1)}})" < assets/release-asset-manifest.json
+          test "$(docker compose --env-file .env.example exec -T client id -u)" != "0"
+          test "$(docker compose --env-file .env.example exec -T server id -u)" != "0"
+
+      - name: Stop the local stack
+        if: always()
+        run: docker compose --env-file .env.example down --volumes
+
+  production-template:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GIT_COMMIT_SHA: ${{ github.sha }}
+      # Local-only hostnames force Caddy's internal CA during CI; no ACME call.
+      PUBLIC_GAME_HOST: play.localhost
+      PUBLIC_SERVER_HOST: server.localhost
+      ACME_EMAIL: operator@example.com
+      PRODUCTION_ENV_FILE: ${{ github.workspace }}/deploy/production.env.example
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+
+      - name: Validate operations assets and shell syntax
+        shell: bash
+        run: |
+          npm run validate:ops
+          sh -n deploy/production-compose.sh
+          sh -n deploy/server-entrypoint.sh
+          sh -n deploy/backup/backup-postgres.sh
+          sh -n deploy/backup/restore-postgres.sh
+
+      - name: Create ephemeral CI-only Docker secrets
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/village-siege-secrets"
+          chmod 0700 "$RUNNER_TEMP/village-siege-secrets"
+          node -e "const c=require('node:crypto'),f=require('node:fs'),p=process.env.RUNNER_TEMP+'/village-siege-secrets/';f.writeFileSync(p+'redis_password',c.randomBytes(48).toString('base64url')+'\n',{mode:0o444});f.writeFileSync(p+'postgres_password',c.randomBytes(48).toString('base64url')+'\n',{mode:0o444})"
+          echo "REDIS_PASSWORD_FILE=$RUNNER_TEMP/village-siege-secrets/redis_password" >> "$GITHUB_ENV"
+          echo "POSTGRES_PASSWORD_FILE=$RUNNER_TEMP/village-siege-secrets/postgres_password" >> "$GITHUB_ENV"
+
+      - name: Validate the independent production Compose and Caddy config
+        shell: bash
+        run: |
+          sh deploy/production-compose.sh config --quiet
+          docker run --rm \
+            -e ACME_EMAIL=operator@example.com \
+            -e PUBLIC_GAME_HOST=play.example.com \
+            -e PUBLIC_SERVER_HOST=server.play.example.com \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.4-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "$PWD/deploy/monitoring/alerts:/etc/prometheus/rules:ro" \
+            prom/prometheus:v3.13.1 check config /etc/prometheus/prometheus.yml
+
+      - name: Build and start the complete production template
+        run: sh deploy/production-compose.sh up --build --detach --wait postgres redis server client caddy
+
+      - name: Verify production readiness, metrics and non-root application users
+        shell: bash
+        run: |
+          sh deploy/production-compose.sh exec -T server node -e "Promise.all([fetch('http://127.0.0.1:2567/health/ready'),fetch('http://127.0.0.1:2567/metrics')]).then(async r=>{if(r.some(x=>!x.ok))process.exit(1);const m=await r[1].text();const names=['village_siege_match_rooms','village_siege_recovery_fail_stops_total','village_siege_persistence_failures_total','village_siege_tick_duration_seconds_sum','village_siege_tick_duration_seconds_count','village_siege_persistence_duration_seconds_sum','village_siege_persistence_duration_seconds_count'];if(names.some(n=>!m.includes(n)))process.exit(1)})"
+          sh deploy/production-compose.sh exec -T client node -e "fetch('http://127.0.0.1:8080/_health').then(r=>{if(!r.ok)process.exit(1)})"
+          sh deploy/production-compose.sh exec -T client node -e "const f=require('node:fs'),p=require('node:path'),c=require('node:crypto'),walk=d=>f.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(p.join(d,e.name)):[p.join(d,e.name)]);let s='';process.stdin.on('data',x=>s+=x).on('end',()=>{const m=JSON.parse(s),expected=new Map(m.assets.filter(x=>x.runtime).map(x=>[x.file.slice('apps/client/public/'.length),x])),files=walk('/app/public'),pngs=files.filter(x=>x.endsWith('.png')),sizes=files.map(x=>f.statSync(x).size),total=sizes.reduce((a,b)=>a+b,0);for(const file of pngs){const rel=p.relative('/app/public',file).split(p.sep).join('/'),entry=expected.get(rel),hash=c.createHash('sha256').update(f.readFileSync(file)).digest('hex');if(!entry||hash!==entry.sha256)process.exit(1);expected.delete(rel)}if(expected.size||pngs.length!==10||total>m.runtimeBundleBudgetBytes||Math.max(...sizes)>m.perRuntimeFileBudgetBytes)process.exit(1)})" < assets/release-asset-manifest.json
+          test "$(sh deploy/production-compose.sh exec -T server id -u)" != "0"
+          test "$(sh deploy/production-compose.sh exec -T client id -u)" != "0"
+
+      - name: Verify the live TLS edge boundary and WebSocket upgrade
+        shell: bash
+        run: |
+          curl --fail --insecure --silent --show-error --noproxy '*' --resolve play.localhost:443:127.0.0.1 --retry 20 --retry-all-errors --retry-delay 1 --retry-max-time 30 https://play.localhost/ >/dev/null
+          curl --fail --insecure --silent --show-error --noproxy '*' --resolve server.localhost:443:127.0.0.1 --retry 20 --retry-all-errors --retry-delay 1 --retry-max-time 30 https://server.localhost/health/ready >/dev/null
+          test "$(curl --insecure --silent --noproxy '*' --resolve server.localhost:443:127.0.0.1 --output /dev/null --write-out '%{http_code}' https://server.localhost/metrics)" = "404"
+          node -e "const tls=require('node:tls');const timer=setTimeout(()=>process.exit(1),5000);const socket=tls.connect({host:'127.0.0.1',port:443,servername:'server.localhost',rejectUnauthorized:false},()=>socket.write('GET / HTTP/1.1\r\nHost: server.localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nOrigin: https://play.localhost\r\n\r\n'));let response='';socket.on('data',chunk=>{response+=chunk;if(response.includes('\r\n\r\n')){clearTimeout(timer);if(!response.startsWith('HTTP/1.1 101'))process.exit(1);socket.destroy();process.exit(0)}});socket.on('error',()=>process.exit(1))"
+
+      - name: Capture production startup diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          sh deploy/production-compose.sh ps --all
+          sh deploy/production-compose.sh logs --no-color --tail 200 postgres redis server client caddy
+
+      - name: Stop the production template stack
+        if: always()
+        run: sh deploy/production-compose.sh down --volumes
