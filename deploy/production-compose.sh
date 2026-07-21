@@ -15,6 +15,18 @@ read_base64url_secret() {
     exit 1
   fi
 
+  secret_directory="$(dirname -- "$secret_path")"
+  secret_directory_mode="$(stat -c '%a' "$secret_directory")"
+  secret_file_mode="$(stat -c '%a' "$secret_path")"
+  if [ "$secret_directory_mode" != "700" ]; then
+    echo "$secret_label secret directory must have mode 0700: $secret_directory" >&2
+    exit 1
+  fi
+  if [ "$secret_file_mode" != "444" ]; then
+    echo "$secret_label secret file must have mode 0444 inside its protected directory: $secret_path" >&2
+    exit 1
+  fi
+
   secret_value="$(cat "$secret_path")"
   secret_length="${#secret_value}"
   if [ "$secret_length" -lt 32 ] || [ "$secret_length" -gt 128 ]; then
@@ -27,12 +39,14 @@ read_base64url_secret() {
       exit 1;;
   esac
 
-  printf '%s' "$secret_value"
+  unset secret_value secret_length
 }
 
-VILLAGE_SIEGE_REDIS_PASSWORD="$(read_base64url_secret Redis "$redis_password_file")"
-VILLAGE_SIEGE_POSTGRES_PASSWORD="$(read_base64url_secret PostgreSQL "$postgres_password_file")"
-export VILLAGE_SIEGE_REDIS_PASSWORD VILLAGE_SIEGE_POSTGRES_PASSWORD
+read_base64url_secret Redis "$redis_password_file"
+read_base64url_secret PostgreSQL "$postgres_password_file"
+COMPOSE_REDIS_SECRET_FILE="$redis_password_file"
+COMPOSE_POSTGRES_SECRET_FILE="$postgres_password_file"
+export COMPOSE_REDIS_SECRET_FILE COMPOSE_POSTGRES_SECRET_FILE
 
 exec docker compose \
   --env-file "$production_env_file" \

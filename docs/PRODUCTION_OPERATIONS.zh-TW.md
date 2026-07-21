@@ -16,10 +16,10 @@
 Production Compose 只引用主機上的 secret 檔，不把密碼寫入 Git 或 `.env`。Linux 範例：
 
 ```sh
-sudo install -d -m 0700 /etc/village-siege/secrets
-openssl rand -base64 48 | tr '+/' '-_' | tr -d '=\n' | sudo tee /etc/village-siege/secrets/redis_password >/dev/null
-openssl rand -base64 48 | tr '+/' '-_' | tr -d '=\n' | sudo tee /etc/village-siege/secrets/postgres_password >/dev/null
-sudo chmod 0600 /etc/village-siege/secrets/*
+sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 /etc/village-siege/secrets
+openssl rand -base64 48 | tr '+/' '-_' | tr -d '=\n' > /etc/village-siege/secrets/redis_password
+openssl rand -base64 48 | tr '+/' '-_' | tr -d '=\n' > /etc/village-siege/secrets/postgres_password
+chmod 0444 /etc/village-siege/secrets/*
 ```
 
 Redis secret 必須是 32～128 個 base64url 字元；不符合時容器會 fail closed。請用主機的 ACL／檔案擁有者限制讀取權，不要把 secret 目錄放進專案。
@@ -32,7 +32,7 @@ Redis secret 必須是 32～128 個 base64url 字元；不符合時容器會 fai
 cp deploy/production.env.example deploy/production.env
 ```
 
-在 `deploy/production.env` 填入實際兩個 hostname、ACME email 與完整 Git commit SHA。所有 production Compose 指令一律透過 `deploy/production-compose.sh` 執行；它只在短生命週期的 Compose 程序中讀取主機上的 `0600` 密碼檔，再由 Compose 以各服務專屬 UID 與 `0400` 權限掛載。密碼不會寫入映像、Git、`.env` 或應用程式環境。先驗證，再啟動：
+在 `deploy/production.env` 填入實際兩個 hostname、ACME email 與完整 Git commit SHA。所有 production Compose 指令一律透過 `deploy/production-compose.sh` 執行；它會強制檢查 secret 目錄為 `0700`、檔案為 `0444`。檔案權限讓容器內的非 root UID 可讀，但主機其他帳號無法穿越 `0700` 目錄，因此仍無法讀取。密碼不會寫入映像、Git、`.env`、程序環境或應用程式環境。先驗證，再啟動：
 
 ```sh
 sh deploy/production-compose.sh config --quiet

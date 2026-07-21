@@ -124,7 +124,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/village-siege-secrets"
-          node -e "const c=require('node:crypto'),f=require('node:fs'),p=process.env.RUNNER_TEMP+'/village-siege-secrets/';f.writeFileSync(p+'redis_password',c.randomBytes(48).toString('base64url')+'\n',{mode:0o600});f.writeFileSync(p+'postgres_password',c.randomBytes(48).toString('base64url')+'\n',{mode:0o600})"
+          chmod 0700 "$RUNNER_TEMP/village-siege-secrets"
+          node -e "const c=require('node:crypto'),f=require('node:fs'),p=process.env.RUNNER_TEMP+'/village-siege-secrets/';f.writeFileSync(p+'redis_password',c.randomBytes(48).toString('base64url')+'\n',{mode:0o444});f.writeFileSync(p+'postgres_password',c.randomBytes(48).toString('base64url')+'\n',{mode:0o444})"
           echo "REDIS_PASSWORD_FILE=$RUNNER_TEMP/village-siege-secrets/redis_password" >> "$GITHUB_ENV"
           echo "POSTGRES_PASSWORD_FILE=$RUNNER_TEMP/village-siege-secrets/postgres_password" >> "$GITHUB_ENV"
 

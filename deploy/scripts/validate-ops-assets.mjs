@@ -42,9 +42,11 @@ for (const forbidden of [
 
 const productionCompose = contents.get("deploy/production-compose.sh");
 for (const required of [
-  "VILLAGE_SIEGE_REDIS_PASSWORD",
-  "VILLAGE_SIEGE_POSTGRES_PASSWORD",
+  "COMPOSE_REDIS_SECRET_FILE",
+  "COMPOSE_POSTGRES_SECRET_FILE",
   "read_base64url_secret",
+  "secret directory must have mode 0700",
+  "secret file must have mode 0444",
   "exec docker compose",
 ]) {
   if (!productionCompose.includes(required)) throw new Error(`production Compose wrapper check missing: ${required}`);
