@@ -11,7 +11,8 @@ COPY apps/client/package.json apps/client/package.json
 COPY apps/server/package.json apps/server/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
+RUN --mount=type=cache,id=village-siege-client-npm,target=/root/.npm,sharing=locked \
+    npm ci --ignore-scripts
 
 COPY tsconfig.base.json ./
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json

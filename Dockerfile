@@ -11,7 +11,7 @@ COPY apps/client/package.json apps/client/package.json
 COPY apps/server/package.json apps/server/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=village-siege-server-build-npm,target=/root/.npm,sharing=locked \
     npm ci --ignore-scripts
 
 FROM build-dependencies AS builder
@@ -36,7 +36,7 @@ COPY apps/client/package.json apps/client/package.json
 COPY apps/server/package.json apps/server/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=village-siege-server-production-npm,target=/root/.npm,sharing=locked \
     npm ci --omit=dev --ignore-scripts \
       --workspace @village-siege/server \
       --workspace @village-siege/shared \
