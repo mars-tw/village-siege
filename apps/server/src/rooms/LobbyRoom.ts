@@ -9,6 +9,7 @@ import {
   type PlayableVillageId,
 } from "@village-siege/shared";
 import { issueMatchLaunch, revokeMatchLaunch, type AuthorizedMatchParticipant } from "../matchLaunchRegistry.js";
+import { serverMetrics } from "../observability/serverMetrics.js";
 import { createRoomCode, normalizeRoomCode } from "../roomCode.js";
 import { AiSlotState, LobbyState, PlayerState } from "../schema/GameState.js";
 
@@ -47,12 +48,16 @@ export class LobbyRoom extends Room<{
   maxMessagesPerSecond = 20;
   patchRate = 100;
   private seed = 0;
+  private metricsRegistered = false;
+  private readonly metricsConnectedSessions = new Set<string>();
 
   async onCreate(options: JoinOptions): Promise<void> {
     this.setState(new LobbyState());
     this.state.roomCode = normalizeRoomCode(options.roomCode) ?? createRoomCode();
     this.seed = randomInt(0, 0x1_0000_0000);
     await this.setMetadata({ roomCode: this.state.roomCode });
+    serverMetrics.lobbyOpened();
+    this.metricsRegistered = true;
 
     this.onMessage("lobby.ready", (client, payload: unknown) => {
       if (this.state.phase !== "lobby") return this.reject(client, "MATCH_NOT_IN_LOBBY");
@@ -90,28 +95,51 @@ export class LobbyRoom extends Room<{
     player.villageId = this.normalizeVillageId(options.villageId);
     player.host = this.state.players.size === 0;
     this.state.players.set(client.sessionId, player);
+    this.markMetricsConnected(client.sessionId);
     this.trimAiSlotsToCapacity();
   }
 
   async onDrop(client: Client): Promise<void> {
     const player = this.state.players.get(client.sessionId);
     if (player) player.connected = false;
+    this.markMetricsDisconnected(client.sessionId);
     await this.allowReconnection(client, 60);
   }
 
   onReconnect(client: Client): void {
     const player = this.state.players.get(client.sessionId);
     if (player) player.connected = true;
+    if (player) this.markMetricsConnected(client.sessionId);
   }
 
   onLeave(client: Client): void {
     const departing = this.state.players.get(client.sessionId);
     const wasHost = departing?.host === true;
     this.state.players.delete(client.sessionId);
+    this.markMetricsDisconnected(client.sessionId);
     if (wasHost) {
       const successor = this.state.players.values().next().value as PlayerState | undefined;
       if (successor) successor.host = true;
     }
+  }
+
+  onDispose(): void {
+    for (const sessionId of [...this.metricsConnectedSessions]) this.markMetricsDisconnected(sessionId);
+    if (this.metricsRegistered) {
+      serverMetrics.lobbyClosed();
+      this.metricsRegistered = false;
+    }
+  }
+
+  private markMetricsConnected(sessionId: string): void {
+    if (this.metricsConnectedSessions.has(sessionId)) return;
+    this.metricsConnectedSessions.add(sessionId);
+    serverMetrics.lobbyPlayerConnected();
+  }
+
+  private markMetricsDisconnected(sessionId: string): void {
+    if (!this.metricsConnectedSessions.delete(sessionId)) return;
+    serverMetrics.lobbyPlayerDisconnected();
   }
 
   private async startMatch(client: Client, payload: unknown): Promise<void> {

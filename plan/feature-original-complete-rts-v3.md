@@ -104,7 +104,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-023 | Add public Dockerfiles, `.env.example`, local Compose, SBOM, dependency scan and self-hosting guide without production secrets. | Yes | 2026-07-21 |
-| TASK-024 | Publish sanitized infrastructure templates for TLS, WSS, Redis, PostgreSQL, backups and monitoring while keeping live credentials outside Git. |  |  |
+| TASK-024 | Publish sanitized infrastructure templates for TLS, WSS, Redis, PostgreSQL, backups and monitoring while keeping live credentials outside Git. | Yes | 2026-07-21 |
 | TASK-025 | Pass deterministic, AI, multiplayer, Playwright mobile/desktop, performance, asset, secret and license quality gates with Codex plus Grok audit. |  |  |
 | TASK-026 | Merge the complete release, deploy the public client and a publicly reachable self-hosted authoritative server, then verify a real two-client match from the public URL. |  |  |
 

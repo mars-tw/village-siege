@@ -29,6 +29,7 @@ import {
   type MatchRecoveryStore,
 } from "../recovery/MatchRecoveryStore.js";
 import { MatchRoomState } from "../schema/GameState.js";
+import { serverMetrics } from "../observability/serverMetrics.js";
 
 interface MatchRoomOptions {
   readonly launchToken?: unknown;
@@ -94,6 +95,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
   private tickInFlight = false;
   private failStopped = false;
   private started = false;
+  private metricsRegistered = false;
 
   async onCreate(options: MatchRoomOptions): Promise<void> {
     this.seatReservationTimeout = JOIN_TIMEOUT_MILLISECONDS / 1_000;
@@ -164,6 +166,8 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
       }
       await this.persistRecoveryState();
       this.restoreReconnectLeaseTimers();
+      serverMetrics.matchOpened();
+      this.metricsRegistered = true;
     } catch (error) {
       console.error("Failed to initialize authoritative recovery", error);
       this.maxClients = 0;
@@ -207,7 +211,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
     const recoveredLease = this.disconnectedPlayers.get(participant.playerId);
     if (!recoveredLease) {
       this.playerIdBySession.set(client.sessionId, participant.playerId);
-      this.connectedPlayerIds.add(participant.playerId);
+      this.markPlayerConnected(participant.playerId);
       return;
     }
     try {
@@ -238,7 +242,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
           return;
         }
         this.playerIdBySession.set(client.sessionId, participant.playerId);
-        this.connectedPlayerIds.add(participant.playerId);
+        this.markPlayerConnected(participant.playerId);
         this.disconnectedPlayers.delete(participant.playerId);
         this.clearReconnectLeaseTimer(participant.playerId, current.generation);
         await this.persistRecoveryState();
@@ -251,7 +255,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
   async onDrop(client: Client): Promise<void> {
     const playerId = this.playerIdBySession.get(client.sessionId);
     if (!playerId || this.failStopped) return;
-    this.connectedPlayerIds.delete(playerId);
+    this.markPlayerDisconnected(playerId);
     this.negotiatedPlayerIds.delete(playerId);
     let reconnectLease: DisconnectedPlayerLease | undefined;
     try {
@@ -308,7 +312,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
           this.clock.setTimeout(() => client.leave(4008, "Reconnect lease expired"), 0);
           return;
         }
-        this.connectedPlayerIds.add(playerId);
+        this.markPlayerConnected(playerId);
         this.negotiatedPlayerIds.add(playerId);
         this.disconnectedPlayers.delete(playerId);
         this.clearReconnectLeaseTimer(playerId, lease.generation);
@@ -329,7 +333,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
     const playerId = this.playerIdBySession.get(client.sessionId);
     this.playerIdBySession.delete(client.sessionId);
     if (playerId) {
-      this.connectedPlayerIds.delete(playerId);
+      this.markPlayerDisconnected(playerId);
       this.negotiatedPlayerIds.delete(playerId);
       this.lastSyncRequestAt.delete(playerId);
     }
@@ -341,6 +345,11 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
     const lease = this.recoveryLease;
     this.recoveryLease = undefined;
     if (lease) await this.recoveryStore.release(lease).catch(() => undefined);
+    for (const playerId of [...this.connectedPlayerIds]) this.markPlayerDisconnected(playerId);
+    if (this.metricsRegistered) {
+      serverMetrics.matchClosed();
+      this.metricsRegistered = false;
+    }
   }
 
   private handleHello(client: Client, payload: unknown): void {
@@ -370,6 +379,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
 
   private async tick(): Promise<void> {
     if (this.tickInFlight || this.failStopped || !this.started || this.authority.phase !== "playing") return;
+    const startedAtNanoseconds = process.hrtime.bigint();
     this.tickInFlight = true;
     try {
       await this.serializeMutation(async () => {
@@ -388,6 +398,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
       });
     } finally {
       this.tickInFlight = false;
+      serverMetrics.observeTick(startedAtNanoseconds);
     }
   }
 
@@ -444,26 +455,33 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
   }
 
   private async persistRecoveryState(terminalCode?: string): Promise<void> {
-    const metadata = this.recoveryMetadata;
-    let lease = this.recoveryLease;
-    if (!metadata || !lease) throw new Error("Authoritative recovery lease is unavailable");
-    if (lease.expiresAtEpochMs - Date.now() <= AUTHORITY_LEASE_RENEW_THRESHOLD_MILLISECONDS) {
-      lease = await this.recoveryStore.renew(lease, AUTHORITY_LEASE_TTL_MILLISECONDS);
-      this.recoveryLease = lease;
-    }
-    await this.recoveryStore.commit(lease, metadata, {
-      authority: this.authority.recoveryRecord(),
-      disconnectedPlayers: [...this.disconnectedPlayers.values()]
-        .sort((left, right) => left.expiresAtEpochMs - right.expiresAtEpochMs
-          || left.playerId.localeCompare(right.playerId)),
-    });
-    if (terminalCode) {
-      await this.recoveryStore.markTerminal(lease, metadata, {
-        kind: "completed",
-        code: terminalCode,
-        serverTick: this.authority.serverTick,
+    const startedAtNanoseconds = process.hrtime.bigint();
+    let succeeded = false;
+    try {
+      const metadata = this.recoveryMetadata;
+      let lease = this.recoveryLease;
+      if (!metadata || !lease) throw new Error("Authoritative recovery lease is unavailable");
+      if (lease.expiresAtEpochMs - Date.now() <= AUTHORITY_LEASE_RENEW_THRESHOLD_MILLISECONDS) {
+        lease = await this.recoveryStore.renew(lease, AUTHORITY_LEASE_TTL_MILLISECONDS);
+        this.recoveryLease = lease;
+      }
+      await this.recoveryStore.commit(lease, metadata, {
+        authority: this.authority.recoveryRecord(),
+        disconnectedPlayers: [...this.disconnectedPlayers.values()]
+          .sort((left, right) => left.expiresAtEpochMs - right.expiresAtEpochMs
+            || left.playerId.localeCompare(right.playerId)),
       });
-      this.recoveryLease = undefined;
+      if (terminalCode) {
+        await this.recoveryStore.markTerminal(lease, metadata, {
+          kind: "completed",
+          code: terminalCode,
+          serverTick: this.authority.serverTick,
+        });
+        this.recoveryLease = undefined;
+      }
+      succeeded = true;
+    } finally {
+      serverMetrics.observePersistence(startedAtNanoseconds, succeeded);
     }
   }
 
@@ -587,6 +605,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
   private async failStop(code: MatchRecoveryFailureCode, error: unknown): Promise<void> {
     if (this.failStopped) return;
     this.failStopped = true;
+    serverMetrics.recoveryFailStopped();
     this.started = false;
     this.deferredClientOperations.length = 0;
     for (const timer of this.reconnectLeaseTimers.values()) timer.clear();
@@ -608,6 +627,17 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
       } satisfies MatchLifecycleMessage);
     }
     await this.disconnect(1011).catch(() => undefined);
+  }
+
+  private markPlayerConnected(playerId: string): void {
+    if (this.connectedPlayerIds.has(playerId)) return;
+    this.connectedPlayerIds.add(playerId);
+    serverMetrics.matchPlayerConnected();
+  }
+
+  private markPlayerDisconnected(playerId: string): void {
+    if (!this.connectedPlayerIds.delete(playerId)) return;
+    serverMetrics.matchPlayerDisconnected();
   }
 
   private failureCodeFor(error: unknown): MatchRecoveryFailureCode {

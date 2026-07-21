@@ -7,6 +7,32 @@ if [ -n "${REDIS_URL:-}" ] || [ -n "${DATABASE_URL:-}" ]; then
     exit 1
   fi
 else
+  if [ -n "${REDIS_PASSWORD:-}" ] && [ -n "${REDIS_PASSWORD_FILE:-}" ]; then
+    echo "Set only one of REDIS_PASSWORD or REDIS_PASSWORD_FILE" >&2
+    exit 1
+  fi
+  if [ -n "${POSTGRES_PASSWORD:-}" ] && [ -n "${POSTGRES_PASSWORD_FILE:-}" ]; then
+    echo "Set only one of POSTGRES_PASSWORD or POSTGRES_PASSWORD_FILE" >&2
+    exit 1
+  fi
+
+  if [ -n "${REDIS_PASSWORD_FILE:-}" ]; then
+    if [ ! -r "${REDIS_PASSWORD_FILE}" ]; then
+      echo "REDIS_PASSWORD_FILE is not readable" >&2
+      exit 1
+    fi
+    REDIS_PASSWORD="$(cat "${REDIS_PASSWORD_FILE}")"
+    export REDIS_PASSWORD
+  fi
+  if [ -n "${POSTGRES_PASSWORD_FILE:-}" ]; then
+    if [ ! -r "${POSTGRES_PASSWORD_FILE}" ]; then
+      echo "POSTGRES_PASSWORD_FILE is not readable" >&2
+      exit 1
+    fi
+    POSTGRES_PASSWORD="$(cat "${POSTGRES_PASSWORD_FILE}")"
+    export POSTGRES_PASSWORD
+  fi
+
   : "${REDIS_PASSWORD:?REDIS_PASSWORD is required when REDIS_URL is not set}"
   : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required when DATABASE_URL is not set}"
 
@@ -35,6 +61,7 @@ else
     process.stdout.write(url.href);
   ')"
   export REDIS_URL DATABASE_URL
+  unset REDIS_PASSWORD POSTGRES_PASSWORD
 fi
 
 exec "$@"

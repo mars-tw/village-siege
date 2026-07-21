@@ -1,0 +1,74 @@
+groups:
+  - name: village-siege-availability
+    rules:
+      - alert: VillageSiegeEndpointDown
+        expr: probe_success{job="village-siege-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Village Siege {{ $labels.component }} health probe is failing"
+          description: "The {{ $labels.component }} endpoint at {{ $labels.instance }} has failed for two minutes."
+
+      - alert: VillageSiegeHealthProbeSlow
+        expr: probe_duration_seconds{job="village-siege-health"} > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Village Siege {{ $labels.component }} health probe is slow"
+          description: "The {{ $labels.component }} health probe has exceeded two seconds for five minutes."
+
+      - alert: VillageSiegeBlackboxExporterUnavailable
+        expr: absent(up{job="blackbox-exporter"} == 1)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Village Siege blackbox monitoring is unavailable"
+          description: "Prometheus cannot scrape a healthy blackbox-exporter target."
+
+  - name: village-siege-authority
+    rules:
+      - alert: VillageSiegeServerMetricsUnavailable
+        expr: up{job="village-siege-server"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Village Siege server metrics are unavailable"
+          description: "Prometheus has not scraped the authoritative server metrics endpoint for two minutes."
+
+      - alert: VillageSiegeRecoveryFailStop
+        expr: increase(village_siege_recovery_fail_stops_total{job="village-siege-server"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Village Siege match stopped after recovery failure"
+          description: "At least one authoritative match fail-stopped during recovery in the last five minutes."
+
+      - alert: VillageSiegePersistenceFailure
+        expr: increase(village_siege_persistence_failures_total{job="village-siege-server"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Village Siege durable persistence failed"
+          description: "At least one recovery persistence operation failed in the last five minutes."
+
+      - alert: VillageSiegeTickLatencyHigh
+        expr: rate(village_siege_tick_duration_seconds_sum{job="village-siege-server"}[5m]) / clamp_min(rate(village_siege_tick_duration_seconds_count{job="village-siege-server"}[5m]), 0.001) > 0.08
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Village Siege authoritative tick latency is high"
+          description: "Mean authoritative tick execution time has exceeded 80 ms for five minutes."
+
+      - alert: VillageSiegePersistenceLatencyHigh
+        expr: rate(village_siege_persistence_duration_seconds_sum{job="village-siege-server"}[5m]) / clamp_min(rate(village_siege_persistence_duration_seconds_count{job="village-siege-server"}[5m]), 0.001) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Village Siege persistence latency is high"
+          description: "Mean recovery persistence time has exceeded 500 ms for five minutes."

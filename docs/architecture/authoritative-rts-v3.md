@@ -159,20 +159,20 @@ A transport drop immediately freezes new client commands and removes that player
 
 The server holds a fenced 120-second authority lease and renews it when no more than 60 seconds remain. Every simulation tick or batched disconnect expiry records a private checkpoint plus a bounded batch-tick journal, human-player sequence cursors, unresolved reorder entries, accepted or rejected human command results and deterministic AI command batches. Checkpoints rotate every 20 ticks. A restore validates schema/protocol/rules, participant and AI tuple, checkpoint hash, contiguous journal hashes, AI replanning, ledger fingerprints and bounds before replacing live state. Recipient delta bases are discarded, so the first recovered frame is always a full filtered snapshot.
 
-Durability ordering is write before publish: the authority commits its recovery record before sending command results or frames. A failed commit restores the previous authority record, emits a terminal lifecycle failure and stops the room without exposing the uncommitted candidate frame or winner. The default development process uses the deterministic memory adapter. When both `REDIS_URL` and `DATABASE_URL` are configured, the production adapter uses Redis owner/fence TTL routing and PostgreSQL `SELECT FOR UPDATE` records; stale owners fail before durable mutation, and the two variables are required together. Cross-room deployment routing, TLS and automated replacement-instance orchestration remain infrastructure gates in TASK-024 and TASK-026 rather than browser authority.
+Durability ordering is write before publish: the authority commits its recovery record before sending command results or frames. A failed commit restores the previous authority record, emits a terminal lifecycle failure and stops the room without exposing the uncommitted candidate frame or winner. The default development process uses the deterministic memory adapter. Production requires Redis and PostgreSQL together and refuses memory-only fallback; the adapter uses Redis owner/fence TTL routing and PostgreSQL `SELECT FOR UPDATE` records, so stale owners fail before durable mutation. TASK-024 supplies a single-replica Caddy TLS/WSS and internal data-network template plus Docker secrets, monitoring and encrypted backups. Cross-room routing, automated replacement-instance reconstruction and live public verification remain TASK-026 infrastructure gates rather than browser authority.
 
 The real TASK-020 smoke closes an actual SDK WebSocket with reconnectable code 4010, keeps the opponent's authority ticks moving, receives the lifecycle/hello/full-snapshot sequence, replays sequences 0/1/2 and proves that the two pre-drop commands retain their original result ticks and resource cost. Unit tests separately cover the 119999/120000 ms boundary, stale callbacks, same-tick duplicate snapshots, corrupted recovery state and Redis/PostgreSQL fencing rollback.
 
 ## Fully open deployment
 
-Before the public multiplayer release, the `village-siege` repository will include:
+The `village-siege` repository now includes:
 
 - MIT client, server and shared simulation.
 - Dockerfiles, `.env.example`, local Compose and self-host guide.
-- Sanitized Terraform or Compose deployment templates for TLS/WSS, Redis, PostgreSQL, encrypted backups and monitoring.
+- Sanitized production Compose for Caddy TLS/WSS, Redis, PostgreSQL, age-encrypted backups and Prometheus/Grafana monitoring.
 - No password, token, private key or other live credential.
 
-GitHub Pages currently continues to host the earlier static single-player client. TASK-023 and TASK-024 must add and validate the public container and infrastructure templates; TASK-026 must then connect the public client only after its configured `wss://` endpoint passes health, version and authoritative-match checks.
+GitHub Pages currently continues to host the earlier static single-player client. TASK-023/TASK-024 container and infrastructure templates do not by themselves create a public service; TASK-026 must connect the public client only after the real `wss://` endpoint passes health, version, edge-network and authoritative-match checks.
 
 ## Release gates
 

@@ -63,7 +63,7 @@ docker compose --env-file .env down
 - 目前固定單一 server replica。尚未加入跨程序 Colyseus Presence/Driver、戰局自動重建協調與跨區容錯，不得只把 replica 數量調大。
 - 程序內 checkpoint、journal、fenced lease 與 120 秒重連已實作；伺服器程序啟動後自動掃描並重建所有舊房間仍不在 v0.18 保證範圍。
 
-TASK-024 會提供不含真實秘密的 TLS/WSS、備份與監控範本；TASK-026 只有在公開網址完成兩個獨立瀏覽器的建造、產兵、研究、戰鬥與斷線恢復後才可宣告公開多人版上線。
+TASK-024 的 TLS/WSS、age 加密備份與 Prometheus/Grafana 範本已放在 `deploy/`，正式操作見 [production 操作指南](PRODUCTION_OPERATIONS.zh-TW.md)。TASK-026 只有在公開網址完成兩個獨立瀏覽器的建造、產兵、研究、戰鬥與斷線恢復後才可宣告公開多人版上線。
 
 ## 供應鏈與驗證
 
