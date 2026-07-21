@@ -1,6 +1,7 @@
 import { defineRoom, defineServer } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
-import { VillageSiegeRoom } from "./rooms/VillageSiegeRoom.js";
+import { LobbyRoom } from "./rooms/LobbyRoom.js";
+import { MatchRoom } from "./rooms/MatchRoom.js";
 
 export const server = defineServer({
   transport: new WebSocketTransport({
@@ -9,7 +10,8 @@ export const server = defineServer({
     maxPayload: 16 * 1024,
   }),
   rooms: {
-    village_siege: defineRoom(VillageSiegeRoom).filterBy(["roomCode"]),
+    village_siege_lobby: defineRoom(LobbyRoom).filterBy(["roomCode"]),
+    village_siege_match: defineRoom(MatchRoom),
   },
 });
 

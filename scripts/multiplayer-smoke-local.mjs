@@ -11,6 +11,9 @@ const { server } = await import("../apps/server/dist/index.js");
 try {
   const { runMultiplayerSmoke } = await import("./multiplayer-smoke.mjs");
   await runMultiplayerSmoke();
-} finally {
-  await server.gracefullyShutdown(false);
+  await server.gracefullyShutdown(true);
+} catch (error) {
+  const failure = error instanceof Error ? error : new Error(String(error));
+  await server.gracefullyShutdown(true, failure);
+  throw failure;
 }

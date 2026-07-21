@@ -91,7 +91,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-018 | Split lobby and authoritative match rooms; run fixed shared simulation ticks and accept only validated command intents in `apps/server`. |  |  |
+| TASK-018 | Split lobby and authoritative match rooms; run fixed shared simulation ticks and accept only validated command intents in `apps/server`. | Yes | 2026-07-21 |
 | TASK-019 | Add protocol and rules negotiation, command IDs, deduplication, filtered deltas, five-second snapshots and two-second canonical hashes. |  |  |
 | TASK-020 | Add 120-second reconnect leases, snapshot recovery, command journal replay and explicit server-failure outcomes. |  |  |
 | TASK-021 | Convert `VillageAssaultScene.ts` online mode to interpolate server state without locally committing resources, damage, training or victory. |  |  |

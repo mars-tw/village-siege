@@ -1,6 +1,7 @@
 import { MapSchema, Schema, type } from "@colyseus/schema";
 
-export type MatchPhase = "lobby" | "playing" | "finished";
+export type LobbyPhase = "lobby" | "starting";
+export type PublicMatchPhase = "loading" | "playing" | "finished";
 
 export class PlayerState extends Schema {
   @type("string") sessionId = "";
@@ -12,11 +13,18 @@ export class PlayerState extends Schema {
   @type("uint32") lastSequence = 0;
 }
 
-export class GameState extends Schema {
+export class LobbyState extends Schema {
   @type("string") roomCode = "";
-  @type("string") phase: MatchPhase = "lobby";
+  @type("string") phase: LobbyPhase = "lobby";
   @type("uint32") seed = 0;
-  @type("uint32") serverTick = 0;
-  @type("string") winnerId = "";
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
 }
+
+export class MatchRoomState extends Schema {
+  @type("string") matchId = "";
+  @type("string") phase: PublicMatchPhase = "loading";
+  @type("uint32") serverTick = 0;
+}
+
+/** @deprecated Use LobbyState. Kept as a source-compatible alias for extensions. */
+export class GameState extends LobbyState {}

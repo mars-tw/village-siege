@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { MultiplayerClient, type LobbySnapshot } from "../network/MultiplayerClient";
+import { MultiplayerClient, type LobbySnapshot, type MatchFrame } from "../network/MultiplayerClient";
 
 interface LobbyData { villageId?: string }
 
@@ -8,6 +8,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   private network = new MultiplayerClient();
   private disposers: Array<() => void> = [];
   private state?: LobbySnapshot;
+  private matchFrame?: MatchFrame;
   private villageId = "pinehold";
 
   constructor() {
@@ -25,7 +26,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
     root.className = "multiplayer-lobby";
     root.innerHTML = `
       <section class="lobby-card" aria-labelledby="lobby-title">
-        <p class="select-kicker">Private multiplayer · 2–4 players</p>
+        <p class="select-kicker">Private multiplayer · 2–5 players</p>
         <h1 id="lobby-title">多人作戰室</h1>
         <p class="lobby-status" data-status>尚未連線</p>
         <label>玩家名稱<input data-name maxlength="24" autocomplete="nickname" value="${this.escape(sessionStorage.getItem("village-siege-name") ?? "Player")}"></label>
@@ -61,6 +62,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
 
     this.disposers.push(
       this.network.onState((state) => { this.state = state; this.render(); }),
+      this.network.onMatchFrame((frame) => { this.matchFrame = frame; this.render(); }),
       this.network.onConnection((status) => this.setText("[data-status]", this.connectionLabel(status))),
       this.network.onError((message) => this.setText("[data-error]", message)),
     );
@@ -100,7 +102,12 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
       start.hidden = !self?.host;
       start.disabled = state.phase !== "lobby" || state.players.length < 2 || state.players.some((player) => !player.ready || !player.connected);
     }
-    this.setText("[data-status]", state.phase === "playing" ? `戰局進行中 · Tick ${state.serverTick}` : "已連線，等待所有玩家準備");
+    const status = this.matchFrame
+      ? `伺服器權威戰局已連線 · Tick ${this.matchFrame.snapshot.serverTick}`
+      : state.phase === "starting"
+        ? "正在轉入獨立戰局房…"
+        : "已連線，等待所有玩家準備";
+    this.setText("[data-status]", status);
   }
 
   private async back(): Promise<void> {

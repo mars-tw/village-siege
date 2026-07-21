@@ -449,10 +449,12 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
   const participants = options.players ?? DEFAULT_PLAYERS;
   if (participants.length < 2 || participants.length > 5) throw new RangeError("A match requires two to five factions");
   if (new Set(participants.map((player) => player.id)).size !== participants.length) throw new Error("Player ids must be unique");
-  if (new Set(participants.map((player) => player.villageId)).size !== participants.length) throw new Error("Village ids must be unique");
   if (new Set(participants.map((player) => player.teamId)).size < 2) throw new Error("A match requires at least two opposing teams");
 
   const mapId = options.map?.id ?? "open";
+  if (mapId === "open" && new Set(participants.map((player) => player.villageId)).size !== participants.length) {
+    throw new Error("Open-map village ids must be unique because they select spawn locations");
+  }
   const mapWidth = options.map?.width ?? 32;
   const mapHeight = options.map?.height ?? 32;
   if (mapId === VILLAGE_ASSAULT_MAP_ID && (mapWidth !== VILLAGE_ASSAULT_MAP_WIDTH || mapHeight !== VILLAGE_ASSAULT_MAP_HEIGHT)) {

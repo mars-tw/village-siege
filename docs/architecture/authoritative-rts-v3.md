@@ -2,7 +2,7 @@
 
 Date: 2026-07-20
 
-Status: planned; v2 multiplayer remains a lobby and command-acknowledgement prototype.
+Status: in progress; TASK-018 server authority is implemented, while protocol recovery, online rendering and full multiplayer E2E remain TASK-019 through TASK-022.
 
 ## Product boundary
 
@@ -51,15 +51,17 @@ The server rejects unsupported protocol or rules versions before joining a match
 
 ## Simulation and replication
 
-- Server simulation target: fixed 20 Hz after the authoritative-room migration.
-- Filtered state deltas: 10 Hz.
+- Server simulation: fixed 10 Hz, using the shared `TICK_MILLISECONDS = 100` rules clock. Changing this rate requires a rules-version migration because every economy, movement, combat and victory duration is expressed in simulation ticks.
+- TASK-018 replication: a complete recipient-filtered frame at 10 Hz. TASK-019 replaces this temporary transport with filtered deltas at 10 Hz plus periodic full snapshots.
 - Full player-filtered snapshot: every 5 seconds and on reconnect.
 - Canonical state hash: every 2 seconds. The current FNV-1a checksum is a deterministic change/desync hint, not a cryptographic authentication or security proof; authenticated online transport requires a server-held integrity mechanism.
 - Reconnect lease: 120 seconds.
 - Determinism: integer or fixed-point values, seeded random state, stable entity IDs and explicit sorted iteration.
 - Hash mismatch: stop delta application and request a full server snapshot; never accept a client state upload as truth.
 
-Snapshots include player/team state, resources, population, settlement tier, research, visibility, entities, orders, queues, projectiles, AI seed/state, victory state, server tick and PRNG state. Fog filtering occurs before serialization, so hidden live enemy data never reaches the browser.
+Owner-private recovery snapshots include the complete canonical player/team state, orders, queues, AI authority and PRNG state. Browser recipients instead receive only `VisibleSnapshot`: their own wallet/progression plus visibility-filtered public entities, projectiles, stale sightings and victory state. Fog filtering occurs before serialization, so hidden live enemy data never reaches the browser.
+
+TASK-018 splits `village_siege_lobby` from private `village_siege_match` rooms. A lobby consumes a process-private launch capability, uses distinct 32-byte internal tokens to reserve every participant seat server-side, and sends each browser only its own Colyseus reservation plus stable gameplay player ID. Reserving the complete roster locks the match before its room ID can be abused through public matchmaking. The match room stores canonical `MatchState` only inside `MatchAuthority`; its Colyseus schema exposes only match ID, phase and server tick. Clients submit strict `{ sequence, clientTick, command }` intents, while the server supplies trusted match/player identities, batches them into one shared fixed tick and privately sends each recipient's projected frame. Same numeric sequences from different players cannot cross-route acknowledgements, and a received queued sequence never becomes reusable after later semantic rejection.
 
 ## Versioned save, journal and replay contract
 
@@ -125,7 +127,7 @@ Every ordered command in one server-tick batch is applied before victory is eval
 
 Walls, gates, rubble, projectiles and orphaned construction sites do not preserve strategic presence. An incomplete site counts only while a living active builder is assigned to it. Surrendered or eliminated players cannot move, attack, produce, occupy objectives or preserve a victory condition, even when an allied player keeps their team in the match. A terminal result atomically records outcome, sorted winners, causal reason, trigger set, score and finish tick; it emits `matchFinished` exactly once and rejects later commands without mutation.
 
-The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. This contract does not make the current Colyseus room an authoritative battlefield: online fixed-step simulation, command routing and two-client result synchronization remain `TASK-018` through `TASK-022`. Versioned snapshot and command-journal replay belong to the owner-private TASK-016 boundary and are not evidence of authoritative online combat.
+The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. TASK-018 now supplies the Colyseus fixed-step battlefield and recipient-safe command routing; protocol negotiation/deltas, durable recovery, online Phaser rendering and full two-client result synchronization remain `TASK-019` through `TASK-022`. Versioned snapshot and command-journal replay belong to the owner-private TASK-016 boundary and are not evidence that those remaining online-play gates have passed.
 
 ## Tactical combat contract
 
