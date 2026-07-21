@@ -32,7 +32,18 @@ Redis secret 必須是 32～128 個 base64url 字元；不符合時容器會 fai
 cp deploy/production.env.example deploy/production.env
 ```
 
-在 `deploy/production.env` 填入實際兩個 hostname、ACME email 與完整 Git commit SHA。所有 production Compose 指令一律透過 `deploy/production-compose.sh` 執行；它會強制檢查 secret 目錄為 `0700`、檔案為 `0444`。檔案權限讓容器內的非 root UID 可讀，但主機其他帳號無法穿越 `0700` 目錄，因此仍無法讀取。密碼不會寫入映像、Git、`.env`、程序環境或應用程式環境。先驗證，再啟動：
+在 `deploy/production.env` 填入實際兩個 hostname、ACME email、完整 Git commit SHA 與要部署的 release tag。所有 production Compose 指令一律透過 `deploy/production-compose.sh` 執行；它會強制檢查 secret 目錄為 `0700`、檔案為 `0444`。檔案權限讓容器內的非 root UID 可讀，但主機其他帳號無法穿越 `0700` 目錄，因此仍無法讀取。密碼不會寫入映像、Git、`.env`、程序環境或應用程式環境。
+
+直接使用已簽署的公開 GHCR release 映像：
+
+```sh
+sh deploy/production-compose.sh config --quiet
+sh deploy/production-compose.sh pull client server
+sh deploy/production-compose.sh up --no-build --detach --wait
+sh deploy/production-compose.sh ps
+```
+
+若要從目前 checkout 重新建置而不使用 release 映像：
 
 ```sh
 sh deploy/production-compose.sh config --quiet
@@ -40,7 +51,7 @@ sh deploy/production-compose.sh up --build --detach --wait
 sh deploy/production-compose.sh ps
 ```
 
-Caddy 會因 host matcher 自動申請憑證、將 HTTP 導向 HTTPS，並代理瀏覽器 SDK 的 WebSocket upgrade。前端建置會固定寫入 `https://server.play.example.com`，CSP 也只開放同一個 HTTPS/WSS origin。公網 `/metrics` 會由 Caddy 回 404。
+Caddy 會因 host matcher 自動申請憑證、將 HTTP 導向 HTTPS，並代理瀏覽器 SDK 的 WebSocket upgrade。前端容器會從 `PUBLIC_CONNECT_ORIGIN` 動態產生不可快取的 `/runtime-config.js`，CSP 也只開放同一個 HTTPS/WSS origin；因此預建前端映像不需要重新編譯。公網 `/metrics` 會由 Caddy 回 404。
 
 Vanilla Caddy 沒有核心 rate-limit directive；範本不放假的 no-op 設定。正式服務仍需在可信任 CDN／WAF／負載平衡器做連線與配對速率限制，或另外建立、固定並稽核含 rate-limit module 的 Caddy image。
 

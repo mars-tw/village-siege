@@ -4,13 +4,13 @@
 
 開源專案：[github.com/mars-tw/village-siege](https://github.com/mars-tw/village-siege)
 
-## v3 開發中（尚未公開部署，2026-07-21）
+## v3 v0.18（單機公開、權威多人主機待部署，2026-07-21）
 
 - v0.18.0／TASK-022 將協定升為 `village-siege-network/4`、規則升為 `village-siege/0.17.0`。多人房主可加入最多三個伺服器權威 AI，與真人合計最多五個陣營；AI 不占 WebSocket 席位、不接收 hello／frame／ack，決策、命令、序號、恢復與 canonical hash 全留在伺服器。
 - 真實大廳 smoke 已完成 2 真人＋3 AI 的五陣營交接。600 tick 五陣營 soak 證明三個 AI 的自發命令零拒絕、雙真人 filtered snapshot／delta 全程可重建、兩次恢復產生相同最終 canonical hash；被竄改的 AI journal 會 fail-stop。
 - 逆境雙客戶端 smoke 在 Colyseus frame 抵達後，對每端精確取樣 50 個 delta、丟 1 個（2%），以 50／100／200 ms 決定論收件延遲製造亂序，通過斷鏈偵測、完整 Snapshot resync、真實 socket drop、`recovering → resumed` 與兩端最終可見 hash 收斂。這不是 proxy／netem 傳輸整形；真實 transport 證據僅涵蓋 socket drop／reconnect。另新增越權、霧區、ownerControl、ack、跨收件者 delta 與 AI authority rollback 邊界測試。
 - 配對 HTTP 與 WebSocket 握手改用共用 exact-origin 白名單，將 Colyseus 預設的 credentialed wildcard CORS 改成 credentialed exact-origin（瀏覽器 SDK 的配對 fetch 需要 credentials），限制公開方法與連線負載／逾時；靜態客戶端新增不允許 inline script／eval 的 CSP。自有部署可用 `ALLOWED_ORIGINS` 明確加入客戶端 origin。
-- v0.18 仍只在開發分支完成；Docker／Compose、公開 WSS 權威伺服器與公開網址雙客戶端終驗仍屬 TASK-023～026，因此尚未宣稱公開多人版已上線。
+- v0.18 原始碼、GitHub Pages 單機版、Docker／production Compose、TLS/WSS 邊界、監控與備份範本已通過 CI。正式 Release 會發布可匿名拉取的 `linux/amd64`／`linux/arm64` GHCR client/server 映像、SBOM 與 provenance attestation；client 以 `PUBLIC_CONNECT_ORIGIN` 啟動時注入 runtime config，同一 digest 不綁網域。長期公開 WSS 主機與真實公開雙客戶端終驗仍屬 TASK-026，因此尚未宣稱公開多人版已上線。
 
 - v0.17.0／TASK-021 將協定升為 `village-siege-network/3`、規則升為 `village-siege/0.16.0`。玩家專屬 Snapshot 新增安全的參戰者、聚落進度、己方生產控制與活動提示；生產佇列、AI authority、霧外目標與其他玩家私有資料仍不外洩。
 - `MultiplayerLobbyScene` 在第一個已驗證 frame 只交接一次，並沿用同一個 `MultiplayerClient` 啟動 `VillageAssaultScene`。線上場景使用獨立來源與 10 Hz 有界位置插值，不呼叫單機 `runtime.step()`，所有採集、建造、產兵、研究、戰術、技能與投降都只送 command intent，等待伺服器回執與 frame。

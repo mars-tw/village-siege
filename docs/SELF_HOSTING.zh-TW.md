@@ -8,6 +8,15 @@
 - Docker Engine／Docker Desktop，且包含 Compose v2。
 - 至少 4 GB 可用記憶體。
 
+## 版本化容器映像
+
+每個正式 GitHub Release 都會發布兩個 MIT 授權、可匿名拉取的多架構映像，並附 SBOM 與 GitHub provenance attestation：
+
+- `ghcr.io/mars-tw/village-siege-client:<版本>`
+- `ghcr.io/mars-tw/village-siege-server:<版本>`
+
+`linux/amd64` 與 `linux/arm64` 都受支援。前端映像不會把維運者的網域寫死在 JavaScript；容器啟動後由 `PUBLIC_CONNECT_ORIGIN` 動態提供 `/runtime-config.js`，因此同一個 digest 可部署到不同網域。正式環境的完整步驟請依照[正式環境操作指南](PRODUCTION_OPERATIONS.zh-TW.md)。
+
 ## 本機啟動
 
 在專案根目錄複製範例設定：
@@ -59,7 +68,7 @@ docker compose --env-file .env down
 - `NODE_ENV=production`。此模式缺少 `REDIS_URL` 或 `DATABASE_URL` 會直接拒絕啟動，不會靜默退回記憶體儲存。
 - `ALLOWED_ORIGINS` 只填實際 HTTPS origin，不含路徑、查詢或憑證；production 即使誤列 HTTP origin 也會拒絕。
 - 由反向代理或負載平衡器終止 TLS，對外只開 80/443；Node、Redis、PostgreSQL 不直接公開。
-- 正式前端建置必須同時設定 `VITE_MULTIPLAYER_ENABLED=true` 與精確的 `VITE_COLYSEUS_URL=https://game.example.com`；容器化靜態前端另把同一個 origin 設為 `PUBLIC_CONNECT_ORIGIN`，讓 response CSP 只開放該 HTTPS/WSS 端點。所有 `VITE_*` 都會寫入瀏覽器 bundle，絕對不能放秘密。
+- 正式容器映像保持 `VITE_MULTIPLAYER_ENABLED=false` 且不寫入 `VITE_COLYSEUS_URL`；啟動時由精確的 `PUBLIC_CONNECT_ORIGIN=https://server.play.example.com` 同時產生 runtime config 與只開放該 HTTPS/WSS 端點的 response CSP。只有另行發布至純靜態 CDN、無法使用 runtime config 時，才在自建 bundle 設定 `VITE_MULTIPLAYER_ENABLED=true` 與精確的 `VITE_COLYSEUS_URL`。所有 `VITE_*` 都會寫入瀏覽器 bundle，絕對不能放秘密。
 - 目前固定單一 server replica。尚未加入跨程序 Colyseus Presence/Driver、戰局自動重建協調與跨區容錯，不得只把 replica 數量調大。
 - 程序內 checkpoint、journal、fenced lease 與 120 秒重連已實作；伺服器程序啟動後自動掃描並重建所有舊房間仍不在 v0.18 保證範圍。
 

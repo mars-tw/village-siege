@@ -48,14 +48,13 @@ services:
       retries: 3
 
   client:
-    image: village-siege-client:${VILLAGE_SIEGE_TAG:-production}
+    image: ${VILLAGE_SIEGE_CLIENT_IMAGE:-ghcr.io/mars-tw/village-siege-client}:${VILLAGE_SIEGE_TAG:-0.18.0}
     build:
       context: ..
       dockerfile: apps/client/Dockerfile
       args:
         NODE_VERSION: ${NODE_VERSION:-24.15.0}
-        VITE_MULTIPLAYER_ENABLED: "true"
-        VITE_COLYSEUS_URL: https://${PUBLIC_SERVER_HOST:?Set the public server hostname without a scheme}
+        VITE_MULTIPLAYER_ENABLED: "false"
         VITE_BASE_URL: /
     restart: unless-stopped
     init: true
@@ -81,7 +80,7 @@ services:
     stop_grace_period: 15s
 
   server:
-    image: village-siege-server:${VILLAGE_SIEGE_TAG:-production}
+    image: ${VILLAGE_SIEGE_SERVER_IMAGE:-ghcr.io/mars-tw/village-siege-server}:${VILLAGE_SIEGE_TAG:-0.18.0}
     build:
       context: ..
       dockerfile: Dockerfile
