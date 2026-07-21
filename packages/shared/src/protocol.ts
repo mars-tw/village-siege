@@ -17,7 +17,7 @@ import {
 export type MatchId = string;
 export type PlayerId = string;
 export type EntityId = string;
-export const MATCH_PROTOCOL_VERSION = "village-siege-network/1" as const;
+export const MATCH_PROTOCOL_VERSION = "village-siege-network/2" as const;
 export type VillageId = "pinehold" | "riverstead" | "highcrag" | "marshwatch" | "sunfield";
 export type PlayableVillageId = "pinehold" | "riverstead" | "highcrag";
 export type ResourceKind = "food" | "wood" | "stone";
@@ -402,6 +402,42 @@ export interface MatchServerHello {
   readonly nextClientCommandSeq: number;
 }
 
+export const MATCH_RECOVERY_FAILURE_CODES = [
+  "RECONNECT_LEASE_EXPIRED",
+  "SERVER_UNAVAILABLE",
+  "PERSISTENCE_UNAVAILABLE",
+  "STATE_CORRUPT",
+  "LEASE_LOST",
+  "RECOVERY_TIMEOUT",
+  "SEQUENCE_DIVERGED",
+  "MATCH_ENDED",
+] as const;
+
+export type MatchRecoveryFailureCode = typeof MATCH_RECOVERY_FAILURE_CODES[number];
+
+interface MatchLifecycleMessageBase {
+  readonly protocolVersion: typeof MATCH_PROTOCOL_VERSION;
+  readonly rulesVersion: string;
+  readonly matchId: MatchId;
+  readonly recipientPlayerId: PlayerId;
+  readonly serverTick: number;
+  readonly recoveryEpoch: number;
+}
+
+export type MatchLifecycleMessage =
+  | (MatchLifecycleMessageBase & {
+      readonly type: "recovering";
+      readonly leaseExpiresAtEpochMs: number;
+    })
+  | (MatchLifecycleMessageBase & {
+      readonly type: "resumed";
+    })
+  | (MatchLifecycleMessageBase & {
+      readonly type: "failed";
+      readonly code: MatchRecoveryFailureCode;
+      readonly recoverable: boolean;
+    });
+
 interface MatchReplicationFrameBase {
   readonly protocolVersion: typeof MATCH_PROTOCOL_VERSION;
   readonly rulesVersion: string;
@@ -608,6 +644,48 @@ export function isMatchServerHello(value: unknown): value is MatchServerHello {
     && value.lastReceivedClientCommandSeq >= -1
     && isSafeInteger(value.nextClientCommandSeq)
     && value.nextClientCommandSeq === value.lastReceivedClientCommandSeq + 1;
+}
+
+export function isMatchLifecycleMessage(value: unknown): value is MatchLifecycleMessage {
+  if (!isRecord(value)) return false;
+  const variantKeys = value.type === "recovering"
+    ? ["leaseExpiresAtEpochMs"]
+    : value.type === "resumed"
+      ? []
+      : value.type === "failed"
+        ? ["code", "recoverable"]
+        : null;
+  if (!variantKeys || !hasOnlyKeys(value, [
+    "type",
+    "protocolVersion",
+    "rulesVersion",
+    "matchId",
+    "recipientPlayerId",
+    "serverTick",
+    "recoveryEpoch",
+    ...variantKeys,
+  ])) return false;
+  if (value.protocolVersion !== MATCH_PROTOCOL_VERSION
+    || typeof value.rulesVersion !== "string"
+    || value.rulesVersion.length === 0
+    || value.rulesVersion.length > 64
+    || typeof value.matchId !== "string"
+    || value.matchId.length === 0
+    || typeof value.recipientPlayerId !== "string"
+    || value.recipientPlayerId.length === 0
+    || !isSafeInteger(value.serverTick)
+    || value.serverTick < 0
+    || !isSafeInteger(value.recoveryEpoch)
+    || value.recoveryEpoch < 0) return false;
+  if (value.type === "recovering") {
+    return isSafeInteger(value.leaseExpiresAtEpochMs) && value.leaseExpiresAtEpochMs >= 0;
+  }
+  if (value.type === "failed") {
+    return typeof value.code === "string"
+      && MATCH_RECOVERY_FAILURE_CODE_SET.has(value.code)
+      && typeof value.recoverable === "boolean";
+  }
+  return true;
 }
 
 export function isMatchCommandResult(value: unknown): value is MatchCommandResult {
@@ -1000,6 +1078,8 @@ const COMMAND_RESULT_CODES = new Set<string>([
   "PROTOCOL_MISMATCH",
   "RULES_MISMATCH",
 ]);
+
+const MATCH_RECOVERY_FAILURE_CODE_SET = new Set<string>(MATCH_RECOVERY_FAILURE_CODES);
 
 function isCommandId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(value);

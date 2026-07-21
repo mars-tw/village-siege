@@ -188,9 +188,164 @@ describe("AuthoritativeMatchStore", () => {
     expect(() => store.createIntent({ type: "surrender" })).toThrow("Too many authoritative commands");
     expect(store.pendingCommandCount).toBe(16);
   });
+
+  it("recovers only after a changed hello and full snapshot, then replays exact pending intents in sequence", () => {
+    const { base, next } = snapshots();
+    const ids = [
+      "command_recovery_00",
+      "command_recovery_01",
+      "command_recovery_02",
+      "command_recovery_03",
+      "command_recovery_04",
+    ];
+    const store = new AuthoritativeMatchStore(base.matchId, base.recipientPlayerId, () => ids.shift()!);
+    store.acceptHello(hello(base.matchId, base.recipientPlayerId));
+    store.applyFrame(snapshotFrame(base));
+    const intents = Array.from({ length: 4 }, () => store.createIntent({ type: "surrender" }));
+    expect(store.applyCommandResult({
+      commandId: intents[0]!.commandId,
+      clientCommandSeq: intents[0]!.clientCommandSeq,
+      accepted: true,
+      serverTick: base.serverTick,
+    })).toMatchObject({ accepted: true });
+
+    expect(store.beginRecovery(7)).toBe(true);
+    expect(store.synchronization).toBe("awaitingReconnectHello");
+    expect(() => store.createIntent({ type: "surrender" })).toThrow("commands are frozen");
+    expect(store.applyFrame(deltaFrame(base, next))).toMatchObject({
+      accepted: false,
+      requestResync: false,
+      reason: "Delta ignored before reconnect hello",
+    });
+
+    expect(store.acceptHello(hello(base.matchId, base.recipientPlayerId, 2))).toBe(true);
+    expect(store.synchronization).toBe("awaitingRecoverySnapshot");
+    expect(store.applyFrame(deltaFrame(base, next))).toMatchObject({
+      accepted: false,
+      requestResync: true,
+      reason: "Delta ignored while awaiting the recovery snapshot",
+    });
+    expect(store.applyFrame(snapshotFrame(base))).toMatchObject({ accepted: true, duplicate: true });
+    expect(store.synchronization).toBe("replayReady");
+
+    const replay = store.pendingIntentsForReplay(7);
+    expect(replay).toEqual(intents.slice(1));
+    expect(replay.map((intent) => intent.clientCommandSeq)).toEqual([1, 2, 3]);
+    (replay[0] as { command: { type: string } }).command.type = "tampered";
+    expect(store.retryIntent(intents[1]!.commandId)).toEqual(intents[1]);
+    expect(store.finishReplay(7)).toBe(true);
+    expect(store.synchronization).toBe("synchronized");
+    expect(store.createIntent({ type: "surrender" }).clientCommandSeq).toBe(4);
+  });
+
+  it("rejects a recovery sequence gap atomically and keeps failure sticky", () => {
+    const { base } = snapshots();
+    const ids = ["command_gap_000", "command_gap_001", "command_gap_002"];
+    const store = new AuthoritativeMatchStore(base.matchId, base.recipientPlayerId, () => ids.shift()!);
+    store.acceptHello(hello(base.matchId, base.recipientPlayerId));
+    store.applyFrame(snapshotFrame(base));
+    const intents = Array.from({ length: 3 }, () => store.createIntent({ type: "surrender" }));
+    store.applyCommandResult({
+      commandId: intents[1]!.commandId,
+      clientCommandSeq: intents[1]!.clientCommandSeq,
+      accepted: true,
+      serverTick: base.serverTick,
+    });
+    const before = store.current;
+
+    expect(store.beginRecovery(11)).toBe(true);
+    expect(store.acceptHello(hello(base.matchId, base.recipientPlayerId, 0))).toBe(false);
+    expect(store.synchronization).toBe("failed");
+    expect(store.failureReason).toBe("Pending command journal is missing sequence 1");
+    expect(store.pendingCommandCount).toBe(2);
+    expect(store.current).toEqual(before);
+    expect(store.applyFrame(snapshotFrame(base))).toMatchObject({
+      accepted: false,
+      requestResync: false,
+      reason: "Pending command journal is missing sequence 1",
+    });
+    expect(store.acceptHello(hello(base.matchId, base.recipientPlayerId, 3))).toBe(false);
+    expect(store.beginRecovery(12)).toBe(false);
+    expect(store.finishReplay(11)).toBe(false);
+  });
+
+  it("fast-forwards an empty local journal to the server sequence after a full recovery snapshot", () => {
+    const { base } = snapshots();
+    const store = new AuthoritativeMatchStore(
+      base.matchId,
+      base.recipientPlayerId,
+      () => "command_after_fast_forward",
+    );
+    store.acceptHello(hello(base.matchId, base.recipientPlayerId));
+    store.applyFrame(snapshotFrame(base));
+
+    expect(store.beginRecovery(3)).toBe(true);
+    expect(store.acceptHello(hello(base.matchId, base.recipientPlayerId, 5))).toBe(true);
+    expect(store.applyFrame(snapshotFrame(base))).toMatchObject({ accepted: true });
+    expect(store.pendingIntentsForReplay(3)).toEqual([]);
+    expect(store.finishReplay(3)).toBe(true);
+    expect(store.createIntent({ type: "surrender" }).clientCommandSeq).toBe(5);
+  });
+
+  it("can recover a transport drop that happens before the first server hello", () => {
+    const { base } = snapshots();
+    const store = new AuthoritativeMatchStore(
+      base.matchId,
+      base.recipientPlayerId,
+      () => "command_after_early_drop",
+    );
+
+    expect(store.beginRecovery(1)).toBe(true);
+    expect(store.acceptHello(hello(base.matchId, base.recipientPlayerId, 4))).toBe(true);
+    expect(store.synchronization).toBe("awaitingRecoverySnapshot");
+    expect(store.applyFrame(snapshotFrame(base))).toMatchObject({ accepted: true });
+    expect(store.synchronization).toBe("replayReady");
+    expect(store.finishReplay(1)).toBe(true);
+    expect(store.createIntent({ type: "surrender" }).clientCommandSeq).toBe(4);
+  });
+
+  it("guards recovery epochs and exposes an explicit sticky failure transition", () => {
+    const { base } = snapshots();
+    const store = readyStore(base);
+
+    expect(store.beginRecovery(1)).toBe(true);
+    expect(store.beginRecovery(1)).toBe(false);
+    expect(store.beginRecovery(0)).toBe(false);
+    expect(store.beginRecovery(2)).toBe(true);
+    expect(store.recoveryEpoch).toBe(2);
+    expect(store.failRecovery(1, "stale timer")).toBe(false);
+    expect(store.synchronization).toBe("awaitingReconnectHello");
+    expect(store.failRecovery(2, "lease expired")).toBe(true);
+    expect(store.failureReason).toBe("lease expired");
+    expect(store.failRecovery(2, "replacement reason")).toBe(false);
+    expect(store.failureReason).toBe("lease expired");
+  });
+
+  it("rejects command ID collisions without consuming another sequence", () => {
+    const { base } = snapshots();
+    const store = new AuthoritativeMatchStore(
+      base.matchId,
+      base.recipientPlayerId,
+      () => "command_collision_01",
+    );
+    store.acceptHello(hello(base.matchId, base.recipientPlayerId));
+    store.applyFrame(snapshotFrame(base));
+    const first = store.createIntent({ type: "surrender" });
+
+    expect(() => store.createIntent({ type: "surrender" })).toThrow("Command ID collision");
+    expect(store.pendingCommandCount).toBe(1);
+    store.applyCommandResult({
+      commandId: first.commandId,
+      clientCommandSeq: first.clientCommandSeq,
+      accepted: true,
+      serverTick: base.serverTick,
+    });
+    expect(() => store.createIntent({ type: "surrender" })).toThrow("Command ID collision");
+    expect(store.pendingCommandCount).toBe(0);
+  });
 });
 
-function hello(matchId: string, playerId: string): MatchServerHello {
+function hello(matchId: string, playerId: string, nextClientCommandSeq = 0): MatchServerHello {
   return {
     protocolVersion: MATCH_PROTOCOL_VERSION,
     rulesVersion: RULES_VERSION,
@@ -199,8 +354,8 @@ function hello(matchId: string, playerId: string): MatchServerHello {
     tickMilliseconds: TICK_MILLISECONDS,
     fullSnapshotIntervalTicks: 50,
     canonicalHashIntervalTicks: 20,
-    lastReceivedClientCommandSeq: -1,
-    nextClientCommandSeq: 0,
+    lastReceivedClientCommandSeq: nextClientCommandSeq - 1,
+    nextClientCommandSeq,
   };
 }
 

@@ -2,7 +2,7 @@
 
 Date: 2026-07-20
 
-Status: in progress; TASK-019 versioned delta replication is implemented, while durable recovery, online rendering and full multiplayer E2E remain TASK-020 through TASK-022.
+Status: in progress; TASK-020 durable reconnect recovery is implemented, while online rendering and full adverse-network multiplayer E2E remain TASK-021 and TASK-022.
 
 ## Product boundary
 
@@ -111,7 +111,7 @@ Defeat rewards are deterministic and divided across active members of the credit
 
 Beginning with rules version `village-siege/0.11.0`, every configured AI controller is stored in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator.
 
-The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Current rules version `village-siege/0.14.0` carries this private authority through the versioned save and deterministic replay contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
+The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Current rules version `village-siege/0.15.0` carries this private authority through the versioned save, deterministic replay and reconnect-expiry revision contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
 
 AI observation is an owner-private view assembled from current fog authority. Mobile enemy memories expire after a fixed lifetime; static enemy topology persists only while the authoritative last-sighting record remains, and is removed when its footprint is re-scouted empty. Hidden unit, gate, wall or tower mutations cannot change planner output. Human `VisibleSnapshot` data never contains AI authority state, internal thresholds, target paths, force counts or wave numbers.
 
@@ -127,7 +127,7 @@ Every ordered command in one server-tick batch is applied before victory is eval
 
 Walls, gates, rubble, projectiles and orphaned construction sites do not preserve strategic presence. An incomplete site counts only while a living active builder is assigned to it. Surrendered or eliminated players cannot move, attack, produce, occupy objectives or preserve a victory condition, even when an allied player keeps their team in the match. A terminal result atomically records outcome, sorted winners, causal reason, trigger set, score and finish tick; it emits `matchFinished` exactly once and rejects later commands without mutation.
 
-The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. TASK-019 now supplies exact negotiation, idempotent commands and verified filtered delta transport; durable recovery, online Phaser rendering and full two-client result synchronization remain `TASK-020` through `TASK-022`. Versioned snapshot and command-journal replay belong to the owner-private TASK-016 boundary and are not evidence that those remaining online-play gates have passed.
+The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. TASK-020 now supplies exact negotiation, idempotent commands, verified filtered delta transport and durable reconnect replay; online Phaser rendering and the complete adverse-network E2E gate remain `TASK-021` and `TASK-022`. Versioned owner-private TASK-016 saves are distinct from the bounded online recovery record.
 
 ## Tactical combat contract
 
@@ -151,7 +151,15 @@ Every command validates membership, ownership, entity life, resource balance, po
 
 ## Recovery
 
-There is no player-host migration because no browser is authoritative. Initial production may end a match explicitly if its server instance fails. The recovery milestone stores a compressed snapshot every 2 seconds and a short command journal; a replacement instance must acquire the Redis room lease, restore the snapshot, replay the journal and accept reconnects within 15 seconds.
+There is no player-host migration because no browser is authoritative. `village-siege-network/2` gives each room a stable logical match ID independent of its temporary Colyseus room ID and defines strict `recovering`, `resumed` and `failed` lifecycle messages. Failure codes distinguish reconnect expiry, server/storage loss, corrupt state, lost fencing authority, sequence divergence and an already-ended match; server infrastructure failure never manufactures a disconnect winner.
+
+A transport drop immediately freezes new client commands and removes that player from the connected start gate. The reconnect interval is `[dropTime, dropTime + 120000ms)`: 119999 ms remains valid and the exact 120000 ms boundary is expired. A repeated callback for the same disconnected generation cannot extend the deadline. Successful reconnect first persists lease cancellation, then sends the lifecycle pair, a changed server hello cursor and a recipient-filtered full snapshot. Only that full snapshot unlocks replay. Every unresolved original intent is resent without renumbering or changing `lastServerTickSeen`, sorted by `(clientCommandSeq, commandId)`; results already committed before the drop are replayed from the immutable result ledger.
+
+The server holds a fenced 15-second authority lease. Every simulation tick or batched disconnect expiry records a private checkpoint plus a bounded batch-tick journal, per-player sequence cursors, unresolved reorder entries and accepted or rejected command results. Checkpoints rotate every 20 ticks. A restore validates schema/protocol/rules, participant tuple, checkpoint hash, contiguous journal hashes, ledger fingerprints and bounds before replacing live state. Recipient delta bases are discarded, so the first recovered frame is always a full filtered snapshot.
+
+Durability ordering is write before publish: the authority commits its recovery record before sending command results or frames. A failed commit restores the previous authority record, emits a terminal lifecycle failure and stops the room without exposing the uncommitted candidate frame or winner. The default development process uses the deterministic memory adapter. When both `REDIS_URL` and `DATABASE_URL` are configured, the production adapter uses Redis owner/fence TTL routing and PostgreSQL `SELECT FOR UPDATE` records; stale owners fail before durable mutation, and the two variables are required together. Cross-room deployment routing, TLS and automated replacement-instance orchestration remain infrastructure gates in TASK-024 and TASK-026 rather than browser authority.
+
+The real TASK-020 smoke closes an actual SDK WebSocket with reconnectable code 4010, keeps the opponent's authority ticks moving, receives the lifecycle/hello/full-snapshot sequence, replays sequences 0/1/2 and proves that the two pre-drop commands retain their original result ticks and resource cost. Unit tests separately cover the 119999/120000 ms boundary, stale callbacks, same-tick duplicate snapshots, corrupted recovery state and Redis/PostgreSQL fencing rollback.
 
 ## Fully open deployment
 

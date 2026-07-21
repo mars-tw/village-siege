@@ -6,10 +6,14 @@ import {
   VILLAGE_ASSAULT_MAP_HEIGHT,
   VILLAGE_ASSAULT_MAP_ID,
   VILLAGE_ASSAULT_MAP_WIDTH,
+  applyDisconnectedTeamDefeats,
+  cloneMatchState,
   createInitialState,
   createVisibleSnapshotDelta,
   hashMatchState,
+  isCommandEnvelope,
   isMatchCommandIntent,
+  isMatchCommandResult,
   projectDomainEventsForPlayer,
   stepSimulation,
   toVisibleSnapshot,
@@ -30,6 +34,8 @@ export { TICK_MILLISECONDS };
 
 export const FULL_SNAPSHOT_INTERVAL_TICKS = 5 * TICKS_PER_SECOND;
 export const CANONICAL_HASH_INTERVAL_TICKS = 2 * TICKS_PER_SECOND;
+export const AUTHORITY_RECOVERY_CHECKPOINT_INTERVAL_TICKS = 20;
+export const AUTHORITY_RECOVERY_SCHEMA_VERSION = 1 as const;
 
 export interface MatchParticipant {
   readonly playerId: string;
@@ -60,6 +66,51 @@ export interface MatchTickResult {
   readonly canonicalCheckpoint?: CanonicalStateHash;
 }
 
+export type MatchAuthorityJournalEntry =
+  | {
+      readonly kind: "simulation";
+      readonly fromTick: number;
+      readonly toTick: number;
+      readonly commands: readonly CommandEnvelope[];
+      readonly stateHash: string;
+    }
+  | {
+      readonly kind: "disconnect";
+      readonly fromTick: number;
+      readonly toTick: number;
+      readonly teamIds: readonly string[];
+      readonly stateHash: string;
+    };
+
+export interface MatchAuthorityRecoveryRecord {
+  readonly schemaVersion: typeof AUTHORITY_RECOVERY_SCHEMA_VERSION;
+  readonly protocolVersion: typeof MATCH_PROTOCOL_VERSION;
+  readonly rulesVersion: typeof RULES_VERSION;
+  readonly matchId: string;
+  readonly participants: readonly MatchParticipant[];
+  readonly checkpoint: {
+    readonly state: MatchState;
+    readonly stateHash: string;
+  };
+  readonly journal: readonly MatchAuthorityJournalEntry[];
+  readonly nextExpectedSequences: readonly {
+    readonly playerId: string;
+    readonly sequence: number;
+  }[];
+  readonly commandRecords: readonly {
+    readonly playerId: string;
+    readonly commandId: string;
+    readonly intent: MatchCommandIntent;
+    readonly fingerprint: string;
+    readonly result?: MatchCommandResult;
+  }[];
+  readonly pendingCommands: readonly {
+    readonly playerId: string;
+    readonly sequence: number;
+    readonly commandId: string;
+  }[];
+}
+
 interface CommandRecord {
   readonly intent: MatchCommandIntent;
   readonly fingerprint: string;
@@ -86,6 +137,9 @@ export class MatchAuthority {
   private readonly recordByPlayer = new Map<string, Map<string, CommandRecord>>();
   private readonly nextExpectedSequence = new Map<string, number>();
   private readonly lastVisibleSnapshot = new Map<string, VisibleSnapshot>();
+  private checkpointState: MatchState;
+  private checkpointStateHash: string;
+  private journal: MatchAuthorityJournalEntry[] = [];
 
   constructor(matchId: string, seed: number, participants: readonly MatchParticipant[]) {
     assertParticipants(participants);
@@ -106,10 +160,68 @@ export class MatchAuthority {
         layoutId: participants[0]!.villageId,
       },
     });
+    this.checkpointState = cloneMatchState(this.state);
+    this.checkpointStateHash = hashMatchState(this.checkpointState);
     for (const player of this.state.players) {
       this.pendingByPlayer.set(player.id, new Map());
       this.recordByPlayer.set(player.id, new Map());
       this.nextExpectedSequence.set(player.id, player.lastSequence + 1);
+    }
+  }
+
+  static restore(record: MatchAuthorityRecoveryRecord): MatchAuthority {
+    try {
+      const parsed = validateRecoveryRecord(record);
+      const authority = new MatchAuthority(parsed.matchId, 1, parsed.participants);
+      let restoredState = cloneMatchState(parsed.checkpoint.state);
+      let previousTick = restoredState.tick;
+      for (const operation of parsed.journal) {
+        if (operation.fromTick !== previousTick) throw new Error("Authority recovery journal has a tick gap");
+        const replayed = operation.kind === "simulation"
+          ? stepSimulation(restoredState, operation.commands, 1)
+          : applyDisconnectedTeamDefeats(restoredState, operation.teamIds);
+        if (replayed.state.tick !== operation.toTick || hashMatchState(replayed.state) !== operation.stateHash) {
+          throw new Error("Authority recovery journal diverged from its committed state hash");
+        }
+        restoredState = replayed.state;
+        previousTick = operation.toTick;
+      }
+      authority.state = restoredState;
+      authority.checkpointState = cloneMatchState(parsed.checkpoint.state);
+      authority.checkpointStateHash = parsed.checkpoint.stateHash;
+      authority.journal = cloneWire([...parsed.journal]);
+      authority.pendingByPlayer.clear();
+      authority.recordByPlayer.clear();
+      authority.nextExpectedSequence.clear();
+      authority.lastVisibleSnapshot.clear();
+      for (const participant of authority.participants) {
+        authority.pendingByPlayer.set(participant.playerId, new Map());
+        authority.recordByPlayer.set(participant.playerId, new Map());
+      }
+      for (const cursor of parsed.nextExpectedSequences) {
+        authority.nextExpectedSequence.set(cursor.playerId, cursor.sequence);
+      }
+      for (const persisted of parsed.commandRecords) {
+        const recordMap = authority.recordByPlayer.get(persisted.playerId)!;
+        recordMap.set(persisted.commandId, {
+          intent: cloneIntent(persisted.intent),
+          fingerprint: persisted.fingerprint,
+          ...(persisted.result ? { result: cloneResult(persisted.result) } : {}),
+        });
+      }
+      for (const pending of parsed.pendingCommands) {
+        const commandRecord = authority.recordByPlayer.get(pending.playerId)!.get(pending.commandId)!;
+        authority.pendingByPlayer.get(pending.playerId)!.set(pending.sequence, {
+          record: commandRecord,
+          envelope: envelopeForIntent(parsed.matchId, pending.playerId, commandRecord.intent),
+        });
+      }
+      return authority;
+    } catch (error) {
+      if (error instanceof AuthorityRecoveryStateCorruptError) throw error;
+      throw new AuthorityRecoveryStateCorruptError(
+        error instanceof Error ? error.message : "Authority recovery state is corrupt",
+      );
     }
   }
 
@@ -217,10 +329,58 @@ export class MatchAuthority {
     return this.fullSnapshotFrame(playerId, []);
   }
 
+  recoveryRecord(): MatchAuthorityRecoveryRecord {
+    const commandRecords: MatchAuthorityRecoveryRecord["commandRecords"][number][] = [];
+    const pendingCommands: MatchAuthorityRecoveryRecord["pendingCommands"][number][] = [];
+    for (const participant of this.participants) {
+      for (const [commandId, record] of this.recordByPlayer.get(participant.playerId)!) {
+        commandRecords.push({
+          playerId: participant.playerId,
+          commandId,
+          intent: cloneIntent(record.intent),
+          fingerprint: record.fingerprint,
+          ...(record.result ? { result: cloneResult(record.result) } : {}),
+        });
+      }
+      for (const [sequence, queued] of this.pendingByPlayer.get(participant.playerId)!) {
+        pendingCommands.push({ playerId: participant.playerId, sequence, commandId: queued.record.intent.commandId });
+      }
+    }
+    commandRecords.sort((left, right) => compareText(left.playerId, right.playerId)
+      || left.intent.clientCommandSeq - right.intent.clientCommandSeq
+      || compareText(left.commandId, right.commandId));
+    pendingCommands.sort((left, right) => compareText(left.playerId, right.playerId)
+      || left.sequence - right.sequence
+      || compareText(left.commandId, right.commandId));
+    return cloneWire({
+      schemaVersion: AUTHORITY_RECOVERY_SCHEMA_VERSION,
+      protocolVersion: MATCH_PROTOCOL_VERSION,
+      rulesVersion: RULES_VERSION,
+      matchId: this.matchId,
+      participants: this.participants,
+      checkpoint: { state: this.checkpointState, stateHash: this.checkpointStateHash },
+      journal: this.journal,
+      nextExpectedSequences: this.participants.map((participant) => ({
+        playerId: participant.playerId,
+        sequence: this.nextExpectedSequence.get(participant.playerId)!,
+      })),
+      commandRecords,
+      pendingCommands,
+    });
+  }
+
   step(): MatchTickResult {
     const queued = this.drainContiguousCommands();
+    const fromTick = this.state.tick;
     const advanced = stepSimulation(this.state, queued.map((entry) => entry.envelope), 1);
     this.state = advanced.state;
+    this.recordJournalEntry({
+      kind: "simulation",
+      fromTick,
+      toTick: this.state.tick,
+      commands: queued.map((entry) => cloneWire(entry.envelope)),
+      stateHash: hashMatchState(this.state),
+    });
     const orderedQueued = [...queued].sort((left, right) => (
       compareText(left.envelope.playerId, right.envelope.playerId)
       || left.envelope.sequence - right.envelope.sequence
@@ -280,6 +440,44 @@ export class MatchAuthority {
     };
   }
 
+  expireDisconnectedTeams(teamIds: readonly string[]): MatchTickResult {
+    const orderedTeamIds = [...new Set(teamIds)].sort(compareText);
+    const fromTick = this.state.tick;
+    const advanced = applyDisconnectedTeamDefeats(this.state, orderedTeamIds);
+    this.state = advanced.state;
+    if (this.state.tick !== fromTick) {
+      this.recordJournalEntry({
+        kind: "disconnect",
+        fromTick,
+        toTick: this.state.tick,
+        teamIds: orderedTeamIds,
+        stateHash: hashMatchState(this.state),
+      });
+    }
+    const worldEvents = advanced.events.filter((event): event is ReplicatedWorldEvent => (
+      event.type !== "commandAccepted" && event.type !== "commandRejected"
+    ));
+    const frames = new Map<string, MatchReplicationFrame>();
+    for (const participant of this.participants) {
+      const events = projectDomainEventsForPlayer(
+        this.state,
+        participant.playerId,
+        { serverTick: this.state.tick, events: worldEvents },
+      ) as ReplicatedWorldEvent[];
+      frames.set(participant.playerId, this.replicationFrame(participant.playerId, events));
+    }
+    const checkpoint = this.state.tick % CANONICAL_HASH_INTERVAL_TICKS === 0
+      ? { algorithm: "fnv1a-32" as const, serverTick: this.state.tick, value: hashMatchState(this.state) }
+      : undefined;
+    return {
+      serverTick: this.state.tick,
+      phase: this.state.phase,
+      frames,
+      commandResults: new Map(),
+      ...(checkpoint ? { canonicalCheckpoint: checkpoint } : {}),
+    };
+  }
+
   private drainContiguousCommands(): QueuedCommand[] {
     const drained: QueuedCommand[] = [];
     for (const participant of this.participants) {
@@ -293,6 +491,19 @@ export class MatchAuthority {
       this.nextExpectedSequence.set(participant.playerId, next);
     }
     return drained;
+  }
+
+  private recordJournalEntry(entry: MatchAuthorityJournalEntry): void {
+    if (entry.toTick <= entry.fromTick) throw new Error("Authority journal revisions must advance");
+    if (this.journal.length > 0 && this.journal[this.journal.length - 1]!.toTick !== entry.fromTick) {
+      throw new Error("Authority journal revisions must be contiguous");
+    }
+    this.journal.push(cloneWire(entry));
+    if (this.state.tick % AUTHORITY_RECOVERY_CHECKPOINT_INTERVAL_TICKS === 0 || this.state.phase === "finished") {
+      this.checkpointState = cloneMatchState(this.state);
+      this.checkpointStateHash = hashMatchState(this.checkpointState);
+      this.journal = [];
+    }
   }
 
   private replicationFrame(playerId: string, events: readonly ReplicatedWorldEvent[]): MatchReplicationFrame {
@@ -395,6 +606,205 @@ function cloneIntent(intent: MatchCommandIntent): MatchCommandIntent {
 
 function cloneResult(result: MatchCommandResult): MatchCommandResult {
   return { ...result };
+}
+
+function envelopeForIntent(matchId: string, playerId: string, intent: MatchCommandIntent): CommandEnvelope {
+  return {
+    matchId,
+    playerId,
+    sequence: intent.clientCommandSeq,
+    clientTick: intent.lastServerTickSeen,
+    command: cloneWire(intent.command),
+  };
+}
+
+function validateRecoveryRecord(input: MatchAuthorityRecoveryRecord): MatchAuthorityRecoveryRecord {
+  const value = cloneWire(input) as unknown;
+  if (!isRecord(value)
+    || value.schemaVersion !== AUTHORITY_RECOVERY_SCHEMA_VERSION
+    || value.protocolVersion !== MATCH_PROTOCOL_VERSION
+    || value.rulesVersion !== RULES_VERSION
+    || typeof value.matchId !== "string"
+    || value.matchId.length === 0
+    || value.matchId.length > 128
+    || !Array.isArray(value.participants)
+    || !isRecord(value.checkpoint)
+    || !Array.isArray(value.journal)
+    || !Array.isArray(value.nextExpectedSequences)
+    || !Array.isArray(value.commandRecords)
+    || !Array.isArray(value.pendingCommands)) {
+    throw new Error("Invalid authority recovery record header");
+  }
+  const participants = value.participants as unknown[];
+  if (!participants.every((participant) => isRecord(participant)
+    && typeof participant.playerId === "string"
+    && typeof participant.teamId === "string"
+    && typeof participant.name === "string"
+    && (participant.villageId === "pinehold" || participant.villageId === "riverstead" || participant.villageId === "highcrag"))) {
+    throw new Error("Invalid authority recovery participants");
+  }
+  assertParticipants(participants as unknown as MatchParticipant[]);
+  const participantIds = new Set((participants as unknown as MatchParticipant[]).map((participant) => participant.playerId));
+  const checkpoint = value.checkpoint;
+  if (!isRecord(checkpoint.state)
+    || checkpoint.state.matchId !== value.matchId
+    || !Number.isSafeInteger(checkpoint.state.tick)
+    || (checkpoint.state.tick as number) < 0
+    || typeof checkpoint.stateHash !== "string") {
+    throw new Error("Invalid authority recovery checkpoint");
+  }
+  let checkpointHash: string;
+  try {
+    checkpointHash = hashMatchState(checkpoint.state as unknown as MatchState);
+  } catch {
+    throw new Error("Authority recovery checkpoint is corrupt");
+  }
+  if (checkpointHash !== checkpoint.stateHash) throw new Error("Authority recovery checkpoint hash mismatch");
+  if (value.journal.length >= AUTHORITY_RECOVERY_CHECKPOINT_INTERVAL_TICKS) {
+    throw new Error("Authority recovery journal exceeds its checkpoint window");
+  }
+  for (const operation of value.journal) {
+    if (!isRecord(operation)
+      || !Number.isSafeInteger(operation.fromTick)
+      || !Number.isSafeInteger(operation.toTick)
+      || (operation.fromTick as number) < 0
+      || (operation.toTick as number) <= (operation.fromTick as number)
+      || typeof operation.stateHash !== "string") {
+      throw new Error("Invalid authority recovery journal operation");
+    }
+    if (operation.kind === "simulation") {
+      if (!Array.isArray(operation.commands)
+        || !operation.commands.every((command) => isCommandEnvelope(command)
+          && command.matchId === value.matchId
+          && participantIds.has(command.playerId))) {
+        throw new Error("Invalid authority recovery command batch");
+      }
+    } else if (operation.kind === "disconnect") {
+      if (!Array.isArray(operation.teamIds)
+        || !operation.teamIds.every((teamId) => typeof teamId === "string")
+        || new Set(operation.teamIds).size !== operation.teamIds.length) {
+        throw new Error("Invalid authority recovery disconnect batch");
+      }
+    } else {
+      throw new Error("Unknown authority recovery journal operation");
+    }
+  }
+
+  const cursorByPlayer = new Map<string, number>();
+  for (const cursor of value.nextExpectedSequences) {
+    if (!isRecord(cursor)
+      || typeof cursor.playerId !== "string"
+      || !participantIds.has(cursor.playerId)
+      || !Number.isSafeInteger(cursor.sequence)
+      || (cursor.sequence as number) < 0
+      || cursorByPlayer.has(cursor.playerId)) {
+      throw new Error("Invalid authority recovery sequence cursor");
+    }
+    cursorByPlayer.set(cursor.playerId, cursor.sequence as number);
+  }
+  if (cursorByPlayer.size !== participantIds.size) throw new Error("Authority recovery sequence cursor is incomplete");
+
+  const recordByIdentity = new Map<string, {
+    readonly intentSequence: number;
+    readonly result?: MatchCommandResult;
+  }>();
+  const recordCountByPlayer = new Map<string, number>();
+  for (const persisted of value.commandRecords) {
+    if (!isRecord(persisted)
+      || typeof persisted.playerId !== "string"
+      || !participantIds.has(persisted.playerId)
+      || typeof persisted.commandId !== "string"
+      || typeof persisted.fingerprint !== "string"
+      || !isMatchCommandIntent(persisted.intent)
+      || persisted.intent.commandId !== persisted.commandId
+      || canonicalJson(persisted.intent) !== persisted.fingerprint
+      || (persisted.result !== undefined && (!isMatchCommandResult(persisted.result)
+        || persisted.result.commandId !== persisted.commandId
+        || persisted.result.clientCommandSeq !== persisted.intent.clientCommandSeq))) {
+      throw new Error("Invalid authority recovery command record");
+    }
+    const identity = `${persisted.playerId}\u0000${persisted.commandId}`;
+    if (recordByIdentity.has(identity)) throw new Error("Duplicate authority recovery command record");
+    recordByIdentity.set(identity, {
+      intentSequence: persisted.intent.clientCommandSeq,
+      ...(persisted.result === undefined ? {} : { result: persisted.result }),
+    });
+    const count = (recordCountByPlayer.get(persisted.playerId) ?? 0) + 1;
+    if (count > MAX_COMPLETED_COMMAND_RECORDS_PER_PLAYER + MAX_BUFFERED_COMMANDS_PER_PLAYER) {
+      throw new Error("Authority recovery command ledger exceeds its bound");
+    }
+    recordCountByPlayer.set(persisted.playerId, count);
+  }
+
+  const pendingSequences = new Set<string>();
+  const pendingRecordIdentities = new Set<string>();
+  const pendingCountByPlayer = new Map<string, number>();
+  for (const pending of value.pendingCommands) {
+    if (!isRecord(pending)
+      || typeof pending.playerId !== "string"
+      || !participantIds.has(pending.playerId)
+      || typeof pending.commandId !== "string"
+      || !Number.isSafeInteger(pending.sequence)
+      || (pending.sequence as number) < 0) {
+      throw new Error("Invalid authority recovery pending command");
+    }
+    const cursor = cursorByPlayer.get(pending.playerId)!;
+    const sequence = pending.sequence as number;
+    if (sequence < cursor || sequence - cursor >= MAX_BUFFERED_COMMANDS_PER_PLAYER) {
+      throw new AuthorityRecoveryStateCorruptError(
+        "Authority recovery pending sequence is outside its per-player reorder window",
+      );
+    }
+    const recordIdentity = `${pending.playerId}\u0000${pending.commandId}`;
+    const record = recordByIdentity.get(recordIdentity);
+    if (!record || record.result) {
+      throw new AuthorityRecoveryStateCorruptError(
+        "Authority recovery pending command has no unresolved ledger entry",
+      );
+    }
+    if (record.intentSequence !== sequence) {
+      throw new AuthorityRecoveryStateCorruptError(
+        "Authority recovery pending sequence disagrees with its ledger intent",
+      );
+    }
+    if (pendingRecordIdentities.has(recordIdentity)) {
+      throw new AuthorityRecoveryStateCorruptError(
+        "Authority recovery unresolved ledger entry has multiple pending commands",
+      );
+    }
+    const sequenceIdentity = `${pending.playerId}\u0000${pending.sequence}`;
+    if (pendingSequences.has(sequenceIdentity)) throw new Error("Duplicate authority recovery pending sequence");
+    pendingSequences.add(sequenceIdentity);
+    pendingRecordIdentities.add(recordIdentity);
+    const pendingCount = (pendingCountByPlayer.get(pending.playerId) ?? 0) + 1;
+    if (pendingCount > MAX_BUFFERED_COMMANDS_PER_PLAYER) {
+      throw new AuthorityRecoveryStateCorruptError(
+        "Authority recovery pending buffer exceeds its per-player bound",
+      );
+    }
+    pendingCountByPlayer.set(pending.playerId, pendingCount);
+  }
+  for (const [recordIdentity, record] of recordByIdentity) {
+    if (!record.result && !pendingRecordIdentities.has(recordIdentity)) {
+      throw new AuthorityRecoveryStateCorruptError(
+        "Authority recovery unresolved ledger entry has no pending command",
+      );
+    }
+  }
+  return value as unknown as MatchAuthorityRecoveryRecord;
+}
+
+class AuthorityRecoveryStateCorruptError extends Error {
+  readonly code = "STATE_CORRUPT" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthorityRecoveryStateCorruptError";
+  }
+}
+
+function cloneWire<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function canonicalJson(value: unknown): string {

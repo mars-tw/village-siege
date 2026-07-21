@@ -697,11 +697,31 @@ function advanceTerminalTransitionTick(state: MatchState, events: DomainEvent[])
 
 /** Called by an authoritative room only after its reconnect lease expires. */
 export function applyDisconnectedTeamDefeat(state: MatchState, teamId: string): SimulationStepResult {
+  return applyDisconnectedTeamDefeats(state, [teamId]);
+}
+
+/**
+ * Applies every reconnect-lease expiry that became due on the same authority
+ * revision. Teams are sorted and eliminated as one batch so process callback
+ * order cannot change the winner. A terminal disconnect is always published on
+ * a strictly newer tick than the last playable snapshot.
+ */
+export function applyDisconnectedTeamDefeats(
+  state: MatchState,
+  teamIds: readonly string[],
+): SimulationStepResult {
   const next = cloneMatchState(state);
   if (next.phase !== "playing") return { state: next, events: [] };
-  if (!next.victory.teams.some((team) => team.teamId === teamId)) throw new Error(`Unknown team: ${teamId}`);
+  const knownTeamIds = new Set(next.victory.teams.map((team) => team.teamId));
+  const orderedTeamIds = [...new Set(teamIds)].sort(compareText);
+  for (const teamId of orderedTeamIds) {
+    if (!knownTeamIds.has(teamId)) throw new Error(`Unknown team: ${teamId}`);
+  }
+  if (orderedTeamIds.length === 0) return { state: next, events: [] };
+
+  next.tick += 1;
   const events: DomainEvent[] = [];
-  eliminateTeam(next, teamId, "disconnect", events);
+  for (const teamId of orderedTeamIds) eliminateTeam(next, teamId, "disconnect", events);
   evaluateVictory(next, events);
   updateVisibilityState(next);
   return { state: next, events };

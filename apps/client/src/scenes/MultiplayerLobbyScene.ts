@@ -127,7 +127,17 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   }
 
   private connectionLabel(status: string): string {
-    return ({ offline: "尚未連線", connecting: "連線中…", connected: "已連線", reconnecting: "連線中斷，60 秒內自動重連…" } as Record<string, string>)[status] ?? status;
+    return ({
+      offline: "尚未連線",
+      connecting: "連線中…",
+      connected: "已連線",
+      reconnecting: "連線中斷，120 秒內自動重連…",
+      transportReconnecting: "連線中斷，120 秒內自動重連…",
+      recoveringHello: "正在重新驗證戰局…",
+      recoveringSnapshot: "正在恢復戰場快照…",
+      replayingCommands: "正在重播尚未確認的指令…",
+      failed: "戰局恢復失敗",
+    } as Record<string, string>)[status] ?? status;
   }
 
   private escape(value: string): string {

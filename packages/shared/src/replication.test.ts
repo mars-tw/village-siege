@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   MATCH_PROTOCOL_VERSION,
   isMatchCommandIntent,
+  isMatchLifecycleMessage,
   isMatchReplicationFrame,
   isMatchServerHello,
   type MatchDeltaFrame,
+  type MatchLifecycleMessage,
+  type MatchRecoveryFailureCode,
   type MatchSnapshotFrame,
   type VisibleSnapshot,
 } from "./protocol.js";
@@ -126,6 +129,63 @@ describe("recipient-filtered replication", () => {
     expect(isMatchReplicationFrame(frame)).toBe(true);
     expect(isMatchReplicationFrame({ ...frame, matchId: "wrong-match" })).toBe(false);
     expect(isMatchReplicationFrame({ ...frame, events: [{ type: "commandAccepted", sequence: 0, serverTick: 0 }] })).toBe(false);
+  });
+
+  it("strictly guards every recovery lifecycle variant and failure code", () => {
+    const common = {
+      protocolVersion: MATCH_PROTOCOL_VERSION,
+      rulesVersion: RULES_VERSION,
+      matchId: "recovery-match",
+      recipientPlayerId: "player-1",
+      serverTick: 27,
+      recoveryEpoch: 2,
+    } as const;
+    const failureCodes: readonly MatchRecoveryFailureCode[] = [
+      "RECONNECT_LEASE_EXPIRED",
+      "SERVER_UNAVAILABLE",
+      "PERSISTENCE_UNAVAILABLE",
+      "STATE_CORRUPT",
+      "LEASE_LOST",
+      "RECOVERY_TIMEOUT",
+      "SEQUENCE_DIVERGED",
+      "MATCH_ENDED",
+    ];
+    const valid: MatchLifecycleMessage[] = [
+      { ...common, type: "recovering", leaseExpiresAtEpochMs: 1_800_000_000_000 },
+      { ...common, type: "resumed" },
+      ...failureCodes.map((code) => ({ ...common, type: "failed" as const, code, recoverable: false })),
+      { ...common, type: "failed", code: "SERVER_UNAVAILABLE", recoverable: true },
+    ];
+    for (const message of valid) expect(isMatchLifecycleMessage(message)).toBe(true);
+
+    const invalid: unknown[] = [
+      null,
+      [],
+      { ...common },
+      { ...common, type: "unknown" },
+      { ...common, type: "resumed", extra: true },
+      { ...common, type: "resumed", protocolVersion: "village-siege-network/0" },
+      { ...common, type: "resumed", rulesVersion: "" },
+      { ...common, type: "resumed", rulesVersion: 14 },
+      { ...common, type: "resumed", matchId: "" },
+      { ...common, type: "resumed", recipientPlayerId: "" },
+      { ...common, type: "resumed", serverTick: -1 },
+      { ...common, type: "resumed", serverTick: 1.5 },
+      { ...common, type: "resumed", recoveryEpoch: -1 },
+      { ...common, type: "resumed", recoveryEpoch: 1.5 },
+      { ...common, type: "recovering" },
+      { ...common, type: "recovering", leaseExpiresAtEpochMs: -1 },
+      { ...common, type: "recovering", leaseExpiresAtEpochMs: 1.5 },
+      { ...common, type: "recovering", leaseExpiresAtEpochMs: "later" },
+      { ...common, type: "recovering", leaseExpiresAtEpochMs: 1_800_000_000_000, recoverable: true },
+      { ...common, type: "resumed", leaseExpiresAtEpochMs: 1_800_000_000_000 },
+      { ...common, type: "failed", code: "SERVER_UNAVAILABLE" },
+      { ...common, type: "failed", recoverable: false },
+      { ...common, type: "failed", code: "UNKNOWN", recoverable: false },
+      { ...common, type: "failed", code: "STATE_CORRUPT", recoverable: "no" },
+      { ...common, type: "failed", code: "STATE_CORRUPT", recoverable: false, leaseExpiresAtEpochMs: 1 },
+    ];
+    for (const message of invalid) expect(isMatchLifecycleMessage(message)).toBe(false);
   });
 
   it("rejects duplicate and overlapping keyed delta identities", () => {

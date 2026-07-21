@@ -95,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.14.0");
+    expect(RULES_VERSION).toBe("village-siege/0.15.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },

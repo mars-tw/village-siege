@@ -86,7 +86,7 @@ function createRecipientStream(room, assignment) {
 
   room.onMessage("match.hello", (payload) => {
     if (!isMatchServerHello(payload)
-      || payload.matchId !== room.roomId
+      || payload.matchId !== assignment.matchId
       || payload.recipientPlayerId !== assignment.playerId
       || payload.protocolVersion !== MATCH_PROTOCOL_VERSION
       || payload.rulesVersion !== RULES_VERSION) {
@@ -97,7 +97,7 @@ function createRecipientStream(room, assignment) {
   });
   room.onMessage("match.frame", (payload) => {
     if (!isMatchReplicationFrame(payload)
-      || payload.matchId !== room.roomId
+      || payload.matchId !== assignment.matchId
       || payload.recipientPlayerId !== assignment.playerId
       || payload.protocolVersion !== MATCH_PROTOCOL_VERSION
       || payload.rulesVersion !== RULES_VERSION) {
@@ -202,6 +202,9 @@ export async function runMultiplayerSmoke() {
       guestAssignmentPromise,
     ]);
     if (hostAssignment.reservation.roomId !== guestAssignment.reservation.roomId) throw new Error("Lobby assigned different match rooms.");
+    if (hostAssignment.matchId !== guestAssignment.matchId || !/^match-[a-f0-9]{32}$/.test(hostAssignment.matchId)) {
+      throw new Error("Lobby assigned an invalid or inconsistent durable match identity.");
+    }
     if (hostAssignment.playerId === guestAssignment.playerId) throw new Error("Lobby assigned duplicate player identities.");
     if (hostAssignment.reservation.sessionId === guestAssignment.reservation.sessionId) throw new Error("Lobby assigned duplicate match seats.");
     if (hostAssignment.reservation.roomId === hostLobby.roomId) throw new Error("Lobby and match were not split.");
@@ -220,8 +223,8 @@ export async function runMultiplayerSmoke() {
     }, "protocol hello and initial filtered snapshots");
     await waitFor(() => hostStream.view.serverTick >= 2 && guestStream.view.serverTick >= 2, "recipient delta streams");
 
-    assertSafeView(hostStream.view, hostAssignment, hostMatch.roomId);
-    assertSafeView(guestStream.view, guestAssignment, guestMatch.roomId);
+    assertSafeView(hostStream.view, hostAssignment, hostAssignment.matchId);
+    assertSafeView(guestStream.view, guestAssignment, guestAssignment.matchId);
     const guestTownId = guestStream.view.entities.find((entity) => (
       entity.ownerId === guestAssignment.playerId && entity.kind === "building" && entity.typeId === "townCenter"
     ))?.id;
@@ -345,6 +348,7 @@ export async function runMultiplayerSmoke() {
       roomCode,
       lobbyRoomId: hostLobby.roomId,
       matchRoomId: hostMatch.roomId,
+      durableMatchId: hostAssignment.matchId,
       players: 2,
       serverTick: hostStream.view.serverTick,
       checks: {

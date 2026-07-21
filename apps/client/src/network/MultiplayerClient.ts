@@ -2,8 +2,10 @@ import { Client, type Room, type SeatReservation } from "@colyseus/sdk";
 import {
   MATCH_PROTOCOL_VERSION,
   RULES_VERSION,
+  isMatchLifecycleMessage,
   type GameCommand,
   type MatchCommandResult,
+  type MatchLifecycleMessage,
   type MatchVersionOffer,
 } from "@village-siege/shared";
 import {
@@ -44,6 +46,7 @@ interface NetworkMatchState {
 
 interface MatchAssignment {
   playerId: string;
+  matchId: string;
   reservation: SeatReservation;
 }
 
@@ -53,7 +56,12 @@ export type ConnectionState =
   | "negotiating"
   | "synchronizing"
   | "connected"
-  | "reconnecting";
+  | "reconnecting"
+  | "transportReconnecting"
+  | "recoveringHello"
+  | "recoveringSnapshot"
+  | "replayingCommands"
+  | "failed";
 
 type Dispose = () => void;
 type MultiplayerTransport = Pick<Client, "create" | "join" | "consumeSeatReservation">;
@@ -64,6 +72,7 @@ const VERSION_OFFER: MatchVersionOffer = {
   protocolVersion: MATCH_PROTOCOL_VERSION,
   rulesVersion: RULES_VERSION,
 };
+const MATCH_RECOVERY_TIMEOUT_MILLISECONDS = 120_000;
 
 export class MultiplayerClient {
   private readonly client: MultiplayerTransport;
@@ -79,6 +88,8 @@ export class MultiplayerClient {
   private matchFrameListeners = new Set<(frame: MatchFrame) => void>();
   private commandResultListeners = new Set<(result: MatchCommandResult) => void>();
   private lifecycleGeneration = 0;
+  private recoveryEpoch = 0;
+  private recoveryDeadlineTimer?: ReturnType<typeof globalThis.setTimeout>;
 
   constructor(client?: MultiplayerTransport) {
     this.client = client ?? new Client(import.meta.env.VITE_COLYSEUS_URL ?? "http://localhost:2567");
@@ -153,6 +164,7 @@ export class MultiplayerClient {
   }
 
   private async closeCurrentRooms(lifecycleGeneration: number): Promise<void> {
+    this.clearRecoveryDeadline();
     const lobbyRoom = this.lobbyRoom;
     const matchRoom = this.matchRoom;
     this.lobbyRoom = undefined;
@@ -193,7 +205,7 @@ export class MultiplayerClient {
       }
       this.lobbyRoom = room;
       room.reconnection.minUptime = 1_000;
-      room.reconnection.maxRetries = 20;
+      room.reconnection.maxRetries = 30;
       room.reconnection.maxDelay = 5_000;
       room.onStateChange(() => {
         if (this.lobbyRoom === room) this.emitState(room);
@@ -243,20 +255,23 @@ export class MultiplayerClient {
         await room.leave(true).catch(() => undefined);
         return;
       }
-      const store = new AuthoritativeMatchStore(room.roomId, assignment.playerId);
+      const store = new AuthoritativeMatchStore(assignment.matchId, assignment.playerId);
       this.matchRoom = room;
       this.matchStore = store;
-      room.reconnection.minUptime = 1_000;
-      room.reconnection.maxRetries = 20;
+      room.reconnection.minUptime = 0;
+      room.reconnection.maxRetries = 30;
       room.reconnection.maxDelay = 5_000;
       room.onDrop(() => {
-        if (this.matchRoom === room) this.emitConnection("reconnecting");
+        if (this.matchRoom !== room || this.matchStore !== store || store.synchronization === "failed") return;
+        const epoch = ++this.recoveryEpoch;
+        if (!store.beginRecovery(epoch)) return this.failMatchRecovery(room, store, epoch, "RECOVERY_TIMEOUT");
+        this.emitConnection("transportReconnecting");
+        this.scheduleRecoveryDeadline(room, store, epoch, Date.now() + MATCH_RECOVERY_TIMEOUT_MILLISECONDS);
       });
       room.onReconnect(() => {
-        if (this.matchRoom === room) {
-          this.emitConnection("synchronizing");
-          room.send("match.syncRequest", VERSION_OFFER);
-        }
+        if (this.matchRoom !== room || this.matchStore !== store || store.synchronization === "failed") return;
+        this.emitConnection("recoveringHello");
+        room.send("match.hello", VERSION_OFFER);
       });
       room.onError((_code: number, message?: string) => {
         if (this.matchRoom === room) this.emitError(message ?? "權威對戰連線失敗");
@@ -265,16 +280,40 @@ export class MultiplayerClient {
         if (this.matchRoom !== room || this.matchStore !== store) return;
         this.emitError(payload.code ?? "多人協定錯誤");
       });
+      room.onMessage("match.lifecycle", (payload: unknown) => {
+        if (this.matchRoom !== room || this.matchStore !== store || store.synchronization === "failed") return;
+        if (!isMatchLifecycleMessage(payload)
+          || payload.matchId !== assignment.matchId
+          || payload.recipientPlayerId !== assignment.playerId
+          || payload.rulesVersion !== RULES_VERSION) {
+          this.failMatchRecovery(room, store, store.recoveryEpoch ?? this.recoveryEpoch, "STATE_CORRUPT");
+          return;
+        }
+        this.handleMatchLifecycle(room, store, payload);
+      });
       room.onMessage("match.hello", (payload: unknown) => {
-        if (this.matchRoom !== room || this.matchStore !== store) return;
+        if (this.matchRoom !== room || this.matchStore !== store || store.synchronization === "failed") return;
         if (!store.acceptHello(payload)) {
           this.emitError("伺服器協定或規則版本不相容");
           void this.abortMatchHandoff(room, store);
           return;
         }
-        this.emitConnection("synchronizing");
+        const recoveryEpoch = store.recoveryEpoch;
+        if (store.synchronization === "awaitingRecoverySnapshot") {
+          this.emitConnection("recoveringSnapshot");
+          room.send("match.syncRequest", VERSION_OFFER);
+        } else {
+          this.emitConnection("synchronizing");
+        }
+        const lifecycleGenerationAtHello = this.lifecycleGeneration;
         globalThis.setTimeout(() => {
-          if (this.matchRoom === room && this.matchStore === store && store.synchronization !== "synchronized") {
+          if (this.lifecycleGeneration === lifecycleGenerationAtHello
+            && this.matchRoom === room
+            && this.matchStore === store
+            && (store.synchronization === "awaitingSnapshot"
+              || store.synchronization === "awaitingRecoverySnapshot"
+              || store.synchronization === "resyncing")
+            && (recoveryEpoch === undefined || store.recoveryEpoch === recoveryEpoch)) {
             room.send("match.syncRequest", VERSION_OFFER);
           }
         }, 1_500);
@@ -297,9 +336,31 @@ export class MultiplayerClient {
           if (applied.requestResync) room.send("match.syncRequest", VERSION_OFFER);
           return;
         }
-        if (applied.duplicate) return;
-        this.latestFrame = applied.frame;
-        this.matchFrameListeners.forEach((listener) => listener(applied.frame));
+        if (!applied.duplicate) {
+          this.latestFrame = applied.frame;
+          this.matchFrameListeners.forEach((listener) => listener(applied.frame));
+        }
+        if (store.synchronization === "replayReady") {
+          const epoch = store.recoveryEpoch;
+          if (epoch === undefined) {
+            this.failMatchRecovery(room, store, this.recoveryEpoch, "STATE_CORRUPT");
+            return;
+          }
+          this.emitConnection("replayingCommands");
+          try {
+            for (const intent of store.pendingIntentsForReplay(epoch)) room.send("match.command", intent);
+          } catch {
+            this.failMatchRecovery(room, store, epoch, "SEQUENCE_DIVERGED");
+            return;
+          }
+          if (!store.finishReplay(epoch)) {
+            this.failMatchRecovery(room, store, epoch, "SEQUENCE_DIVERGED");
+            return;
+          }
+          this.clearRecoveryDeadline();
+        } else if (applied.duplicate) {
+          return;
+        }
         this.emitConnection("connected");
         if (this.lobbyRoom === lobbyRoom) {
           this.lobbyRoom = undefined;
@@ -308,10 +369,16 @@ export class MultiplayerClient {
       });
       room.onLeave(() => {
         if (this.matchRoom !== room) return;
+        if (store.synchronization === "awaitingReconnectHello"
+          || store.synchronization === "awaitingRecoverySnapshot"
+          || store.synchronization === "replayReady") {
+          this.failMatchRecovery(room, store, store.recoveryEpoch ?? this.recoveryEpoch, "SERVER_UNAVAILABLE");
+        }
+        this.clearRecoveryDeadline();
         this.matchRoom = undefined;
         this.matchStore = undefined;
         this.latestFrame = undefined;
-        this.emitConnection(this.lobbyRoom ? "connected" : "offline");
+        if (this.connectionState !== "failed") this.emitConnection(this.lobbyRoom ? "connected" : "offline");
       });
       this.emitConnection("negotiating");
       room.send("match.hello", VERSION_OFFER);
@@ -330,10 +397,13 @@ export class MultiplayerClient {
     store: AuthoritativeMatchStore,
   ): Promise<void> {
     if (this.matchRoom !== room || this.matchStore !== store) return;
+    const preserveTerminalFailure = store.synchronization === "failed" || this.connectionState === "failed";
     this.matchRoom = undefined;
     this.matchStore = undefined;
     this.latestFrame = undefined;
+    this.clearRecoveryDeadline();
     await room.leave(true).catch(() => undefined);
+    if (preserveTerminalFailure || this.connectionState === "failed") return;
     this.emitConnection(this.lobbyRoom ? "connected" : "offline");
   }
 
@@ -380,6 +450,8 @@ export class MultiplayerClient {
   private isAssignment(value: MatchAssignment): boolean {
     return typeof value?.playerId === "string"
       && value.playerId.length > 0
+      && typeof value.matchId === "string"
+      && /^match-[a-f0-9]{32}$/.test(value.matchId)
       && typeof value.reservation?.roomId === "string"
       && value.reservation.roomId.length > 0
       && typeof value.reservation.sessionId === "string"
@@ -399,5 +471,61 @@ export class MultiplayerClient {
 
   private emitError(message: string): void {
     this.errorListeners.forEach((listener) => listener(message));
+  }
+
+  private handleMatchLifecycle(
+    room: Room<NetworkMatchState>,
+    store: AuthoritativeMatchStore,
+    message: MatchLifecycleMessage,
+  ): void {
+    if (message.type === "failed") {
+      this.failMatchRecovery(room, store, message.recoveryEpoch, message.code);
+      return;
+    }
+    if (message.recoveryEpoch < (store.recoveryEpoch ?? 0)) return;
+    if (store.recoveryEpoch !== message.recoveryEpoch && !store.beginRecovery(message.recoveryEpoch)) {
+      this.failMatchRecovery(room, store, store.recoveryEpoch ?? this.recoveryEpoch, "SEQUENCE_DIVERGED");
+      return;
+    }
+    this.recoveryEpoch = Math.max(this.recoveryEpoch, message.recoveryEpoch);
+    if (message.type === "recovering") {
+      this.scheduleRecoveryDeadline(room, store, message.recoveryEpoch, message.leaseExpiresAtEpochMs);
+    }
+    this.emitConnection("recoveringHello");
+  }
+
+  private scheduleRecoveryDeadline(
+    room: Room<NetworkMatchState>,
+    store: AuthoritativeMatchStore,
+    epoch: number,
+    expiresAtEpochMs: number,
+  ): void {
+    this.clearRecoveryDeadline();
+    const delay = Math.max(0, Math.min(MATCH_RECOVERY_TIMEOUT_MILLISECONDS, expiresAtEpochMs - Date.now()));
+    this.recoveryDeadlineTimer = globalThis.setTimeout(() => {
+      if (this.matchRoom !== room || this.matchStore !== store || store.recoveryEpoch !== epoch) return;
+      this.failMatchRecovery(room, store, epoch, "RECONNECT_LEASE_EXPIRED");
+    }, delay);
+  }
+
+  private clearRecoveryDeadline(): void {
+    if (this.recoveryDeadlineTimer !== undefined) globalThis.clearTimeout(this.recoveryDeadlineTimer);
+    this.recoveryDeadlineTimer = undefined;
+  }
+
+  private failMatchRecovery(
+    room: Room<NetworkMatchState>,
+    store: AuthoritativeMatchStore,
+    epoch: number,
+    code: string,
+  ): void {
+    if (this.matchRoom !== room || this.matchStore !== store) return;
+    const currentEpoch = store.recoveryEpoch;
+    if (currentEpoch !== undefined && epoch < currentEpoch) return;
+    if (store.synchronization !== "failed" && currentEpoch !== epoch && !store.beginRecovery(epoch)) return;
+    if (store.synchronization !== "failed" && !store.failRecovery(epoch, code)) return;
+    this.clearRecoveryDeadline();
+    this.emitConnection("failed");
+    this.emitError(code);
   }
 }

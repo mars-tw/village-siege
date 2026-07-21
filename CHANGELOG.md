@@ -6,6 +6,10 @@
 
 ## v3 開發中（尚未公開部署，2026-07-21）
 
+- v0.16.0／TASK-020 將網路協定升為 `village-siege-network/2`、規則升為 `village-siege/0.15.0`；新增 120 秒不續延 reconnect lease、穩定 logical match ID、`recovering/resumed/failed` lifecycle，以及 full Snapshot 後才解鎖的 pending intent 有序重播。
+- 權威 recovery record 每 20 tick checkpoint，保存短 batch-tick journal、序號游標、reorder buffer 與 immutable accepted/rejected result ledger；任何 hash、版本、指令 fingerprint 或 journal gap 錯誤都會原子拒絕。
+- 每個 tick 先持久化再送 frame/result。開發預設使用記憶體 store；同時設定 `REDIS_URL` 與 `DATABASE_URL` 時改用 Redis fencing lease＋PostgreSQL durable record。真實雙客戶端 socket smoke 已證明斷線後 tick 延續且舊命令不重複扣資源。
+
 - v0.15.0／TASK-019 新增 `village-siege-network/1` 精確協定／規則握手；舊版、缺漏或不相容客戶端會在大廳與私有戰局開始前遭拒。瀏覽器提交 `commandId`、每玩家序號、最後可見伺服器 tick 與遊戲命令，可信的比賽／玩家身分仍由伺服器席位注入。
 - 每位玩家具備 16 筆有界重排窗與 512 筆完成結果快取：提早抵達的序號等待缺口，相同 pending 命令不重排，相同 completed 命令重播原結果；相同 ID 不同內容或相同序號不同 ID 均拒絕且不改世界。命令結果只走一條專用通道。
 - 10 Hz 傳輸改為玩家過濾後的 delta；tick 0、每 50 tick（5 秒）、手動 resync 與終局傳完整 Snapshot。Delta 必須銜接精確 base tick／可見 checksum，客戶端在候選副本完整重建並驗證後才原子換入。每 20 tick（2 秒）的 canonical hash 只留在伺服器，不成為霧外狀態 oracle；大廳也不再公開種子。

@@ -6,6 +6,7 @@ export interface AuthorizedMatchParticipant extends MatchParticipant {
 }
 
 export interface MatchLaunch {
+  readonly matchId: string;
   readonly seed: number;
   readonly participants: readonly AuthorizedMatchParticipant[];
 }

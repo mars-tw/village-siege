@@ -3,6 +3,7 @@ import { BUILDINGS, TOWN_CENTER_REBUILD_GRACE_TICKS } from "./content";
 import {
   applyCommand,
   applyDisconnectedTeamDefeat,
+  applyDisconnectedTeamDefeats,
   cloneMatchState,
   createInitialState,
   hashMatchState,
@@ -210,12 +211,36 @@ describe("deterministic victory policies", () => {
     const initial = createInitialState({ seed: 809 });
     const result = applyDisconnectedTeamDefeat(initial, "team-2");
     const view = toVisibleSnapshot(result.state, "player-1");
-    expect(view.victory).toMatchObject({ outcome: "victory", winningTeamIds: ["team-1"], finishReason: "disconnect", finishedAtTick: 0 });
+    expect(view.victory).toMatchObject({ outcome: "victory", winningTeamIds: ["team-1"], finishReason: "disconnect", finishedAtTick: 1 });
     expect(view.victory.teams.map((team) => team.teamId)).toEqual(["team-1", "team-2"]);
-    expect(projectDomainEventsForPlayer(result.state, "player-1", { serverTick: 0, events: result.events })).toEqual(result.events);
+    expect(projectDomainEventsForPlayer(result.state, "player-1", { serverTick: 1, events: result.events })).toEqual(result.events);
     const changed = cloneMatchState(result.state);
-    changed.victory = { ...changed.victory, finishedAtTick: 1 };
+    changed.victory = { ...changed.victory, finishedAtTick: 2 };
     expect(hashMatchState(changed)).not.toBe(hashMatchState(result.state));
+  });
+
+  it("batches simultaneous reconnect expiries independently of callback order", () => {
+    const initial = createInitialState({
+      seed: 815,
+      players: [
+        { id: "player-1", teamId: "survivor", villageId: "pinehold" },
+        { id: "player-2", teamId: "expired-b", villageId: "riverstead" },
+        { id: "player-3", teamId: "expired-a", villageId: "highcrag" },
+      ],
+    });
+    const left = applyDisconnectedTeamDefeats(initial, ["expired-b", "expired-a"]);
+    const right = applyDisconnectedTeamDefeats(initial, ["expired-a", "expired-b", "expired-a"]);
+
+    expect(left.state).toEqual(right.state);
+    expect(left.events).toEqual(right.events);
+    expect(left.state.tick).toBe(1);
+    expect(left.state.victory).toMatchObject({
+      outcome: "victory",
+      winningTeamIds: ["survivor"],
+      finishReason: "disconnect",
+      finishedAtTick: 1,
+    });
+    expect(left.events.filter((event) => event.type === "matchFinished")).toHaveLength(1);
   });
 
   it("records every same-tick objective trigger and draws when different teams complete them", () => {

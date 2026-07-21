@@ -16,7 +16,15 @@ import {
   type VisibleSnapshot,
 } from "@village-siege/shared";
 
-export type SynchronizationState = "awaitingHello" | "awaitingSnapshot" | "synchronized" | "resyncing";
+export type SynchronizationState =
+  | "awaitingHello"
+  | "awaitingSnapshot"
+  | "synchronized"
+  | "resyncing"
+  | "awaitingReconnectHello"
+  | "awaitingRecoverySnapshot"
+  | "replayReady"
+  | "failed";
 
 export interface ResolvedMatchFrame {
   readonly kind: MatchReplicationFrame["kind"];
@@ -41,6 +49,8 @@ export class AuthoritativeMatchStore {
   private snapshot?: VisibleSnapshot;
   private nextCommandSequence = 0;
   private synchronizationState: SynchronizationState = "awaitingHello";
+  private recoveryEpochValue?: number;
+  private failureReasonValue?: string;
   private readonly pending = new Map<string, MatchCommandIntent>();
   private readonly completedCommands = new Map<string, MatchCommandResult>();
 
@@ -62,12 +72,78 @@ export class AuthoritativeMatchStore {
     return this.pending.size;
   }
 
+  get recoveryEpoch(): number | undefined {
+    return this.recoveryEpochValue;
+  }
+
+  get failureReason(): string | undefined {
+    return this.failureReasonValue;
+  }
+
+  beginRecovery(epoch: number): boolean {
+    if (this.synchronizationState === "failed"
+      || !Number.isSafeInteger(epoch)
+      || epoch < 0
+      || (this.recoveryEpochValue !== undefined && epoch <= this.recoveryEpochValue)) return false;
+    this.recoveryEpochValue = epoch;
+    this.synchronizationState = "awaitingReconnectHello";
+    return true;
+  }
+
+  pendingIntentsForReplay(epoch: number): readonly MatchCommandIntent[] {
+    if (this.synchronizationState !== "replayReady" || this.recoveryEpochValue !== epoch) {
+      throw new Error("Authoritative recovery is not ready to replay this epoch");
+    }
+    return [...this.pending.values()]
+      .sort((left, right) => left.clientCommandSeq - right.clientCommandSeq
+        || compareText(left.commandId, right.commandId))
+      .map(cloneWire);
+  }
+
+  finishReplay(epoch: number): boolean {
+    if (this.synchronizationState !== "replayReady" || this.recoveryEpochValue !== epoch) return false;
+    this.synchronizationState = "synchronized";
+    return true;
+  }
+
+  failRecovery(epoch: number, reason: string): boolean {
+    if (this.synchronizationState === "failed" || this.recoveryEpochValue !== epoch) return false;
+    this.enterFailure(reason);
+    return true;
+  }
+
   acceptHello(payload: unknown): boolean {
+    if (this.synchronizationState === "failed") return false;
     if (!isMatchServerHello(payload)
       || payload.protocolVersion !== MATCH_PROTOCOL_VERSION
       || payload.rulesVersion !== RULES_VERSION
       || payload.matchId !== this.matchId
-      || payload.recipientPlayerId !== this.playerId) return false;
+      || payload.recipientPlayerId !== this.playerId) {
+      if (this.isAwaitingRecoveryHello()) this.enterFailure("Reconnect hello failed protocol, rules or recipient validation");
+      return false;
+    }
+    if (this.isAwaitingRecoveryHello()) {
+      const previousHello = this.hello;
+      if (previousHello && !sameHelloContract(previousHello, payload)) {
+        this.enterFailure("Reconnect hello changed the negotiated match contract");
+        return false;
+      }
+      const sequenceFailure = previousHello
+        ? this.recoverySequenceFailure(payload.nextClientCommandSeq)
+        : this.pending.size > 0
+          ? "Pending command journal exists before the first negotiated hello"
+          : undefined;
+      if (sequenceFailure) {
+        this.enterFailure(sequenceFailure);
+        return false;
+      }
+      this.hello = cloneWire(payload);
+      this.nextCommandSequence = previousHello
+        ? Math.max(this.nextCommandSequence, payload.nextClientCommandSeq)
+        : payload.nextClientCommandSeq;
+      this.synchronizationState = "awaitingRecoverySnapshot";
+      return true;
+    }
     if (this.hello) return canonicalJson(this.hello) === canonicalJson(payload);
     this.hello = cloneWire(payload);
     this.nextCommandSequence = payload.nextClientCommandSeq;
@@ -76,6 +152,9 @@ export class AuthoritativeMatchStore {
   }
 
   applyFrame(payload: unknown): FrameApplication {
+    if (this.synchronizationState === "failed") {
+      return { accepted: false, requestResync: false, reason: this.failureReasonValue ?? "Authoritative recovery failed" };
+    }
     if (!this.hello) return this.rejectFrame("Match frame arrived before protocol hello", false);
     if (!isMatchReplicationFrame(payload)
       || payload.protocolVersion !== MATCH_PROTOCOL_VERSION
@@ -86,17 +165,24 @@ export class AuthoritativeMatchStore {
     }
 
     if (payload.kind === "snapshot") {
+      if (this.synchronizationState === "awaitingReconnectHello") {
+        return this.rejectFrame("Full snapshot arrived before reconnect hello", false);
+      }
       if (!verifyVisibleSnapshotChecksum(payload.snapshot)) {
         return this.rejectFrame("Full visible snapshot checksum is invalid", true);
       }
       if (this.snapshot && payload.serverTick < this.snapshot.serverTick) {
-        return { accepted: false, requestResync: false, reason: "Stale full snapshot ignored" };
+        return {
+          accepted: false,
+          requestResync: this.synchronizationState === "awaitingRecoverySnapshot",
+          reason: "Stale full snapshot ignored",
+        };
       }
       if (this.snapshot && payload.serverTick === this.snapshot.serverTick) {
         if (payload.snapshot.checksum !== this.snapshot.checksum) {
           return this.rejectFrame("Divergent full snapshot at the same server tick", true);
         }
-        this.synchronizationState = "synchronized";
+        this.completeSnapshotSynchronization();
         return {
           accepted: true,
           duplicate: true,
@@ -104,7 +190,7 @@ export class AuthoritativeMatchStore {
         };
       }
       this.snapshot = cloneWire(payload.snapshot);
-      this.synchronizationState = "synchronized";
+      this.completeSnapshotSynchronization();
       return {
         accepted: true,
         duplicate: false,
@@ -112,6 +198,15 @@ export class AuthoritativeMatchStore {
       };
     }
 
+    if (this.synchronizationState === "awaitingReconnectHello") {
+      return { accepted: false, requestResync: false, reason: "Delta ignored before reconnect hello" };
+    }
+    if (this.synchronizationState === "awaitingRecoverySnapshot") {
+      return { accepted: false, requestResync: true, reason: "Delta ignored while awaiting the recovery snapshot" };
+    }
+    if (this.synchronizationState === "replayReady") {
+      return { accepted: false, requestResync: false, reason: "Delta ignored until pending commands are replayed" };
+    }
     if (!this.snapshot) return this.rejectFrame("Delta arrived without a full visible snapshot base", true);
     if (this.synchronizationState === "resyncing") {
       return { accepted: false, requestResync: false, reason: "Delta ignored while awaiting a full snapshot" };
@@ -148,6 +243,9 @@ export class AuthoritativeMatchStore {
       throw new Error("Too many authoritative commands are awaiting acknowledgement");
     }
     const commandId = this.commandIdFactory();
+    if (this.pending.has(commandId) || this.completedCommands.has(commandId)) {
+      throw new Error(`Command ID collision: ${commandId}`);
+    }
     const intent: MatchCommandIntent = {
       protocolVersion: MATCH_PROTOCOL_VERSION,
       rulesVersion: RULES_VERSION,
@@ -168,6 +266,9 @@ export class AuthoritativeMatchStore {
   }
 
   applyCommandResult(payload: unknown): CommandResultApplication {
+    if (this.synchronizationState === "failed") {
+      return { accepted: false, reason: this.failureReasonValue ?? "Authoritative recovery failed" };
+    }
     if (!isMatchCommandResult(payload) || payload.commandId === null) {
       return { accepted: false, reason: "Command result failed its wire guard" };
     }
@@ -196,9 +297,62 @@ export class AuthoritativeMatchStore {
   }
 
   private rejectFrame(reason: string, shouldResync: boolean): FrameApplication {
+    if (this.synchronizationState === "failed") {
+      return { accepted: false, requestResync: false, reason: this.failureReasonValue ?? reason };
+    }
+    if (this.synchronizationState === "awaitingReconnectHello") {
+      return { accepted: false, requestResync: false, reason };
+    }
+    if (this.synchronizationState === "awaitingRecoverySnapshot") {
+      return { accepted: false, requestResync: shouldResync, reason };
+    }
+    if (this.synchronizationState === "replayReady") {
+      return { accepted: false, requestResync: false, reason };
+    }
     const requestResync = shouldResync && this.synchronizationState !== "resyncing";
     if (shouldResync) this.synchronizationState = "resyncing";
     return { accepted: false, requestResync, reason };
+  }
+
+  private isAwaitingRecoveryHello(): boolean {
+    return this.synchronizationState === "awaitingReconnectHello"
+      || this.synchronizationState === "awaitingRecoverySnapshot";
+  }
+
+  private recoverySequenceFailure(serverNextSequence: number): string | undefined {
+    const pendingBySequence = new Map<number, string>();
+    for (const intent of this.pending.values()) {
+      if (intent.clientCommandSeq >= this.nextCommandSequence) {
+        return "Pending command sequence is outside the local journal";
+      }
+      if (pendingBySequence.has(intent.clientCommandSeq)) {
+        return "Pending command journal contains a duplicate sequence";
+      }
+      pendingBySequence.set(intent.clientCommandSeq, intent.commandId);
+    }
+    if (serverNextSequence > this.nextCommandSequence) {
+      return this.pending.size === 0
+        ? undefined
+        : "Server command sequence advanced beyond a non-empty local journal";
+    }
+    for (let sequence = serverNextSequence; sequence < this.nextCommandSequence; sequence += 1) {
+      if (!pendingBySequence.has(sequence)) {
+        return `Pending command journal is missing sequence ${sequence}`;
+      }
+    }
+    return undefined;
+  }
+
+  private completeSnapshotSynchronization(): void {
+    this.synchronizationState = this.synchronizationState === "awaitingRecoverySnapshot"
+      || this.synchronizationState === "replayReady"
+      ? "replayReady"
+      : "synchronized";
+  }
+
+  private enterFailure(reason: string): void {
+    this.failureReasonValue = reason;
+    this.synchronizationState = "failed";
   }
 }
 
@@ -211,4 +365,18 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   const record = value as Record<string, unknown>;
   return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+}
+
+function sameHelloContract(left: MatchServerHello, right: MatchServerHello): boolean {
+  return left.protocolVersion === right.protocolVersion
+    && left.rulesVersion === right.rulesVersion
+    && left.matchId === right.matchId
+    && left.recipientPlayerId === right.recipientPlayerId
+    && left.tickMilliseconds === right.tickMilliseconds
+    && left.fullSnapshotIntervalTicks === right.fullSnapshotIntervalTicks
+    && left.canonicalHashIntervalTicks === right.canonicalHashIntervalTicks;
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

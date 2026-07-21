@@ -133,7 +133,8 @@ export class LobbyRoom extends Room<{
     });
 
     try {
-      const launchToken = issueMatchLaunch({ seed: this.seed, participants });
+      const matchId = `match-${randomBytes(16).toString("hex")}`;
+      const launchToken = issueMatchLaunch({ matchId, seed: this.seed, participants });
       let matchRoom;
       try {
         matchRoom = await matchMaker.createRoom(MATCH_ROOM_NAME, { launchToken });
@@ -162,6 +163,7 @@ export class LobbyRoom extends Room<{
         if (recipient) {
           recipient.send("lobby.matchAssigned", {
             playerId: assignment.playerId,
+            matchId,
             reservation: matchMaker.buildSeatReservation(matchRoom, assignment.reservationSessionId),
           });
         }

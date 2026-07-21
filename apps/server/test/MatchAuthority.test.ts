@@ -9,6 +9,7 @@ import {
   type VisibleSnapshot,
 } from "@village-siege/shared";
 import {
+  AUTHORITY_RECOVERY_CHECKPOINT_INTERVAL_TICKS,
   CANONICAL_HASH_INTERVAL_TICKS,
   FULL_SNAPSHOT_INTERVAL_TICKS,
   MatchAuthority,
@@ -61,6 +62,25 @@ function intent(
     lastServerTickSeen,
     command,
   };
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+}
+
+function expectStateCorrupt(action: () => unknown, message: RegExp): void {
+  try {
+    action();
+  } catch (error) {
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ code: "STATE_CORRUPT" });
+    expect((error as Error).message).toMatch(message);
+    return;
+  }
+  throw new Error("Expected authority restore to fail-stop with STATE_CORRUPT");
 }
 
 describe("MatchAuthority TASK-019 replication and idempotence", () => {
@@ -245,5 +265,157 @@ describe("MatchAuthority TASK-019 replication and idempotence", () => {
     expect(frame.kind).toBe("snapshot");
     expect(frame.recipientPlayerId).toBe("player-1");
     expect(JSON.stringify(frame)).not.toContain(ownTownCenterId(authority, "player-2"));
+  });
+
+  it("restores a checkpoint plus batch-tick journal with immutable result deduplication", () => {
+    const authority = new MatchAuthority("recovery-ledger", 901, participants());
+    const unitId = ownUnitId(authority, "player-1");
+    const acceptedIntent = intent(0, { type: "stop", entityIds: [unitId] }, "recover_command_0001");
+    authority.submitIntent("player-1", acceptedIntent);
+    const accepted = authority.step().commandResults.get("player-1")![0]!;
+    for (let tick = 1; tick < AUTHORITY_RECOVERY_CHECKPOINT_INTERVAL_TICKS + 7; tick += 1) authority.step();
+
+    const persisted = authority.recoveryRecord();
+    expect(persisted.checkpoint.state.tick).toBe(AUTHORITY_RECOVERY_CHECKPOINT_INTERVAL_TICKS);
+    expect(persisted.journal).toHaveLength(7);
+    const restored = MatchAuthority.restore(persisted);
+
+    expect(restored.serverTick).toBe(authority.serverTick);
+    expect(restored.recoveryRecord()).toEqual(persisted);
+    expect(restored.forceSnapshotFrame("player-1")).toEqual(authority.forceSnapshotFrame("player-1"));
+    expect(restored.submitIntent("player-1", acceptedIntent)).toEqual({
+      queued: false,
+      replayed: true,
+      result: accepted,
+    });
+  });
+
+  it("restores unresolved reorder entries and drains them only after the missing sequence arrives", () => {
+    const authority = new MatchAuthority("recovery-reorder", 902, participants());
+    const unitId = ownUnitId(authority, "player-1");
+    authority.submitIntent("player-1", intent(1, {
+      type: "setStance",
+      entityIds: [unitId],
+      stance: "defensive",
+    }, "recover_command_0002"));
+    authority.step();
+    const restored = MatchAuthority.restore(authority.recoveryRecord());
+
+    expect(restored.submitIntent("player-1", intent(0, {
+      type: "stop",
+      entityIds: [unitId],
+    }, "recover_command_0001", 1))).toMatchObject({ queued: true });
+    expect(restored.step().commandResults.get("player-1")?.map((result) => result.clientCommandSeq)).toEqual([0, 1]);
+  });
+
+  it("fail-stops when a pending sequence disagrees with its unresolved ledger intent", () => {
+    const authority = new MatchAuthority("recovery-sequence-mismatch", 906, participants());
+    const queued = intent(1, {
+      type: "stop",
+      entityIds: [ownUnitId(authority, "player-1")],
+    }, "recover_mismatch_01");
+    authority.submitIntent("player-1", queued);
+    const persisted = authority.recoveryRecord();
+
+    expectStateCorrupt(() => MatchAuthority.restore({
+      ...persisted,
+      pendingCommands: persisted.pendingCommands.map((pending) => ({ ...pending, sequence: 2 })),
+    }), /disagrees with its ledger intent/i);
+  });
+
+  it("accepts the last sequence in the reorder window and fail-stops at the first sequence beyond it", () => {
+    const authority = new MatchAuthority("recovery-window-boundary", 907, participants());
+    const unitId = ownUnitId(authority, "player-1");
+    authority.submitIntent("player-1", intent(15, {
+      type: "stop",
+      entityIds: [unitId],
+    }, "recover_boundary_15"));
+    expect(() => MatchAuthority.restore(authority.recoveryRecord())).not.toThrow();
+
+    const persisted = authority.recoveryRecord();
+    const beyondWindow = intent(16, {
+      type: "stop",
+      entityIds: [unitId],
+    }, "recover_boundary_16");
+    expectStateCorrupt(() => MatchAuthority.restore({
+      ...persisted,
+      commandRecords: [{
+        playerId: "player-1",
+        commandId: beyondWindow.commandId,
+        intent: beyondWindow,
+        fingerprint: canonicalJson(beyondWindow),
+      }],
+      pendingCommands: [{
+        playerId: "player-1",
+        sequence: beyondWindow.clientCommandSeq,
+        commandId: beyondWindow.commandId,
+      }],
+    }), /outside its per-player reorder window/i);
+  });
+
+  it("fail-stops when an unresolved ledger entry has no one-to-one pending entry", () => {
+    const authority = new MatchAuthority("recovery-orphan-ledger", 908, participants());
+    authority.submitIntent("player-1", intent(1, {
+      type: "stop",
+      entityIds: [ownUnitId(authority, "player-1")],
+    }, "recover_orphan_001"));
+    const persisted = authority.recoveryRecord();
+
+    expectStateCorrupt(() => MatchAuthority.restore({
+      ...persisted,
+      pendingCommands: [],
+    }), /unresolved ledger entry has no pending command/i);
+
+    expectStateCorrupt(() => MatchAuthority.restore({
+      ...persisted,
+      pendingCommands: [persisted.pendingCommands[0]!, persisted.pendingCommands[0]!],
+    }), /unresolved ledger entry has multiple pending commands/i);
+  });
+
+  it("restores semantic rejections and never revalidates an acknowledged command", () => {
+    const authority = new MatchAuthority("recovery-rejection", 903, participants());
+    const rejectedIntent = intent(0, {
+      type: "stop",
+      entityIds: [ownUnitId(authority, "player-2")],
+    }, "recover_rejected_01");
+    authority.submitIntent("player-1", rejectedIntent);
+    const original = authority.step().commandResults.get("player-1")![0]!;
+    expect(original).toMatchObject({ accepted: false, code: "ENTITY_NOT_OWNED" });
+
+    const restored = MatchAuthority.restore(authority.recoveryRecord());
+    expect(restored.submitIntent("player-1", rejectedIntent)).toEqual({
+      queued: false,
+      replayed: true,
+      result: original,
+    });
+  });
+
+  it("rejects corrupted checkpoints and journal hashes atomically", () => {
+    const authority = new MatchAuthority("recovery-corrupt", 904, participants());
+    authority.step();
+    const persisted = authority.recoveryRecord();
+    expect(() => MatchAuthority.restore({
+      ...persisted,
+      checkpoint: { ...persisted.checkpoint, stateHash: "00000000" },
+    })).toThrow(/checkpoint hash mismatch/i);
+    expect(() => MatchAuthority.restore({
+      ...persisted,
+      journal: persisted.journal.map((entry) => ({ ...entry, stateHash: "00000000" })),
+    })).toThrow(/journal diverged/i);
+  });
+
+  it("publishes simultaneous lease expiries once on a newer recoverable revision", () => {
+    const authority = new MatchAuthority("recovery-expiry", 905, participants(3));
+    const result = authority.expireDisconnectedTeams(["team-3", "team-2", "team-3"]);
+    expect(result.serverTick).toBe(1);
+    expect(result.phase).toBe("finished");
+    expect(result.frames.get("player-1")).toMatchObject({
+      kind: "snapshot",
+      snapshot: {
+        victory: { outcome: "victory", winningTeamIds: ["team-1"], finishReason: "disconnect" },
+      },
+    });
+    const restored = MatchAuthority.restore(authority.recoveryRecord());
+    expect(restored.forceSnapshotFrame("player-1")).toEqual(authority.forceSnapshotFrame("player-1"));
   });
 });

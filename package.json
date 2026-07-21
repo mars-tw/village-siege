@@ -1,6 +1,6 @@
 {
   "name": "village-siege",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "license": "MIT",
   "workspaces": [
@@ -17,7 +17,9 @@
     "verify": "npm run typecheck && npm test && npm run build",
     "start:server": "npm run start --workspace @village-siege/server",
     "smoke:multiplayer": "node scripts/multiplayer-smoke.mjs",
-    "smoke:multiplayer:local": "npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && node scripts/multiplayer-smoke-local.mjs"
+    "smoke:multiplayer:local": "npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && node scripts/multiplayer-smoke-local.mjs",
+    "smoke:multiplayer:recovery": "node scripts/multiplayer-recovery-smoke.mjs",
+    "smoke:multiplayer:recovery:local": "npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && node scripts/multiplayer-recovery-smoke-local.mjs"
   },
   "devDependencies": {
     "typescript": "6.0.3"
