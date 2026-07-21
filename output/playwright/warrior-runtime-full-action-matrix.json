@@ -1,0 +1,1730 @@
+{
+  "scene": "CombatShowcaseScene",
+  "actor": "p-warrior",
+  "paused": true,
+  "expectedRows": {
+    "idle": 0,
+    "walk": 1,
+    "attack": 2,
+    "hurt": 3,
+    "death": 4,
+    "cast": 5
+  },
+  "manifestRows": {
+    "idle": 0,
+    "walk": 1,
+    "attack": 2,
+    "hurt": 3,
+    "death": 4,
+    "cast": 5
+  },
+  "results": [
+    {
+      "facing": "e",
+      "action": "idle",
+      "expectedRow": 0,
+      "manifestRow": 0,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:idle:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:idle:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "walk",
+      "expectedRow": 1,
+      "manifestRow": 1,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:walk:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:walk:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "attack",
+      "expectedRow": 2,
+      "manifestRow": 2,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:attack:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:attack:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "hurt",
+      "expectedRow": 3,
+      "manifestRow": 3,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:hurt:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:hurt:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "death",
+      "expectedRow": 4,
+      "manifestRow": 4,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:death:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:death:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "cast",
+      "expectedRow": 5,
+      "manifestRow": 5,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:cast:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-e",
+        "frame": "unit-action-frame-warrior:e:cast:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "idle",
+      "expectedRow": 0,
+      "manifestRow": 0,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:idle:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:idle:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "walk",
+      "expectedRow": 1,
+      "manifestRow": 1,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:walk:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:walk:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "attack",
+      "expectedRow": 2,
+      "manifestRow": 2,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:attack:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:attack:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "hurt",
+      "expectedRow": 3,
+      "manifestRow": 3,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:hurt:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:hurt:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "death",
+      "expectedRow": 4,
+      "manifestRow": 4,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:death:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:death:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "cast",
+      "expectedRow": 5,
+      "manifestRow": 5,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:cast:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-ne",
+        "frame": "unit-action-frame-warrior:ne:cast:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "idle",
+      "expectedRow": 0,
+      "manifestRow": 0,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:idle:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:idle:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "walk",
+      "expectedRow": 1,
+      "manifestRow": 1,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:walk:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:walk:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "attack",
+      "expectedRow": 2,
+      "manifestRow": 2,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:attack:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:attack:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "hurt",
+      "expectedRow": 3,
+      "manifestRow": 3,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:hurt:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:hurt:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "death",
+      "expectedRow": 4,
+      "manifestRow": 4,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:death:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:death:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "cast",
+      "expectedRow": 5,
+      "manifestRow": 5,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:cast:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-nw",
+        "frame": "unit-action-frame-warrior:nw:cast:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "idle",
+      "expectedRow": 0,
+      "manifestRow": 0,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:idle:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:idle:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "walk",
+      "expectedRow": 1,
+      "manifestRow": 1,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:walk:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:walk:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "attack",
+      "expectedRow": 2,
+      "manifestRow": 2,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:attack:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:attack:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "hurt",
+      "expectedRow": 3,
+      "manifestRow": 3,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:hurt:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:hurt:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "death",
+      "expectedRow": 4,
+      "manifestRow": 4,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:death:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:death:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "cast",
+      "expectedRow": 5,
+      "manifestRow": 5,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:cast:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-w",
+        "frame": "unit-action-frame-warrior:w:cast:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "idle",
+      "expectedRow": 0,
+      "manifestRow": 0,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:idle:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:idle:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "walk",
+      "expectedRow": 1,
+      "manifestRow": 1,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:walk:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:walk:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "attack",
+      "expectedRow": 2,
+      "manifestRow": 2,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:attack:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:attack:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "hurt",
+      "expectedRow": 3,
+      "manifestRow": 3,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:hurt:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:hurt:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "death",
+      "expectedRow": 4,
+      "manifestRow": 4,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:death:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:death:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "cast",
+      "expectedRow": 5,
+      "manifestRow": 5,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:cast:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-sw",
+        "frame": "unit-action-frame-warrior:sw:cast:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "idle",
+      "expectedRow": 0,
+      "manifestRow": 0,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:idle:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "idle",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:idle:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 0,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 0,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "walk",
+      "expectedRow": 1,
+      "manifestRow": 1,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:walk:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "walk",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:walk:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 112,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 1,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "attack",
+      "expectedRow": 2,
+      "manifestRow": 2,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:attack:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "attack",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:attack:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 224,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 2,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "hurt",
+      "expectedRow": 3,
+      "manifestRow": 3,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:hurt:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "hurt",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:hurt:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 336,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 3,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "death",
+      "expectedRow": 4,
+      "manifestRow": 4,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:death:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "death",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:death:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 448,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 4,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "cast",
+      "expectedRow": 5,
+      "manifestRow": 5,
+      "before": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:cast:0",
+        "flipX": false,
+        "cutX": 0,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "after": {
+        "snapshot": {
+          "id": "warrior",
+          "action": "cast",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "texture": "unit-action-sheet-warrior-se",
+        "frame": "unit-action-frame-warrior:se:cast:1",
+        "flipX": false,
+        "cutX": 96,
+        "cutY": 560,
+        "cutWidth": 96,
+        "cutHeight": 112,
+        "rowIndex": 5,
+        "sourceWidth": 384,
+        "sourceHeight": 672
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "checks": 36,
+    "passed": 36,
+    "failed": 0,
+    "frameAdvanced": 36,
+    "flipXTrue": 0,
+    "uniqueTextures": [
+      "unit-action-sheet-warrior-e",
+      "unit-action-sheet-warrior-ne",
+      "unit-action-sheet-warrior-nw",
+      "unit-action-sheet-warrior-w",
+      "unit-action-sheet-warrior-sw",
+      "unit-action-sheet-warrior-se"
+    ]
+  }
+}

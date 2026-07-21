@@ -4,9 +4,13 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const relativeFiles = [
+  ".gitattributes",
   ".github/workflows/publish-containers.yml",
+  ".env.example",
+  "Dockerfile",
   "apps/client/Dockerfile",
   "apps/client/public/runtime-config.js",
+  "compose.yaml",
   "deploy/backup/backup-postgres.sh",
   "deploy/backup/README.md",
   "deploy/backup/restore-postgres.sh",
@@ -18,6 +22,7 @@ const relativeFiles = [
   "deploy/monitoring/grafana/provisioning/dashboards/dashboards.yml",
   "deploy/monitoring/grafana/dashboards/village-siege-overview.json",
   "deploy/production-compose.sh",
+  "deploy/production.env.example",
   "deploy/compose.production.yaml",
   "deploy/runtime-config.mjs",
   "deploy/scripts/validate-ops-assets.mjs",
@@ -88,6 +93,40 @@ const productionTemplate = contents.get("deploy/compose.production.yaml");
 if (!productionTemplate.includes('VITE_MULTIPLAYER_ENABLED: "false"')
   || productionTemplate.includes("VITE_COLYSEUS_URL:")) {
   throw new Error("production client build must remain domain-agnostic and runtime-configured");
+}
+
+const rootDockerfile = contents.get("Dockerfile");
+const clientDockerfile = contents.get("apps/client/Dockerfile");
+const nodeImageDigest = "sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d";
+for (const [name, dockerfile] of [["server", rootDockerfile], ["client", clientDockerfile]]) {
+  if (!dockerfile.includes(`ARG NODE_IMAGE_DIGEST=${nodeImageDigest}`)
+    || !dockerfile.includes("@${NODE_IMAGE_DIGEST}")) {
+    throw new Error(`${name} Dockerfile must pin the Node base image by multi-architecture digest`);
+  }
+}
+for (const pinnedImage of [
+  "caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+  "redis:7.4-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+  "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+]) {
+  if (!productionTemplate.includes(pinnedImage)) {
+    throw new Error(`production dependency image must be digest-pinned: ${pinnedImage}`);
+  }
+}
+
+const localTemplate = contents.get("compose.yaml");
+for (const pinnedImage of [
+  "redis:7.4-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+  "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+]) {
+  if (!localTemplate.includes(pinnedImage)) {
+    throw new Error(`local dependency image must be digest-pinned: ${pinnedImage}`);
+  }
+}
+
+const attributes = contents.get(".gitattributes");
+if (!attributes.includes("* text=auto eol=lf")) {
+  throw new Error(".gitattributes must enforce LF for cross-platform source builds");
 }
 
 const containerWorkflow = contents.get(".github/workflows/publish-containers.yml");

@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
 ARG NODE_VERSION=24.15.0
+ARG NODE_IMAGE_DIGEST=sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d
 
-FROM node:${NODE_VERSION}-bookworm-slim AS builder
+FROM node:${NODE_VERSION}-bookworm-slim@${NODE_IMAGE_DIGEST} AS builder
 
 WORKDIR /app
 
@@ -23,6 +24,7 @@ COPY apps/client/vite.config.ts apps/client/vite.config.ts
 COPY apps/client/index.html apps/client/index.html
 COPY apps/client/src apps/client/src
 COPY apps/client/public apps/client/public
+COPY scripts/prune-runtime-art.mjs scripts/prune-runtime-art.mjs
 
 ARG VITE_MULTIPLAYER_ENABLED=false
 ARG VITE_COLYSEUS_URL
@@ -32,11 +34,9 @@ ENV VITE_MULTIPLAYER_ENABLED=${VITE_MULTIPLAYER_ENABLED} \
 
 RUN npm run build --workspace @village-siege/shared \
     && npm run build --workspace @village-siege/client -- --base="${VITE_BASE_URL}" \
-    && rm -rf /app/apps/client/dist/assets/original/source \
-    && find /app/apps/client/dist/assets/original -type f \
-      \( -name 'action-sheet-source.png' -o -name 'portrait.png' \) -delete
+    && node scripts/prune-runtime-art.mjs --runtime-dir apps/client/dist
 
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM node:${NODE_VERSION}-bookworm-slim@${NODE_IMAGE_DIGEST} AS runtime
 
 ENV NODE_ENV=production \
     PORT=8080

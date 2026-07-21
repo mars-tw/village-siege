@@ -8,6 +8,7 @@ services:
       dockerfile: apps/client/Dockerfile
       args:
         NODE_VERSION: ${NODE_VERSION:-24.15.0}
+        NODE_IMAGE_DIGEST: ${NODE_IMAGE_DIGEST:-sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d}
         VITE_MULTIPLAYER_ENABLED: ${VITE_MULTIPLAYER_ENABLED:-false}
         VITE_COLYSEUS_URL: ${VITE_COLYSEUS_URL:-}
         VITE_BASE_URL: ${VITE_BASE_URL:-/}
@@ -39,6 +40,7 @@ services:
       dockerfile: Dockerfile
       args:
         NODE_VERSION: ${NODE_VERSION:-24.15.0}
+        NODE_IMAGE_DIGEST: ${NODE_IMAGE_DIGEST:-sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d}
     restart: unless-stopped
     init: true
     depends_on:
@@ -84,7 +86,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.4-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     restart: unless-stopped
     user: redis
     environment:
@@ -118,7 +120,7 @@ services:
       retries: 10
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-village_siege}

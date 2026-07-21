@@ -15,6 +15,7 @@ import {
   ANIMATED_UNIT_FRAME_ASSETS,
   COMBAT_ANIMATION_MANIFEST,
   assertCombatAnimationManifestValid,
+  frameAssetFiles,
 } from "../game/combatAnimationManifest";
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { gridDistance, gridToWorld, worldToGrid, type GridPoint, type ScreenPoint } from "../game/isometric";
@@ -306,6 +307,7 @@ export class CombatShowcaseScene extends Phaser.Scene {
   preload(): void {
     assertCombatAnimationManifestValid();
     const assets = [...ANIMATED_UNIT_FRAME_ASSETS, ...ANIMATED_MONSTER_FRAME_ASSETS]
+      .flatMap((asset) => frameAssetFiles(asset))
       .filter((asset) => !this.textures.exists(asset.textureKey));
     if (assets.length === 0) return;
 

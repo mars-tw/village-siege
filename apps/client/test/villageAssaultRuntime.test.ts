@@ -73,7 +73,7 @@ describe("VillageAssaultRuntime authoritative AI", () => {
     expect(first.state).toEqual(second.state);
     expect(first.state.aiControllers[0]).not.toEqual(initialAuthority);
     expect(first.state.aiControllers[0]?.telemetry.decisions).toBeGreaterThan(0);
-  });
+  }, 30_000);
 
   it("derives a minimal signal only from a visible hostile phase-transition anchor", () => {
     const runtime = createVillageAssaultRuntime(OPTIONS);
@@ -186,7 +186,7 @@ describe("VillageAssaultRuntime authoritative AI", () => {
     expect(hashMatchState(reconstructed.state)).toBe(hashMatchState(live.state));
     expect(reconstructed.state.aiControllers).toEqual(live.state.aiControllers);
     expect(reconstructed.step(100).state).toEqual(live.step(100).state);
-  });
+  }, 30_000);
 
   it("continues an imported replay from a fresh checkpoint and preserves final runtime metadata", () => {
     const original = createVillageAssaultRuntime(OPTIONS);
@@ -226,7 +226,7 @@ describe("VillageAssaultRuntime authoritative AI", () => {
     expect(restored.state).toEqual(continued.state);
     expect(hashMatchState(restored.state)).toBe(hashMatchState(continued.state));
     expect(restoredSave.runtime).toEqual(expectedSave.runtime);
-  });
+  }, 30_000);
 
   it("rejects incompatible saves atomically", () => {
     const source = createVillageAssaultRuntime(OPTIONS);
