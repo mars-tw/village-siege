@@ -159,8 +159,8 @@ jobs:
       - name: Verify the live TLS edge boundary and WebSocket upgrade
         shell: bash
         run: |
-          curl --fail --insecure --silent --show-error https://localhost/ >/dev/null
-          curl --fail --insecure --silent --show-error https://127.0.0.1/health/ready >/dev/null
+          curl --fail --insecure --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 --retry-max-time 30 https://localhost/ >/dev/null
+          curl --fail --insecure --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 --retry-max-time 30 https://127.0.0.1/health/ready >/dev/null
           test "$(curl --insecure --silent --output /dev/null --write-out '%{http_code}' https://127.0.0.1/metrics)" = "404"
           node -e "const tls=require('node:tls');const timer=setTimeout(()=>process.exit(1),5000);const socket=tls.connect({host:'127.0.0.1',port:443,rejectUnauthorized:false},()=>socket.write('GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nOrigin: https://localhost\r\n\r\n'));let response='';socket.on('data',chunk=>{response+=chunk;if(response.includes('\r\n\r\n')){clearTimeout(timer);if(!response.startsWith('HTTP/1.1 101'))process.exit(1);socket.destroy();process.exit(0)}});socket.on('error',()=>process.exit(1))"
 
