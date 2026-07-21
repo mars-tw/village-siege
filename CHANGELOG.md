@@ -4,6 +4,14 @@
 
 開源專案：[github.com/mars-tw/village-siege](https://github.com/mars-tw/village-siege)
 
+## v3 v0.19（六向弓箭手、友軍動態避讓，2026-07-22）
+
+- 發行三元組為 app `0.19.0`、protocol `village-siege-network/4`、rules `village-siege/0.18.0`；production Compose、環境範例與 `/version` 驗收文件使用相同版本。
+- v0.19.0 將弓箭手升級為六個獨立方向、每方向六動作四影格的原創透明動作表。144 個弓箭手 runtime cells 已通過空格、重複格、跨方向原圖／鏡像重用、透明 RGB 與安全邊界檢查；Chromium 另完成 36/36 方向／動作切換、六張 HTTP 解碼與零載入錯誤門檻。戰士與弓箭手目前都不靠水平翻轉切換方向。
+- 共享決定論模擬新增同隊單位逐 tick 格位預約、固定 ID 順序與有界局部繞行。一般移動、巡邏、攻擊接近、施工／採集接近、野豬衝鋒、推擠、燃燒／戰鬥死亡與同隊跨玩家單位都不會搶占同一格；靜態封路保留移動進度，動態捷徑被友軍占用時不再在兩格間反覆折返。40 單位雙格門在 600 tick 內完成通行，shared simulation 89/89 與五種 AI 的 18,000 tick 長跑均通過。
+- 844×390 Chromium 從首頁真實點入 `VillageAssaultScene`，分別驗證預設戰場與由「全選工匠 → 建造」開啟的建造選單；兩種狀態各七個可見操作鍵，重疊 0、越界 0、頁面／請求／素材錯誤 0。
+- GitHub Pages 建置可由 repository variables 注入正式多人 runtime config，但預設仍明確關閉；只有完成長期公開 WSS 與雙客戶端 live gate 後才可設定 `VILLAGE_SIEGE_MULTIPLAYER_ENABLED=true`。原始碼、美術來源、自架、TLS/WSS、監控與備份範本維持 MIT 開放。
+
 ## v3 v0.18（單機公開、權威多人主機待部署，2026-07-21）
 
 - v0.18.0／TASK-022 將協定升為 `village-siege-network/4`、規則升為 `village-siege/0.17.0`。多人房主可加入最多三個伺服器權威 AI，與真人合計最多五個陣營；AI 不占 WebSocket 席位、不接收 hello／frame／ack，決策、命令、序號、恢復與 canonical hash 全留在伺服器。

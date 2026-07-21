@@ -4,6 +4,7 @@ import {
   createRuntimeConfig,
   createRuntimeConfigBody,
   normalizeConnectOrigin,
+  validatePagesBuildConfig,
 } from "../runtime-config.mjs";
 
 test("normalizes only an exact HTTPS origin", () => {
@@ -31,4 +32,15 @@ test("emits a frozen browser assignment for the validated endpoint", () => {
     createRuntimeConfigBody(endpoint),
     "globalThis.__VILLAGE_SIEGE_RUNTIME_CONFIG__ = Object.freeze({\"multiplayerEnabled\":\"true\",\"colyseusUrl\":\"https://server.play.example.com\"});\n",
   );
+});
+
+test("requires an exact HTTPS Pages endpoint only when multiplayer is enabled", () => {
+  assert.deepEqual(validatePagesBuildConfig("false", ""), { enabled: "false", endpoint: undefined });
+  assert.deepEqual(
+    validatePagesBuildConfig("true", "https://server.play.example.com"),
+    { enabled: "true", endpoint: "https://server.play.example.com" },
+  );
+  assert.throws(() => validatePagesBuildConfig("yes", ""), /must be true or false/u);
+  assert.throws(() => validatePagesBuildConfig("true", ""), /is required/u);
+  assert.throws(() => validatePagesBuildConfig("true", "http://server.play.example.com"), /exact HTTPS origin/u);
 });

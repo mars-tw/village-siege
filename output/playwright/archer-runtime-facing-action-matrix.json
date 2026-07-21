@@ -1,0 +1,2013 @@
+{
+  "generatedAt": "2026-07-21T19:53:47.377Z",
+  "scene": "CombatShowcaseScene",
+  "activeScenes": [
+    "CombatShowcaseScene"
+  ],
+  "briefingDismissed": true,
+  "actor": {
+    "instanceId": "p-archer",
+    "artId": "archer",
+    "team": "player"
+  },
+  "manifest": {
+    "id": "archer",
+    "frameWidth": 96,
+    "frameHeight": 112,
+    "directionalTextureKeys": {
+      "e": "unit-action-sheet-archer-e",
+      "ne": "unit-action-sheet-archer-ne",
+      "nw": "unit-action-sheet-archer-nw",
+      "w": "unit-action-sheet-archer-w",
+      "sw": "unit-action-sheet-archer-sw",
+      "se": "unit-action-sheet-archer-se"
+    }
+  },
+  "expectedStateCount": 36,
+  "observedStateCount": 36,
+  "passedStateCount": 36,
+  "failedStateCount": 0,
+  "pass": true,
+  "results": [
+    {
+      "facing": "e",
+      "action": "idle",
+      "expectedTextureKey": "unit-action-sheet-archer-e",
+      "expectedRow": 0,
+      "rowDefinition": {
+        "row": 0,
+        "frames": 4,
+        "fps": 5,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:idle:0",
+        "frameCutX": 0,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:idle:1",
+        "frameCutX": 96,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "walk",
+      "expectedTextureKey": "unit-action-sheet-archer-e",
+      "expectedRow": 1,
+      "rowDefinition": {
+        "row": 1,
+        "frames": 4,
+        "fps": 9,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:walk:0",
+        "frameCutX": 0,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:walk:1",
+        "frameCutX": 96,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "attack",
+      "expectedTextureKey": "unit-action-sheet-archer-e",
+      "expectedRow": 2,
+      "rowDefinition": {
+        "row": 2,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:attack:0",
+        "frameCutX": 0,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:attack:1",
+        "frameCutX": 96,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "hurt",
+      "expectedTextureKey": "unit-action-sheet-archer-e",
+      "expectedRow": 3,
+      "rowDefinition": {
+        "row": 3,
+        "frames": 4,
+        "fps": 9,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:hurt:0",
+        "frameCutX": 0,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:hurt:1",
+        "frameCutX": 96,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "death",
+      "expectedTextureKey": "unit-action-sheet-archer-e",
+      "expectedRow": 4,
+      "rowDefinition": {
+        "row": 4,
+        "frames": 4,
+        "fps": 7,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:death:0",
+        "frameCutX": 0,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:death:1",
+        "frameCutX": 96,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "e",
+      "action": "cast",
+      "expectedTextureKey": "unit-action-sheet-archer-e",
+      "expectedRow": 5,
+      "rowDefinition": {
+        "row": 5,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "e",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:cast:0",
+        "frameCutX": 0,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "e",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-e",
+        "frameName": "unit-action-frame-archer:e:cast:1",
+        "frameCutX": 96,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "idle",
+      "expectedTextureKey": "unit-action-sheet-archer-ne",
+      "expectedRow": 0,
+      "rowDefinition": {
+        "row": 0,
+        "frames": 4,
+        "fps": 5,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:idle:0",
+        "frameCutX": 0,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:idle:1",
+        "frameCutX": 96,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "walk",
+      "expectedTextureKey": "unit-action-sheet-archer-ne",
+      "expectedRow": 1,
+      "rowDefinition": {
+        "row": 1,
+        "frames": 4,
+        "fps": 9,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:walk:0",
+        "frameCutX": 0,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:walk:1",
+        "frameCutX": 96,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "attack",
+      "expectedTextureKey": "unit-action-sheet-archer-ne",
+      "expectedRow": 2,
+      "rowDefinition": {
+        "row": 2,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:attack:0",
+        "frameCutX": 0,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:attack:1",
+        "frameCutX": 96,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "hurt",
+      "expectedTextureKey": "unit-action-sheet-archer-ne",
+      "expectedRow": 3,
+      "rowDefinition": {
+        "row": 3,
+        "frames": 4,
+        "fps": 9,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:hurt:0",
+        "frameCutX": 0,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:hurt:1",
+        "frameCutX": 96,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "death",
+      "expectedTextureKey": "unit-action-sheet-archer-ne",
+      "expectedRow": 4,
+      "rowDefinition": {
+        "row": 4,
+        "frames": 4,
+        "fps": 7,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:death:0",
+        "frameCutX": 0,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:death:1",
+        "frameCutX": 96,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "action": "cast",
+      "expectedTextureKey": "unit-action-sheet-archer-ne",
+      "expectedRow": 5,
+      "rowDefinition": {
+        "row": 5,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "ne",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:cast:0",
+        "frameCutX": 0,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "ne",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-ne",
+        "frameName": "unit-action-frame-archer:ne:cast:1",
+        "frameCutX": 96,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "idle",
+      "expectedTextureKey": "unit-action-sheet-archer-nw",
+      "expectedRow": 0,
+      "rowDefinition": {
+        "row": 0,
+        "frames": 4,
+        "fps": 5,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:idle:0",
+        "frameCutX": 0,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:idle:1",
+        "frameCutX": 96,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "walk",
+      "expectedTextureKey": "unit-action-sheet-archer-nw",
+      "expectedRow": 1,
+      "rowDefinition": {
+        "row": 1,
+        "frames": 4,
+        "fps": 9,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:walk:0",
+        "frameCutX": 0,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:walk:1",
+        "frameCutX": 96,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "attack",
+      "expectedTextureKey": "unit-action-sheet-archer-nw",
+      "expectedRow": 2,
+      "rowDefinition": {
+        "row": 2,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:attack:0",
+        "frameCutX": 0,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:attack:1",
+        "frameCutX": 96,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "hurt",
+      "expectedTextureKey": "unit-action-sheet-archer-nw",
+      "expectedRow": 3,
+      "rowDefinition": {
+        "row": 3,
+        "frames": 4,
+        "fps": 9,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:hurt:0",
+        "frameCutX": 0,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:hurt:1",
+        "frameCutX": 96,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "death",
+      "expectedTextureKey": "unit-action-sheet-archer-nw",
+      "expectedRow": 4,
+      "rowDefinition": {
+        "row": 4,
+        "frames": 4,
+        "fps": 7,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:death:0",
+        "frameCutX": 0,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:death:1",
+        "frameCutX": 96,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "action": "cast",
+      "expectedTextureKey": "unit-action-sheet-archer-nw",
+      "expectedRow": 5,
+      "rowDefinition": {
+        "row": 5,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "nw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:cast:0",
+        "frameCutX": 0,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "nw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-nw",
+        "frameName": "unit-action-frame-archer:nw:cast:1",
+        "frameCutX": 96,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "idle",
+      "expectedTextureKey": "unit-action-sheet-archer-w",
+      "expectedRow": 0,
+      "rowDefinition": {
+        "row": 0,
+        "frames": 4,
+        "fps": 5,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:idle:0",
+        "frameCutX": 0,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:idle:1",
+        "frameCutX": 96,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "walk",
+      "expectedTextureKey": "unit-action-sheet-archer-w",
+      "expectedRow": 1,
+      "rowDefinition": {
+        "row": 1,
+        "frames": 4,
+        "fps": 9,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:walk:0",
+        "frameCutX": 0,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:walk:1",
+        "frameCutX": 96,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "attack",
+      "expectedTextureKey": "unit-action-sheet-archer-w",
+      "expectedRow": 2,
+      "rowDefinition": {
+        "row": 2,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:attack:0",
+        "frameCutX": 0,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:attack:1",
+        "frameCutX": 96,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "hurt",
+      "expectedTextureKey": "unit-action-sheet-archer-w",
+      "expectedRow": 3,
+      "rowDefinition": {
+        "row": 3,
+        "frames": 4,
+        "fps": 9,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:hurt:0",
+        "frameCutX": 0,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:hurt:1",
+        "frameCutX": 96,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "death",
+      "expectedTextureKey": "unit-action-sheet-archer-w",
+      "expectedRow": 4,
+      "rowDefinition": {
+        "row": 4,
+        "frames": 4,
+        "fps": 7,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:death:0",
+        "frameCutX": 0,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:death:1",
+        "frameCutX": 96,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "action": "cast",
+      "expectedTextureKey": "unit-action-sheet-archer-w",
+      "expectedRow": 5,
+      "rowDefinition": {
+        "row": 5,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "w",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:cast:0",
+        "frameCutX": 0,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "w",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-w",
+        "frameName": "unit-action-frame-archer:w:cast:1",
+        "frameCutX": 96,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "idle",
+      "expectedTextureKey": "unit-action-sheet-archer-sw",
+      "expectedRow": 0,
+      "rowDefinition": {
+        "row": 0,
+        "frames": 4,
+        "fps": 5,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:idle:0",
+        "frameCutX": 0,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:idle:1",
+        "frameCutX": 96,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "walk",
+      "expectedTextureKey": "unit-action-sheet-archer-sw",
+      "expectedRow": 1,
+      "rowDefinition": {
+        "row": 1,
+        "frames": 4,
+        "fps": 9,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:walk:0",
+        "frameCutX": 0,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:walk:1",
+        "frameCutX": 96,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "attack",
+      "expectedTextureKey": "unit-action-sheet-archer-sw",
+      "expectedRow": 2,
+      "rowDefinition": {
+        "row": 2,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:attack:0",
+        "frameCutX": 0,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:attack:1",
+        "frameCutX": 96,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "hurt",
+      "expectedTextureKey": "unit-action-sheet-archer-sw",
+      "expectedRow": 3,
+      "rowDefinition": {
+        "row": 3,
+        "frames": 4,
+        "fps": 9,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:hurt:0",
+        "frameCutX": 0,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:hurt:1",
+        "frameCutX": 96,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "death",
+      "expectedTextureKey": "unit-action-sheet-archer-sw",
+      "expectedRow": 4,
+      "rowDefinition": {
+        "row": 4,
+        "frames": 4,
+        "fps": 7,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:death:0",
+        "frameCutX": 0,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:death:1",
+        "frameCutX": 96,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "action": "cast",
+      "expectedTextureKey": "unit-action-sheet-archer-sw",
+      "expectedRow": 5,
+      "rowDefinition": {
+        "row": 5,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "sw",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:cast:0",
+        "frameCutX": 0,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "sw",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-sw",
+        "frameName": "unit-action-frame-archer:sw:cast:1",
+        "frameCutX": 96,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "idle",
+      "expectedTextureKey": "unit-action-sheet-archer-se",
+      "expectedRow": 0,
+      "rowDefinition": {
+        "row": 0,
+        "frames": 4,
+        "fps": 5,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:idle:0",
+        "frameCutX": 0,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "idle",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:idle:1",
+        "frameCutX": 96,
+        "frameCutY": 0,
+        "frameRow": 0,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "walk",
+      "expectedTextureKey": "unit-action-sheet-archer-se",
+      "expectedRow": 1,
+      "rowDefinition": {
+        "row": 1,
+        "frames": 4,
+        "fps": 9,
+        "loop": true
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:walk:0",
+        "frameCutX": 0,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "walk",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:walk:1",
+        "frameCutX": 96,
+        "frameCutY": 112,
+        "frameRow": 1,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "attack",
+      "expectedTextureKey": "unit-action-sheet-archer-se",
+      "expectedRow": 2,
+      "rowDefinition": {
+        "row": 2,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:attack:0",
+        "frameCutX": 0,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "attack",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:attack:1",
+        "frameCutX": 96,
+        "frameCutY": 224,
+        "frameRow": 2,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "hurt",
+      "expectedTextureKey": "unit-action-sheet-archer-se",
+      "expectedRow": 3,
+      "rowDefinition": {
+        "row": 3,
+        "frames": 4,
+        "fps": 9,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:hurt:0",
+        "frameCutX": 0,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "hurt",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:hurt:1",
+        "frameCutX": 96,
+        "frameCutY": 336,
+        "frameRow": 3,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "death",
+      "expectedTextureKey": "unit-action-sheet-archer-se",
+      "expectedRow": 4,
+      "rowDefinition": {
+        "row": 4,
+        "frames": 4,
+        "fps": 7,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:death:0",
+        "frameCutX": 0,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "death",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:death:1",
+        "frameCutX": 96,
+        "frameCutY": 448,
+        "frameRow": 4,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "action": "cast",
+      "expectedTextureKey": "unit-action-sheet-archer-se",
+      "expectedRow": 5,
+      "rowDefinition": {
+        "row": 5,
+        "frames": 4,
+        "fps": 10,
+        "loop": false
+      },
+      "before": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "se",
+          "frame": 0,
+          "normalizedTime": 0,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:cast:0",
+        "frameCutX": 0,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "after": {
+        "snapshot": {
+          "id": "archer",
+          "action": "cast",
+          "facing": "se",
+          "frame": 1,
+          "normalizedTime": 0.3333333333333333,
+          "finished": false
+        },
+        "textureKey": "unit-action-sheet-archer-se",
+        "frameName": "unit-action-frame-archer:se:cast:1",
+        "frameCutX": 96,
+        "frameCutY": 560,
+        "frameRow": 5,
+        "flipX": false
+      },
+      "checks": {
+        "initialFacingMatches": true,
+        "advancedFacingMatches": true,
+        "initialActionMatches": true,
+        "advancedActionMatches": true,
+        "textureKeyMatches": true,
+        "rowMatches": true,
+        "frameAdvanced": true,
+        "flipXDisabled": true
+      },
+      "pass": true
+    }
+  ]
+}

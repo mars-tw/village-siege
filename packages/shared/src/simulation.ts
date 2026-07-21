@@ -1472,6 +1472,172 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
   }
 }
 
+interface AlliedMovementCell {
+  readonly point: GridPoint;
+  readonly unitIds: Set<EntityId>;
+}
+
+interface AlliedMovementReservations {
+  readonly teamByPlayerId: ReadonlyMap<PlayerId, string>;
+  readonly teamIdByUnitId: ReadonlyMap<EntityId, string>;
+  readonly cellsByTeam: Map<string, Map<string, AlliedMovementCell>>;
+  readonly cellKeyByUnitId: Map<EntityId, string>;
+  readonly targetKeyByUnitId: ReadonlyMap<EntityId, string>;
+  hardBlockedCellKeys: ReadonlySet<string> | null;
+}
+
+/**
+ * Ephemeral cooperative occupancy for one fixed simulation tick. Units are
+ * inserted and updated in canonical id order, so cell claims remain replay
+ * deterministic without entering the persisted match state or its hash.
+ */
+function createAlliedMovementReservations(
+  state: MatchState,
+  units: readonly UnitEntityState[],
+): AlliedMovementReservations {
+  const teamByPlayerId = new Map(state.players.map((player) => [player.id, player.teamId]));
+  const teamIdByUnitId = new Map<EntityId, string>();
+  const cellsByTeam = new Map<string, Map<string, AlliedMovementCell>>();
+  const cellKeyByUnitId = new Map<EntityId, string>();
+  const targetKeyByUnitId = new Map<EntityId, string>();
+  for (const unit of units) {
+    if (unit.hitPoints <= 0 || !isPlayerOperational(state, unit.ownerId)) continue;
+    const teamId = teamByPlayerId.get(unit.ownerId);
+    if (!teamId) continue;
+    teamIdByUnitId.set(unit.id, teamId);
+    const cells = cellsByTeam.get(teamId) ?? new Map<string, AlliedMovementCell>();
+    cellsByTeam.set(teamId, cells);
+    const key = pointKey(unit.position);
+    const cell = cells.get(key) ?? { point: { ...unit.position }, unitIds: new Set<EntityId>() };
+    cell.unitIds.add(unit.id);
+    cells.set(key, cell);
+    cellKeyByUnitId.set(unit.id, key);
+    const movementTarget = unit.order.type === "move" || unit.order.type === "attackMove"
+      ? unit.order.target
+      : unit.order.type === "patrol"
+        ? unit.order.waypoints[unit.order.waypointIndex]
+        : unit.order.type === "idle"
+          ? unit.position
+          : undefined;
+    if (movementTarget) targetKeyByUnitId.set(unit.id, pointKey(movementTarget));
+  }
+  return {
+    teamByPlayerId,
+    teamIdByUnitId,
+    cellsByTeam,
+    cellKeyByUnitId,
+    targetKeyByUnitId,
+    hardBlockedCellKeys: null,
+  };
+}
+
+function releaseAlliedMovementReservation(reservations: AlliedMovementReservations, unitId: EntityId): void {
+  const teamId = reservations.teamIdByUnitId.get(unitId);
+  const key = reservations.cellKeyByUnitId.get(unitId);
+  const cells = teamId ? reservations.cellsByTeam.get(teamId) : undefined;
+  if (!key || !cells) return;
+  const cell = cells.get(key);
+  cell?.unitIds.delete(unitId);
+  if (cell?.unitIds.size === 0) cells.delete(key);
+  reservations.cellKeyByUnitId.delete(unitId);
+}
+
+function releaseLethalMovementReservations(
+  reservations: AlliedMovementReservations,
+  events: readonly DomainEvent[],
+  startIndex: number,
+): void {
+  for (let index = startIndex; index < events.length; index += 1) {
+    const event = events[index]!;
+    if (event.type === "entityDamaged" && event.hitPoints <= 0) {
+      releaseAlliedMovementReservation(reservations, event.targetId);
+    }
+  }
+}
+
+/**
+ * Lets a group work around a constrained footprint without sharing a tile. A
+ * unit may interact through one adjacent allied perimeter occupant, but the
+ * handoff never chains and never bypasses terrain or building collision.
+ */
+function canUnitInteractWithEntity(
+  unit: UnitEntityState,
+  entity: EntityState,
+  reservations: AlliedMovementReservations,
+): boolean {
+  if (isEntityInteractionCell(unit.position, entity)) return true;
+  const teamId = reservations.teamByPlayerId.get(unit.ownerId);
+  const cells = teamId ? reservations.cellsByTeam.get(teamId) : undefined;
+  if (!cells) return false;
+  return ALLIED_SIDESTEP_OFFSETS.some((offset) => {
+    const adjacent = { x: unit.position.x + offset.x, y: unit.position.y + offset.y };
+    const occupants = cells.get(pointKey(adjacent))?.unitIds;
+    return occupants !== undefined
+      && [...occupants].some((occupantId) => occupantId !== unit.id)
+      && isEntityInteractionCell(adjacent, entity);
+  });
+}
+
+function isAlliedMovementCellAvailable(
+  reservations: AlliedMovementReservations,
+  unit: UnitEntityState,
+  destination: GridPoint,
+): boolean {
+  const teamId = reservations.teamByPlayerId.get(unit.ownerId);
+  const cells = teamId ? reservations.cellsByTeam.get(teamId) : undefined;
+  if (!cells) return true;
+  const destinationCell = cells.get(pointKey(destination));
+  return !destinationCell
+    || destinationCell.unitIds.size - (destinationCell.unitIds.has(unit.id) ? 1 : 0) === 0;
+}
+
+function alliedOccupantOwnsTarget(
+  reservations: AlliedMovementReservations,
+  unit: UnitEntityState,
+  target: GridPoint,
+): boolean {
+  const teamId = reservations.teamByPlayerId.get(unit.ownerId);
+  const cells = teamId ? reservations.cellsByTeam.get(teamId) : undefined;
+  const key = pointKey(target);
+  const occupants = cells?.get(key)?.unitIds;
+  if (!occupants) return false;
+  for (const occupantId of occupants) {
+    if (occupantId !== unit.id && reservations.targetKeyByUnitId.get(occupantId) === key) return true;
+  }
+  return false;
+}
+
+function tryReserveAlliedMovementCell(
+  reservations: AlliedMovementReservations,
+  unit: UnitEntityState,
+  destination: GridPoint,
+): boolean {
+  const teamId = reservations.teamByPlayerId.get(unit.ownerId);
+  const cells = teamId ? reservations.cellsByTeam.get(teamId) : undefined;
+  if (!cells) return true;
+  const destinationKey = pointKey(destination);
+  if (!isAlliedMovementCellAvailable(reservations, unit, destination)) return false;
+
+  const currentKey = reservations.cellKeyByUnitId.get(unit.id);
+  if (currentKey && currentKey !== destinationKey) {
+    const currentCell = cells.get(currentKey);
+    currentCell?.unitIds.delete(unit.id);
+    if (currentCell?.unitIds.size === 0) cells.delete(currentKey);
+  }
+  const nextCell = cells.get(destinationKey) ?? { point: { ...destination }, unitIds: new Set<EntityId>() };
+  nextCell.unitIds.add(unit.id);
+  cells.set(destinationKey, nextCell);
+  reservations.cellKeyByUnitId.set(unit.id, destinationKey);
+  return true;
+}
+
+/** Keeps the table correct for deterministic ability movement handled outside the normal walk helpers. */
+function synchronizeMovementReservation(reservations: AlliedMovementReservations, unit: UnitEntityState): void {
+  const expectedKey = pointKey(unit.position);
+  if (reservations.cellKeyByUnitId.get(unit.id) === expectedKey) return;
+  tryReserveAlliedMovementCell(reservations, unit, unit.position);
+}
+
 function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   state.tick += 1;
   expirePlayerMonsterBoons(state);
@@ -1482,12 +1648,20 @@ function advanceOneTick(state: MatchState, events: DomainEvent[]): void {
   const units = state.entities
     .filter((entity): entity is UnitEntityState => entity.kind === "unit")
     .sort((left, right) => compareText(left.id, right.id));
+  const movementReservations = createAlliedMovementReservations(state, units);
   for (const unit of units) {
     unit.attackCooldownTicks = Math.max(0, unit.attackCooldownTicks - 1);
     unit.workCooldownTicks = Math.max(0, unit.workCooldownTicks - 1);
     updateStatuses(state, unit, events);
-    if (unit.hitPoints <= 0 || !isPlayerOperational(state, unit.ownerId)) continue;
-    updateUnit(state, unit, events);
+    if (unit.hitPoints <= 0 || !isPlayerOperational(state, unit.ownerId)) {
+      releaseAlliedMovementReservation(movementReservations, unit.id);
+      continue;
+    }
+    const eventStartIndex = events.length;
+    updateUnit(state, unit, events, movementReservations);
+    releaseLethalMovementReservations(movementReservations, events, eventStartIndex);
+    if (unit.hitPoints <= 0) releaseAlliedMovementReservation(movementReservations, unit.id);
+    else synchronizeMovementReservation(movementReservations, unit);
   }
   const monsters = state.entities
     .filter((entity): entity is MonsterEntityState => entity.kind === "monster")
@@ -1556,13 +1730,18 @@ function isPlayerOperational(state: MatchState, playerId: PlayerId): boolean {
   return Boolean(player && !player.surrendered && !player.eliminated);
 }
 
-function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
+function updateUnit(
+  state: MatchState,
+  unit: UnitEntityState,
+  events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
+): void {
   updateUnitPassives(state, unit, events);
   if (hasStatus(unit, "stagger")) {
     if (unit.combat.phase !== "ready") cancelCombatAction(state, unit, events);
     return;
   }
-  if (progressCombatAction(state, unit, events)) return;
+  if (progressCombatAction(state, unit, events, movementReservations)) return;
   const order = unit.order;
   if (order.type === "idle") {
     const target = findAutomaticTarget(state, unit);
@@ -1570,7 +1749,7 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
     return;
   }
   if (order.type === "move") {
-    if (moveToward(state, unit, order.target)) unit.order = { type: "idle" };
+    if (moveToward(state, unit, order.target, movementReservations)) unit.order = { type: "idle" };
     return;
   }
   if (order.type === "attackMove") {
@@ -1580,40 +1759,40 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
       : findAutomaticTarget(state, unit, true);
     order.engagedTargetId = target?.id ?? null;
     if (target) {
-      updateAttackOrder(state, unit, target, events);
+      updateAttackOrder(state, unit, target, events, movementReservations);
       return;
     }
-    if (moveToward(state, unit, order.target)) unit.order = { type: "idle" };
+    if (moveToward(state, unit, order.target, movementReservations)) unit.order = { type: "idle" };
     return;
   }
   if (order.type === "patrol") {
     const automaticTarget = findAutomaticTarget(state, unit, true);
     if (automaticTarget) {
-      updateAttackOrder(state, unit, automaticTarget, events);
+      updateAttackOrder(state, unit, automaticTarget, events, movementReservations);
       return;
     }
     const target = order.waypoints[order.waypointIndex];
     if (!target) { unit.order = { type: "idle" }; return; }
-    if (moveToward(state, unit, target)) order.waypointIndex = (order.waypointIndex + 1) % order.waypoints.length;
+    if (moveToward(state, unit, target, movementReservations)) order.waypointIndex = (order.waypointIndex + 1) % order.waypoints.length;
     return;
   }
   if (order.type === "gather") {
-    updateGatherOrder(state, unit, order, events);
+    updateGatherOrder(state, unit, order, events, movementReservations);
     return;
   }
   if (order.type === "deliver") {
-    updateDeliveryOrder(state, unit, order.targetId, events);
+    updateDeliveryOrder(state, unit, order.targetId, events, movementReservations);
     return;
   }
   const target = state.entities.find((entity) => entity.id === order.targetId);
   if (!target) { unit.order = { type: "idle" }; return; }
   if (order.type === "repair") {
-    updateRepairOrder(state, unit, target);
+    updateRepairOrder(state, unit, target, movementReservations);
     return;
   }
   if (order.type === "construct") {
     if (target.kind !== "building" || target.complete) { unit.order = { type: "idle" }; return; }
-    if (!isEntityInteractionCell(unit.position, target)) { moveTowardEntity(state, unit, target); return; }
+    if (!canUnitInteractWithEntity(unit, target, movementReservations)) { moveTowardEntity(state, unit, target, movementReservations); return; }
     const totalTicks = Math.max(1, BUILDINGS[target.typeId].buildTicks);
     const previousCap = Math.max(1, Math.floor(target.maxHitPoints * (1 - target.constructionRemainingTicks / totalTicks)));
     target.constructionRemainingTicks = Math.max(0, target.constructionRemainingTicks - 1);
@@ -1627,7 +1806,7 @@ function updateUnit(state: MatchState, unit: UnitEntityState, events: DomainEven
     }
     return;
   }
-  updateAttackOrder(state, unit, target, events);
+  updateAttackOrder(state, unit, target, events, movementReservations);
 }
 
 /** Deterministic neutral retaliation: a camp only hunts the team that first damaged it. */
@@ -1874,7 +2053,13 @@ function moveMonsterToward(state: MatchState, monster: MonsterEntityState, targe
   monster.stateRevision += 1;
 }
 
-function updateAttackOrder(state: MatchState, unit: UnitEntityState, target: EntityState, events: DomainEvent[]): void {
+function updateAttackOrder(
+  state: MatchState,
+  unit: UnitEntityState,
+  target: EntityState,
+  events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
+): void {
   if (!isValidHostileTarget(state, unit.ownerId, target) || !isEntityVisibleToPlayer(state, unit.ownerId, target)) {
     if (unit.order.type === "attack") unit.order = { type: "idle" };
     return;
@@ -1883,7 +2068,7 @@ function updateAttackOrder(state: MatchState, unit: UnitEntityState, target: Ent
   const attackRange = effectiveBasicAttackRange(state, unit);
   if (distanceSquaredToEntity(unit.position, target) > attackRange * attackRange) {
     beginMovementForPassive(state, unit, events);
-    moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target));
+    moveToward(state, unit, closestApproachableEntityCell(state, unit.position, target), movementReservations);
     return;
   }
   if (unit.attackCooldownTicks > 0 || unit.combat.phase !== "ready") return;
@@ -1927,12 +2112,17 @@ function beginAbility(state: MatchState, unit: UnitEntityState, abilityId: strin
   events.push({ type: "combatPhaseChanged", entityId: unit.id, phase: "windup", action: "ability" });
 }
 
-function progressCombatAction(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): boolean {
+function progressCombatAction(
+  state: MatchState,
+  unit: UnitEntityState,
+  events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
+): boolean {
   if (unit.combat.phase === "ready") return false;
   if (unit.combat.phase === "windup") {
     if (unit.combat.commitTick === null || state.tick < unit.combat.commitTick) return true;
     if (unit.combat.action === "attack") commitBasicAttack(state, unit, events);
-    else if (unit.combat.action === "ability") commitAbility(state, unit, events);
+    else if (unit.combat.action === "ability") commitAbility(state, unit, events, movementReservations);
     setCombatPhase(unit, "recovery", unit.combat.action, events);
   }
   if (state.tick < unit.combat.readyTick) return true;
@@ -1968,7 +2158,12 @@ function commitBasicAttack(state: MatchState, unit: UnitEntityState, events: Dom
   }
 }
 
-function commitAbility(state: MatchState, unit: UnitEntityState, events: DomainEvent[]): void {
+function commitAbility(
+  state: MatchState,
+  unit: UnitEntityState,
+  events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
+): void {
   if (unit.typeId === "villager" || unit.combat.abilityId === null || unit.combat.target === null) return;
   const definition = COMBAT_UNITS[unit.typeId];
   const ability = definition.activeAbility;
@@ -1987,17 +2182,20 @@ function commitAbility(state: MatchState, unit: UnitEntityState, events: DomainE
     spawnLineProjectile(state, unit, target.vector, ability.id, ability.damageMultiplier ?? 1, events);
     return;
   }
-  let candidates = abilityCandidates(state, unit, target)
-    .slice(0, ability.projectileProfileId ? PROJECTILE_PROFILES[ability.projectileProfileId].maxTargets : 6);
+  let candidates = abilityCandidates(state, unit, target);
   const bracedChargeTargets = new Set<EntityId>();
   if (ability.id === "tuskCharge" && target.kind === "direction") {
-    candidates = candidates.slice(0, 1);
+    const chargeSegment = moveAlongChargeLine(state, unit, target.vector, 6, events, movementReservations);
+    candidates = candidates
+      .filter((candidate) => isEntityOnChargeSegment(candidate, chargeSegment, target.vector))
+      .slice(0, 1);
     for (const candidate of candidates) {
-      if (candidate.kind === "unit" && candidate.typeId === "shieldBearer" && hasStatus(candidate, "braced") && isInFrontArc(candidate, unit.position)) {
+      if (candidate.kind === "unit" && candidate.typeId === "shieldBearer" && hasStatus(candidate, "braced") && isInFrontArc(candidate, chargeSegment.origin)) {
         bracedChargeTargets.add(candidate.id);
       }
     }
-    moveAlongChargeLine(state, unit, target.vector, 6, events);
+  } else {
+    candidates = candidates.slice(0, ability.projectileProfileId ? PROJECTILE_PROFILES[ability.projectileProfileId].maxTargets : 6);
   }
   if (ability.id === "breachingBolt") {
     const firstBuilding = candidates.findIndex((candidate) => candidate.kind === "building");
@@ -2025,17 +2223,28 @@ function commitAbility(state: MatchState, unit: UnitEntityState, events: DomainE
       candidate.passive.braceCooldownUntilTick = state.tick + 60;
       applyStatus(state, candidate.id, unit, "stagger", events);
     } else if (ability.id === "tuskCharge" && target.kind === "direction" && candidate.kind === "unit") {
-      pushUnitByForce(state, candidate, target.vector, events);
+      pushUnitByForce(state, candidate, target.vector, events, movementReservations);
     }
   }
 }
 
-function pushUnitByForce(state: MatchState, unit: UnitEntityState, vector: GridPoint, events: DomainEvent[]): void {
+function pushUnitByForce(
+  state: MatchState,
+  unit: UnitEntityState,
+  vector: GridPoint,
+  events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
+): void {
   const dx = Math.sign(vector.x);
   const dy = Math.sign(vector.y);
   if (dx === 0 && dy === 0) return;
   const destination = { x: unit.position.x + dx, y: unit.position.y + dy };
-  if (!isPointInBounds(destination, state) || !isMapCellWalkable(state, destination) || isMapCellBlocked(state, destination)) return;
+  if (
+    !isPointInBounds(destination, state)
+    || !isMapCellWalkable(state, destination)
+    || isMapCellBlocked(state, destination)
+    || !tryReserveAlliedMovementCell(movementReservations, unit, destination)
+  ) return;
   unit.facing = quantizeFacing(dx, dy, unit.facing);
   unit.position = destination;
   recordUnitMovement(state, unit, 1, events);
@@ -2043,10 +2252,23 @@ function pushUnitByForce(state: MatchState, unit: UnitEntityState, vector: GridP
   unit.stateRevision += 1;
 }
 
-function moveAlongChargeLine(state: MatchState, unit: UnitEntityState, vector: GridPoint, maximumTiles: number, events: DomainEvent[]): void {
+interface ChargeMovementSegment {
+  readonly origin: GridPoint;
+  readonly destination: GridPoint;
+  readonly forwardReach: number;
+}
+
+function moveAlongChargeLine(
+  state: MatchState,
+  unit: UnitEntityState,
+  vector: GridPoint,
+  maximumTiles: number,
+  events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
+): ChargeMovementSegment {
   const length = Math.hypot(vector.x, vector.y);
-  if (length <= 0) return;
   const origin = { ...unit.position };
+  if (length <= 0) return { origin, destination: origin, forwardReach: 0 };
   let destination = origin;
   for (let distance = 1; distance <= maximumTiles; distance += 1) {
     const point = {
@@ -2054,15 +2276,40 @@ function moveAlongChargeLine(state: MatchState, unit: UnitEntityState, vector: G
       y: origin.y + Math.round(vector.y / length * distance),
     };
     if (samePoint(point, destination)) continue;
-    if (!isPointInBounds(point, state) || !isMapCellWalkable(state, point) || isMapCellBlocked(state, point)) break;
+    if (
+      !isPointInBounds(point, state)
+      || !isMapCellWalkable(state, point)
+      || isMapCellBlocked(state, point)
+      || !isAlliedMovementCellAvailable(movementReservations, unit, point)
+    ) break;
     destination = point;
   }
-  if (samePoint(origin, destination)) return;
-  unit.facing = quantizeFacing(destination.x - origin.x, destination.y - origin.y, unit.facing);
-  unit.position = destination;
-  recordUnitMovement(state, unit, Math.hypot(destination.x - origin.x, destination.y - origin.y), events);
-  unit.movementProgress = 0;
-  unit.stateRevision += 1;
+  if (!samePoint(origin, destination) && tryReserveAlliedMovementCell(movementReservations, unit, destination)) {
+    unit.facing = quantizeFacing(destination.x - origin.x, destination.y - origin.y, unit.facing);
+    unit.position = destination;
+    recordUnitMovement(state, unit, Math.hypot(destination.x - origin.x, destination.y - origin.y), events);
+    unit.movementProgress = 0;
+    unit.stateRevision += 1;
+  } else {
+    destination = origin;
+  }
+  return {
+    origin,
+    destination,
+    forwardReach: (destination.x - origin.x) * vector.x / length + (destination.y - origin.y) * vector.y / length,
+  };
+}
+
+function isEntityOnChargeSegment(entity: EntityState, segment: ChargeMovementSegment, vector: GridPoint): boolean {
+  const length = Math.hypot(vector.x, vector.y);
+  if (length <= 0 || segment.forwardReach <= 0) return false;
+  const dx = vector.x / length;
+  const dy = vector.y / length;
+  const ex = entity.position.x - segment.origin.x;
+  const ey = entity.position.y - segment.origin.y;
+  const forward = ex * dx + ey * dy;
+  const lateral = Math.abs(ex * dy - ey * dx);
+  return forward > 0 && forward <= segment.forwardReach && lateral <= 1;
 }
 
 function abilityCandidates(state: MatchState, unit: UnitEntityState, target: Exclude<AbilityTarget, { kind: "self" }>): EntityState[] {
@@ -2593,7 +2840,12 @@ function updateStatuses(state: MatchState, target: UnitEntityState | BuildingEnt
   }
 }
 
-function updateRepairOrder(state: MatchState, unit: UnitEntityState, target: EntityState): void {
+function updateRepairOrder(
+  state: MatchState,
+  unit: UnitEntityState,
+  target: EntityState,
+  movementReservations: AlliedMovementReservations,
+): void {
   if (unit.typeId !== "villager" || target.kind !== "building" || !target.complete || target.hitPoints <= 0 || !arePlayersAllied(state, unit.ownerId, target.ownerId)) {
     unit.order = { type: "idle" };
     return;
@@ -2602,8 +2854,8 @@ function updateRepairOrder(state: MatchState, unit: UnitEntityState, target: Ent
     unit.order = { type: "idle" };
     return;
   }
-  if (!isEntityInteractionCell(unit.position, target)) {
-    moveTowardEntity(state, unit, target);
+  if (!canUnitInteractWithEntity(unit, target, movementReservations)) {
+    moveTowardEntity(state, unit, target, movementReservations);
     return;
   }
   if (unit.workCooldownTicks > 0) return;
@@ -2766,6 +3018,7 @@ function updateGatherOrder(
   unit: UnitEntityState,
   order: Extract<UnitOrder, { type: "gather" }>,
   events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
 ): void {
   const capacity = unit.cargoCapacity;
   if (capacity <= 0) { unit.order = { type: "idle" }; return; }
@@ -2799,8 +3052,8 @@ function updateGatherOrder(
       order.dropOffId = dropOff.id;
       unit.stateRevision += 1;
     }
-    if (!isEntityInteractionCell(unit.position, dropOff)) {
-      if (moveTowardEntity(state, unit, dropOff) === "blocked") {
+    if (!canUnitInteractWithEntity(unit, dropOff, movementReservations)) {
+      if (moveTowardEntity(state, unit, dropOff, movementReservations) === "blocked") {
         const alternative = findNearestDropOff(state, unit.ownerId, unit.cargo.kind, unit.position);
         const nextId = alternative?.id ?? null;
         if (order.dropOffId !== nextId) {
@@ -2844,8 +3097,8 @@ function updateGatherOrder(
     unit.stateRevision += 1;
   }
   if (gatherSourceAmount(source) <= 0) return;
-  if (!isEntityInteractionCell(unit.position, source)) {
-    if (moveTowardEntity(state, unit, source) === "blocked") {
+  if (!canUnitInteractWithEntity(unit, source, movementReservations)) {
+    if (moveTowardEntity(state, unit, source, movementReservations) === "blocked") {
       const alternative = findNearestGatherSource(state, unit.ownerId, order.resourceKind, unit.position);
       if (alternative && alternative.id !== order.targetId) {
         order.targetId = alternative.id;
@@ -2869,7 +3122,13 @@ function updateGatherOrder(
   }
 }
 
-function updateDeliveryOrder(state: MatchState, unit: UnitEntityState, targetId: EntityId, events: DomainEvent[]): void {
+function updateDeliveryOrder(
+  state: MatchState,
+  unit: UnitEntityState,
+  targetId: EntityId,
+  events: DomainEvent[],
+  movementReservations: AlliedMovementReservations,
+): void {
   if (unit.cargo.kind === null || unit.cargo.amount <= 0) {
     unit.cargo = { kind: null, amount: 0 };
     unit.order = { type: "idle" };
@@ -2888,8 +3147,8 @@ function updateDeliveryOrder(state: MatchState, unit: UnitEntityState, targetId:
     unit.order = { type: "deliver", targetId: dropOff.id };
     unit.stateRevision += 1;
   }
-  if (!isEntityInteractionCell(unit.position, dropOff)) {
-    if (moveTowardEntity(state, unit, dropOff) === "blocked") {
+  if (!canUnitInteractWithEntity(unit, dropOff, movementReservations)) {
+    if (moveTowardEntity(state, unit, dropOff, movementReservations) === "blocked") {
       const alternative = findNearestDropOff(state, unit.ownerId, unit.cargo.kind, unit.position);
       if (alternative && alternative.id !== targetId) {
         unit.order = { type: "deliver", targetId: alternative.id };
@@ -3267,22 +3526,168 @@ function finishMatch(
   });
 }
 
-function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint): boolean {
+const ALLIED_SIDESTEP_OFFSETS: readonly GridPoint[] = [
+  { x: 0, y: -1 },
+  { x: 1, y: 0 },
+  { x: 0, y: 1 },
+  { x: -1, y: 0 },
+];
+
+const ALLIED_SIDESTEP_MAX_DEPTH = 3;
+const ALLIED_SIDESTEP_MAX_VISITS = 16;
+const ALLIED_DETOUR_LOOKAHEAD_OFFSETS: readonly GridPoint[] = Array.from({ length: 7 }, (_, xIndex) => (
+  Array.from({ length: 7 }, (_, yIndex) => ({ x: xIndex - 3, y: yIndex - 3 }))
+)).flat().filter((offset) => (
+  Math.abs(offset.x) + Math.abs(offset.y) > 0
+  && Math.abs(offset.x) + Math.abs(offset.y) <= 3
+));
+
+interface AlliedSidestepCandidate {
+  readonly point: GridPoint;
+  readonly firstStep: GridPoint;
+  readonly depth: number;
+}
+
+/**
+ * Collision fallback is intentionally local: a fixed-depth, fixed-visit search
+ * with constant-time reservation lookups. It finds a first step that can make
+ * progress around a nearby ally without running a second whole-map search. The
+ * bounded lookahead also prevents equal-distance one-cell sidesteps from
+ * oscillating forever around an idle unit.
+ */
+function findAlliedSidestep(
+  state: MatchState,
+  unit: UnitEntityState,
+  target: GridPoint,
+  movementReservations: AlliedMovementReservations,
+  allowNonProgress = false,
+  forbiddenFirstStep?: GridPoint,
+): GridPoint | null {
+  movementReservations.hardBlockedCellKeys ??= new Set(getPathBlockedCells(state).map(pointKey));
+  const queue: AlliedSidestepCandidate[] = [];
+  const visited = new Set<string>([pointKey(unit.position)]);
+  const candidates: AlliedSidestepCandidate[] = [];
+
+  for (const offset of ALLIED_SIDESTEP_OFFSETS) {
+    const point = { x: unit.position.x + offset.x, y: unit.position.y + offset.y };
+    const key = pointKey(point);
+    if (
+      visited.has(key)
+      || !isPointInBounds(point, state)
+      || !isMapCellWalkable(state, point)
+      || movementReservations.hardBlockedCellKeys.has(key)
+      || !isAlliedMovementCellAvailable(movementReservations, unit, point)
+    ) continue;
+    visited.add(key);
+    const candidate = { point, firstStep: point, depth: 1 };
+    queue.push(candidate);
+    candidates.push(candidate);
+  }
+
+  for (let index = 0; index < queue.length && visited.size < ALLIED_SIDESTEP_MAX_VISITS; index += 1) {
+    const current = queue[index]!;
+    if (current.depth >= ALLIED_SIDESTEP_MAX_DEPTH) continue;
+    for (const offset of ALLIED_SIDESTEP_OFFSETS) {
+      if (visited.size >= ALLIED_SIDESTEP_MAX_VISITS) break;
+      const point = { x: current.point.x + offset.x, y: current.point.y + offset.y };
+      const key = pointKey(point);
+      if (
+        visited.has(key)
+        || !isPointInBounds(point, state)
+        || !isMapCellWalkable(state, point)
+        || movementReservations.hardBlockedCellKeys.has(key)
+        || !isAlliedMovementCellAvailable(movementReservations, unit, point)
+      ) continue;
+      visited.add(key);
+      const candidate = { point, firstStep: current.firstStep, depth: current.depth + 1 };
+      queue.push(candidate);
+      candidates.push(candidate);
+    }
+  }
+
+  const ranked = candidates
+    .filter((candidate) => !forbiddenFirstStep || !samePoint(candidate.firstStep, forbiddenFirstStep))
+    .sort((left, right) => (
+      distanceSquared(left.point, target) - distanceSquared(right.point, target)
+      || left.depth - right.depth
+      || left.point.y - right.point.y
+      || left.point.x - right.point.x
+      || left.firstStep.y - right.firstStep.y
+      || left.firstStep.x - right.firstStep.x
+    ));
+  const startingDistance = distanceSquared(unit.position, target);
+  const progressing = ranked.find((candidate) => distanceSquared(candidate.point, target) < startingDistance);
+  return (progressing ?? (allowNonProgress ? ranked[0] : undefined))?.firstStep ?? null;
+}
+
+const OPPOSITE_FACING: Readonly<Record<Facing, Facing>> = {
+  e: "w", se: "nw", sw: "ne", w: "e", nw: "se", ne: "sw",
+};
+
+/**
+ * A local detour must survive beyond its first tile. If the static route tries
+ * to reverse that sidestep straight back toward the same occupied cell, keep
+ * following the bounded detour instead of creating a two-cell oscillation.
+ */
+function shouldContinueAlliedDetour(
+  unit: UnitEntityState,
+  next: GridPoint,
+  target: GridPoint,
+  movementReservations: AlliedMovementReservations,
+): boolean {
+  const nextFacing = quantizeFacing(next.x - unit.position.x, next.y - unit.position.y);
+  if (nextFacing !== OPPOSITE_FACING[unit.facing]) return false;
+  const nextDistance = distanceSquared(next, target);
+  return ALLIED_DETOUR_LOOKAHEAD_OFFSETS.some((offset) => {
+    const candidate = { x: next.x + offset.x, y: next.y + offset.y };
+    return distanceSquared(candidate, target) < nextDistance
+      && !isAlliedMovementCellAvailable(movementReservations, unit, candidate);
+  });
+}
+
+function moveToward(
+  state: MatchState,
+  unit: UnitEntityState,
+  target: GridPoint,
+  movementReservations: AlliedMovementReservations,
+): boolean {
   if (samePoint(unit.position, target)) return true;
+  if (
+    !isAlliedMovementCellAvailable(movementReservations, unit, target)
+    && Math.abs(unit.position.x - target.x) + Math.abs(unit.position.y - target.y) === 1
+    && alliedOccupantOwnsTarget(movementReservations, unit, target)
+  ) return true;
   const speed = statusAdjustedSpeed(state, unit);
   unit.movementProgress += speed;
-  if (unit.movementProgress < 1000 * TICKS_PER_SECOND) return false;
-  unit.movementProgress -= 1000 * TICKS_PER_SECOND;
-  const next = findNextPathStep(unit.position, target, state.map.width, state.map.height, getPlanningPathBlockedCells(state, unit.ownerId));
+  const stepCost = 1000 * TICKS_PER_SECOND;
+  if (unit.movementProgress < stepCost) return false;
+  let next = findNextPathStep(
+    unit.position,
+    target,
+    state.map.width,
+    state.map.height,
+    getPlanningPathBlockedCells(state, unit.ownerId),
+  );
   if (!next) {
-    unit.movementProgress = Math.min(unit.movementProgress + 1000 * TICKS_PER_SECOND, 1000 * TICKS_PER_SECOND);
+    unit.movementProgress = stepCost;
     return false;
   }
   if (isMapCellBlocked(state, next)) {
-    unit.movementProgress = 1000 * TICKS_PER_SECOND;
+    unit.movementProgress = stepCost;
     return false;
   }
-  if (samePoint(next, unit.position)) return true;
+  if (samePoint(next, unit.position)) {
+    unit.movementProgress = stepCost;
+    return false;
+  }
+  if (!tryReserveAlliedMovementCell(movementReservations, unit, next)) {
+    next = findAlliedSidestep(state, unit, target, movementReservations);
+    if (!next || !tryReserveAlliedMovementCell(movementReservations, unit, next)) {
+      unit.movementProgress = 0;
+      return false;
+    }
+  }
+  unit.movementProgress -= stepCost;
   const origin = { ...unit.position };
   unit.facing = quantizeFacing(next.x - unit.position.x, next.y - unit.position.y, unit.facing);
   unit.position = next;
@@ -3293,8 +3698,13 @@ function moveToward(state: MatchState, unit: UnitEntityState, target: GridPoint)
 
 type EntityMovementResult = "arrived" | "moving" | "blocked";
 
-function moveTowardEntity(state: MatchState, unit: UnitEntityState, entity: EntityState): EntityMovementResult {
-  if (isEntityInteractionCell(unit.position, entity)) return "arrived";
+function moveTowardEntity(
+  state: MatchState,
+  unit: UnitEntityState,
+  entity: EntityState,
+  movementReservations: AlliedMovementReservations,
+): EntityMovementResult {
+  if (canUnitInteractWithEntity(unit, entity, movementReservations)) return "arrived";
   const speed = statusAdjustedSpeed(state, unit);
   const stepCost = 1000 * TICKS_PER_SECOND;
   unit.movementProgress += speed;
@@ -3304,14 +3714,26 @@ function moveTowardEntity(state: MatchState, unit: UnitEntityState, entity: Enti
     unit.movementProgress = stepCost;
     return "blocked";
   }
-  unit.movementProgress -= stepCost;
   if (samePoint(route.firstStep, unit.position)) return "arrived";
+  let next: GridPoint | null = route.firstStep;
+  if (shouldContinueAlliedDetour(unit, next, route.target, movementReservations)) {
+    const detour = findAlliedSidestep(state, unit, route.target, movementReservations, true, route.firstStep);
+    if (detour) next = detour;
+  }
+  if (!tryReserveAlliedMovementCell(movementReservations, unit, next)) {
+    next = findAlliedSidestep(state, unit, route.target, movementReservations, true);
+    if (!next || !tryReserveAlliedMovementCell(movementReservations, unit, next)) {
+      unit.movementProgress = 0;
+      return "moving";
+    }
+  }
+  unit.movementProgress -= stepCost;
   const origin = { ...unit.position };
-  unit.facing = quantizeFacing(route.firstStep.x - unit.position.x, route.firstStep.y - unit.position.y, unit.facing);
-  unit.position = route.firstStep;
-  recordUnitMovement(state, unit, Math.max(Math.abs(route.firstStep.x - origin.x), Math.abs(route.firstStep.y - origin.y)));
+  unit.facing = quantizeFacing(next.x - unit.position.x, next.y - unit.position.y, unit.facing);
+  unit.position = next;
+  recordUnitMovement(state, unit, Math.max(Math.abs(next.x - origin.x), Math.abs(next.y - origin.y)));
   unit.stateRevision += 1;
-  return isEntityInteractionCell(unit.position, entity) ? "arrived" : "moving";
+  return canUnitInteractWithEntity(unit, entity, movementReservations) ? "arrived" : "moving";
 }
 
 function damageAfterVillageTrait(state: MatchState, target: EntityState, damage: number): number {
