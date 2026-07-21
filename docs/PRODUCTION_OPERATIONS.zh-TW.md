@@ -64,7 +64,7 @@ curl --fail --silent --show-error https://server.play.example.com/health/ready
 curl --fail --silent --show-error https://server.play.example.com/version
 ```
 
-`/version` 必須回 app `0.19.0`、protocol `village-siege-network/4`、rules `village-siege/0.18.0` 與實際 commit。`/health/ready` 在 draining 或 Redis/PostgreSQL 失效時回 503。
+`/version` 必須回 app `0.20.0`、protocol `village-siege-network/4`、rules `village-siege/0.18.0` 與實際 commit。`/health/ready` 在 draining 或 Redis/PostgreSQL 失效時回 503。
 
 Metrics 只能由 internal network 讀取：
 

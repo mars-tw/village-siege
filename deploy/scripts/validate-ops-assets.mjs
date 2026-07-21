@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const relativeFiles = [
   ".gitattributes",
+  ".github/workflows/ci.yml",
   ".github/workflows/deploy-pages.yml",
   ".github/workflows/publish-containers.yml",
   ".env.example",
@@ -28,7 +29,10 @@ const relativeFiles = [
   "deploy/runtime-config.mjs",
   "deploy/scripts/validate-ops-assets.mjs",
   "deploy/static-server.mjs",
+  "deploy/test/runtime-art-policy.test.mjs",
   "deploy/test/runtime-config.test.mjs",
+  "scripts/prune-runtime-art.mjs",
+  "scripts/runtime-art-policy.mjs",
 ];
 
 const contents = new Map();
@@ -107,13 +111,13 @@ if (!productionTemplate.includes('VITE_MULTIPLAYER_ENABLED: "false"')
   throw new Error("production client build must remain domain-agnostic and runtime-configured");
 }
 for (const required of [
-  "VILLAGE_SIEGE_TAG:-0.19.0",
+  "VILLAGE_SIEGE_TAG:-0.20.0",
   "ghcr.io/mars-tw/village-siege-client",
   "ghcr.io/mars-tw/village-siege-server",
 ]) {
   if (!productionTemplate.includes(required)) throw new Error(`production release tag check missing: ${required}`);
 }
-if (!contents.get("deploy/production.env.example").includes("VILLAGE_SIEGE_TAG=0.19.0")) {
+if (!contents.get("deploy/production.env.example").includes("VILLAGE_SIEGE_TAG=0.20.0")) {
   throw new Error("production environment example must select the current release tag");
 }
 
@@ -125,6 +129,20 @@ for (const [name, dockerfile] of [["server", rootDockerfile], ["client", clientD
     || !dockerfile.includes("@${NODE_IMAGE_DIGEST}")) {
     throw new Error(`${name} Dockerfile must pin the Node base image by multi-architecture digest`);
   }
+}
+for (const required of [
+  "COPY scripts/runtime-art-policy.mjs scripts/runtime-art-policy.mjs",
+  "COPY assets/release-asset-manifest.json assets/release-asset-manifest.json",
+]) {
+  if (!clientDockerfile.includes(required)) throw new Error(`client Dockerfile runtime-art dependency missing: ${required}`);
+}
+
+const verificationWorkflow = contents.get(".github/workflows/ci.yml");
+for (const required of [
+  'expected_version="$(node -p "require(\'./package.json\').version")"',
+  "v.version!==expected",
+]) {
+  if (!verificationWorkflow.includes(required)) throw new Error(`CI dynamic version gate missing: ${required}`);
 }
 for (const pinnedImage of [
   "caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",

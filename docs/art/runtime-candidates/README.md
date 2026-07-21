@@ -105,9 +105,10 @@ All use `96x112` cells, anchor `(48,88)`, black RGB under fully transparent pixe
 - Key-pose source: `docs/art/keyposes/shield-bearer-ne-v1.png`
 - Initial alpha extraction: `shield-bearer/ne.png`
 - Normalized candidate: `shield-bearer/ne-normalized.png`
-- Review status: **RUNTIME-CELL VALIDATION PASSED; DIRECTION SET INCOMPLETE**
-- Validator evidence: 24 unique frames, 83.2% transparent canvas, no non-black fully transparent RGB, and all frame bounds inside the 2px safety border.
-- Remaining gates: five independently authored facings, inter-facing identity checks, directional runtime integration, and browser evidence.
+- Native runtime candidate: `shield-bearer/ne-runtime-v1.png` (`448x672`, 24 cells at `112x112`, anchor `(56,88)`).
+- Review status: **RUNTIME-CELL VALIDATION PASSED; PROMOTED WITH THE COMPLETE DIRECTION SET**
+- Validator evidence: 24 unique frames, 74.7% transparent canvas, no non-black fully transparent RGB, and all frame bounds inside the 1px safety border.
+- The complete production gate and browser evidence are recorded below.
 
 ## Warrior six-facing production gate
 
@@ -124,7 +125,7 @@ All use `96x112` cells, anchor `(48,88)`, black RGB under fully transparent pixe
 - Error gate: `output/playwright/warrior-runtime-error-audit.json` records zero page errors, zero console errors, zero art-load failures, and a ready warrior actor in `CombatShowcaseScene`.
 - Visual evidence: `output/playwright/warrior-runtime-{e,ne,nw,w,sw,se}-idle-frame1.png`, plus NE walk/hurt/death/cast and E attack frame-1 captures.
 
-This closes the warrior migration only. Mage, musketeer, shield-bearer, boar rider, heavy crossbow, and all three monsters remain on the independently authored six-facing roadmap and must not inherit this approval.
+This section closes the warrior migration only. Mage, musketeer, boar rider, heavy crossbow, and all three monsters remain on the independently authored six-facing roadmap; shield-bearer is closed separately below.
 
 ## Archer six-facing production gate
 
@@ -140,4 +141,19 @@ This closes the warrior migration only. Mage, musketeer, shield-bearer, boar rid
 - Error gate: `output/playwright/archer-runtime-error-audit.json` records zero page errors, zero console errors, zero request failures, and zero scene art failures.
 - Visual evidence: `output/playwright/archer-runtime-e-attack-frame1.png`, `output/playwright/archer-runtime-nw-walk-frame1.png`, `output/playwright/archer-runtime-se-cast-frame1.png`, and `output/playwright/archer-runtime-representative-states.json`.
 
-This closes the warrior and archer migrations only. Mage, musketeer, shield-bearer, boar rider, heavy crossbow, and all three monsters remain on the independently authored six-facing roadmap and must not inherit this approval.
+This section closes the warrior and archer migrations. Mage, musketeer, boar rider, heavy crossbow, and all three monsters remain on the independently authored six-facing roadmap; shield-bearer is closed separately below.
+
+## Shield-bearer six-facing production gate
+
+- Review status: **PASSED FOR RUNTIME PRODUCTION**
+- Runtime location: `apps/client/public/assets/original/units/shieldBearer/sprites/facings/`
+- Facing order: `E`, `NE`, `NW`, `W`, `SW`, `SE`; all six are independently generated and are not horizontal mirrors.
+- Contract: six independent `448x672` RGBA sheets; each contains 24 cells at the art-bible `112x112` size, anchor `(56,88)`, and rows `idle`, `walk`, `attack`, `hurt`, `death`, `brace` (runtime action name `cast`).
+- Static gate: the six-sheet validator passes all 144 cells with no empty/duplicate cells, exact cross-facing reuse, exact horizontal-mirror reuse, dirty transparent RGB, or unsafe bounds.
+- Identity gate: all directions retain the same shield arm, short-spear hand, oval wood/wicker shield, quilted coat, helmet and belt kit; the rejected legacy mace sheet is preserved only as `shield-bearer/legacy-mace-action-sheet-v1.png` and is no longer a public runtime asset.
+- Manifest gate: the client exposes six unique texture keys and paths, uses `112x112`, anchor `(56,88)`, `artScale=1`, and never falls back to horizontal flipping.
+- Browser matrix: `output/playwright/shieldbearer-runtime-facing-action-matrix.json` passes 36/36 facing/action transitions, advances every action, maps to rows `0..5`, uses a `112x112` cut and keeps `flipX=false`.
+- Network/decode gate: `output/playwright/shieldbearer-facing-http-decode.json` records six HTTP 200 PNG responses, six successful decodes and exact `448x672` dimensions.
+- Error and visual gates: `output/playwright/shieldbearer-runtime-error-audit.json` records zero page, console, request and scene-asset failures; representative E attack, NW walk and SE brace captures are retained beside it.
+
+This closes the warrior, archer and shield-bearer migrations only. Mage, musketeer, boar rider, heavy crossbow and all three monsters remain on the independently authored six-facing roadmap.
