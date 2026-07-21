@@ -2,7 +2,7 @@
 
 Date: 2026-07-20
 
-Status: in progress; TASK-020 durable reconnect recovery is implemented, while online rendering and full adverse-network multiplayer E2E remain TASK-021 and TASK-022.
+Status: in progress; TASK-021 authoritative online rendering is implemented, while full adverse-network multiplayer E2E remains TASK-022.
 
 ## Product boundary
 
@@ -111,7 +111,7 @@ Defeat rewards are deterministic and divided across active members of the credit
 
 Beginning with rules version `village-siege/0.11.0`, every configured AI controller is stored in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator.
 
-The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Current rules version `village-siege/0.15.0` carries this private authority through the versioned save, deterministic replay and reconnect-expiry revision contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
+The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Current rules version `village-siege/0.16.0` carries this private authority through the versioned save, deterministic replay and reconnect-expiry revision contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
 
 AI observation is an owner-private view assembled from current fog authority. Mobile enemy memories expire after a fixed lifetime; static enemy topology persists only while the authoritative last-sighting record remains, and is removed when its footprint is re-scouted empty. Hidden unit, gate, wall or tower mutations cannot change planner output. Human `VisibleSnapshot` data never contains AI authority state, internal thresholds, target paths, force counts or wave numbers.
 
@@ -127,7 +127,7 @@ Every ordered command in one server-tick batch is applied before victory is eval
 
 Walls, gates, rubble, projectiles and orphaned construction sites do not preserve strategic presence. An incomplete site counts only while a living active builder is assigned to it. Surrendered or eliminated players cannot move, attack, produce, occupy objectives or preserve a victory condition, even when an allied player keeps their team in the match. A terminal result atomically records outcome, sorted winners, causal reason, trigger set, score and finish tick; it emits `matchFinished` exactly once and rejects later commands without mutation.
 
-The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. TASK-020 now supplies exact negotiation, idempotent commands, verified filtered delta transport and durable reconnect replay; online Phaser rendering and the complete adverse-network E2E gate remain `TASK-021` and `TASK-022`. Versioned owner-private TASK-016 saves are distinct from the bounded online recovery record.
+The local runtime executes this shared authority for single-player. The same Phaser scene now has a separate TASK-021 online source: it accepts only verified player-filtered frames, interpolates positions without extrapolation, and submits intents without stepping or mutating the local runtime. Result text remains persistent in the fixed HUD and is announced assertively. Exact negotiation, idempotent commands, filtered delta transport and durable replay come from TASK-019/TASK-020; the complete adverse-network E2E gate remains `TASK-022`. Versioned owner-private TASK-016 saves are distinct from the bounded online recovery record.
 
 ## Tactical combat contract
 

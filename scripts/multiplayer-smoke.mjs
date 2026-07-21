@@ -411,8 +411,13 @@ function assertSafeView(view, assignment, matchId) {
   if (view.recipientPlayerId !== assignment.playerId) throw new Error("Frame recipient identity mismatch.");
   if (!verifyVisibleSnapshotChecksum(view)) throw new Error("Visible snapshot checksum mismatch.");
   const serialized = JSON.stringify(view);
-  for (const forbidden of ["accessToken", "aiControllers", "productionQueue", "randomState", "canonicalHash"]) {
+  for (const forbidden of ["accessToken", "aiControllers", "randomState", "canonicalHash"]) {
     if (serialized.includes(forbidden)) throw new Error(`Recipient frame leaked ${forbidden}.`);
+  }
+  for (const entity of view.entities) {
+    if ("ownerControl" in entity && (entity.kind !== "building" || entity.ownerId !== assignment.playerId)) {
+      throw new Error(`Recipient frame leaked owner control for ${entity.id}.`);
+    }
   }
 }
 

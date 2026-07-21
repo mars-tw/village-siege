@@ -1,4 +1,5 @@
 import {
+  isVisibleSnapshot,
   isVisibleSnapshotDelta,
   type CollectionDelta,
   type PublicEntityState,
@@ -39,6 +40,8 @@ export function createVisibleSnapshotDelta(
   copyChange(changes, "wallet", base.wallet, next.wallet);
   copyChange(changes, "population", base.population, next.population);
   copyChange(changes, "settlementTier", base.settlementTier, next.settlementTier);
+  copyChange(changes, "participants", base.participants, next.participants);
+  copyChange(changes, "advancement", base.advancement, next.advancement);
   copyChange(changes, "completedTechnologyIds", base.completedTechnologyIds, next.completedTechnologyIds);
   copyChange(changes, "activeMonsterBoons", base.activeMonsterBoons, next.activeMonsterBoons);
   copyChange(changes, "exploredTilesRle", base.exploredTilesRle, next.exploredTilesRle);
@@ -91,12 +94,15 @@ export function applyVisibleSnapshotDelta(
     rulesVersion: base.rulesVersion,
     serverTick: delta.serverTick,
     recipientPlayerId: base.recipientPlayerId,
+    recipientTeamId: base.recipientTeamId,
+    participants: cloneWire(changes.participants ?? base.participants),
     phase: changes.phase ?? base.phase,
     victory: cloneWire(changes.victory ?? base.victory),
     map: cloneWire(base.map),
     wallet: cloneWire(changes.wallet ?? base.wallet),
     population: cloneWire(changes.population ?? base.population),
     settlementTier: changes.settlementTier ?? base.settlementTier,
+    advancement: hasOwn(changes, "advancement") ? cloneWire(changes.advancement ?? null) : cloneWire(base.advancement),
     completedTechnologyIds: cloneWire(changes.completedTechnologyIds ?? base.completedTechnologyIds),
     activeMonsterBoons: cloneWire(changes.activeMonsterBoons ?? base.activeMonsterBoons),
     entities: applyCollection(base.entities, delta.entities, (entity) => entity.id),
@@ -118,7 +124,14 @@ export function applyVisibleSnapshotDelta(
       `Applied delta checksum ${checksum} does not match server visible checksum ${delta.checksum}`,
     );
   }
-  return { ...candidateBody, checksum };
+  if (!hasSameParticipantIdentity(base.participants, candidateBody.participants)) {
+    throw new ReplicationError("BASE_IDENTITY_MISMATCH", "Participant identity cannot change inside a visible delta stream");
+  }
+  const candidate = { ...candidateBody, checksum };
+  if (!isVisibleSnapshot(candidate)) {
+    throw new ReplicationError("INVALID_DELTA", "Applied delta violates the visible snapshot recipient contract");
+  }
+  return candidate;
 }
 
 type MutableChanges = {
@@ -128,7 +141,9 @@ type MutableChanges = {
 function assertSnapshotPair(base: VisibleSnapshot, next: VisibleSnapshot): void {
   if (base.matchId !== next.matchId
     || base.rulesVersion !== next.rulesVersion
-    || base.recipientPlayerId !== next.recipientPlayerId) {
+    || base.recipientPlayerId !== next.recipientPlayerId
+    || base.recipientTeamId !== next.recipientTeamId
+    || !hasSameParticipantIdentity(base.participants, next.participants)) {
     throw new ReplicationError("BASE_IDENTITY_MISMATCH", "Visible snapshots do not belong to the same recipient stream");
   }
   if (next.serverTick <= base.serverTick) {
@@ -137,6 +152,24 @@ function assertSnapshotPair(base: VisibleSnapshot, next: VisibleSnapshot): void 
   if (canonicalJson(base.map) !== canonicalJson(next.map)) {
     throw new ReplicationError("BASE_IDENTITY_MISMATCH", "Map identity cannot change inside a visible delta stream");
   }
+}
+
+function hasSameParticipantIdentity(
+  left: VisibleSnapshot["participants"],
+  right: VisibleSnapshot["participants"],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((participant, index) => {
+    const candidate = right[index];
+    return candidate !== undefined
+      && participant.id === candidate.id
+      && participant.teamId === candidate.teamId
+      && participant.villageId === candidate.villageId;
+  });
+}
+
+function hasOwn(value: object, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function copyChange<Key extends keyof MutableChanges>(

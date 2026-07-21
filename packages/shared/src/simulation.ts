@@ -784,6 +784,7 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
       stance: entity.stance,
       formation: entity.formation,
       combatPhase: entity.combat.phase,
+      combatActivity: combatActivityForState(entity.combat),
       abilityReadyTick: entity.abilityReadyTick,
       statuses: entity.statuses.map((status) => ({ id: status.id, expiresAtTick: status.expiresAtTick })),
       passiveProgress: {
@@ -806,6 +807,7 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
       ...publicEntity,
       facing: entity.facing,
       combatPhase: entity.combat.phase,
+      combatActivity: combatActivityForState(entity.combat),
       abilityReadyTick: entity.abilityReadyTick,
       statuses: entity.statuses.map((status) => ({ id: status.id, expiresAtTick: status.expiresAtTick })),
       monsterState: {
@@ -846,6 +848,12 @@ export function toPublicEntity(entity: EntityState): PublicEntityState {
   };
 }
 
+function combatActivityForState(combat: UnitCombatState): NonNullable<PublicEntityState["combatActivity"]> {
+  if (combat.action === "attack") return "attacking";
+  if (combat.action === "ability") return "casting";
+  return "idle";
+}
+
 function civilianActivityForOrder(unit: UnitEntityState): NonNullable<PublicEntityState["civilianActivity"]> {
   if (unit.order.type === "construct") return "constructing";
   if (unit.order.type === "repair") return "repairing";
@@ -875,7 +883,7 @@ export function toVisibleSnapshot(state: MatchState, playerId: PlayerId): Visibl
   const entities = state.entities
     .filter((entity) => isEntityVisibleToPlayer(state, playerId, entity))
     .sort((left, right) => compareText(left.id, right.id))
-    .map(toPublicEntity);
+    .map((entity) => toRecipientPublicEntity(entity, playerId));
   const projectiles = state.projectiles
     .filter((projectile) => arePlayersAllied(state, playerId, projectile.ownerId) || isTileVisibleToPlayer(state, playerId, projectile.position))
     .sort((left, right) => compareText(left.id, right.id))
@@ -885,12 +893,23 @@ export function toVisibleSnapshot(state: MatchState, playerId: PlayerId): Visibl
     rulesVersion: state.rulesVersion,
     serverTick: state.tick,
     recipientPlayerId: playerId,
+    recipientTeamId: player.teamId,
+    participants: state.players
+      .map((participant) => ({
+        id: participant.id,
+        teamId: participant.teamId,
+        villageId: participant.villageId,
+        surrendered: participant.surrendered,
+        eliminated: participant.eliminated,
+      }))
+      .sort((left, right) => compareText(left.id, right.id)),
     phase: state.phase,
     victory: cloneVictoryState(state.victory),
     map: { ...state.map },
     wallet: { ...player.resources },
     population: { ...player.population },
     settlementTier: player.settlementTier,
+    advancement: player.advancement ? { ...player.advancement } : null,
     completedTechnologyIds: [...player.completedTechnologyIds],
     activeMonsterBoons: player.activeMonsterBoons.map((boon) => ({ ...boon })),
     entities,
@@ -902,6 +921,34 @@ export function toVisibleSnapshot(state: MatchState, playerId: PlayerId): Visibl
     visibleEntityIds: entities.map((entity) => entity.id),
   };
   return { ...body, checksum: hashVisibleSnapshot(body) };
+}
+
+function toRecipientPublicEntity(entity: EntityState, recipientPlayerId: PlayerId): PublicEntityState {
+  const publicEntity = toPublicEntity(entity);
+  if (entity.kind !== "building" || entity.ownerId !== recipientPlayerId) return publicEntity;
+  return {
+    ...publicEntity,
+    ownerControl: {
+      productionQueue: entity.productionQueue.map((job) => job.kind === "train"
+        ? {
+            jobId: { ...job.jobId },
+            kind: "train",
+            unitType: job.unitType,
+            remainingTicks: job.remainingTicks,
+            totalTicks: job.totalTicks,
+            paidCost: { ...job.paidCost },
+          }
+        : {
+            jobId: { ...job.jobId },
+            kind: "research",
+            technologyId: job.technologyId,
+            remainingTicks: job.remainingTicks,
+            totalTicks: job.totalTicks,
+            paidCost: { ...job.paidCost },
+          }),
+      rallyPoint: entity.rallyPoint ? { ...entity.rallyPoint } : null,
+    },
+  };
 }
 
 export function projectDomainEventsForPlayer(
@@ -928,7 +975,11 @@ export function projectDomainEventsForPlayer(
       case "entitySpawned":
       case "entityUpdated": {
         const entity = state.entities.find((candidate) => candidate.id === event.entity.id);
-        if (entity ? isEntityVisibleToPlayer(state, playerId, entity) : isPublicEntityVisibleToPlayer(state, playerId, event.entity)) projected.push(event);
+        if (entity && isEntityVisibleToPlayer(state, playerId, entity)) {
+          projected.push({ ...event, entity: toRecipientPublicEntity(entity, playerId) });
+        } else if (!entity && isPublicEntityVisibleToPlayer(state, playerId, event.entity)) {
+          projected.push({ ...event, entity: withoutOwnerControl(event.entity) });
+        }
         break;
       }
       case "combatPhaseChanged":
@@ -971,7 +1022,9 @@ export function projectDomainEventsForPlayer(
         break;
       }
       case "entityRemoved":
-        if (isPublicEntityVisibleToPlayer(state, playerId, event.entity)) projected.push(event);
+        if (isPublicEntityVisibleToPlayer(state, playerId, event.entity)) {
+          projected.push({ ...event, entity: withoutOwnerControl(event.entity) });
+        }
         break;
       case "settlementAdvanced":
       case "technologyResearched":
@@ -1050,6 +1103,11 @@ export function projectDomainEventsForPlayer(
     }
   }
   return projected;
+}
+
+function withoutOwnerControl(entity: PublicEntityState): PublicEntityState {
+  const { ownerControl: _ownerControl, ...publicEntity } = entity;
+  return publicEntity;
 }
 
 function maskPublicProjectileForPlayer(state: MatchState, playerId: PlayerId, projectile: PublicProjectileState): PublicProjectileState {

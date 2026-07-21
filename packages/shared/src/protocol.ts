@@ -17,7 +17,7 @@ import {
 export type MatchId = string;
 export type PlayerId = string;
 export type EntityId = string;
-export const MATCH_PROTOCOL_VERSION = "village-siege-network/2" as const;
+export const MATCH_PROTOCOL_VERSION = "village-siege-network/3" as const;
 export type VillageId = "pinehold" | "riverstead" | "highcrag" | "marshwatch" | "sunfield";
 export type PlayableVillageId = "pinehold" | "riverstead" | "highcrag";
 export type ResourceKind = "food" | "wood" | "stone";
@@ -177,6 +177,44 @@ export interface ProductionJobId {
   readonly itemIndex: number;
 }
 
+export type PublicProductionJob =
+  | {
+      readonly jobId: ProductionJobId;
+      readonly kind: "train";
+      readonly unitType: UnitType;
+      readonly remainingTicks: number;
+      readonly totalTicks: number;
+      readonly paidCost: ResourceWallet;
+    }
+  | {
+      readonly jobId: ProductionJobId;
+      readonly kind: "research";
+      readonly technologyId: TechnologyType;
+      readonly remainingTicks: number;
+      readonly totalTicks: number;
+      readonly paidCost: ResourceWallet;
+    };
+
+/** Recipient-private building controls. This must never appear on another player's entity. */
+export interface PublicBuildingOwnerControl {
+  readonly productionQueue: readonly PublicProductionJob[];
+  readonly rallyPoint: GridPoint | null;
+}
+
+export interface PublicParticipantState {
+  readonly id: PlayerId;
+  readonly teamId: string;
+  readonly villageId: VillageId;
+  readonly surrendered: boolean;
+  readonly eliminated: boolean;
+}
+
+export interface PublicSettlementAdvancement {
+  readonly producerId: EntityId;
+  readonly targetTier: SettlementTier;
+  readonly remainingTicks: number;
+}
+
 export type AbilityTarget =
   | { readonly kind: "self" }
   | { readonly kind: "entity"; readonly entityId: EntityId }
@@ -272,6 +310,7 @@ export interface PublicEntityState {
   readonly stance?: CombatStance;
   readonly formation?: FormationKind;
   readonly combatPhase?: AbilityPhase;
+  readonly combatActivity?: "idle" | "attacking" | "casting";
   readonly abilityReadyTick?: number;
   readonly statuses?: readonly { readonly id: StatusEffectId; readonly expiresAtTick: number }[];
   readonly passiveProgress?: {
@@ -294,6 +333,8 @@ export interface PublicEntityState {
     readonly disposition: "neutral" | "retaliating" | "returning";
     readonly attackCooldownTicks: number;
   };
+  /** Present if and only if this is a building owned by the snapshot recipient. */
+  readonly ownerControl?: PublicBuildingOwnerControl;
 }
 
 export interface PublicProjectileState {
@@ -329,12 +370,15 @@ export interface VisibleSnapshot {
   readonly rulesVersion: string;
   readonly serverTick: number;
   readonly recipientPlayerId: PlayerId;
+  readonly recipientTeamId: string;
+  readonly participants: readonly PublicParticipantState[];
   readonly phase: MatchPhase;
   readonly victory: VictoryState;
   readonly map: { readonly id: string; readonly width: number; readonly height: number; readonly layoutId?: PlayableVillageId };
   readonly wallet: ResourceWallet;
   readonly population: { readonly used: number; readonly capacity: number };
   readonly settlementTier: SettlementTier;
+  readonly advancement: PublicSettlementAdvancement | null;
   readonly completedTechnologyIds: readonly TechnologyType[];
   readonly activeMonsterBoons: readonly ActiveMonsterBoon[];
   readonly entities: readonly PublicEntityState[];
@@ -367,6 +411,8 @@ export interface VisibleSnapshotDelta {
     readonly wallet?: ResourceWallet;
     readonly population?: { readonly used: number; readonly capacity: number };
     readonly settlementTier?: SettlementTier;
+    readonly participants?: readonly PublicParticipantState[];
+    readonly advancement?: PublicSettlementAdvancement | null;
     readonly completedTechnologyIds?: readonly TechnologyType[];
     readonly activeMonsterBoons?: readonly ActiveMonsterBoon[];
     readonly exploredTilesRle?: string;
@@ -707,8 +753,8 @@ export function isMatchCommandResult(value: unknown): value is MatchCommandResul
 
 export function isVisibleSnapshot(value: unknown): value is VisibleSnapshot {
   if (!isRecord(value) || !hasOnlyKeys(value, [
-    "matchId", "rulesVersion", "serverTick", "recipientPlayerId", "phase", "victory", "map", "wallet",
-    "population", "settlementTier", "completedTechnologyIds", "activeMonsterBoons", "entities", "projectiles",
+    "matchId", "rulesVersion", "serverTick", "recipientPlayerId", "recipientTeamId", "participants", "phase", "victory", "map", "wallet",
+    "population", "settlementTier", "advancement", "completedTechnologyIds", "activeMonsterBoons", "entities", "projectiles",
     "staleEnemySightings", "exploredTilesRle", "visibilityRevision", "visibleTileIndices", "visibleEntityIds", "checksum",
   ])) return false;
   return typeof value.matchId === "string"
@@ -718,12 +764,15 @@ export function isVisibleSnapshot(value: unknown): value is VisibleSnapshot {
     && value.serverTick >= 0
     && typeof value.recipientPlayerId === "string"
     && value.recipientPlayerId.length > 0
+    && isNonEmptyString(value.recipientTeamId)
+    && isPublicParticipants(value.participants)
     && isMatchPhase(value.phase)
     && isVictoryState(value.victory)
     && isSnapshotMap(value.map)
     && isResourceWallet(value.wallet)
     && isPopulation(value.population)
     && isSettlementTier(value.settlementTier)
+    && (value.advancement === null || isPublicSettlementAdvancement(value.advancement))
     && Array.isArray(value.completedTechnologyIds)
     && value.completedTechnologyIds.every(isTechnologyType)
     && new Set(value.completedTechnologyIds).size === value.completedTechnologyIds.length
@@ -744,6 +793,7 @@ export function isVisibleSnapshot(value: unknown): value is VisibleSnapshot {
     && value.visibilityRevision >= 0
     && isSafeIntegerArray(value.visibleTileIndices)
     && isStringArray(value.visibleEntityIds)
+    && hasValidSnapshotRecipientContract(value)
     && isChecksum(value.checksum);
 }
 
@@ -765,6 +815,7 @@ export function isVisibleSnapshotDelta(value: unknown): value is VisibleSnapshot
     && isChecksum(value.checksum)
     && isDeltaChanges(value.changes)
     && isCollectionDelta(value.entities, "id", isPublicEntityLike)
+    && hasOnlyRecipientOwnerControls(value.entities, value.recipientPlayerId)
     && isCollectionDelta(value.projectiles, "id", isPublicProjectileLike)
     && isCollectionDelta(value.staleEnemySightings, "entityId", isStaleSightingLike);
 }
@@ -784,7 +835,8 @@ export function isMatchReplicationFrame(value: unknown): value is MatchReplicati
     || !isSafeInteger(value.serverTick)
     || value.serverTick < 0
     || !Array.isArray(value.events)
-    || !value.events.every(isReplicatedWorldEvent)) return false;
+    || !value.events.every(isReplicatedWorldEvent)
+    || !value.events.every((event) => hasRecipientSafeEventOwnerControl(event, value.recipientPlayerId as string))) return false;
   const payload = value[payloadKey];
   if (value.kind === "snapshot" && !isVisibleSnapshot(payload)) return false;
   if (value.kind === "delta" && !isVisibleSnapshotDelta(payload)) return false;
@@ -946,6 +998,11 @@ function isReplicatedWorldEvent(value: unknown): value is ReplicatedWorldEvent {
     default:
       return false;
   }
+}
+
+function hasRecipientSafeEventOwnerControl(event: ReplicatedWorldEvent, recipientPlayerId: string): boolean {
+  if (event.type !== "entitySpawned" && event.type !== "entityUpdated" && event.type !== "entityRemoved") return true;
+  return event.entity.ownerControl === undefined || event.entity.ownerId === recipientPlayerId;
 }
 
 function isCancelledProductionJob(value: unknown): boolean {
@@ -1234,6 +1291,79 @@ function isPopulation(value: unknown): value is { readonly used: number; readonl
     && isNonNegativeSafeInteger(value.capacity);
 }
 
+function isVillageId(value: unknown): value is VillageId {
+  return typeof value === "string" && ([
+    "pinehold", "riverstead", "highcrag", "marshwatch", "sunfield",
+  ] as const).includes(value as VillageId);
+}
+
+function isPublicParticipantState(value: unknown): value is PublicParticipantState {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["id", "teamId", "villageId", "surrendered", "eliminated"])
+    && isNonEmptyString(value.id)
+    && isNonEmptyString(value.teamId)
+    && isVillageId(value.villageId)
+    && typeof value.surrendered === "boolean"
+    && typeof value.eliminated === "boolean";
+}
+
+function isPublicParticipants(value: unknown): value is readonly PublicParticipantState[] {
+  if (!Array.isArray(value)
+    || value.length < 2
+    || value.length > 5
+    || !value.every(isPublicParticipantState)
+    || new Set(value.map((participant) => participant.id)).size !== value.length
+    || new Set(value.map((participant) => participant.teamId)).size < 2) return false;
+  for (let index = 1; index < value.length; index += 1) {
+    if (value[index - 1]!.id >= value[index]!.id) return false;
+  }
+  return true;
+}
+
+function isPublicSettlementAdvancement(value: unknown): value is PublicSettlementAdvancement {
+  return isRecord(value)
+    && hasOnlyKeys(value, ["producerId", "targetTier", "remainingTicks"])
+    && isNonEmptyString(value.producerId)
+    && isSettlementTier(value.targetTier)
+    && isNonNegativeSafeInteger(value.remainingTicks);
+}
+
+function hasValidSnapshotRecipientContract(value: Record<string, unknown>): boolean {
+  if (!isNonEmptyString(value.recipientPlayerId)
+    || !isNonEmptyString(value.recipientTeamId)
+    || !isPublicParticipants(value.participants)
+    || !Array.isArray(value.entities)
+    || !value.entities.every(isPublicEntityLike)) return false;
+  const recipient = value.participants.find((participant) => participant.id === value.recipientPlayerId);
+  if (!recipient || recipient.teamId !== value.recipientTeamId) return false;
+  if (!hasExactRecipientOwnerControls(value.entities, value.recipientPlayerId)) return false;
+  const advancement = value.advancement;
+  if (advancement !== null) {
+    if (!isPublicSettlementAdvancement(advancement)) return false;
+    const producer = value.entities.find((entity) => entity.id === advancement.producerId);
+    if (!producer || producer.kind !== "building" || producer.ownerId !== value.recipientPlayerId) return false;
+  }
+  return true;
+}
+
+function hasExactRecipientOwnerControls(
+  entities: readonly PublicEntityState[],
+  recipientPlayerId: string,
+): boolean {
+  return entities.every((entity) => {
+    const mustHaveOwnerControl = entity.kind === "building" && entity.ownerId === recipientPlayerId;
+    return mustHaveOwnerControl ? entity.ownerControl !== undefined : entity.ownerControl === undefined;
+  });
+}
+
+function hasOnlyRecipientOwnerControls(value: unknown, recipientPlayerId: unknown): boolean {
+  if (!isNonEmptyString(recipientPlayerId)
+    || !isRecord(value)
+    || !Array.isArray(value.upserted)
+    || !value.upserted.every(isPublicEntityLike)) return false;
+  return hasExactRecipientOwnerControls(value.upserted, recipientPlayerId);
+}
+
 function isPublicEntityKindAndType(kind: unknown, typeId: unknown): boolean {
   if (kind === "unit") return isUnitType(typeId);
   if (kind === "building" || kind === "rubble") return isBuildingType(typeId);
@@ -1299,12 +1429,40 @@ function isMonsterPublicState(value: unknown): boolean {
     && isNonNegativeSafeInteger(value.attackCooldownTicks);
 }
 
+function isCombatActivity(value: unknown): boolean {
+  return value === "idle" || value === "attacking" || value === "casting";
+}
+
+function isPublicProductionJob(value: unknown): value is PublicProductionJob {
+  if (!isRecord(value) || (value.kind !== "train" && value.kind !== "research")) return false;
+  const variantKey = value.kind === "train" ? "unitType" : "technologyId";
+  if (!hasOnlyKeys(value, ["jobId", "kind", variantKey, "remainingTicks", "totalTicks", "paidCost"])) return false;
+  return isProductionJobId(value.jobId)
+    && (value.kind === "train" ? isUnitType(value.unitType) : isTechnologyType(value.technologyId))
+    && isNonNegativeSafeInteger(value.remainingTicks)
+    && isNonNegativeSafeInteger(value.totalTicks)
+    && value.totalTicks > 0
+    && value.remainingTicks <= value.totalTicks
+    && isResourceWallet(value.paidCost);
+}
+
+function isPublicBuildingOwnerControl(value: unknown): value is PublicBuildingOwnerControl {
+  if (!isRecord(value)
+    || !hasOnlyKeys(value, ["productionQueue", "rallyPoint"])
+    || !Array.isArray(value.productionQueue)
+    || value.productionQueue.length > 5
+    || !value.productionQueue.every(isPublicProductionJob)
+    || !(value.rallyPoint === null || isGridPoint(value.rallyPoint))) return false;
+  const jobIds = value.productionQueue.map((job) => `${job.jobId.commandSequence}:${job.jobId.itemIndex}`);
+  return new Set(jobIds).size === jobIds.length;
+}
+
 function isPublicEntityLike(value: unknown): value is PublicEntityState {
   if (!isRecord(value) || !hasOnlyAllowedKeys(value, [
     "id", "ownerId", "kind", "typeId", "position", "hitPoints", "maxHitPoints", "stateRevision", "orientation",
     "gateOpen", "complete", "constructionRemainingTicks", "healthBand", "blocksMovement", "facing", "stance",
-    "formation", "combatPhase", "abilityReadyTick", "statuses", "passiveProgress", "cargo", "civilianActivity",
-    "resourceNode", "monsterState",
+    "formation", "combatPhase", "combatActivity", "abilityReadyTick", "statuses", "passiveProgress", "cargo", "civilianActivity",
+    "resourceNode", "monsterState", "ownerControl",
   ])) return false;
   return isNonEmptyString(value.id)
     && isNullableNonEmptyString(value.ownerId)
@@ -1324,13 +1482,15 @@ function isPublicEntityLike(value: unknown): value is PublicEntityState {
     && (value.stance === undefined || isCombatStance(value.stance))
     && (value.formation === undefined || isFormationKind(value.formation))
     && (value.combatPhase === undefined || isAbilityPhase(value.combatPhase))
+    && (value.combatActivity === undefined || ((value.kind === "unit" || value.kind === "monster") && isCombatActivity(value.combatActivity)))
     && (value.abilityReadyTick === undefined || isNonNegativeSafeInteger(value.abilityReadyTick))
     && (value.statuses === undefined || isPublicStatuses(value.statuses))
     && (value.passiveProgress === undefined || isPassiveProgress(value.passiveProgress))
     && (value.cargo === undefined || isResourceCargo(value.cargo))
-    && (value.civilianActivity === undefined || isCivilianActivity(value.civilianActivity))
-    && (value.resourceNode === undefined || isResourceNode(value.resourceNode))
-    && (value.monsterState === undefined || isMonsterPublicState(value.monsterState));
+    && (value.civilianActivity === undefined || (value.kind === "unit" && value.typeId === "villager" && isCivilianActivity(value.civilianActivity)))
+    && (value.resourceNode === undefined || (value.kind === "resource" && isResourceNode(value.resourceNode)))
+    && (value.monsterState === undefined || (value.kind === "monster" && isMonsterPublicState(value.monsterState)))
+    && (value.ownerControl === undefined || (value.kind === "building" && value.ownerId !== null && isPublicBuildingOwnerControl(value.ownerControl)));
 }
 
 function isPublicProjectileLike(value: unknown): value is PublicProjectileState {
@@ -1369,7 +1529,7 @@ function isStaleSightingLike(value: unknown): value is StaleEntitySighting {
 
 function isDeltaChanges(value: unknown): boolean {
   if (!isRecord(value) || !hasOnlyAllowedKeys(value, [
-    "phase", "victory", "wallet", "population", "settlementTier", "completedTechnologyIds", "activeMonsterBoons",
+    "phase", "victory", "wallet", "population", "settlementTier", "participants", "advancement", "completedTechnologyIds", "activeMonsterBoons",
     "exploredTilesRle", "visibilityRevision", "visibleTileIndices", "visibleEntityIds",
   ])) return false;
   return (value.phase === undefined || isMatchPhase(value.phase))
@@ -1377,6 +1537,8 @@ function isDeltaChanges(value: unknown): boolean {
     && (value.wallet === undefined || isResourceWallet(value.wallet))
     && (value.population === undefined || isPopulation(value.population))
     && (value.settlementTier === undefined || isSettlementTier(value.settlementTier))
+    && (value.participants === undefined || isPublicParticipants(value.participants))
+    && (value.advancement === undefined || value.advancement === null || isPublicSettlementAdvancement(value.advancement))
     && (value.completedTechnologyIds === undefined || (
       Array.isArray(value.completedTechnologyIds)
       && value.completedTechnologyIds.every(isTechnologyType)

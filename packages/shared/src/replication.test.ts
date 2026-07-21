@@ -5,6 +5,7 @@ import {
   isMatchLifecycleMessage,
   isMatchReplicationFrame,
   isMatchServerHello,
+  isVisibleSnapshot,
   type MatchDeltaFrame,
   type MatchLifecycleMessage,
   type MatchRecoveryFailureCode,
@@ -33,9 +34,30 @@ describe("recipient-filtered replication", () => {
     mutable.serverTick = 1;
     mutable.wallet.food -= 50;
     mutable.visibilityRevision += 1;
-    mutable.entities[0]!.hitPoints -= 1;
-    mutable.entities[0]!.stateRevision += 1;
-    mutable.entities.pop();
+    mutable.participants = mutable.participants.map((participant) => participant.id === "player-2"
+      ? { ...participant, surrendered: true }
+      : participant);
+    const ownBuildingIndex = mutable.entities.findIndex((entity) => entity.kind === "building" && entity.ownerId === "player-1");
+    const ownBuilding = mutable.entities[ownBuildingIndex]!;
+    mutable.entities[ownBuildingIndex] = {
+      ...ownBuilding,
+      hitPoints: ownBuilding.hitPoints - 1,
+      stateRevision: ownBuilding.stateRevision + 1,
+      ownerControl: {
+        productionQueue: [{
+          jobId: { commandSequence: 4, itemIndex: 0 },
+          kind: "train",
+          unitType: "villager",
+          remainingTicks: 90,
+          totalTicks: 120,
+          paidCost: { food: 50, wood: 0, stone: 0 },
+        }],
+        rallyPoint: { x: 8, y: 8 },
+      },
+    };
+    mutable.advancement = { producerId: ownBuilding.id, targetTier: "stronghold", remainingTicks: 311 };
+    const removedIndex = mutable.entities.findIndex((entity, index) => index !== ownBuildingIndex && entity.kind === "resource");
+    mutable.entities.splice(removedIndex, 1);
     mutable.visibleEntityIds = mutable.entities.map((entity) => entity.id);
     mutable.projectiles.push({
       id: "projectile-test",
@@ -53,6 +75,8 @@ describe("recipient-filtered replication", () => {
     expect(delta.entities.upserted).toHaveLength(1);
     expect(delta.entities.removedIds).toHaveLength(1);
     expect(delta.projectiles.upserted).toHaveLength(1);
+    expect(delta.changes.participants?.find((participant) => participant.id === "player-2")?.surrendered).toBe(true);
+    expect(delta.changes.advancement).toEqual({ producerId: ownBuilding.id, targetTier: "stronghold", remainingTicks: 311 });
     expect(applyVisibleSnapshotDelta(base, delta)).toEqual(next);
     expect(base).toEqual(before);
   });
@@ -234,6 +258,90 @@ describe("recipient-filtered replication", () => {
       ...structuredClone(snapshot),
       activeMonsterBoons: [{ id: "unknown-boon", expiresAtTick: 10 }],
     } as unknown as VisibleSnapshot)))).toBe(false);
+  });
+
+  it("rejects recipient-contract tampering even when the visible checksum is recomputed", () => {
+    const snapshot = createSnapshot();
+    const ownBuildingIndex = snapshot.entities.findIndex((entity) => entity.kind === "building" && entity.ownerId === snapshot.recipientPlayerId);
+    const ownBuilding = snapshot.entities[ownBuildingIndex]!;
+
+    const withoutOwnControl = structuredClone(snapshot) as MutableSnapshot;
+    withoutOwnControl.entities[ownBuildingIndex] = { ...ownBuilding, ownerControl: undefined };
+    const withoutOwnControlChecksum = withChecksum(withoutOwnControl);
+    expect(verifyVisibleSnapshotChecksum(withoutOwnControlChecksum)).toBe(true);
+    expect(isVisibleSnapshot(withoutOwnControlChecksum)).toBe(false);
+    expect(isMatchReplicationFrame(snapshotFrame(withoutOwnControlChecksum))).toBe(false);
+
+    const foreignControl = structuredClone(snapshot) as MutableSnapshot;
+    foreignControl.entities[ownBuildingIndex] = { ...ownBuilding, ownerId: "player-2" };
+    const foreignControlChecksum = withChecksum(foreignControl);
+    expect(verifyVisibleSnapshotChecksum(foreignControlChecksum)).toBe(true);
+    expect(isVisibleSnapshot(foreignControlChecksum)).toBe(false);
+    expect(isMatchReplicationFrame(snapshotFrame(foreignControlChecksum))).toBe(false);
+
+    const wrongTeam = withChecksum({ ...structuredClone(snapshot), recipientTeamId: "forged-team" });
+    expect(isVisibleSnapshot(wrongTeam)).toBe(false);
+
+    const privateParticipant = structuredClone(snapshot) as unknown as Record<string, unknown>;
+    privateParticipant.participants = (snapshot.participants as readonly unknown[]).map((participant, index) => index === 0
+      ? { ...(participant as object), resources: { food: 999, wood: 999, stone: 999 } }
+      : participant);
+    const privateParticipantChecksum = withChecksum(privateParticipant as unknown as VisibleSnapshot);
+    expect(verifyVisibleSnapshotChecksum(privateParticipantChecksum)).toBe(true);
+    expect(isVisibleSnapshot(privateParticipantChecksum)).toBe(false);
+
+    const wrongAdvancement = withChecksum({
+      ...structuredClone(snapshot),
+      advancement: { producerId: snapshot.entities.find((entity) => entity.kind === "unit")!.id, targetTier: "stronghold", remainingTicks: 1 },
+    });
+    expect(isVisibleSnapshot(wrongAdvancement)).toBe(false);
+  });
+
+  it("rejects participant identity changes and foreign owner control in deltas", () => {
+    const base = createSnapshot();
+    const changedIdentity = structuredClone(base) as MutableSnapshot;
+    changedIdentity.serverTick = 1;
+    changedIdentity.participants = changedIdentity.participants.map((participant) => participant.id === "player-2"
+      ? { ...participant, teamId: "forged-team" }
+      : participant);
+    expect(() => createVisibleSnapshotDelta(base, withChecksum(changedIdentity))).toThrowError(ReplicationError);
+
+    const ownBuildingIndex = base.entities.findIndex((entity) => entity.kind === "building" && entity.ownerId === base.recipientPlayerId);
+    const invalidNext = structuredClone(base) as MutableSnapshot;
+    invalidNext.serverTick = 1;
+    invalidNext.entities[ownBuildingIndex] = { ...invalidNext.entities[ownBuildingIndex]!, ownerId: "player-2" };
+    const invalidDelta = createVisibleSnapshotDelta(base, withChecksum(invalidNext));
+    expect(() => applyVisibleSnapshotDelta(base, invalidDelta)).toThrowError(ReplicationError);
+
+    const frame: MatchDeltaFrame = {
+      kind: "delta",
+      protocolVersion: MATCH_PROTOCOL_VERSION,
+      rulesVersion: base.rulesVersion,
+      matchId: base.matchId,
+      recipientPlayerId: base.recipientPlayerId,
+      serverTick: invalidDelta.serverTick,
+      events: [],
+      delta: invalidDelta,
+    };
+    expect(isMatchReplicationFrame(frame)).toBe(false);
+  });
+
+  it("round-trips advancement clearing through a delta", () => {
+    const state = createSeparatedState();
+    const ownTown = state.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    state.players.find((player) => player.id === "player-1")!.advancement = {
+      producerId: ownTown.id,
+      targetTier: "stronghold",
+      remainingTicks: 200,
+    };
+    const base = toVisibleSnapshot(state, "player-1");
+    state.tick += 1;
+    state.players.find((player) => player.id === "player-1")!.advancement = null;
+    const next = toVisibleSnapshot(state, "player-1");
+    const delta = createVisibleSnapshotDelta(base, next);
+
+    expect(delta.changes).toHaveProperty("advancement", null);
+    expect(applyVisibleSnapshotDelta(base, delta)).toEqual(next);
   });
 });
 

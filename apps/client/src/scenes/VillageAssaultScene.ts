@@ -38,6 +38,10 @@ import {
   type GameCommand,
   type GridPoint,
   type MonsterEntityState,
+  type MatchCommandResult,
+  type PublicEntityState,
+  type PublicProductionJob,
+  type ReplicatedWorldEvent,
   type ResourceEntityState,
   type ResourceKind,
   type ResourceWallet,
@@ -76,7 +80,27 @@ import {
   type FrameAnimatedCombatActorView,
 } from "../game/frameAnimatedCombatActor";
 import { GAME_FULLSCREEN_FALLBACK_EVENT, fullscreenButtonLabel, toggleGameFullscreen } from "../game/gameFullscreen";
+import { ExclusivePointerGesture } from "../game/exclusivePointerGesture";
 import { gridToWorld, worldToGrid } from "../game/isometric";
+import {
+  isPublicBuilding,
+  isPublicMonster,
+  isPublicResource,
+  isPublicRubble,
+  isPublicUnit,
+  publicEntityFootprintCells,
+  publicFacing,
+  publicMonsterAttackCooldown,
+  publicPlayerHomePosition,
+  publicResourceAmount,
+  publicResourceRenewAtTick,
+  publicUnitCargo,
+  type PublicBuildingEntity,
+  type PublicMonsterEntity,
+  type PublicResourceEntity,
+  type PublicRubbleEntity,
+  type PublicUnitEntity,
+} from "../game/assaultPublicPresentation";
 import {
   TUTORIAL_STEPS,
   createTutorialProgress,
@@ -118,12 +142,16 @@ import {
   type VillageWorkerPose,
 } from "../game/villageWorkerActor";
 import { createCanvasButton, type CanvasButtonControl } from "../ui/canvasButton";
+import { OnlineAssaultMatchSource, type OnlineAssaultFrame } from "../match/OnlineAssaultMatchSource";
+import type { ConnectionState, MatchFrame, MultiplayerClient } from "../network/MultiplayerClient";
 
 interface VillageAssaultSceneData {
   readonly villageId?: VillageId;
   readonly aiPersonality?: AiPersonality;
   readonly returnScene?: string;
   readonly tutorial?: boolean;
+  readonly multiplayerClient?: MultiplayerClient;
+  readonly firstMatchFrame?: MatchFrame;
 }
 
 interface UnitView {
@@ -222,7 +250,7 @@ const SETTLEMENT_ADVANCEMENT_NOTICES: Readonly<Record<SettlementTier, string>> =
 };
 const UI_WIDTH = 900;
 const TOP_PANEL_HEIGHT = 80;
-const UI_BUTTON_WIDTH = 118;
+const UI_BUTTON_WIDTH = 112;
 const UI_BUTTON_HEIGHT = 118;
 const UI_GAP = 6;
 const ACTION_PANEL_HEIGHT = 154;
@@ -232,6 +260,15 @@ export class VillageAssaultScene extends Phaser.Scene {
   private aiPersonality: AiPersonality = "balanced";
   private returnScene = "VillageSelectScene";
   private runtime!: VillageAssaultRuntime;
+  private onlineSource?: OnlineAssaultMatchSource;
+  private multiplayerClient?: MultiplayerClient;
+  private firstMatchFrame?: MatchFrame;
+  private readonly onlineDisposers: Array<() => void> = [];
+  private readonly pendingOnlineCommandNotices = new Map<string, string>();
+  private onlineConnection: ConnectionState = "offline";
+  private lastOnlineFrameTick = -1;
+  private onlineRecentEvents: readonly ReplicatedWorldEvent[] = [];
+  private onlineLeaveRequested = false;
   private mapView?: BattleMapView;
   private settlementOverlay?: SettlementOverlay;
   private fogOverlay?: Phaser.GameObjects.Graphics;
@@ -288,8 +325,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private resultLiveRegion?: HTMLDivElement;
   private readonly actionButtons: CanvasButtonControl[] = [];
   private currentActions: readonly ActionSpec[] = [];
-  private pointerStart?: { x: number; y: number; scrollX: number; scrollY: number };
-  private pointerDragged = false;
+  private readonly pointerGesture = new ExclusivePointerGesture();
   private cameraKeys?: Record<"up" | "down" | "left" | "right", Phaser.Input.Keyboard.Key>;
   private uiCamera?: Phaser.Cameras.Scene2D.Camera;
 
@@ -302,6 +338,17 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.aiPersonality = data.aiPersonality ?? "balanced";
     this.returnScene = data.returnScene ?? "VillageSelectScene";
     this.tutorialEnabled = data.tutorial ?? false;
+    this.multiplayerClient = data.multiplayerClient;
+    this.firstMatchFrame = data.firstMatchFrame;
+    this.runtime = undefined!;
+    this.onlineDisposers.splice(0).forEach((dispose) => dispose());
+    this.onlineSource?.dispose();
+    this.onlineSource = undefined;
+    this.pendingOnlineCommandNotices.clear();
+    this.onlineConnection = "offline";
+    this.lastOnlineFrameTick = -1;
+    this.onlineRecentEvents = [];
+    this.onlineLeaveRequested = false;
     this.tutorialProgress = undefined;
     this.unitViews.clear();
     this.monsterViews.clear();
@@ -339,8 +386,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.artRetryAt.clear();
     this.dynamicArtIds.clear();
     this.artLoadGeneration += 1;
-    this.pointerStart = undefined;
-    this.pointerDragged = false;
+    this.pointerGesture.reset();
   }
 
   preload(): void {
@@ -364,15 +410,27 @@ export class VillageAssaultScene extends Phaser.Scene {
     for (const asset of ANIMATED_MONSTER_FRAME_ASSETS) {
       validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, asset.artId), asset.artId);
     }
-    this.runtime = createVillageAssaultRuntime({
-      playerVillageId: this.villageId,
-      aiPersonality: this.aiPersonality,
-      aiDifficulty: this.tutorialEnabled ? "novice" : "standard",
-      seed: 20260719,
-    });
+    if (this.multiplayerClient) {
+      this.onlineSource = new OnlineAssaultMatchSource(this.multiplayerClient, { firstFrame: this.firstMatchFrame });
+      const initial = this.onlineSource.current;
+      if (!initial) {
+        this.showOnlineFailure("尚未收到可驗證的戰場快照");
+        return;
+      }
+      this.villageId = initial.participants.find((participant) => participant.id === initial.recipientPlayerId)?.villageId ?? this.villageId;
+      this.tutorialEnabled = false;
+    } else {
+      this.runtime = createVillageAssaultRuntime({
+        playerVillageId: this.villageId,
+        aiPersonality: this.aiPersonality,
+        aiDifficulty: this.tutorialEnabled ? "novice" : "standard",
+        seed: 20260719,
+      });
+    }
+    const initialSnapshot = this.currentView();
     this.cameras.main.setBackgroundColor("#17241f");
     this.cameras.main.setBounds(VILLAGE_ASSAULT_BOUNDS.x, VILLAGE_ASSAULT_BOUNDS.y, VILLAGE_ASSAULT_BOUNDS.width, VILLAGE_ASSAULT_BOUNDS.height);
-    this.mapView = drawBattleMap(this, VILLAGE_ASSAULT_ORIGIN, this.runtime.state.map.layoutId);
+    this.mapView = drawBattleMap(this, VILLAGE_ASSAULT_ORIGIN, initialSnapshot.map.layoutId);
     this.mapView.container.setDepth(-10_000);
     this.settlementOverlay = drawSettlementOverlay(this, VILLAGE_ASSAULT_ORIGIN);
     this.settlementOverlay.container.setDepth(-2_000);
@@ -384,12 +442,13 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.uiCamera.ignore([this.mapView.container, this.settlementOverlay.container, this.fogOverlay]);
     this.createInterface();
     if (this.tutorialEnabled) {
-      this.tutorialProgress = createTutorialProgress(this.runtime.view);
+      this.tutorialProgress = createTutorialProgress(initialSnapshot);
       const firstStep = currentTutorialStep(this.tutorialProgress);
       if (firstStep) this.setNotice(firstStep.hint, "normal", 8_000);
     }
     this.syncEntityViews(true);
-    this.centerCameraOn({ x: 5, y: 8 });
+    if (this.onlineSource) this.centerOnlineHome();
+    else this.centerCameraOn({ x: 5, y: 8 });
     this.input.mouse?.disableContextMenu();
     this.input.addPointer(2);
     this.input.on("pointerdown", this.onPointerDown, this);
@@ -412,12 +471,18 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.events.on(GAME_FULLSCREEN_FALLBACK_EVENT, this.layoutInterface, this);
     window.addEventListener("resize", this.layoutInterface);
     this.layoutInterface();
+    this.bindOnlineSource();
     this.refreshInterface(true);
   }
 
   update(_time: number, delta: number): void {
     this.updateCamera(delta);
     for (const actor of this.retiringActors) actor.update(delta);
+    if (this.onlineSource) {
+      this.updateUnitAnimations(Math.min(delta, 250));
+      this.applyOnlinePresentation();
+      return;
+    }
     if (this.paused || this.ended || this.orientationBlocked || !this.runtime) return;
     const result = this.runtime.step(Math.min(delta, 250));
     if (result.steps === 0) {
@@ -448,7 +513,89 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.refreshInterface(false);
   }
 
+  private currentView(): VisibleSnapshot {
+    const snapshot = this.onlineSource?.current ?? this.runtime?.view;
+    if (!snapshot) throw new Error("Village Assault has no presentation snapshot");
+    return snapshot;
+  }
+
+  private currentPlayerId(): string {
+    return this.currentView().recipientPlayerId;
+  }
+
+  private currentTeamId(): string {
+    return this.currentView().recipientTeamId;
+  }
+
+  private bindOnlineSource(): void {
+    const source = this.onlineSource;
+    if (!source) return;
+    this.onlineDisposers.push(
+      source.onFrame((frame) => this.acceptOnlineFrame(frame)),
+      source.onConnection((state) => {
+        this.onlineConnection = state;
+        if (state === "connected") this.setNotice("權威戰場已同步", "success", 2_500);
+        else if (state === "failed") this.setNotice("戰局恢復失敗；所有指令已鎖定", "warning", 10_000);
+        else this.setNotice("連線恢復中；戰場保持最後確認狀態，指令暫停", "normal", 10_000);
+        this.refreshInterface(true);
+      }),
+      source.onCommandResult((result) => this.acceptOnlineCommandResult(result)),
+    );
+  }
+
+  private acceptOnlineFrame(frame: OnlineAssaultFrame): void {
+    if (!this.onlineSource || !this.sys.isActive()) return;
+    this.onlineRecentEvents = frame.events;
+    this.lastOnlineFrameTick = frame.snapshot.serverTick;
+    const advancement = frame.events.find((event) => event.type === "settlementAdvanced" && event.playerId === this.currentPlayerId());
+    if (advancement?.type === "settlementAdvanced") {
+      this.setNotice(SETTLEMENT_ADVANCEMENT_NOTICES[advancement.settlementTier], "success");
+    }
+    const completedResearch = frame.events.find((event) => event.type === "technologyResearched" && event.playerId === this.currentPlayerId());
+    if (completedResearch?.type === "technologyResearched") {
+      this.setNotice(`${TECHNOLOGIES[completedResearch.technologyId].displayName}研究完成`, "success");
+    }
+    this.renderCombatEvents(frame.events);
+    this.prefetchQueuedUnitArt();
+    this.syncEntityViews(frame.kind === "snapshot");
+    if (frame.snapshot.phase === "finished") this.finishBattle();
+    this.refreshInterface(true);
+  }
+
+  private acceptOnlineCommandResult(result: MatchCommandResult): void {
+    if (!result.commandId) return;
+    const success = this.pendingOnlineCommandNotices.get(result.commandId);
+    this.pendingOnlineCommandNotices.delete(result.commandId);
+    if (result.accepted) {
+      if (success) this.setNotice(success, "success");
+      return;
+    }
+    this.setNotice(`指令遭伺服器拒絕：${result.code}`, "warning", 6_000);
+  }
+
+  private applyOnlinePresentation(): void {
+    const presentation = this.onlineSource?.samplePresentation();
+    if (!presentation) return;
+    for (const { id, position } of presentation.entityPositions) {
+      const world = gridToWorld(position, VILLAGE_ASSAULT_ORIGIN);
+      const unit = this.unitViews.get(id);
+      if (unit) unit.actor.setPosition(world.x, world.y).container.setDepth(world.y + 100);
+      const monster = this.monsterViews.get(id);
+      if (monster) monster.actor.setPosition(world.x, world.y).container.setDepth(world.y + 112);
+    }
+    for (const { id, position } of presentation.projectilePositions) {
+      const projectile = this.projectileEffects.get(id);
+      if (!projectile) continue;
+      const world = gridToWorld(position, VILLAGE_ASSAULT_ORIGIN);
+      projectile.setPosition(world.x, world.y);
+    }
+  }
+
   private syncEntityViews(initial: boolean): void {
+    if (this.onlineSource) {
+      this.syncOnlineEntityViews(initial);
+      return;
+    }
     const snapshot = this.runtime.view;
     this.syncFogOverlay(snapshot);
     this.syncProjectileViews(snapshot);
@@ -493,6 +640,223 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     this.syncStaleBuildingViews(snapshot);
     this.sanitizeSelection();
+  }
+
+  private syncOnlineEntityViews(initial: boolean): void {
+    const snapshot = this.currentView();
+    this.syncFogOverlay(snapshot);
+    this.syncProjectileViews(snapshot);
+    const visiblyRemoved = new Set(this.onlineRecentEvents
+      .filter((event): event is Extract<ReplicatedWorldEvent, { type: "entityRemoved" }> => event.type === "entityRemoved")
+      .map((event) => event.entityId));
+    const renderable = new Set(snapshot.visibleEntityIds);
+    for (const [id, view] of this.unitViews) {
+      if (renderable.has(id)) continue;
+      if (visiblyRemoved.has(id)) this.retireActor(view.actor, 700);
+      else view.actor.destroy();
+      this.unitViews.delete(id);
+      this.selectedIds.delete(id);
+    }
+    for (const [id, view] of this.monsterViews) {
+      if (renderable.has(id)) continue;
+      if (visiblyRemoved.has(id)) this.retireActor(view.actor, 700);
+      else view.actor.destroy();
+      this.monsterViews.delete(id);
+      this.selectedIds.delete(id);
+    }
+    for (const [id, view] of this.entityViews) {
+      if (renderable.has(id)) continue;
+      view.destroy();
+      this.entityViews.delete(id);
+      this.selectedIds.delete(id);
+    }
+    for (const entity of snapshot.entities) {
+      if (!renderable.has(entity.id)) continue;
+      if (isPublicUnit(entity)) this.syncPublicUnitView(entity, initial);
+      else if (isPublicMonster(entity)) this.syncPublicMonsterView(entity, initial);
+      else if (isPublicBuilding(entity) || isPublicResource(entity) || isPublicRubble(entity)) this.syncPublicStaticView(entity);
+    }
+    this.syncStaleBuildingViews(snapshot);
+    this.sanitizeOnlineSelection();
+  }
+
+  private syncPublicUnitView(entity: PublicUnitEntity, initial: boolean): void {
+    let view = this.unitViews.get(entity.id);
+    if (!view) {
+      if (entity.typeId !== "villager") {
+        const artId = UNIT_ART[entity.typeId];
+        if (this.failedArtIds.has(artId)) {
+          if (performance.now() < (this.artRetryAt.get(artId) ?? Number.POSITIVE_INFINITY)) return;
+          this.failedArtIds.delete(artId);
+        }
+        if (!this.isArtReady(artId)) {
+          void this.ensureArtLoaded(artId)
+            .then(() => { if (this.sys.isActive()) this.syncEntityViews(false); })
+            .catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
+          return;
+        }
+      }
+      view = this.createPublicUnitView(entity);
+      this.unitViews.set(entity.id, view);
+    }
+    const target = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
+    const moved = view.grid.x !== entity.position.x || view.grid.y !== entity.position.y;
+    if (moved) view.actor.faceVector(entity.position.x - view.grid.x, entity.position.y - view.grid.y);
+    if (initial || !moved) view.actor.setPosition(target.x, target.y);
+    if (entity.typeId === "villager") view.actor.setWorkerPose?.(this.publicWorkerPose(entity));
+    const action = this.publicActionForUnit(entity, view, moved);
+    if (action !== view.action || action === "attack" || action === "hurt" || action === "cast") {
+      view.actor.play(action, action !== "idle" && action !== "walk");
+      view.action = action;
+    }
+    const cargo = publicUnitCargo(entity);
+    const cargoGlyph = cargo.kind ? ({ food: "糧", wood: "木", stone: "石" } as const)[cargo.kind] : "";
+    this.drawCargoPack(view.cargoPack, cargo.kind, cargo.amount, cargo.capacity || UNITS[entity.typeId].carryCapacity);
+    view.cargoLabel.setText(cargo.amount > 0 ? `${cargoGlyph}${cargo.amount}/${cargo.capacity || UNITS[entity.typeId].carryCapacity}` : "").setVisible(cargo.amount > 0);
+    view.grid = { ...entity.position };
+    view.hitPoints = entity.hitPoints;
+    view.selection.setVisible(this.selectedIds.has(entity.id));
+    this.drawUnitHealth(view.health, entity);
+    view.actor.container.setDepth(target.y + 100);
+  }
+
+  private syncPublicMonsterView(entity: PublicMonsterEntity, initial: boolean): void {
+    let view = this.monsterViews.get(entity.id);
+    if (!view) {
+      view = this.createPublicMonsterView(entity);
+      this.monsterViews.set(entity.id, view);
+    }
+    const target = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
+    const moved = view.grid.x !== entity.position.x || view.grid.y !== entity.position.y;
+    if (moved) view.actor.faceVector(entity.position.x - view.grid.x, entity.position.y - view.grid.y);
+    if (initial || !moved) view.actor.setPosition(target.x, target.y).setFacing(publicFacing(entity, "sw"));
+    const cooldown = publicMonsterAttackCooldown(entity);
+    const action: CombatAction = entity.hitPoints < view.hitPoints
+      ? "hurt"
+      : entity.combatActivity === "casting"
+        ? "cast"
+        : entity.combatActivity === "attacking" || cooldown > view.attackCooldownTicks
+          ? "attack"
+          : moved ? "walk" : "idle";
+    if (action !== view.action || action === "attack" || action === "hurt" || action === "cast") {
+      view.actor.play(action, action !== "idle" && action !== "walk");
+      view.action = action;
+    }
+    view.grid = { ...entity.position };
+    view.hitPoints = entity.hitPoints;
+    view.attackCooldownTicks = cooldown;
+    view.selection.setVisible(this.selectedIds.has(entity.id));
+    this.drawUnitHealth(view.health, entity);
+    view.actor.container.setDepth(target.y + 112);
+  }
+
+  private syncPublicStaticView(entity: PublicBuildingEntity | PublicResourceEntity | PublicRubbleEntity): void {
+    let view = this.entityViews.get(entity.id);
+    if (!view) {
+      view = isPublicBuilding(entity)
+        ? createBuildingView(this, entity, this.paletteForOwner(entity.ownerId).primary)
+        : isPublicResource(entity)
+          ? createResourceView(this, entity)
+          : createRubbleView(this, entity);
+      this.entityViews.set(entity.id, view);
+      view.setCompact(this.compactUi);
+      this.uiCamera?.ignore(view.container);
+      if (!isPublicRubble(entity)) {
+        view.container.setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+        view.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
+        view.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
+        view.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+          event.stopPropagation();
+          this.beginPointerGesture(pointer);
+        });
+        view.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+          event.stopPropagation();
+          this.completeEntityGesture(entity.id, pointer);
+        });
+      }
+    }
+    const cells = publicEntityFootprintCells(entity);
+    const center = cells.reduce((sum, cell) => ({ x: sum.x + cell.x, y: sum.y + cell.y }), { x: 0, y: 0 });
+    const world = gridToWorld({ x: center.x / cells.length, y: center.y / cells.length }, VILLAGE_ASSAULT_ORIGIN);
+    view.container.setPosition(world.x, world.y).setDepth(world.y + (entity.kind === "building" ? 80 : 20));
+    view.update(entity, this.selectedIds.has(entity.id));
+  }
+
+  private createPublicUnitView(entity: PublicUnitEntity): UnitView {
+    const world = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
+    const self = entity.ownerId === this.currentPlayerId();
+    const facing = publicFacing(entity, self ? "ne" : "sw");
+    const teamPalette = this.paletteForOwner(entity.ownerId);
+    const actor: UnitActorView = entity.typeId === "villager"
+      ? createVillageWorkerActor(this, { x: world.x, y: world.y, facing, action: "idle", teamPalette })
+      : createFrameAnimatedCombatActor(this, {
+          id: UNIT_ART[entity.typeId], x: world.x, y: world.y, facing, action: "idle", teamPalette,
+        }, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, UNIT_ART[entity.typeId]));
+    if (entity.typeId === "villager") actor.setWorkerPose?.(this.publicWorkerPose(entity));
+    const largeSelection = entity.typeId === "boarRider";
+    const selection = this.add.graphics().lineStyle(3, 0xffdf83, 1).strokeEllipse(0, 2, largeSelection ? 64 : 48, largeSelection ? 26 : 20).setVisible(false);
+    const health = this.add.graphics();
+    const cargoPack = this.add.graphics().setPosition(23, -25).setVisible(false);
+    const roleMark = entity.typeId === "villager" ? "⚒" : self ? "Ⅰ" : "Ⅱ";
+    const label = this.add.text(0, 11, `${roleMark} ${UNIT_LABELS[entity.typeId]}`, {
+      color: self ? "#e4efce" : "#ffd2c3", fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif', fontSize: "11px", fontStyle: "bold", stroke: "#101917", strokeThickness: 4,
+    }).setOrigin(0.5, 0).setResolution(2).setVisible(!this.compactUi);
+    const cargoLabel = this.add.text(23, -44, "", {
+      color: "#fff0b3", fontFamily: 'Consolas, "Noto Sans TC", monospace', fontSize: "10px", fontStyle: "bold", backgroundColor: "#101917d8", padding: { x: 3, y: 1 },
+    }).setOrigin(0.5).setResolution(2).setVisible(false);
+    actor.container.addAt(selection, 0);
+    actor.container.add([health, cargoPack, label, cargoLabel]);
+    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => { event.stopPropagation(); this.beginPointerGesture(pointer); });
+    actor.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => { event.stopPropagation(); this.completeEntityGesture(entity.id, pointer); });
+    this.uiCamera?.ignore(actor.container);
+    return { actor, selection, health, label, cargoPack, cargoLabel, grid: { ...entity.position }, hitPoints: entity.hitPoints, action: "idle" };
+  }
+
+  private createPublicMonsterView(entity: PublicMonsterEntity): MonsterView {
+    const world = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
+    const actor = createFrameAnimatedCombatActor(this, {
+      id: entity.typeId, x: world.x, y: world.y, facing: publicFacing(entity, "sw"), action: "idle", teamPalette: DEFAULT_TEAM_PALETTES.neutral,
+    }, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, entity.typeId));
+    const selection = this.add.graphics().lineStyle(3, 0xf0c96b, 1).strokeEllipse(0, 4, entity.typeId === "rootback" ? 84 : 64, entity.typeId === "rootback" ? 34 : 26).setVisible(false);
+    const health = this.add.graphics();
+    const label = this.add.text(0, 15, `◆ ${MONSTERS[entity.typeId].displayName}`, {
+      color: "#f4d58c", fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif', fontSize: "11px", fontStyle: "bold", stroke: "#101917", strokeThickness: 4,
+    }).setOrigin(0.5, 0).setResolution(2).setVisible(!this.compactUi);
+    actor.container.addAt(selection, 0);
+    actor.container.add([health, label]);
+    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
+    actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => { event.stopPropagation(); this.beginPointerGesture(pointer); });
+    actor.container.on("pointerup", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => { event.stopPropagation(); this.completeEntityGesture(entity.id, pointer); });
+    this.uiCamera?.ignore(actor.container);
+    return { actor, selection, health, label, grid: { ...entity.position }, hitPoints: entity.hitPoints, attackCooldownTicks: publicMonsterAttackCooldown(entity), action: "idle" };
+  }
+
+  private publicActionForUnit(entity: PublicUnitEntity, view: UnitView, moved: boolean): CombatAction {
+    if (entity.hitPoints < view.hitPoints) return "hurt";
+    if (entity.combatActivity === "casting") return "cast";
+    if (entity.combatActivity === "attacking") return "attack";
+    if (moved || entity.civilianActivity === "walking" || entity.civilianActivity === "hauling") return "walk";
+    if (entity.civilianActivity === "constructing" || entity.civilianActivity === "repairing") return "cast";
+    if (entity.civilianActivity === "gathering") return "attack";
+    return "idle";
+  }
+
+  private publicWorkerPose(entity: PublicUnitEntity): VillageWorkerPose {
+    const cargo = publicUnitCargo(entity);
+    if (cargo.amount > 0) {
+      if (cargo.kind === "wood") return "carryWood";
+      if (cargo.kind === "food") return "carryFood";
+      if (cargo.kind === "stone") return "carryStone";
+    }
+    if (entity.civilianActivity === "constructing") return "construction";
+    if (entity.civilianActivity === "repairing") return "repair";
+    if (entity.civilianActivity === "gathering") return "harvestWood";
+    return "fieldReady";
   }
 
   private retireActor(actor: FrameAnimatedCombatActorView, holdDuration: number): void {
@@ -558,7 +922,8 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.tweens.killTweensOf(effect);
       if (travelDx !== 0 || travelDy !== 0) effect.setRotation(Math.atan2(travelDy, travelDx));
       else if (hintDx !== 0 || hintDy !== 0) effect.setRotation(Math.atan2(hintDy, hintDx));
-      this.tweens.add({ targets: effect, x: world.x, y: world.y, duration: TICK_MILLISECONDS, ease: "Linear" });
+      if (this.onlineSource) effect.setPosition(world.x, world.y);
+      else this.tweens.add({ targets: effect, x: world.x, y: world.y, duration: TICK_MILLISECONDS, ease: "Linear" });
     }
   }
 
@@ -578,7 +943,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.uiCamera?.ignore(effect);
   }
 
-  private syncFogOverlay(snapshot = this.runtime.view): void {
+  private syncFogOverlay(snapshot = this.currentView()): void {
     if (!this.fogOverlay || snapshot.visibilityRevision === this.lastFogRevision) return;
     drawFogOfWar(
       this.fogOverlay,
@@ -853,7 +1218,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       if (event.type === "tacticalSignalRaised") {
         this.presentTacticalSignal(event);
       } else if (event.type === "projectileSpawned") {
-        const publicProjectile = this.runtime.view.projectiles.find((projectile) => projectile.id === event.projectile.id);
+        const publicProjectile = this.currentView().projectiles.find((projectile) => projectile.id === event.projectile.id);
         if (!publicProjectile || this.projectileEffects.has(publicProjectile.id)) continue;
         this.spawnProjectileEffect(publicProjectile);
       } else if (event.type === "projectileImpacted") {
@@ -866,13 +1231,13 @@ export class VillageAssaultScene extends Phaser.Scene {
         const world = gridToWorld(event.position, VILLAGE_ASSAULT_ORIGIN);
         spawnImpactBurst(this, world);
       } else if (event.type === "entityDamaged") {
-        const target = this.entityById(event.targetId) ?? removedById.get(event.targetId);
+        const target = (this.onlineSource ? this.onlineEntityById(event.targetId) : this.entityById(event.targetId)) ?? removedById.get(event.targetId);
         if (!target) continue;
         const world = gridToWorld(target.position, VILLAGE_ASSAULT_ORIGIN);
         const text = spawnFloatingText(this, { x: world.x, y: world.y - 42 }, `-${event.amount}`, "#ffd0ad");
         this.uiCamera?.ignore(text);
       } else if (event.type === "statusApplied") {
-        const target = this.entityById(event.targetId) ?? removedById.get(event.targetId);
+        const target = (this.onlineSource ? this.onlineEntityById(event.targetId) : this.entityById(event.targetId)) ?? removedById.get(event.targetId);
         if (!target) continue;
         const world = gridToWorld(target.position, VILLAGE_ASSAULT_ORIGIN);
         const telegraph = spawnSkillTelegraph(this, world, 0xe0b866, 30, 360);
@@ -884,18 +1249,18 @@ export class VillageAssaultScene extends Phaser.Scene {
         spawnDeathDust(this, world, event.entity.kind === "building" ? 0x765844 : 0x6c5b47);
         if (event.entity.kind === "building") spawnImpactBurst(this, world, 0xd8725f, 16);
       } else if (event.type === "resourceDepleted") {
-        const resource = this.entityById(event.resourceId) ?? removedById.get(event.resourceId);
+        const resource = (this.onlineSource ? this.onlineEntityById(event.resourceId) : this.entityById(event.resourceId)) ?? removedById.get(event.resourceId);
         if (!resource) continue;
         const world = gridToWorld(resource.position, VILLAGE_ASSAULT_ORIGIN);
         const text = spawnFloatingText(this, { x: world.x, y: world.y - 34 }, "資源耗盡", "#d2b98b");
         this.uiCamera?.ignore(text);
       } else if (event.type === "resourceRenewed") {
-        const resource = this.entityById(event.resourceId);
+        const resource = this.onlineSource ? this.onlineEntityById(event.resourceId) : this.entityById(event.resourceId);
         if (!resource) continue;
         const world = gridToWorld(resource.position, VILLAGE_ASSAULT_ORIGIN);
         const text = spawnFloatingText(this, { x: world.x, y: world.y - 34 }, "資源再生", "#9ed486");
         this.uiCamera?.ignore(text);
-      } else if (event.type === "monsterRewardGranted" && event.playerId === VILLAGE_ASSAULT_PLAYER_ID) {
+      } else if (event.type === "monsterRewardGranted" && event.playerId === this.currentPlayerId()) {
         const monster = removedById.get(event.monsterId);
         const reward = [
           event.reward.food > 0 ? `糧${event.reward.food}` : "",
@@ -903,7 +1268,7 @@ export class VillageAssaultScene extends Phaser.Scene {
           event.reward.stone > 0 ? `石${event.reward.stone}` : "",
         ].filter(Boolean).join(" ");
         const boon = event.boon ? MONSTER_BOONS[event.boon.id] : null;
-        const boonSeconds = event.boon ? Math.max(0, Math.ceil((event.boon.expiresAtTick - this.runtime.view.serverTick) / TICKS_PER_SECOND)) : 0;
+        const boonSeconds = event.boon ? Math.max(0, Math.ceil((event.boon.expiresAtTick - this.currentView().serverTick) / TICKS_PER_SECOND)) : 0;
         const message = `${MONSTERS[event.monsterTypeId].displayName}討伐成功｜${reward}${boon ? `｜${boon.displayName} ${boonSeconds}秒` : ""}`;
         this.setNotice(message, "success");
         if (monster) {
@@ -916,7 +1281,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private presentTacticalSignal(event: TacticalSignalRaisedEvent): void {
-    const anchor = this.runtime.view.entities.find((entity) => entity.id === event.anchorEntityId);
+    const anchor = this.currentView().entities.find((entity) => entity.id === event.anchorEntityId);
     if (!anchor || anchor.ownerId !== event.actingPlayerId) return;
     const presentation = TACTICAL_SIGNAL_PRESENTATION[event.signal];
     const world = gridToWorld(anchor.position, VILLAGE_ASSAULT_ORIGIN);
@@ -953,6 +1318,10 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private handleEntityTap(id: string, pointer: Phaser.Input.Pointer): void {
     if (this.ended || this.paused || this.systemPanelOpen || this.orientationBlocked) return;
+    if (this.onlineSource) {
+      this.handleOnlineEntityTap(id, pointer);
+      return;
+    }
     const entity = this.entityById(id);
     if (!entity) return;
     if (this.tacticalUiMode.kind !== "none") {
@@ -1025,8 +1394,7 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer): void => {
     if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) {
-      this.pointerStart = undefined;
-      this.pointerDragged = false;
+      this.pointerGesture.cancel(pointer.id);
       return;
     }
     if (pointer.rightButtonDown()) {
@@ -1038,32 +1406,41 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private beginPointerGesture(pointer: Phaser.Input.Pointer): void {
     if (this.orientationBlocked) return;
-    this.pointerStart = { x: pointer.x, y: pointer.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY };
-    this.pointerDragged = false;
+    this.pointerGesture.begin(pointer.id, {
+      x: pointer.x,
+      y: pointer.y,
+      scrollX: this.cameras.main.scrollX,
+      scrollY: this.cameras.main.scrollY,
+    });
   }
 
   private completeEntityGesture(entityId: string, pointer: Phaser.Input.Pointer): void {
     if (this.orientationBlocked) {
-      this.pointerStart = undefined;
-      this.pointerDragged = false;
+      this.pointerGesture.cancel(pointer.id);
       return;
     }
-    if (!this.pointerDragged) this.handleEntityTap(entityId, pointer);
-    this.pointerStart = undefined;
-    this.pointerDragged = false;
+    const completion = this.pointerGesture.end(pointer.id);
+    if (completion.shouldTap) this.handleEntityTap(entityId, pointer);
   }
 
   private previewTacticalEntity(entityId: string): void {
     if (this.orientationBlocked || this.tacticalUiMode.kind === "none") return;
-    const entity = this.entityById(entityId);
+    const entity = this.onlineSource ? this.onlineEntityById(entityId) : this.entityById(entityId);
     if (!entity) return;
     this.hoverEntityId = entityId;
     this.hoverGrid = { ...entity.position };
-    this.drawTacticalMarker(this.hoverGrid, this.isTacticalTargetValid(this.hoverGrid, entity));
+    this.drawTacticalMarker(this.hoverGrid, this.onlineSource
+      ? this.isOnlineTacticalTargetValid(this.hoverGrid, entity as PublicEntityState)
+      : this.isTacticalTargetValid(this.hoverGrid, entity as EntityState));
   }
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[] = []): void => {
     if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) return;
+    if (pointer.isDown && this.pointerGesture.tracking && !this.pointerGesture.owns(pointer.id)) return;
+    if (this.onlineSource) {
+      this.updateOnlinePointerMove(pointer, currentlyOver);
+      return;
+    }
     if (this.tacticalUiMode.kind !== "none") {
       this.hoverGrid = this.pointerGrid(pointer);
       this.hoverEntityId = currentlyOver
@@ -1094,34 +1471,30 @@ export class VillageAssaultScene extends Phaser.Scene {
       ));
       drawPlacementFootprint(this.settlementOverlay?.placement ?? this.add.graphics(), cells, validCells);
     }
-    if (!pointer.isDown || !this.pointerStart) return;
-    const dx = pointer.x - this.pointerStart.x;
-    const dy = pointer.y - this.pointerStart.y;
-    if (!this.pointerDragged && Math.hypot(dx, dy) < 10) return;
-    this.pointerDragged = true;
+    if (!pointer.isDown) return;
     const camera = this.cameras.main;
-    camera.scrollX = this.pointerStart.scrollX - dx / camera.zoom;
-    camera.scrollY = this.pointerStart.scrollY - dy / camera.zoom;
+    const movement = this.pointerGesture.move(pointer.id, pointer.x, pointer.y, 10, camera.zoom);
+    if (movement.kind !== "drag") return;
+    camera.scrollX = movement.scrollX;
+    camera.scrollY = movement.scrollY;
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer): void => {
     if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) {
-      this.pointerStart = undefined;
-      this.pointerDragged = false;
+      this.pointerGesture.cancel(pointer.id);
       return;
     }
     if (pointer.rightButtonReleased()) return;
-    if (!this.pointerStart) {
-      this.pointerDragged = false;
-      return;
-    }
-    if (!this.pointerDragged) this.handleGroundCommand(pointer);
-    this.pointerStart = undefined;
-    this.pointerDragged = false;
+    const completion = this.pointerGesture.end(pointer.id);
+    if (completion.shouldTap) this.handleGroundCommand(pointer);
   };
 
   private handleGroundCommand(pointer: Phaser.Input.Pointer): void {
     if (this.ended || this.paused || this.systemPanelOpen || this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) return;
+    if (this.onlineSource) {
+      this.handleOnlineGroundCommand(pointer);
+      return;
+    }
     const point = this.pointerGrid(pointer);
     if (this.tacticalUiMode.kind !== "none") {
       this.commitTacticalTarget(point, null);
@@ -1167,6 +1540,17 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private issue(command: GameCommand, success: string): boolean {
+    if (this.onlineSource) {
+      try {
+        const pending = this.onlineSource.submitCommand(command);
+        this.pendingOnlineCommandNotices.set(pending.commandId, success);
+        this.setNotice("指令已送往伺服器，等待權威確認", "normal", 2_000);
+        return true;
+      } catch (error) {
+        this.setNotice(error instanceof Error ? error.message : "目前無法送出線上指令", "warning", 5_000);
+        return false;
+      }
+    }
     const beforeView = this.runtime.view;
     const result = this.runtime.issuePlayerCommand(command);
     if (!result.accepted) {
@@ -1188,6 +1572,230 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.runtime.view.phase === "finished") this.finishBattle();
     else this.refreshInterface(true);
     return true;
+  }
+
+  private handleOnlineEntityTap(id: string, pointer: Phaser.Input.Pointer): void {
+    const entity = this.onlineEntityById(id);
+    if (!entity) return;
+    if (this.tacticalUiMode.kind !== "none") {
+      this.commitOnlineTacticalTarget(entity.position, entity);
+      return;
+    }
+    if (this.productionUiMode.kind === "rally") {
+      this.setNotice("集結點必須設在可通行空地", "warning");
+      return;
+    }
+    if (this.buildingPlacement) {
+      this.setNotice("建造位置被現有物件占用", "warning");
+      return;
+    }
+    const units = this.onlineSelectedUnits();
+    const villagers = units.filter((unit) => unit.typeId === "villager");
+    const military = units.filter((unit) => unit.typeId !== "villager");
+    if (isPublicBuilding(entity) && entity.ownerId === this.currentPlayerId() && entity.complete) {
+      const accepted = BUILDINGS[entity.typeId].dropOffResources ?? [];
+      const carriers = villagers.filter((unit) => {
+        const cargo = publicUnitCargo(unit);
+        return cargo.kind !== null && cargo.amount > 0 && accepted.includes(cargo.kind);
+      });
+      if (carriers.length > 0) {
+        this.issue({ type: "dropOff", entityIds: carriers.map((unit) => unit.id), targetId: entity.id }, `將材料送往${buildingDisplayName(entity.typeId)}`);
+        return;
+      }
+    }
+    if (isPublicResource(entity) && publicResourceAmount(entity) <= 0 && publicResourceRenewAtTick(entity) !== null) {
+      this.selectOnly(entity.id);
+      this.setNotice("資源正在復育，選取資訊會顯示倒數", "warning");
+      return;
+    }
+    if (isPublicResource(entity) && villagers.length > 0) {
+      this.issue({ type: "gather", entityIds: villagers.map((unit) => unit.id), targetId: entity.id }, `採集 ${resourceDisplayName(entity.typeId)}`);
+      return;
+    }
+    if (this.onlineIsHostile(entity) && military.length > 0) {
+      this.issue({ type: "attack", entityIds: military.map((unit) => unit.id), targetId: entity.id }, `進攻 ${this.publicEntityDisplayName(entity)}`);
+      return;
+    }
+    if (entity.ownerId === this.currentPlayerId()) {
+      const additive = pointer.event.shiftKey;
+      if (!additive) this.selectedIds.clear();
+      if (additive && this.selectedIds.has(entity.id)) this.selectedIds.delete(entity.id);
+      else this.selectedIds.add(entity.id);
+      this.resetContextMenus();
+      this.refreshSelectionViews();
+      this.refreshInterface(true);
+      return;
+    }
+    this.selectOnly(entity.id);
+  }
+
+  private updateOnlinePointerMove(pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]): void {
+    if (this.tacticalUiMode.kind !== "none") {
+      this.hoverGrid = this.pointerGrid(pointer);
+      this.hoverEntityId = currentlyOver
+        .map((object) => object.getData?.("entityId") as string | undefined)
+        .find((entityId): entityId is string => Boolean(entityId)) ?? null;
+      const entity = this.hoverEntityId ? this.onlineEntityById(this.hoverEntityId) ?? null : null;
+      this.drawTacticalMarker(this.hoverGrid, this.isOnlineTacticalTargetValid(this.hoverGrid, entity));
+    } else if (this.productionUiMode.kind === "rally") {
+      this.hoverGrid = this.pointerGrid(pointer);
+      this.drawRallyMarker(this.hoverGrid, this.onlineCanUseGround(this.hoverGrid), true);
+    } else if (this.buildingPlacement) {
+      this.hoverGrid = this.pointerGrid(pointer);
+      const cells = getFootprintCells(this.hoverGrid, getBuildingFootprint(this.buildingPlacement, this.buildingOrientation));
+      const valid = this.onlineCanBuildAt(this.buildingPlacement, this.hoverGrid, this.buildingOrientation);
+      drawPlacementFootprint(this.settlementOverlay?.placement ?? this.add.graphics(), cells, cells.map(() => valid));
+    }
+    if (!pointer.isDown) return;
+    const camera = this.cameras.main;
+    const movement = this.pointerGesture.move(pointer.id, pointer.x, pointer.y, 10, camera.zoom);
+    if (movement.kind !== "drag") return;
+    camera.scrollX = movement.scrollX;
+    camera.scrollY = movement.scrollY;
+  }
+
+  private handleOnlineGroundCommand(pointer: Phaser.Input.Pointer): void {
+    const point = this.pointerGrid(pointer);
+    if (this.tacticalUiMode.kind !== "none") {
+      this.commitOnlineTacticalTarget(point, null);
+      return;
+    }
+    if (this.productionUiMode.kind === "rally") {
+      const producerId = this.productionUiMode.producerId;
+      if (!this.onlineCanUseGround(point)) {
+        this.setNotice("此處無法作為集結點", "warning");
+        this.drawRallyMarker(point, false, true);
+        return;
+      }
+      if (this.issue({ type: "setRallyPoint", producerId, target: point }, `集結旗已設於 ${point.x},${point.y}`)) {
+        this.productionUiMode = { kind: "none" };
+        this.hoverGrid = null;
+      }
+      return;
+    }
+    if (this.buildingPlacement) {
+      const villagers = this.onlineSelectedUnits().filter((unit) => unit.typeId === "villager");
+      if (villagers.length === 0) {
+        this.cancelBuildPlacement("需要先選取工匠");
+        return;
+      }
+      if (!this.onlineCanBuildAt(this.buildingPlacement, point, this.buildingOrientation)) {
+        this.setNotice("此處不可建造；最終合法性由伺服器判定", "warning");
+        return;
+      }
+      const buildingType = this.buildingPlacement;
+      if (this.issue({ type: "build", builderIds: villagers.map((unit) => unit.id), buildingType, origin: point, orientation: this.buildingOrientation }, `開始建造 ${buildingDisplayName(buildingType)}`)) {
+        this.cancelBuildPlacement();
+      }
+      return;
+    }
+    const units = this.onlineSelectedUnits();
+    if (units.length > 0) this.issue({ type: "move", entityIds: units.map((unit) => unit.id), target: point }, `移動 ${units.length} 個單位`);
+    else this.selectOnly();
+  }
+
+  private commitOnlineTacticalTarget(point: GridPoint, entity: PublicEntityState | null): void {
+    const mode = this.tacticalUiMode;
+    if (mode.kind === "none") return;
+    if (mode.kind === "attackMove") {
+      const command: GameCommand = entity && this.onlineIsHostile(entity)
+        ? { type: "attack", entityIds: mode.entityIds, targetId: entity.id }
+        : { type: "attackMove", entityIds: mode.entityIds, target: point };
+      if (this.issue(command, command.type === "attack" ? `集中攻擊 ${this.publicEntityDisplayName(entity!)}` : `攻擊移動至 ${point.x},${point.y}`)) this.cancelTacticalMode();
+      return;
+    }
+    if (mode.kind === "patrol") {
+      if (!mode.firstPoint) {
+        if (!this.onlineCanUseGround(point)) return this.setNotice("巡邏點必須設在可見空地", "warning");
+        this.tacticalUiMode = { ...mode, firstPoint: { ...point } };
+        this.setNotice("第一巡邏點已設定，請點第二點", "normal");
+        this.refreshInterface(true);
+        return;
+      }
+      if (this.issue({ type: "patrol", entityIds: mode.entityIds, waypoints: [mode.firstPoint, point] }, "開始雙點巡邏")) this.cancelTacticalMode();
+      return;
+    }
+    if (mode.kind === "repair") {
+      if (!entity || !isPublicBuilding(entity) || entity.ownerId !== this.currentPlayerId()) return this.setNotice("修復必須點選己方建築", "warning");
+      if (this.issue({ type: "repair", entityIds: mode.entityIds, targetId: entity.id }, `開始修復 ${buildingDisplayName(entity.typeId)}`)) this.cancelTacticalMode();
+      return;
+    }
+    const caster = this.onlineEntityById(mode.casterId);
+    if (!caster || !isPublicUnit(caster)) return this.cancelTacticalMode("施法者已失效");
+    const target = mode.targeting === "unit"
+      ? entity ? { kind: "entity" as const, entityId: entity.id } : null
+      : mode.targeting === "ground"
+        ? { kind: "ground" as const, point: { ...point } }
+        : { kind: "direction" as const, vector: { x: point.x - caster.position.x, y: point.y - caster.position.y } };
+    if (!target || (target.kind === "direction" && target.vector.x === 0 && target.vector.y === 0)) return this.setNotice("技能目標無效", "warning");
+    if (this.issue({ type: "castAbility", casterId: caster.id, abilityId: mode.abilityId, target }, `${mode.abilityId} 已施放`)) this.cancelTacticalMode();
+  }
+
+  private isOnlineTacticalTargetValid(point: GridPoint, entity: PublicEntityState | null): boolean {
+    const mode = this.tacticalUiMode;
+    if (mode.kind === "repair") return Boolean(entity && isPublicBuilding(entity) && entity.ownerId === this.currentPlayerId());
+    if (mode.kind === "ability" && mode.targeting === "unit") return Boolean(entity);
+    return this.onlineCanUseGround(point);
+  }
+
+  private onlineCanUseGround(point: GridPoint): boolean {
+    const snapshot = this.currentView();
+    if (point.x < 0 || point.y < 0 || point.x >= snapshot.map.width || point.y >= snapshot.map.height) return false;
+    return new Set(snapshot.visibleTileIndices).has(point.y * snapshot.map.width + point.x);
+  }
+
+  private onlineCanBuildAt(type: BuildingType, origin: GridPoint, orientation: StructureOrientation): boolean {
+    const snapshot = this.currentView();
+    const visible = new Set(snapshot.visibleTileIndices);
+    const occupied = new Set(snapshot.entities
+      .filter((entity) => entity.kind !== "unit")
+      .flatMap((entity) => publicEntityFootprintCells(entity))
+      .map((cell) => `${cell.x},${cell.y}`));
+    const cells = getFootprintCells(origin, getBuildingFootprint(type, orientation));
+    return cells.every((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < snapshot.map.width && cell.y < snapshot.map.height
+      && visible.has(cell.y * snapshot.map.width + cell.x)
+      && isSettlementBuildable(cell, snapshot.map.layoutId)
+      && !occupied.has(`${cell.x},${cell.y}`));
+  }
+
+  private onlineEntityById(id: string): PublicEntityState | undefined {
+    return this.currentView().entities.find((entity) => entity.id === id);
+  }
+
+  private onlineSelectedUnits(): PublicUnitEntity[] {
+    const playerId = this.currentPlayerId();
+    return this.currentView().entities.filter((entity): entity is PublicUnitEntity => isPublicUnit(entity) && entity.ownerId === playerId && this.selectedIds.has(entity.id));
+  }
+
+  private onlineIsHostile(entity: PublicEntityState): boolean {
+    if (isPublicMonster(entity)) return true;
+    if (entity.ownerId === null) return false;
+    const owner = this.currentView().participants.find((participant) => participant.id === entity.ownerId);
+    return Boolean(owner && owner.teamId !== this.currentTeamId());
+  }
+
+  private publicEntityDisplayName(entity: PublicEntityState): string {
+    if (isPublicUnit(entity)) return UNIT_LABELS[entity.typeId];
+    if (isPublicBuilding(entity)) return buildingDisplayName(entity.typeId);
+    if (isPublicResource(entity)) return resourceDisplayName(entity.typeId);
+    if (isPublicMonster(entity)) return MONSTERS[entity.typeId].displayName;
+    return isPublicRubble(entity) ? `${buildingDisplayName(entity.typeId)}廢墟` : "未知目標";
+  }
+
+  private selectOnly(entityId?: string): void {
+    this.selectedIds.clear();
+    if (entityId) this.selectedIds.add(entityId);
+    this.refreshSelectionViews();
+    this.refreshInterface(true);
+  }
+
+  private resetContextMenus(): void {
+    this.buildMenuOpen = false;
+    this.researchMenuOpen = false;
+    this.researchPage = 0;
+    this.productionUiMode = { kind: "none" };
+    this.buildingPlacement = null;
+    this.systemPanelOpen = false;
   }
 
   private createInterface(): void {
@@ -1258,6 +1866,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private refreshInterface(force: boolean): void {
+    if (this.onlineSource) {
+      this.refreshOnlineInterface(force);
+      return;
+    }
     if (!this.runtime) return;
     if (!force && this.lastUiTick === this.runtime.state.tick) return;
     this.lastUiTick = this.runtime.state.tick;
@@ -1320,6 +1932,243 @@ export class VillageAssaultScene extends Phaser.Scene {
       button.setEnabled(spec.enabled ?? true);
     });
     this.refreshRallyOverlay();
+  }
+
+  private refreshOnlineInterface(force: boolean): void {
+    const snapshot = this.currentView();
+    if (!force && this.lastUiTick === snapshot.serverTick) return;
+    this.lastUiTick = snapshot.serverTick;
+    const tierLabel = SETTLEMENT_TIER_LABELS[snapshot.settlementTier];
+    this.resourceText?.setFontSize(this.compactUi ? 26 : 22).setText(this.compactUi
+      ? `${tierLabel}｜糧${Math.floor(snapshot.wallet.food)} 木${Math.floor(snapshot.wallet.wood)}\n石${Math.floor(snapshot.wallet.stone)} 人${snapshot.population.used}/${snapshot.population.capacity}`
+      : `${tierLabel}  糧 ${Math.floor(snapshot.wallet.food)}   木 ${Math.floor(snapshot.wallet.wood)}   石 ${Math.floor(snapshot.wallet.stone)}   人口 ${snapshot.population.used}/${snapshot.population.capacity}`);
+    const victory = createVictoryPresentation(snapshot.victory, snapshot.recipientTeamId, snapshot.serverTick);
+    const enemyCenters = snapshot.entities.filter((entity) => isPublicBuilding(entity) && entity.typeId === "townCenter" && this.onlineIsHostile(entity));
+    const enemyObjective = enemyCenters.length > 0
+      ? `敵方核心 ${enemyCenters.length}｜最低生命 ${Math.min(...enemyCenters.map((entity) => Math.ceil(entity.hitPoints / entity.maxHitPoints * 100)))}%`
+      : "敵方核心尚未偵察";
+    const objective = victory.outcome === "playing"
+      ? this.compactUi ? `${enemyObjective}｜Tick ${snapshot.serverTick}` : `${enemyObjective}｜${victory.objectiveText.replace("勝途｜", "")}`
+      : this.compactUi ? victory.compactObjectiveText : victory.objectiveText;
+    this.objectiveText?.setFontSize(this.compactUi ? 22 : 18)
+      .setColor(victory.outcome === "victory" ? "#dce9c6" : victory.outcome === "defeat" ? "#ffb09c" : victory.outcome === "draw" ? "#e0b866" : "#dce9c6")
+      .setWordWrapWidth(this.compactUi ? 180 : 330, true)
+      .setText(objective);
+    const connectionLabel = this.onlineConnection === "connected"
+      ? `權威同步 · Tick ${snapshot.serverTick}`
+      : this.onlineConnection === "failed" ? "恢復失敗 · 指令鎖定" : "恢復連線中 · 指令暫停";
+    if (performance.now() > this.noticeUntil) this.notice = connectionLabel;
+    this.noticeText?.setText(this.compactUi || this.ended ? "" : this.notice);
+    const selected = snapshot.entities.filter((entity) => this.selectedIds.has(entity.id));
+    this.selectionText?.setFontSize(this.compactUi ? 26 : 20).setText(this.ended
+      ? victory.selectionText
+      : this.compactUi && performance.now() <= this.noticeUntil ? this.compactNotice(this.notice) : this.onlineSelectionLabel(selected));
+    this.currentActions = this.onlineActionsForSelection(selected);
+    this.actionButtons.forEach((button, index) => {
+      const spec = this.currentActions[index];
+      button.setVisible(Boolean(spec));
+      button.setActive(spec?.active ?? null);
+      if (!spec) return;
+      button.setLabel(spec.glyph, spec.label, spec.accessibleLabel);
+      button.setEnabled(spec.enabled ?? true);
+    });
+    this.refreshOnlineRallyOverlay();
+  }
+
+  private onlineActionsForSelection(selected: readonly PublicEntityState[]): readonly ActionSpec[] {
+    const connected = this.onlineConnection === "connected";
+    if (this.ended) return [
+      { glyph: "⌂", label: "返回大廳", run: () => this.leaveBattle() },
+      this.fullscreenAction(),
+    ];
+    if (this.systemPanelOpen) return this.onlineSystemActions();
+    const ownUnits = selected.filter((entity): entity is PublicUnitEntity => isPublicUnit(entity) && entity.ownerId === this.currentPlayerId());
+    const ownBuilding = selected.length === 1 && isPublicBuilding(selected[0]!) && selected[0]!.ownerId === this.currentPlayerId() ? selected[0] : undefined;
+    if (this.buildingPlacement) {
+      const canRotate = this.buildingPlacement === "surveyGate" || this.buildingPlacement === "resinPalisade" || this.buildingPlacement === "copperLandmark";
+      return [
+        { glyph: "✓", label: "點地圖放置", enabled: false, run: () => undefined },
+        { glyph: "↻", label: this.buildingOrientation === "ne" ? "轉向 南東" : "轉向 北東", enabled: canRotate, run: () => { this.buildingOrientation = this.buildingOrientation === "ne" ? "se" : "ne"; this.refreshInterface(true); } },
+        { glyph: "←", label: "返回建築表", run: () => this.cancelBuildPlacement("請重新選擇建築", true) },
+        this.zoomAction(-0.12), this.zoomAction(0.12), this.systemAction(),
+      ];
+    }
+    if (this.buildMenuOpen) {
+      const entries = (BUILD_PAGES[this.buildPage] ?? BUILD_PAGES[0]!).map((type) => this.onlineBuildAction(type, connected));
+      return [
+        ...entries,
+        { glyph: "←", label: "返回指令", run: () => this.closeBuildMenu() },
+        { glyph: "→", label: `翻頁 ${this.buildPage + 1}/${BUILD_PAGES.length}`, run: () => { this.buildPage = (this.buildPage + 1) % BUILD_PAGES.length; this.refreshInterface(true); } },
+        this.systemAction(),
+      ];
+    }
+    if (this.productionUiMode.kind === "rally") {
+      const producer = this.onlineEntityById(this.productionUiMode.producerId);
+      const rally = producer && isPublicBuilding(producer) ? producer.ownerControl?.rallyPoint ?? null : null;
+      return [
+        { glyph: "☝", label: "點地圖設定", enabled: false, run: () => undefined },
+        { glyph: "清", label: "清除集結", enabled: connected && rally !== null, run: () => { if (this.issue({ type: "setRallyPoint", producerId: this.productionUiMode.kind === "rally" ? this.productionUiMode.producerId : "", target: null }, "已清除集結點")) this.productionUiMode = { kind: "none" }; } },
+        { glyph: "←", label: "返回", run: () => { this.productionUiMode = { kind: "none" }; this.refreshInterface(true); } },
+        this.systemAction(),
+      ];
+    }
+    if (ownBuilding) return this.onlineBuildingActions(ownBuilding, connected);
+    if (ownUnits.length > 0) return this.onlineUnitActions(ownUnits, connected);
+    return [
+      { glyph: "⚒", label: "全選工匠", run: () => this.onlineSelectUnitGroup("villager") },
+      { glyph: "⚔", label: "全選軍隊", run: () => this.onlineSelectUnitGroup("military") },
+      { glyph: "⌖", label: "回主城", run: () => this.centerOnlineHome() },
+      this.zoomAction(-0.12), this.zoomAction(0.12), this.systemAction(),
+    ];
+  }
+
+  private onlineBuildingActions(building: PublicBuildingEntity, connected: boolean): readonly ActionSpec[] {
+    const queue = building.ownerControl?.productionQueue ?? [];
+    const trainable = (Object.keys(UNITS) as UnitType[]).filter((type) => UNITS[type].producers.includes(building.typeId));
+    const technologies = TECHNOLOGY_ORDER.filter((technologyId) => TECHNOLOGIES[technologyId].producer === building.typeId && !this.currentView().completedTechnologyIds.includes(technologyId));
+    const actions: ActionSpec[] = trainable.slice(0, 2).map((type) => this.onlineTrainAction(building, type, connected));
+    if (building.typeId === "townCenter") actions.push(this.onlineAdvanceAction(building, connected));
+    else if (technologies[0]) actions.push(this.onlineResearchAction(building, technologies[0], connected));
+    while (actions.length < 3) actions.push({ glyph: "·", label: "空欄", enabled: false, run: () => undefined });
+    actions.push(queue.length > 0
+      ? this.onlineCancelQueueAction(building, queue[0]!, connected)
+      : { glyph: "列", label: "佇列 0", enabled: false, run: () => undefined });
+    actions.push({ glyph: "⚑", label: building.ownerControl?.rallyPoint ? "改集結" : "設集結", enabled: connected, run: () => { this.productionUiMode = { kind: "rally", producerId: building.id }; this.refreshInterface(true); } });
+    actions.push({ glyph: "◎", label: "置中建築", run: () => this.centerCameraOn(building.position) });
+    actions.push(this.systemAction());
+    return actions;
+  }
+
+  private onlineUnitActions(units: readonly PublicUnitEntity[], connected: boolean): readonly ActionSpec[] {
+    const military = units.filter((unit) => unit.typeId !== "villager");
+    if (military.length === units.length) {
+      const ids = military.map((unit) => unit.id);
+      return [
+        { glyph: "⚔", label: "攻擊移動", enabled: connected, active: this.tacticalUiMode.kind === "attackMove", run: () => this.openTacticalMode({ kind: "attackMove", entityIds: ids }) },
+        { glyph: "巡", label: "巡邏", enabled: connected, active: this.tacticalUiMode.kind === "patrol", run: () => this.openTacticalMode({ kind: "patrol", entityIds: ids, firstPoint: null }) },
+        this.onlineFormationAction(military, connected), this.onlineStanceAction(military, connected), this.onlineAbilityAction(military, connected),
+        { glyph: "■", label: "停止", enabled: connected, run: () => this.issue({ type: "stop", entityIds: ids }, "單位停止目前命令") },
+        this.systemAction(),
+      ];
+    }
+    const villagers = units.filter((unit) => unit.typeId === "villager");
+    return [
+      this.onlineGatherAction("food", villagers, connected), this.onlineGatherAction("wood", villagers, connected), this.onlineGatherAction("stone", villagers, connected),
+      { glyph: "⌂", label: "建造", enabled: connected, run: () => this.openBuildMenu() },
+      { glyph: "修", label: "修復", enabled: connected, active: this.tacticalUiMode.kind === "repair", run: () => this.openTacticalMode({ kind: "repair", entityIds: villagers.map((unit) => unit.id) }) },
+      { glyph: "■", label: "停止", enabled: connected, run: () => this.issue({ type: "stop", entityIds: villagers.map((unit) => unit.id) }, "工匠停止目前工作") },
+      this.systemAction(),
+    ];
+  }
+
+  private onlineBuildAction(type: BuildingType, connected: boolean): ActionSpec {
+    const definition = BUILDINGS[type];
+    const unlocked = SETTLEMENT_TIER_ORDER.indexOf(this.currentView().settlementTier) >= SETTLEMENT_TIER_ORDER.indexOf(definition.requiredTier);
+    return { glyph: unlocked ? "建" : "鎖", label: unlocked ? `${this.shortBuildingName(type)} ${this.shortCost(definition.cost)}` : `${this.shortBuildingName(type)} 需${SETTLEMENT_TIER_SHORT_LABELS[definition.requiredTier]}期`, enabled: connected && unlocked && this.onlineCanAfford(definition.cost), run: () => { this.buildingPlacement = type; this.buildMenuOpen = false; this.setNotice(`選擇 ${buildingDisplayName(type)} 的建造位置`, "success"); this.refreshInterface(true); } };
+  }
+
+  private onlineTrainAction(producer: PublicBuildingEntity, type: UnitType, connected: boolean): ActionSpec {
+    const definition = UNITS[type];
+    const queue = producer.ownerControl?.productionQueue ?? [];
+    const unlocked = SETTLEMENT_TIER_ORDER.indexOf(this.currentView().settlementTier) >= SETTLEMENT_TIER_ORDER.indexOf(definition.requiredTier);
+    const enabled = connected && unlocked && Boolean(producer.complete) && queue.length < MAX_TRAINING_QUEUE_DEPTH && this.onlineCanAfford(definition.cost) && this.currentView().population.used + definition.population <= this.currentView().population.capacity;
+    return { glyph: type === "villager" ? "工" : "兵", label: `${this.shortUnitName(type)} ${this.shortCost(definition.cost)}`, enabled, run: () => this.queueTrainAfterArt(producer.id, type) };
+  }
+
+  private onlineAdvanceAction(producer: PublicBuildingEntity, connected: boolean): ActionSpec {
+    const advancement = this.currentView().advancement;
+    if (advancement) return { glyph: "時", label: `${SETTLEMENT_TIER_SHORT_LABELS[advancement.targetTier]}期 ${Math.max(0, advancement.remainingTicks)}t`, enabled: false, run: () => undefined };
+    const targetTier = this.nextSettlementTier(this.currentView().settlementTier);
+    if (!targetTier) return { glyph: "◆", label: "聚落已完備", enabled: false, run: () => undefined };
+    const definition = SETTLEMENT_TIERS[targetTier];
+    return { glyph: "升", label: `升${SETTLEMENT_TIER_SHORT_LABELS[targetTier]} ${this.shortCost(definition.cost)}`, enabled: connected && this.onlineCanAfford(definition.cost), run: () => this.issue({ type: "advanceSettlement", producerId: producer.id, targetTier }, `聚落升級開始｜目標 ${SETTLEMENT_TIER_LABELS[targetTier]}`) };
+  }
+
+  private onlineResearchAction(producer: PublicBuildingEntity, technologyId: TechnologyType, connected: boolean): ActionSpec {
+    const definition = TECHNOLOGIES[technologyId];
+    return { glyph: "研", label: `${definition.shortName} ${this.shortCost(definition.cost)}`, enabled: connected && this.onlineCanAfford(definition.cost), run: () => this.issue({ type: "research", producerId: producer.id, technologyId }, `${definition.displayName}已加入生產佇列`) };
+  }
+
+  private onlineCancelQueueAction(producer: PublicBuildingEntity, job: PublicProductionJob, connected: boolean): ActionSpec {
+    const name = job.kind === "train" ? this.shortUnitName(job.unitType) : TECHNOLOGIES[job.technologyId].shortName;
+    return { glyph: "退", label: `取消 ${name}`, enabled: connected, run: () => this.issue({ type: "cancelProduction", producerId: producer.id, jobId: { ...job.jobId } }, `已取消 ${name}`) };
+  }
+
+  private onlineGatherAction(kind: ResourceKind, villagers: readonly PublicUnitEntity[], connected: boolean): ActionSpec {
+    const target = this.currentView().entities.find((entity): entity is PublicResourceEntity => isPublicResource(entity) && entity.typeId === kind && publicResourceAmount(entity) > 0);
+    return { glyph: ({ food: "糧", wood: "木", stone: "石" } as const)[kind], label: `採集${this.resourceKindName(kind)}`, enabled: connected && Boolean(target) && villagers.length > 0, run: () => { if (target) this.issue({ type: "gather", entityIds: villagers.map((unit) => unit.id), targetId: target.id }, `採集 ${resourceDisplayName(kind)}`); } };
+  }
+
+  private onlineFormationAction(units: readonly PublicUnitEntity[], connected: boolean): ActionSpec {
+    const order: readonly FormationKind[] = ["line", "wedge", "box"];
+    const current = units[0]?.formation ?? "line";
+    const next = order[(order.indexOf(current) + 1) % order.length]!;
+    return { glyph: current === "line" ? "一" : current === "wedge" ? "Λ" : "▦", label: current, enabled: connected, run: () => this.issue({ type: "setFormation", entityIds: units.map((unit) => unit.id), formation: next }, `部隊改為${next}`) };
+  }
+
+  private onlineStanceAction(units: readonly PublicUnitEntity[], connected: boolean): ActionSpec {
+    const order: readonly CombatStance[] = ["aggressive", "defensive", "holdGround"];
+    const current = units[0]?.stance ?? "aggressive";
+    const next = order[(order.indexOf(current) + 1) % order.length]!;
+    return { glyph: current === "aggressive" ? "猛" : current === "defensive" ? "守" : "止", label: current, enabled: connected, run: () => this.issue({ type: "setStance", entityIds: units.map((unit) => unit.id), stance: next }, `部隊站姿：${next}`) };
+  }
+
+  private onlineAbilityAction(units: readonly PublicUnitEntity[], connected: boolean): ActionSpec {
+    const caster = units.find((unit) => unit.typeId !== "villager")!;
+    const definition = COMBAT_UNITS[caster.typeId as CombatUnitId].activeAbility;
+    const ready = (caster.abilityReadyTick ?? 0) <= this.currentView().serverTick && caster.combatPhase === "ready";
+    return { glyph: "技", label: ready ? definition.displayName : "技能冷卻", enabled: connected && ready, run: () => definition.targeting === "self"
+      ? this.issue({ type: "castAbility", casterId: caster.id, abilityId: definition.id, target: { kind: "self" } }, `${definition.displayName}已啟動`)
+      : this.openTacticalMode({ kind: "ability", casterId: caster.id, abilityId: definition.id, targeting: definition.targeting === "unit" ? "unit" : definition.targeting === "ground" ? "ground" : "direction" }) };
+  }
+
+  private onlineSystemActions(): readonly ActionSpec[] {
+    return [
+      { glyph: this.onlineConnection === "connected" ? "●" : "○", label: this.onlineConnection === "connected" ? "權威已同步" : "恢復中", enabled: false, run: () => undefined },
+      { glyph: "◎", label: "置中基地", run: () => this.centerOnlineHome() }, this.zoomAction(-0.12), this.zoomAction(0.12), this.fullscreenAction(),
+      { glyph: "旗", label: "投降", enabled: this.onlineConnection === "connected", run: () => this.issue({ type: "surrender" }, "已送出投降") },
+      { glyph: "⌂", label: "離開戰局", run: () => this.leaveBattle() },
+    ];
+  }
+
+  private onlineCanAfford(cost: ResourceWallet): boolean {
+    const wallet = this.currentView().wallet;
+    return wallet.food >= cost.food && wallet.wood >= cost.wood && wallet.stone >= cost.stone;
+  }
+
+  private onlineSelectUnitGroup(group: "villager" | "military"): void {
+    this.selectedIds.clear();
+    for (const entity of this.currentView().entities) {
+      if (!isPublicUnit(entity) || entity.ownerId !== this.currentPlayerId()) continue;
+      if ((group === "villager") === (entity.typeId === "villager")) this.selectedIds.add(entity.id);
+    }
+    this.refreshSelectionViews();
+    this.refreshInterface(true);
+  }
+
+  private centerOnlineHome(): void {
+    this.centerCameraOn(publicPlayerHomePosition(this.currentView().entities, this.currentPlayerId()) ?? { x: 3, y: 8 });
+  }
+
+  private onlineSelectionLabel(selected: readonly PublicEntityState[]): string {
+    if (selected.length === 0) return "未選取｜點己方工匠、軍隊或建築";
+    if (selected.length === 1) {
+      const entity = selected[0]!;
+      if (isPublicResource(entity)) {
+        const amount = publicResourceAmount(entity);
+        const renew = publicResourceRenewAtTick(entity);
+        if (amount <= 0 && renew !== null) return `${this.publicEntityDisplayName(entity)}｜${Math.max(0, Math.ceil((renew - this.currentView().serverTick) / TICKS_PER_SECOND))} 秒後復育`;
+        return `${this.publicEntityDisplayName(entity)}｜存量 ${amount}/${entity.resourceNode?.maxAmount ?? entity.maxHitPoints}`;
+      }
+      return `${this.publicEntityDisplayName(entity)}｜生命 ${entity.hitPoints}/${entity.maxHitPoints}`;
+    }
+    return `已選取 ${selected.length} 個單位｜權威指令模式`;
+  }
+
+  private refreshOnlineRallyOverlay(): void {
+    if (this.productionUiMode.kind !== "rally") return;
+    const producer = this.onlineEntityById(this.productionUiMode.producerId);
+    if (producer && isPublicBuilding(producer) && producer.ownerControl?.rallyPoint) this.drawRallyMarker(producer.ownerControl.rallyPoint, true, false);
   }
 
   private actionsForSelection(selected: readonly EntityState[]): readonly ActionSpec[] {
@@ -1822,7 +2671,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     void this.ensureArtLoaded(artId)
       .then(() => {
         if (!this.sys.isActive()) return;
-        const currentProducer = this.entityById(producerId);
+        const currentProducer = this.onlineSource ? this.onlineEntityById(producerId) : this.entityById(producerId);
         if (currentProducer?.kind === "building") {
           this.issue({ type: "train", producerId, unitType: type, count: 1 }, `${UNIT_LABELS[type]} 已加入訓練佇列`);
         }
@@ -1835,6 +2684,17 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private prefetchQueuedUnitArt(): void {
+    if (this.onlineSource) {
+      for (const entity of this.currentView().entities) {
+        if (!isPublicBuilding(entity)) continue;
+        const job = entity.ownerControl?.productionQueue[0];
+        const type = job?.kind === "train" ? job.unitType : undefined;
+        if (!type || type === "villager") continue;
+        const artId = UNIT_ART[type];
+        if (!this.isArtReady(artId)) void this.ensureArtLoaded(artId).catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
+      }
+      return;
+    }
     for (const entity of this.runtime.state.entities) {
       if (entity.kind !== "building") continue;
       const job = entity.productionQueue[0];
@@ -2480,7 +3340,7 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private openBuildMenu(): void {
     if (this.orientationBlocked) return;
-    const villagers = this.selectedUnits().filter((unit) => unit.typeId === "villager");
+    const villagers = (this.onlineSource ? this.onlineSelectedUnits() : this.selectedUnits()).filter((unit) => unit.typeId === "villager");
     if (villagers.length === 0) {
       this.setNotice("先選取至少一名工匠再建造", "warning");
       return;
@@ -2540,6 +3400,13 @@ export class VillageAssaultScene extends Phaser.Scene {
   private refreshSelectionViews(): void {
     for (const [id, view] of this.unitViews) view.selection.setVisible(this.selectedIds.has(id));
     for (const [id, view] of this.monsterViews) view.selection.setVisible(this.selectedIds.has(id));
+    if (this.onlineSource) {
+      for (const entity of this.currentView().entities) {
+        if (entity.kind === "unit" || entity.kind === "monster") continue;
+        this.entityViews.get(entity.id)?.update(entity, this.selectedIds.has(entity.id));
+      }
+      return;
+    }
     for (const entity of this.runtime.state.entities) {
       if (entity.kind === "unit" || entity.kind === "monster") continue;
       this.entityViews.get(entity.id)?.update(entity, this.selectedIds.has(entity.id));
@@ -2555,6 +3422,31 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     this.sanitizeProductionMode();
     this.sanitizeTacticalMode();
+  }
+
+  private sanitizeOnlineSelection(): void {
+    const snapshot = this.currentView();
+    const ids = new Set(snapshot.visibleEntityIds);
+    for (const id of this.selectedIds) if (!ids.has(id)) this.selectedIds.delete(id);
+    const mode = this.tacticalUiMode;
+    if (mode.kind === "ability") {
+      const caster = this.onlineEntityById(mode.casterId);
+      if (!caster || !isPublicUnit(caster) || caster.ownerId !== snapshot.recipientPlayerId || caster.typeId === "villager") this.tacticalUiMode = { kind: "none" };
+    } else if (mode.kind !== "none") {
+      const requireVillager = mode.kind === "repair";
+      const entityIds = mode.entityIds.filter((id) => {
+        const unit = this.onlineEntityById(id);
+        return Boolean(unit && isPublicUnit(unit) && unit.ownerId === snapshot.recipientPlayerId && (requireVillager ? unit.typeId === "villager" : unit.typeId !== "villager"));
+      });
+      if (entityIds.length === 0) this.tacticalUiMode = { kind: "none" };
+      else if (mode.kind === "attackMove") this.tacticalUiMode = { ...mode, entityIds };
+      else if (mode.kind === "patrol") this.tacticalUiMode = { ...mode, entityIds };
+      else this.tacticalUiMode = { ...mode, entityIds };
+    }
+    if (this.productionUiMode.kind !== "none") {
+      const producer = this.onlineEntityById(this.productionUiMode.producerId);
+      if (!producer || !isPublicBuilding(producer) || producer.ownerId !== snapshot.recipientPlayerId) this.productionUiMode = { kind: "none" };
+    }
   }
 
   private sanitizeTacticalMode(): void {
@@ -2909,12 +3801,13 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (this.noticeLiveRegion) this.noticeLiveRegion.textContent = message;
   }
 
-  private drawUnitHealth(graphics: Phaser.GameObjects.Graphics, entity: Pick<EntityState, "id" | "ownerId" | "hitPoints" | "maxHitPoints">): void {
+  private drawUnitHealth(graphics: Phaser.GameObjects.Graphics, entity: Pick<PublicEntityState, "id" | "ownerId" | "hitPoints" | "maxHitPoints">): void {
     graphics.clear();
     if (entity.hitPoints === entity.maxHitPoints && !this.selectedIds.has(entity.id)) return;
     const ratio = Phaser.Math.Clamp(entity.hitPoints / entity.maxHitPoints, 0, 1);
     graphics.fillStyle(0x101917, 0.9).fillRect(-27, -80, 54, 7);
-    graphics.fillStyle(entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID ? 0x79b879 : 0xd8725f, 1).fillRect(-25, -78, 50 * ratio, 3);
+    const healthColor = entity.ownerId ? this.paletteForOwner(entity.ownerId).light : 0xd8b85f;
+    graphics.fillStyle(healthColor, 1).fillRect(-25, -78, 50 * ratio, 3);
   }
 
   private drawCargoPack(
@@ -2976,7 +3869,19 @@ export class VillageAssaultScene extends Phaser.Scene {
   private playerPalette() {
     if (this.villageId === "riverstead") return DEFAULT_TEAM_PALETTES.river;
     if (this.villageId === "highcrag") return DEFAULT_TEAM_PALETTES.crag;
+    if (this.villageId === "marshwatch") return DEFAULT_TEAM_PALETTES.marsh;
+    if (this.villageId === "sunfield") return DEFAULT_TEAM_PALETTES.sun;
     return DEFAULT_TEAM_PALETTES.pine;
+  }
+
+  private paletteForOwner(ownerId: string) {
+    const village = this.currentView().participants.find((participant) => participant.id === ownerId)?.villageId;
+    if (village === "riverstead") return DEFAULT_TEAM_PALETTES.river;
+    if (village === "highcrag") return DEFAULT_TEAM_PALETTES.crag;
+    if (village === "marshwatch") return DEFAULT_TEAM_PALETTES.marsh;
+    if (village === "sunfield") return DEFAULT_TEAM_PALETTES.sun;
+    if (village === "pinehold") return DEFAULT_TEAM_PALETTES.pine;
+    return ownerId === this.currentPlayerId() ? this.playerPalette() : DEFAULT_TEAM_PALETTES.enemy;
   }
 
   private pointerGrid(pointer: Phaser.Input.Pointer): GridPoint {
@@ -3060,6 +3965,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     worldCamera.setZoom(worldZoom).centerOn(focusX, focusY);
     this.orientationBlocked = profile.mobile && !profile.landscape;
+    if (this.orientationBlocked) this.pointerGesture.reset();
     for (const button of this.actionButtons) button.setSuspended(this.orientationBlocked);
     this.rotateBlocker?.setSize(width * 2, height * 2).setDisplaySize(width * 2, height * 2);
     this.rotateRoot?.setPosition(width / 2, height / 2).setVisible(this.orientationBlocked).setActive(this.orientationBlocked);
@@ -3098,6 +4004,10 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private togglePause(): void {
     if (this.ended || this.orientationBlocked) return;
+    if (this.onlineSource) {
+      this.setNotice("線上權威戰局不能由單一玩家暫停", "warning");
+      return;
+    }
     this.paused = !this.paused;
     this.setNotice(this.paused ? "戰局暫停" : "戰局繼續", "normal");
     this.refreshInterface(true);
@@ -3106,7 +4016,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private finishBattle(): void {
     if (this.ended) return;
     this.ended = true;
-    const presentation = createVictoryPresentation(this.runtime.view.victory, "team-player", this.runtime.view.serverTick);
+    const snapshot = this.currentView();
+    const presentation = createVictoryPresentation(snapshot.victory, this.onlineSource ? snapshot.recipientTeamId : "team-player", snapshot.serverTick);
     this.noticeText?.setText("");
     if (this.resultLiveRegion) this.resultLiveRegion.textContent = presentation.announcement;
     this.refreshInterface(true);
@@ -3142,6 +4053,10 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private restartBattle(): void {
     if (this.orientationBlocked) return;
+    if (this.onlineSource) {
+      this.setNotice("線上戰局請返回大廳建立新房間", "warning");
+      return;
+    }
     this.scene.restart({
       villageId: this.villageId,
       aiPersonality: this.aiPersonality,
@@ -3151,6 +4066,15 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private leaveBattle(): void {
+    if (this.onlineSource) {
+      if (this.onlineLeaveRequested) return;
+      this.onlineLeaveRequested = true;
+      const source = this.onlineSource;
+      void source.leave().finally(() => {
+        if (this.sys.isActive()) this.scene.start("MultiplayerLobbyScene", { villageId: this.villageId });
+      });
+      return;
+    }
     this.scene.start(this.returnScene);
   }
 
@@ -3175,10 +4099,40 @@ export class VillageAssaultScene extends Phaser.Scene {
       fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
       fontSize: "18px",
     }).setOrigin(0.5);
-    this.input.once("pointerup", () => this.scene.start(this.returnScene));
+    this.input.once("pointerup", () => {
+      if (!this.multiplayerClient) {
+        this.scene.start(this.returnScene);
+        return;
+      }
+      this.onlineLeaveRequested = true;
+      void this.multiplayerClient.leave().finally(() => {
+        if (this.sys.isActive()) this.scene.start("MultiplayerLobbyScene", { villageId: this.villageId });
+      });
+    });
+  }
+
+  private showOnlineFailure(message: string): void {
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+    this.cameras.main.setBackgroundColor("#171c1a");
+    this.add.text(width / 2, height / 2 - 42, "權威戰場載入失敗", {
+      color: "#ffb09c", fontFamily: 'Georgia, "Noto Serif TC", serif', fontSize: "34px", fontStyle: "bold",
+    }).setOrigin(0.5);
+    this.add.text(width / 2, height / 2 + 25, message, {
+      color: "#f0ebcf", fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif', fontSize: "18px", align: "center",
+    }).setOrigin(0.5);
+    this.input.once("pointerup", () => {
+      void this.onlineSource?.leave().finally(() => this.scene.start("MultiplayerLobbyScene", { villageId: this.villageId }));
+    });
   }
 
   private cleanup(): void {
+    this.pointerGesture.reset();
+    this.onlineDisposers.splice(0).forEach((dispose) => dispose());
+    if (this.onlineSource && !this.onlineLeaveRequested) void this.onlineSource.leave();
+    else if (this.multiplayerClient && !this.onlineLeaveRequested) void this.multiplayerClient.leave();
+    this.onlineSource?.dispose();
+    this.onlineSource = undefined;
     this.artLoadGeneration += 1;
     this.archiveOperationGeneration += 1;
     this.archiveInputCleanup?.();

@@ -17,6 +17,29 @@ const MATCH_ID = "match-0123456789abcdef0123456789abcdef";
 const SECOND_MATCH_ID = "match-fedcba9876543210fedcba9876543210";
 
 describe("MultiplayerClient lifecycle", () => {
+  it("treats a not-yet-materialized lobby player collection as an empty initial roster", async () => {
+    const lobby = fakeRoom({
+      roomId: "lobby-initializing",
+      state: { roomCode: "ABC234", phase: "lobby", players: undefined },
+    });
+    const transport = {
+      create: vi.fn(async () => lobby.room),
+      join: vi.fn(async () => lobby.room),
+      consumeSeatReservation: vi.fn(),
+    };
+    const client = new MultiplayerClient(transport as never);
+    const states: unknown[] = [];
+    const errors: string[] = [];
+    client.onState((state) => states.push(state));
+    client.onError((message) => errors.push(message));
+
+    await client.createRoom("Tester", "pinehold");
+
+    expect(states).toContainEqual(expect.objectContaining({ roomCode: "ABC234", players: [] }));
+    expect(errors).toEqual([]);
+    await client.leave();
+  });
+
   it("closes a delayed match room when leave cancels the seat handoff", async () => {
     const reservation = deferred<unknown>();
     const lobby = fakeLobbyRoom();

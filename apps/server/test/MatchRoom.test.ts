@@ -12,7 +12,12 @@ import type {
   MatchRecoveryMetadata,
   MatchRecoveryStore,
 } from "../src/recovery/MatchRecoveryStore.js";
-import { MatchRoom, PLAYER_RECONNECT_LEASE_MILLISECONDS } from "../src/rooms/MatchRoom.js";
+import {
+  AUTHORITY_LEASE_RENEW_THRESHOLD_MILLISECONDS,
+  AUTHORITY_LEASE_TTL_MILLISECONDS,
+  MatchRoom,
+  PLAYER_RECONNECT_LEASE_MILLISECONDS,
+} from "../src/rooms/MatchRoom.js";
 import { MatchRoomState } from "../src/schema/GameState.js";
 
 interface FakeRecoveryPayload {
@@ -70,6 +75,14 @@ const VERSION_OFFER = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("MatchRoom authority lease budget", () => {
+  it("survives the full reconnect window and renews with a wide scheduling margin", () => {
+    expect(AUTHORITY_LEASE_TTL_MILLISECONDS).toBe(PLAYER_RECONNECT_LEASE_MILLISECONDS);
+    expect(AUTHORITY_LEASE_RENEW_THRESHOLD_MILLISECONDS).toBeGreaterThanOrEqual(60_000);
+    expect(AUTHORITY_LEASE_RENEW_THRESHOLD_MILLISECONDS).toBeLessThan(AUTHORITY_LEASE_TTL_MILLISECONDS);
+  });
 });
 
 describe("MatchRoom negotiation gate", () => {

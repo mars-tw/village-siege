@@ -6,6 +6,11 @@
 
 ## v3 開發中（尚未公開部署，2026-07-21）
 
+- v0.17.0／TASK-021 將協定升為 `village-siege-network/3`、規則升為 `village-siege/0.16.0`。玩家專屬 Snapshot 新增安全的參戰者、聚落進度、己方生產控制與活動提示；生產佇列、AI authority、霧外目標與其他玩家私有資料仍不外洩。
+- `MultiplayerLobbyScene` 在第一個已驗證 frame 只交接一次，並沿用同一個 `MultiplayerClient` 啟動 `VillageAssaultScene`。線上場景使用獨立來源與 10 Hz 有界位置插值，不呼叫單機 `runtime.step()`，所有採集、建造、產兵、研究、戰術、技能與投降都只送 command intent，等待伺服器回執與 frame。
+- 修正 Colyseus 初始 roster 尚未實體化時的瀏覽器競態、素材失敗返回時的殘留連線，以及高負載下過短的 authority fencing lease。568×320 橫向畫面可完整容納七格主／子指令列；多指操作由單一 pointer 擁有，第二指不會誤觸下令。
+- 真實 Chromium 雙瀏覽器已完成不同村莊建房、加入、雙方準備、啟動權威戰場與採集命令回執；TASK-022 的延遲、丟包、惡意命令、五方＋AI 與最終 hash 閘門仍未完成，因此 v0.17 尚未公開部署。
+
 - v0.16.0／TASK-020 將網路協定升為 `village-siege-network/2`、規則升為 `village-siege/0.15.0`；新增 120 秒不續延 reconnect lease、穩定 logical match ID、`recovering/resumed/failed` lifecycle，以及 full Snapshot 後才解鎖的 pending intent 有序重播。
 - 權威 recovery record 每 20 tick checkpoint，保存短 batch-tick journal、序號游標、reorder buffer 與 immutable accepted/rejected result ledger；任何 hash、版本、指令 fingerprint 或 journal gap 錯誤都會原子拒絕。
 - 每個 tick 先持久化再送 frame/result。開發預設使用記憶體 store；同時設定 `REDIS_URL` 與 `DATABASE_URL` 時改用 Redis fencing lease＋PostgreSQL durable record。真實雙客戶端 socket smoke 已證明斷線後 tick 延續且舊命令不重複扣資源。

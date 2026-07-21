@@ -10,6 +10,7 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
   private state?: LobbySnapshot;
   private matchFrame?: MatchFrame;
   private villageId = "pinehold";
+  private matchHandoffStarted = false;
 
   constructor() {
     super({ key: "MultiplayerLobbyScene" });
@@ -17,6 +18,8 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
 
   init(data: LobbyData): void {
     this.villageId = data.villageId ?? "pinehold";
+    this.matchHandoffStarted = false;
+    this.matchFrame = undefined;
   }
 
   create(): void {
@@ -46,6 +49,8 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
       </section>`;
     host.append(root);
     this.root = root;
+    this.events.once("shutdown", this.cleanup, this);
+    this.events.once("destroy", this.cleanup, this);
 
     root.querySelector<HTMLInputElement>("[data-code]")?.addEventListener("input", (event) => {
       const input = event.currentTarget as HTMLInputElement;
@@ -62,12 +67,24 @@ export class MultiplayerLobbyScene extends Phaser.Scene {
 
     this.disposers.push(
       this.network.onState((state) => { this.state = state; this.render(); }),
-      this.network.onMatchFrame((frame) => { this.matchFrame = frame; this.render(); }),
+      this.network.onMatchFrame((frame) => {
+        this.matchFrame = frame;
+        this.render();
+        if (this.matchHandoffStarted) return;
+        this.matchHandoffStarted = true;
+        queueMicrotask(() => {
+          if (!this.sys.isActive()) return;
+          this.scene.start("VillageAssaultScene", {
+            villageId: this.villageId,
+            returnScene: "MultiplayerLobbyScene",
+            multiplayerClient: this.network,
+            firstMatchFrame: frame,
+          });
+        });
+      }),
       this.network.onConnection((status) => this.setText("[data-status]", this.connectionLabel(status))),
       this.network.onError((message) => this.setText("[data-error]", message)),
     );
-    this.events.once("shutdown", this.cleanup, this);
-    this.events.once("destroy", this.cleanup, this);
   }
 
   private async connect(mode: "create" | "join"): Promise<void> {

@@ -347,3 +347,24 @@ button:focus-visible, output:focus-visible, [tabindex]:focus-visible { outline: 
   .lobby-room-actions .primary-action, .lobby-room-actions .secondary-action,
   .lobby-connect-actions .primary-action, .lobby-connect-actions .secondary-action { min-height: 44px; padding: 5px 9px; font-size: 0.7rem; }
 }
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 640px) {
+  .multiplayer-lobby { place-items: center; overflow: auto; }
+  .lobby-card {
+    width: 100%;
+    grid-template-columns: minmax(150px, 0.72fr) minmax(0, 1.28fr);
+    column-gap: 8px;
+  }
+  .lobby-connect-actions { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .lobby-room-actions { grid-template-columns: repeat(3, minmax(44px, 1fr)); }
+}
+
+@media (orientation: landscape) and (max-height: 340px) {
+  .multiplayer-lobby:focus-within { place-items: start center; overflow: auto; }
+  .multiplayer-lobby:focus-within .lobby-card {
+    height: auto;
+    min-height: 300px;
+    max-height: none;
+    overflow: visible;
+  }
+}

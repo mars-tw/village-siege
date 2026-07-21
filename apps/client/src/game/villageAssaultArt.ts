@@ -2,18 +2,28 @@ import Phaser from "phaser";
 import {
   type BuildingEntityState,
   type BuildingType,
+  type PublicEntityState,
+  type PublicProductionJob,
   type ResourceEntityState,
   type ResourceKind,
   type RubbleEntityState,
   type StaleEntitySighting,
   type StructureOrientation,
 } from "@village-siege/shared";
+import {
+  publicResourceAmount,
+  publicResourceRenewAtTick,
+  type PublicBuildingEntity,
+  type PublicResourceEntity,
+  type PublicRubbleEntity,
+} from "./assaultPublicPresentation";
 
 export type AssaultSide = "player" | "enemy";
+type AssaultRenderableEntity = PublicEntityState | BuildingEntityState | ResourceEntityState | RubbleEntityState;
 
 export interface AssaultEntityView {
   readonly container: Phaser.GameObjects.Container;
-  update(entity: BuildingEntityState | ResourceEntityState | RubbleEntityState, selected?: boolean): void;
+  update(entity: AssaultRenderableEntity, selected?: boolean): void;
   setCompact(compact: boolean): void;
   destroy(): void;
 }
@@ -69,14 +79,15 @@ export function resourceDisplayName(type: ResourceKind): string {
 
 export function createBuildingView(
   scene: Phaser.Scene,
-  entity: BuildingEntityState,
-  side: AssaultSide,
+  entity: PublicBuildingEntity | BuildingEntityState,
+  side: AssaultSide | number,
 ): AssaultEntityView {
+  const sideAccent = typeof side === "number" ? side : side === "player" ? PLAYER : ENEMY;
   const shadow = scene.add.ellipse(0, 11, footprintWidth(entity.typeId), footprintHeight(entity.typeId), INK, 0.34);
   const selection = scene.add.graphics();
   const art = scene.add.graphics();
   const healthBack = scene.add.rectangle(0, -82, 92, 8, INK, 0.88).setOrigin(0.5);
-  const health = scene.add.rectangle(-44, -82, 88, 4, side === "player" ? 0x79b879 : 0xd8725f).setOrigin(0, 0.5);
+  const health = scene.add.rectangle(-44, -82, 88, 4, sideAccent).setOrigin(0, 0.5);
   const label = scene.add.text(0, 25, BUILDING_LABELS[entity.typeId], {
     color: "#f0ebcf",
     fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
@@ -98,22 +109,27 @@ export function createBuildingView(
   let lastRevision = -1;
   let lastSelected = false;
 
-  const update = (next: BuildingEntityState | ResourceEntityState | RubbleEntityState, selected = false): void => {
+  const update = (next: AssaultRenderableEntity, selected = false): void => {
     if (next.kind !== "building") return;
+    const building = next as PublicBuildingEntity | BuildingEntityState;
     if (next.stateRevision !== lastRevision) {
       art.clear();
-      drawBuilding(art, next.typeId, side, completionRatio(next), next.hitPoints / next.maxHitPoints, next.orientation, next.gateOpen);
+      drawBuilding(art, building.typeId, side, completionRatio(building), building.hitPoints / building.maxHitPoints, building.orientation ?? "ne", building.gateOpen ?? false);
       const ratio = Phaser.Math.Clamp(next.hitPoints / next.maxHitPoints, 0, 1);
       health.setDisplaySize(88 * ratio, 4);
       lastRevision = next.stateRevision;
     }
-    const progressLabel = next.complete ? queueText(next.productionQueue) : `施工 ${Math.floor(completionRatio(next) * 100)}%`;
+    const queue: readonly PublicProductionJob[] = "productionQueue" in building
+      ? building.productionQueue
+      : building.ownerControl?.productionQueue ?? [];
+    const complete = building.complete ?? false;
+    const progressLabel = complete ? queueText(queue) : `施工 ${Math.floor(completionRatio(building) * 100)}%`;
     if (progress.text !== progressLabel) progress.setText(progressLabel);
-    progress.setVisible(!next.complete || next.productionQueue.length > 0);
+    progress.setVisible(!complete || queue.length > 0);
     if (selected !== lastSelected) {
       selection.clear();
       if (selected) {
-        selection.lineStyle(3, COPPER, 0.95).strokeEllipse(0, 10, footprintWidth(next.typeId) + 12, footprintHeight(next.typeId) + 10);
+        selection.lineStyle(3, COPPER, 0.95).strokeEllipse(0, 10, footprintWidth(building.typeId) + 12, footprintHeight(building.typeId) + 10);
       }
       lastSelected = selected;
     }
@@ -169,7 +185,7 @@ export function createStaleBuildingView(
   return { container, update, destroy: () => container.destroy(true) };
 }
 
-export function createResourceView(scene: Phaser.Scene, entity: ResourceEntityState): AssaultEntityView {
+export function createResourceView(scene: Phaser.Scene, entity: PublicResourceEntity | ResourceEntityState): AssaultEntityView {
   const shadow = scene.add.ellipse(0, 9, 74, 27, INK, 0.28);
   const selection = scene.add.graphics();
   const art = scene.add.graphics();
@@ -193,13 +209,15 @@ export function createResourceView(scene: Phaser.Scene, entity: ResourceEntitySt
   let lastSelected = false;
   let compactView = false;
   let fallow = false;
-  const update = (next: BuildingEntityState | ResourceEntityState | RubbleEntityState, selected = false): void => {
+  const update = (next: AssaultRenderableEntity, selected = false): void => {
     if (next.kind !== "resource") return;
+    const resource = next as PublicResourceEntity | ResourceEntityState;
     if (next.stateRevision !== lastRevision) {
       art.clear();
-      drawResource(art, next.typeId, Phaser.Math.Clamp(next.amount / next.maxHitPoints, 0, 1));
-      fallow = next.amount <= 0 && next.renewAtTick !== null;
-      amount.setText(fallow ? "休耕" : `${Math.max(0, Math.ceil(next.amount))}`).setVisible(!compactView || fallow);
+      const remaining: number = "amount" in resource ? resource.amount : publicResourceAmount(resource);
+      drawResource(art, resource.typeId, Phaser.Math.Clamp(remaining / resource.maxHitPoints, 0, 1));
+      fallow = remaining <= 0 && ("renewAtTick" in resource ? resource.renewAtTick : publicResourceRenewAtTick(resource)) !== null;
+      amount.setText(fallow ? "休耕" : `${Math.max(0, Math.ceil(remaining))}`).setVisible(!compactView || fallow);
       lastRevision = next.stateRevision;
     }
     if (selected !== lastSelected) {
@@ -221,7 +239,7 @@ export function createResourceView(scene: Phaser.Scene, entity: ResourceEntitySt
   };
 }
 
-export function createRubbleView(scene: Phaser.Scene, entity: RubbleEntityState): AssaultEntityView {
+export function createRubbleView(scene: Phaser.Scene, entity: PublicRubbleEntity | RubbleEntityState): AssaultEntityView {
   const shadow = scene.add.ellipse(0, 10, footprintWidth(entity.typeId), footprintHeight(entity.typeId), INK, 0.22);
   const art = scene.add.graphics();
   const label = scene.add.text(0, 24, "可通行破口", {
@@ -235,10 +253,11 @@ export function createRubbleView(scene: Phaser.Scene, entity: RubbleEntityState)
   const container = scene.add.container(0, 0, [shadow, art, label]);
   container.setName(`assault-rubble:${entity.id}`).setSize(92, 62);
   let lastRevision = -1;
-  const update = (next: BuildingEntityState | ResourceEntityState | RubbleEntityState): void => {
+  const update = (next: AssaultRenderableEntity): void => {
     if (next.kind !== "rubble" || next.stateRevision === lastRevision) return;
+    const rubble = next as PublicRubbleEntity;
     art.clear();
-    drawRubble(art, next.typeId, next.orientation);
+    drawRubble(art, rubble.typeId, rubble.orientation ?? "ne");
     lastRevision = next.stateRevision;
   };
   update(entity);
@@ -260,12 +279,12 @@ export function drawBuildGhost(
   graphics.lineStyle(3, valid ? 0xb7e4a7 : 0xff9d86, 0.95).strokeEllipse(0, 5, footprintWidth(type) + 12, footprintHeight(type) + 8);
 }
 
-function completionRatio(entity: BuildingEntityState): number {
+function completionRatio(entity: PublicBuildingEntity | BuildingEntityState): number {
   if (entity.complete) return 1;
   return Phaser.Math.Clamp(entity.hitPoints / entity.maxHitPoints, 0.08, 0.99);
 }
 
-function queueText(queue: BuildingEntityState["productionQueue"]): string {
+function queueText(queue: readonly PublicProductionJob[]): string {
   if (queue.length === 0) return "";
   const job = queue[0]!;
   const progress = Math.round(Phaser.Math.Clamp(1 - job.remainingTicks / Math.max(1, job.totalTicks), 0, 1) * 100);
@@ -294,13 +313,13 @@ function footprintHeight(type: BuildingType): number {
 function drawBuilding(
   g: Phaser.GameObjects.Graphics,
   type: BuildingType,
-  side: AssaultSide,
+  side: AssaultSide | number,
   completion: number,
   healthRatio: number,
   orientation: StructureOrientation,
   gateOpen = false,
 ): void {
-  const accent = side === "player" ? PLAYER : ENEMY;
+  const accent = typeof side === "number" ? side : side === "player" ? PLAYER : ENEMY;
   const width = footprintWidth(type);
   const height = footprintHeight(type);
   drawIsoDiamond(g, width, height, STONE, 1, INK);

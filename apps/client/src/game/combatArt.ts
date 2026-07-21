@@ -21,6 +21,8 @@ export const DEFAULT_TEAM_PALETTES = {
   pine: { dark: 0x1e3a31, primary: 0x315e4d, light: 0x6f967a, highlight: 0xb8c99a },
   river: { dark: 0x244452, primary: 0x39738a, light: 0x72a4b3, highlight: 0xb8d3d2 },
   crag: { dark: 0x5a3229, primary: 0x96513c, light: 0xc27a50, highlight: 0xe2b66e },
+  marsh: { dark: 0x293d32, primary: 0x53734d, light: 0x86a66c, highlight: 0xc2d597 },
+  sun: { dark: 0x624421, primary: 0xa26f2f, light: 0xd49d4f, highlight: 0xf2d28a },
   enemy: { dark: 0x542a2b, primary: 0x8f3b3a, light: 0xc16a55, highlight: 0xe3aa7b },
   neutral: { dark: 0x253844, primary: 0x41657a, light: 0x6e94a8, highlight: 0xa9c5cf }
 } as const satisfies Readonly<Record<string, TeamPalette>>;

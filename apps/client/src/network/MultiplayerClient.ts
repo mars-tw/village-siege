@@ -409,7 +409,7 @@ export class MultiplayerClient {
 
   private snapshot(room: Room<NetworkState>): LobbySnapshot {
     const players: LobbyPlayer[] = [];
-    room.state.players.forEach((player: NetworkPlayer, sessionId: string) => {
+    room.state.players?.forEach((player: NetworkPlayer, sessionId: string) => {
       players.push({
         sessionId,
         name: player.name,

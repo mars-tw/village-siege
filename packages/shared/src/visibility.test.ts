@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, hashMatchState, isEntityVisibleToPlayer, projectDomainEventsForPlayer, stepSimulation, toPublicEntity, toVisibleSnapshot, validateCommand, type BuildingEntityState, type ProjectileState } from "./simulation";
-import type { DomainEvent } from "./protocol";
+import { createInitialState, hashMatchState, isEntityVisibleToPlayer, projectDomainEventsForPlayer, stepSimulation, toPublicEntity, toVisibleSnapshot, validateCommand, type BuildingEntityState, type ProjectileState, type UnitEntityState } from "./simulation";
+import { isVisibleSnapshot, type DomainEvent } from "./protocol";
 import { decodeExploredTilesRle, encodeExploredTilesRle, getPlayerVisibilityState, isTileExploredByPlayer, isTileVisibleToPlayer, updateVisibilityState } from "./visibility";
 
 describe("deterministic player visibility", () => {
@@ -54,6 +54,138 @@ describe("deterministic player visibility", () => {
     expect(isEntityVisibleToPlayer(state, "player-1", hostileTown)).toBe(false);
     expect(toVisibleSnapshot(state, "player-1").entities.some((entity) => entity.id === alliedTown.id)).toBe(true);
     expect(toVisibleSnapshot(state, "player-1").entities.some((entity) => entity.id === hostileTown.id)).toBe(false);
+  });
+
+  it("publishes a sorted five-player roster without player resources or AI authority state", () => {
+    const state = createInitialState({
+      map: { width: 40, height: 40 },
+      players: [
+        { id: "player-e", teamId: "team-3", villageId: "sunfield" },
+        { id: "player-a", teamId: "team-1", villageId: "pinehold" },
+        { id: "player-d", teamId: "team-3", villageId: "marshwatch" },
+        { id: "player-c", teamId: "team-2", villageId: "highcrag" },
+        { id: "player-b", teamId: "team-1", villageId: "riverstead" },
+      ],
+      spawnOverrides: {
+        "player-a": { x: 3, y: 3 },
+        "player-b": { x: 20, y: 3 },
+        "player-c": { x: 35, y: 3 },
+        "player-d": { x: 3, y: 35 },
+        "player-e": { x: 35, y: 35 },
+      },
+    });
+    state.players.find((player) => player.id === "player-c")!.surrendered = true;
+    state.players.find((player) => player.id === "player-e")!.eliminated = true;
+
+    const snapshot = toVisibleSnapshot(state, "player-a");
+    const serialized = JSON.stringify(snapshot.participants);
+
+    expect(snapshot.recipientTeamId).toBe("team-1");
+    expect(snapshot.participants.map((participant) => participant.id)).toEqual([
+      "player-a", "player-b", "player-c", "player-d", "player-e",
+    ]);
+    expect(snapshot.participants.find((participant) => participant.id === "player-c")?.surrendered).toBe(true);
+    expect(snapshot.participants.find((participant) => participant.id === "player-e")?.eliminated).toBe(true);
+    expect(Object.keys(snapshot.participants[0]!)).toEqual(["id", "teamId", "villageId", "surrendered", "eliminated"]);
+    expect(serialized).not.toContain("resources");
+    expect(serialized).not.toContain("lastSequence");
+    expect(serialized).not.toContain("personality");
+    expect(serialized).not.toContain("difficulty");
+    expect(isVisibleSnapshot(snapshot)).toBe(true);
+  });
+
+  it("projects queue, rally point and advancement only for the recipient's own buildings", () => {
+    const state = createInitialState({
+      map: { width: 40, height: 40 },
+      players: [
+        { id: "player-1", teamId: "allies", villageId: "pinehold" },
+        { id: "player-2", teamId: "allies", villageId: "riverstead" },
+        { id: "player-3", teamId: "hostile", villageId: "highcrag" },
+      ],
+      spawnOverrides: {
+        "player-1": { x: 3, y: 3 },
+        "player-2": { x: 20, y: 3 },
+        "player-3": { x: 35, y: 35 },
+      },
+    });
+    const ownTown = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    const alliedTown = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
+    const hostileTown = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-3" && entity.typeId === "townCenter")!;
+    ownTown.productionQueue.push({
+      jobId: { commandSequence: 8, itemIndex: 0 },
+      kind: "train",
+      unitType: "villager",
+      remainingTicks: 90,
+      totalTicks: 120,
+      paidCost: { food: 50, wood: 0, stone: 0 },
+    });
+    ownTown.rallyPoint = { x: 9, y: 8 };
+    alliedTown.rallyPoint = { x: 19, y: 9 };
+    hostileTown.rallyPoint = { x: 34, y: 34 };
+    state.players.find((player) => player.id === "player-1")!.advancement = {
+      producerId: ownTown.id,
+      targetTier: "stronghold",
+      remainingTicks: 311,
+    };
+    state.players.find((player) => player.id === "player-2")!.advancement = {
+      producerId: alliedTown.id,
+      targetTier: "stronghold",
+      remainingTicks: 917,
+    };
+    state.players.find((player) => player.id === "player-3")!.advancement = {
+      producerId: hostileTown.id,
+      targetTier: "stronghold",
+      remainingTicks: 918,
+    };
+    const scout = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    scout.position = { x: hostileTown.position.x - 1, y: hostileTown.position.y };
+    updateVisibilityState(state);
+
+    const snapshot = toVisibleSnapshot(state, "player-1");
+    const ownPublic = snapshot.entities.find((entity) => entity.id === ownTown.id)!;
+    const alliedPublic = snapshot.entities.find((entity) => entity.id === alliedTown.id)!;
+    const hostilePublic = snapshot.entities.find((entity) => entity.id === hostileTown.id)!;
+
+    expect(ownPublic.ownerControl).toEqual({
+      productionQueue: [{
+        jobId: { commandSequence: 8, itemIndex: 0 },
+        kind: "train",
+        unitType: "villager",
+        remainingTicks: 90,
+        totalTicks: 120,
+        paidCost: { food: 50, wood: 0, stone: 0 },
+      }],
+      rallyPoint: { x: 9, y: 8 },
+    });
+    expect(alliedPublic.ownerControl).toBeUndefined();
+    expect(hostilePublic.ownerControl).toBeUndefined();
+    expect(snapshot.advancement).toEqual({ producerId: ownTown.id, targetTier: "stronghold", remainingTicks: 311 });
+    expect(JSON.stringify(snapshot)).not.toContain('"remainingTicks":917');
+    expect(JSON.stringify(snapshot)).not.toContain('"remainingTicks":918');
+    expect(isVisibleSnapshot(snapshot)).toBe(true);
+  });
+
+  it("derives presentation activity without exposing unit orders, ability ids or targets", () => {
+    const state = createSeparatedMatch();
+    const villager = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager")!;
+    villager.order = { type: "gather", targetId: "private-resource-target", resourceKind: "wood", phase: "toSource", dropOffId: "private-dropoff" };
+    villager.combat = {
+      phase: "windup",
+      action: "ability",
+      abilityId: "private-ability-id",
+      target: { kind: "entity", entityId: "private-combat-target" },
+      commitTick: state.tick + 1,
+      readyTick: state.tick + 2,
+    };
+
+    const publicEntity = toPublicEntity(villager);
+    const serialized = JSON.stringify(publicEntity);
+
+    expect(publicEntity).toMatchObject({ civilianActivity: "gathering", combatActivity: "casting", combatPhase: "windup" });
+    expect(serialized).not.toContain("private-resource-target");
+    expect(serialized).not.toContain("private-dropoff");
+    expect(serialized).not.toContain("private-ability-id");
+    expect(serialized).not.toContain("private-combat-target");
   });
 
   it("rejects construction whose full footprint is not currently visible without mutating state", () => {
@@ -209,6 +341,48 @@ describe("deterministic player visibility", () => {
       { type: "commandAccepted", sequence: 3, serverTick: state.tick },
       { type: "entityDamaged", sourceId: null, targetId: ownUnit.id, amount: 5, hitPoints: ownUnit.hitPoints - 5 },
     ]);
+  });
+
+  it("rebuilds entity events from authority and strips forged foreign building controls", () => {
+    const state = createInitialState({
+      map: { width: 40, height: 40 },
+      players: [
+        { id: "player-1", teamId: "allies", villageId: "pinehold" },
+        { id: "player-2", teamId: "allies", villageId: "riverstead" },
+        { id: "player-3", teamId: "hostile", villageId: "highcrag" },
+      ],
+      spawnOverrides: {
+        "player-1": { x: 3, y: 3 },
+        "player-2": { x: 20, y: 3 },
+        "player-3": { x: 35, y: 35 },
+      },
+    });
+    const ownTown = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
+    const alliedTown = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-2" && entity.typeId === "townCenter")!;
+    ownTown.rallyPoint = { x: 9, y: 8 };
+    const forgedAlliedEvent = {
+      type: "entityUpdated",
+      entity: {
+        ...toPublicEntity(alliedTown),
+        ownerControl: { productionQueue: [], rallyPoint: { x: 39, y: 39 } },
+      },
+    } as unknown as DomainEvent;
+
+    const projected = projectDomainEventsForPlayer(state, "player-1", {
+      serverTick: state.tick,
+      events: [
+        forgedAlliedEvent,
+        { type: "entityUpdated", entity: toPublicEntity(ownTown) },
+      ],
+    });
+
+    expect(projected).toHaveLength(2);
+    expect(projected[0]).toMatchObject({ type: "entityUpdated", entity: { id: alliedTown.id } });
+    expect((projected[0] as Extract<DomainEvent, { type: "entityUpdated" }>).entity.ownerControl).toBeUndefined();
+    expect((projected[1] as Extract<DomainEvent, { type: "entityUpdated" }>).entity.ownerControl).toEqual({
+      productionQueue: [],
+      rallyPoint: { x: 9, y: 8 },
+    });
   });
 
   it("projects only visible hostile tactical signals and rebuilds their privacy-safe payload", () => {
