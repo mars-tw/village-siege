@@ -9,3 +9,4 @@ export * from "./spatial.js";
 export * from "./battlefield.js";
 export * from "./visibility.js";
 export * from "./persistence.js";
+export * from "./replication.js";

@@ -1,24 +1,35 @@
 import {
+  MATCH_PROTOCOL_VERSION,
+  RULES_VERSION,
+  TICKS_PER_SECOND,
   TICK_MILLISECONDS,
   VILLAGE_ASSAULT_MAP_HEIGHT,
   VILLAGE_ASSAULT_MAP_ID,
   VILLAGE_ASSAULT_MAP_WIDTH,
   createInitialState,
-  isGameCommand,
+  createVisibleSnapshotDelta,
+  hashMatchState,
+  isMatchCommandIntent,
   projectDomainEventsForPlayer,
   stepSimulation,
   toVisibleSnapshot,
+  type CanonicalStateHash,
   type CommandEnvelope,
   type CommandRejectCode,
-  type DomainEvent,
-  type GameCommand,
-  type InitialPlayer,
+  type MatchCommandIntent,
+  type MatchCommandResult,
+  type MatchReplicationFrame,
+  type MatchServerHello,
   type MatchState,
   type PlayableVillageId,
+  type ReplicatedWorldEvent,
   type VisibleSnapshot,
 } from "@village-siege/shared";
 
 export { TICK_MILLISECONDS };
+
+export const FULL_SNAPSHOT_INTERVAL_TICKS = 5 * TICKS_PER_SECOND;
+export const CANONICAL_HASH_INTERVAL_TICKS = 2 * TICKS_PER_SECOND;
 
 export interface MatchParticipant {
   readonly playerId: string;
@@ -27,66 +38,67 @@ export interface MatchParticipant {
   readonly villageId: PlayableVillageId;
 }
 
-export interface CommandIntent {
-  readonly sequence: number;
-  readonly clientTick: number;
-  readonly command: GameCommand;
-}
-
 export type IntentSubmission =
-  | { readonly queued: true; readonly sequence: number }
-  | { readonly queued: false; readonly sequence: number; readonly code: CommandRejectCode };
-
-export interface CommandResult {
-  readonly accepted: boolean;
-  readonly sequence: number;
-  readonly code?: CommandRejectCode;
-  readonly serverTick: number;
-}
-
-export interface RecipientFrame {
-  readonly snapshot: VisibleSnapshot;
-  readonly events: readonly DomainEvent[];
-  readonly commandResults: readonly CommandResult[];
-}
+  | {
+      readonly queued: true;
+      readonly duplicate: boolean;
+      readonly commandId: string;
+      readonly clientCommandSeq: number;
+    }
+  | {
+      readonly queued: false;
+      readonly replayed: boolean;
+      readonly result: MatchCommandResult;
+    };
 
 export interface MatchTickResult {
   readonly serverTick: number;
   readonly phase: VisibleSnapshot["phase"];
-  readonly frames: ReadonlyMap<string, RecipientFrame>;
+  readonly frames: ReadonlyMap<string, MatchReplicationFrame>;
+  readonly commandResults: ReadonlyMap<string, readonly MatchCommandResult[]>;
+  /** Server-private deterministic checkpoint. Never serialize this into a recipient frame. */
+  readonly canonicalCheckpoint?: CanonicalStateHash;
+}
+
+interface CommandRecord {
+  readonly intent: MatchCommandIntent;
+  readonly fingerprint: string;
+  result?: MatchCommandResult;
 }
 
 interface QueuedCommand {
   readonly envelope: CommandEnvelope;
+  readonly record: CommandRecord;
 }
 
-const MAX_PENDING_COMMANDS_PER_PLAYER = 16;
+const MAX_BUFFERED_COMMANDS_PER_PLAYER = 16;
+const MAX_COMPLETED_COMMAND_RECORDS_PER_PLAYER = 512;
 
 /**
  * Owns the canonical online match state. Callers can obtain only recipient-
- * filtered snapshots and events; the complete MatchState never crosses this
- * authority boundary.
+ * filtered snapshots, deltas and world events; complete MatchState stays private.
  */
 export class MatchAuthority {
   readonly matchId: string;
   readonly participants: readonly MatchParticipant[];
   private state: MatchState;
-  private pending: QueuedCommand[] = [];
-  private readonly lastQueuedSequence = new Map<string, number>();
+  private readonly pendingByPlayer = new Map<string, Map<number, QueuedCommand>>();
+  private readonly recordByPlayer = new Map<string, Map<string, CommandRecord>>();
+  private readonly nextExpectedSequence = new Map<string, number>();
+  private readonly lastVisibleSnapshot = new Map<string, VisibleSnapshot>();
 
   constructor(matchId: string, seed: number, participants: readonly MatchParticipant[]) {
     assertParticipants(participants);
     this.matchId = matchId;
     this.participants = participants.map((participant) => ({ ...participant }));
-    const players: InitialPlayer[] = participants.map((participant) => ({
-      id: participant.playerId,
-      teamId: participant.teamId,
-      villageId: participant.villageId,
-    }));
     this.state = createInitialState({
       matchId,
       seed,
-      players,
+      players: participants.map((participant) => ({
+        id: participant.playerId,
+        teamId: participant.teamId,
+        villageId: participant.villageId,
+      })),
       map: {
         id: VILLAGE_ASSAULT_MAP_ID,
         width: VILLAGE_ASSAULT_MAP_WIDTH,
@@ -94,7 +106,11 @@ export class MatchAuthority {
         layoutId: participants[0]!.villageId,
       },
     });
-    for (const player of this.state.players) this.lastQueuedSequence.set(player.id, player.lastSequence);
+    for (const player of this.state.players) {
+      this.pendingByPlayer.set(player.id, new Map());
+      this.recordByPlayer.set(player.id, new Map());
+      this.nextExpectedSequence.set(player.id, player.lastSequence + 1);
+    }
   }
 
   get serverTick(): number {
@@ -109,45 +125,100 @@ export class MatchAuthority {
     return this.state.players.some((player) => player.id === playerId);
   }
 
-  submitIntent(playerId: string, payload: unknown): IntentSubmission {
-    const sequence = extractSequence(payload);
-    if (!isCommandIntent(payload)) return { queued: false, sequence, code: "INVALID_PAYLOAD" };
-    if (!this.hasPlayer(playerId)) return { queued: false, sequence, code: "NOT_ROOM_MEMBER" };
-    if (this.state.phase !== "playing") return { queued: false, sequence, code: "MATCH_NOT_PLAYING" };
+  serverHello(playerId: string): MatchServerHello {
+    if (!this.hasPlayer(playerId)) throw new Error(`Unknown hello recipient: ${playerId}`);
+    const next = this.nextExpectedSequence.get(playerId) ?? 0;
+    return {
+      protocolVersion: MATCH_PROTOCOL_VERSION,
+      rulesVersion: RULES_VERSION,
+      matchId: this.matchId,
+      recipientPlayerId: playerId,
+      tickMilliseconds: TICK_MILLISECONDS,
+      fullSnapshotIntervalTicks: FULL_SNAPSHOT_INTERVAL_TICKS,
+      canonicalHashIntervalTicks: CANONICAL_HASH_INTERVAL_TICKS,
+      lastReceivedClientCommandSeq: next - 1,
+      nextClientCommandSeq: next,
+    };
+  }
 
+  submitIntent(playerId: string, payload: unknown): IntentSubmission {
+    const extracted = extractIntentIdentity(payload);
+    if (!this.hasPlayer(playerId)) return rejected(extracted, "NOT_ROOM_MEMBER", this.serverTick);
+    if (isRecord(payload) && payload.protocolVersion !== MATCH_PROTOCOL_VERSION) {
+      return rejected(extracted, "PROTOCOL_MISMATCH", this.serverTick);
+    }
+    if (isRecord(payload) && payload.rulesVersion !== RULES_VERSION) {
+      return rejected(extracted, "RULES_MISMATCH", this.serverTick);
+    }
+    if (!isMatchCommandIntent(payload) || payload.lastServerTickSeen > this.serverTick) {
+      return rejected(extracted, "INVALID_PAYLOAD", this.serverTick);
+    }
+    if (this.state.phase !== "playing") {
+      return rejected(identityOf(payload), "MATCH_NOT_PLAYING", this.serverTick);
+    }
+
+    const records = this.recordByPlayer.get(playerId)!;
+    const fingerprint = canonicalJson(payload);
+    const existing = records.get(payload.commandId);
+    if (existing) {
+      if (existing.fingerprint !== fingerprint) {
+        return rejected(identityOf(payload), "COMMAND_ID_CONFLICT", this.serverTick);
+      }
+      if (existing.result) return { queued: false, replayed: true, result: cloneResult(existing.result) };
+      return {
+        queued: true,
+        duplicate: true,
+        commandId: payload.commandId,
+        clientCommandSeq: payload.clientCommandSeq,
+      };
+    }
+
+    const pending = this.pendingByPlayer.get(playerId)!;
+    const nextExpected = this.nextExpectedSequence.get(playerId)!;
+    if (payload.clientCommandSeq < nextExpected) {
+      return rejected(identityOf(payload), "STALE_OR_DUPLICATE_SEQUENCE", this.serverTick);
+    }
+    const sequenceCollision = pending.get(payload.clientCommandSeq);
+    if (sequenceCollision) {
+      return rejected(identityOf(payload), "COMMAND_ID_CONFLICT", this.serverTick);
+    }
+    if (payload.clientCommandSeq >= nextExpected + MAX_BUFFERED_COMMANDS_PER_PLAYER
+      || pending.size >= MAX_BUFFERED_COMMANDS_PER_PLAYER) {
+      return rejected(identityOf(payload), "RATE_LIMITED", this.serverTick);
+    }
+
+    const record: CommandRecord = { intent: cloneIntent(payload), fingerprint };
     const envelope: CommandEnvelope = {
       matchId: this.matchId,
       playerId,
-      sequence: payload.sequence,
-      clientTick: payload.clientTick,
+      sequence: payload.clientCommandSeq,
+      clientTick: payload.lastServerTickSeen,
       command: payload.command,
     };
-    const lastReceived = this.lastQueuedSequence.get(playerId) ?? -1;
-    if (envelope.sequence <= lastReceived) {
-      return { queued: false, sequence: envelope.sequence, code: "STALE_OR_DUPLICATE_SEQUENCE" };
-    }
-    if (this.pending.filter((entry) => entry.envelope.playerId === playerId).length >= MAX_PENDING_COMMANDS_PER_PLAYER) {
-      return { queued: false, sequence: envelope.sequence, code: "RATE_LIMITED" };
-    }
-    this.pending.push({ envelope });
-    this.lastQueuedSequence.set(playerId, envelope.sequence);
-    return { queued: true, sequence: envelope.sequence };
+    records.set(payload.commandId, record);
+    pending.set(payload.clientCommandSeq, { envelope, record });
+    return {
+      queued: true,
+      duplicate: false,
+      commandId: payload.commandId,
+      clientCommandSeq: payload.clientCommandSeq,
+    };
   }
 
-  initialFrames(): ReadonlyMap<string, RecipientFrame> {
+  initialFrames(): ReadonlyMap<string, MatchReplicationFrame> {
     return new Map(this.participants.map((participant) => [
       participant.playerId,
-      {
-        snapshot: toVisibleSnapshot(this.state, participant.playerId),
-        events: [],
-        commandResults: [],
-      },
+      this.fullSnapshotFrame(participant.playerId, []),
     ]));
   }
 
+  forceSnapshotFrame(playerId: string): MatchReplicationFrame {
+    if (!this.hasPlayer(playerId)) throw new Error(`Unknown snapshot recipient: ${playerId}`);
+    return this.fullSnapshotFrame(playerId, []);
+  }
+
   step(): MatchTickResult {
-    const queued = this.pending;
-    this.pending = [];
+    const queued = this.drainContiguousCommands();
     const advanced = stepSimulation(this.state, queued.map((entry) => entry.envelope), 1);
     this.state = advanced.state;
     const orderedQueued = [...queued].sort((left, right) => (
@@ -160,54 +231,118 @@ export class MatchAuthority {
     if (acknowledgements.length !== orderedQueued.length) {
       throw new Error("Authoritative command acknowledgement count diverged from the command batch");
     }
-    const acknowledgementsByPlayer = new Map<string, DomainEvent[]>();
+
+    const resultsByPlayer = new Map<string, MatchCommandResult[]>();
     for (const [index, entry] of orderedQueued.entries()) {
-      const events = acknowledgementsByPlayer.get(entry.envelope.playerId) ?? [];
-      events.push(acknowledgements[index]!);
-      acknowledgementsByPlayer.set(entry.envelope.playerId, events);
+      const acknowledgement = acknowledgements[index]!;
+      const result: MatchCommandResult = acknowledgement.type === "commandAccepted"
+        ? {
+            commandId: entry.record.intent.commandId,
+            clientCommandSeq: entry.envelope.sequence,
+            accepted: true,
+            serverTick: this.state.tick,
+          }
+        : {
+            commandId: entry.record.intent.commandId,
+            clientCommandSeq: entry.envelope.sequence,
+            accepted: false,
+            code: acknowledgement.code,
+            serverTick: this.state.tick,
+          };
+      entry.record.result = cloneResult(result);
+      const ownResults = resultsByPlayer.get(entry.envelope.playerId) ?? [];
+      ownResults.push(result);
+      resultsByPlayer.set(entry.envelope.playerId, ownResults);
     }
-    const worldEvents = advanced.events.filter((event) => (
+    for (const participant of this.participants) this.trimCompletedRecords(participant.playerId);
+
+    const worldEvents = advanced.events.filter((event): event is ReplicatedWorldEvent => (
       event.type !== "commandAccepted" && event.type !== "commandRejected"
     ));
-
-    const frames = new Map<string, RecipientFrame>();
+    const frames = new Map<string, MatchReplicationFrame>();
     for (const participant of this.participants) {
-      const projectedWorldEvents = projectDomainEventsForPlayer(
+      const events = projectDomainEventsForPlayer(
         this.state,
         participant.playerId,
         { serverTick: this.state.tick, events: worldEvents },
-      );
-      const ownAcknowledgements = acknowledgementsByPlayer.get(participant.playerId) ?? [];
-      const events = [...ownAcknowledgements, ...projectedWorldEvents];
-      frames.set(participant.playerId, {
-        snapshot: toVisibleSnapshot(this.state, participant.playerId),
-        events,
-        commandResults: commandResults(events, this.state.tick),
-      });
+      ) as ReplicatedWorldEvent[];
+      frames.set(participant.playerId, this.replicationFrame(participant.playerId, events));
     }
-    return { serverTick: this.state.tick, phase: this.state.phase, frames };
+    const checkpoint = this.state.tick % CANONICAL_HASH_INTERVAL_TICKS === 0
+      ? { algorithm: "fnv1a-32" as const, serverTick: this.state.tick, value: hashMatchState(this.state) }
+      : undefined;
+    return {
+      serverTick: this.state.tick,
+      phase: this.state.phase,
+      frames,
+      commandResults: resultsByPlayer,
+      ...(checkpoint ? { canonicalCheckpoint: checkpoint } : {}),
+    };
   }
-}
 
-export function isCommandIntent(value: unknown): value is CommandIntent {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["sequence", "clientTick", "command"])) return false;
-  return Number.isSafeInteger(value.sequence)
-    && (value.sequence as number) >= 0
-    && Number.isSafeInteger(value.clientTick)
-    && (value.clientTick as number) >= 0
-    && isGameCommand(value.command);
-}
+  private drainContiguousCommands(): QueuedCommand[] {
+    const drained: QueuedCommand[] = [];
+    for (const participant of this.participants) {
+      const pending = this.pendingByPlayer.get(participant.playerId)!;
+      let next = this.nextExpectedSequence.get(participant.playerId)!;
+      while (pending.has(next)) {
+        drained.push(pending.get(next)!);
+        pending.delete(next);
+        next += 1;
+      }
+      this.nextExpectedSequence.set(participant.playerId, next);
+    }
+    return drained;
+  }
 
-function commandResults(events: readonly DomainEvent[], serverTick: number): CommandResult[] {
-  return events.flatMap((event): CommandResult[] => {
-    if (event.type === "commandAccepted") {
-      return [{ accepted: true, sequence: event.sequence, serverTick }];
-    }
-    if (event.type === "commandRejected") {
-      return [{ accepted: false, sequence: event.sequence, code: event.code, serverTick }];
-    }
-    return [];
-  });
+  private replicationFrame(playerId: string, events: readonly ReplicatedWorldEvent[]): MatchReplicationFrame {
+    const snapshot = toVisibleSnapshot(this.state, playerId);
+    const previous = this.lastVisibleSnapshot.get(playerId);
+    const mustSendFull = !previous
+      || snapshot.serverTick % FULL_SNAPSHOT_INTERVAL_TICKS === 0
+      || snapshot.phase === "finished";
+    if (mustSendFull) return this.rememberSnapshot(snapshot, events);
+    const delta = createVisibleSnapshotDelta(previous, snapshot);
+    this.lastVisibleSnapshot.set(playerId, snapshot);
+    return {
+      kind: "delta",
+      protocolVersion: MATCH_PROTOCOL_VERSION,
+      rulesVersion: RULES_VERSION,
+      matchId: this.matchId,
+      recipientPlayerId: playerId,
+      serverTick: snapshot.serverTick,
+      events: [...events],
+      delta,
+    };
+  }
+
+  private fullSnapshotFrame(playerId: string, events: readonly ReplicatedWorldEvent[]): MatchReplicationFrame {
+    return this.rememberSnapshot(toVisibleSnapshot(this.state, playerId), events);
+  }
+
+  private rememberSnapshot(
+    snapshot: VisibleSnapshot,
+    events: readonly ReplicatedWorldEvent[],
+  ): MatchReplicationFrame {
+    this.lastVisibleSnapshot.set(snapshot.recipientPlayerId, snapshot);
+    return {
+      kind: "snapshot",
+      protocolVersion: MATCH_PROTOCOL_VERSION,
+      rulesVersion: RULES_VERSION,
+      matchId: this.matchId,
+      recipientPlayerId: snapshot.recipientPlayerId,
+      serverTick: snapshot.serverTick,
+      events: [...events],
+      snapshot,
+    };
+  }
+
+  private trimCompletedRecords(playerId: string): void {
+    const records = this.recordByPlayer.get(playerId)!;
+    const completed = [...records.entries()].filter(([, record]) => record.result);
+    const excess = completed.length - MAX_COMPLETED_COMMAND_RECORDS_PER_PLAYER;
+    for (let index = 0; index < excess; index += 1) records.delete(completed[index]![0]);
+  }
 }
 
 function assertParticipants(participants: readonly MatchParticipant[]): void {
@@ -220,15 +355,53 @@ function assertParticipants(participants: readonly MatchParticipant[]): void {
   }
 }
 
-function extractSequence(value: unknown): number {
-  return isRecord(value) && Number.isSafeInteger(value.sequence) && (value.sequence as number) >= 0
-    ? value.sequence as number
-    : 0;
+function rejected(
+  identity: { readonly commandId: string | null; readonly clientCommandSeq: number },
+  code: Exclude<Extract<MatchCommandResult, { accepted: false }>["code"], never>,
+  serverTick: number,
+): IntentSubmission {
+  return {
+    queued: false,
+    replayed: false,
+    result: {
+      commandId: identity.commandId,
+      clientCommandSeq: identity.clientCommandSeq,
+      accepted: false,
+      code,
+      serverTick,
+    },
+  };
 }
 
-function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  const actual = Object.keys(value);
-  return actual.length === keys.length && actual.every((key) => keys.includes(key));
+function extractIntentIdentity(value: unknown): { readonly commandId: string | null; readonly clientCommandSeq: number } {
+  if (!isRecord(value)) return { commandId: null, clientCommandSeq: 0 };
+  return {
+    commandId: typeof value.commandId === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(value.commandId)
+      ? value.commandId
+      : null,
+    clientCommandSeq: Number.isSafeInteger(value.clientCommandSeq) && (value.clientCommandSeq as number) >= 0
+      ? value.clientCommandSeq as number
+      : 0,
+  };
+}
+
+function identityOf(intent: MatchCommandIntent): { readonly commandId: string; readonly clientCommandSeq: number } {
+  return { commandId: intent.commandId, clientCommandSeq: intent.clientCommandSeq };
+}
+
+function cloneIntent(intent: MatchCommandIntent): MatchCommandIntent {
+  return JSON.parse(JSON.stringify(intent)) as MatchCommandIntent;
+}
+
+function cloneResult(result: MatchCommandResult): MatchCommandResult {
+  return { ...result };
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort(compareText).map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

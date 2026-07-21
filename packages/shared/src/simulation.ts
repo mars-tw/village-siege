@@ -660,10 +660,39 @@ export function stepSimulation(state: MatchState, commands: readonly CommandEnve
     events.push(...applied.events);
   }
   evaluateVictory(next, events);
+  if (deltaTicks > 0 && state.phase === "playing" && next.phase === "finished" && next.tick === state.tick) {
+    advanceTerminalTransitionTick(next, events);
+  }
   for (let index = 0; index < deltaTicks && next.phase === "playing"; index += 1) {
     advanceOneTick(next, events);
   }
   return { state: next, events };
+}
+
+/** A command-resolved terminal state still consumes its authoritative fixed step. */
+function advanceTerminalTransitionTick(state: MatchState, events: DomainEvent[]): void {
+  const previousTick = state.tick;
+  const terminalTick = previousTick + 1;
+  const eliminatedTeamIds = new Set(events.flatMap((event) => (
+    event.type === "teamEliminated" && event.eliminatedAtTick === previousTick ? [event.teamId] : []
+  )));
+  state.tick = terminalTick;
+  state.victory = {
+    ...state.victory,
+    teams: state.victory.teams.map((team) => eliminatedTeamIds.has(team.teamId) && team.eliminatedAtTick === previousTick
+      ? { ...team, eliminatedAtTick: terminalTick }
+      : team),
+    finishedAtTick: state.victory.finishedAtTick === previousTick ? terminalTick : state.victory.finishedAtTick,
+  };
+  for (const [index, event] of events.entries()) {
+    if (event.type === "commandAccepted" && event.serverTick === previousTick) {
+      events[index] = { ...event, serverTick: terminalTick };
+    } else if (event.type === "teamEliminated" && event.eliminatedAtTick === previousTick) {
+      events[index] = { ...event, eliminatedAtTick: terminalTick };
+    } else if (event.type === "matchFinished" && event.finishedAtTick === previousTick) {
+      events[index] = { ...event, finishedAtTick: terminalTick };
+    }
+  }
 }
 
 /** Called by an authoritative room only after its reconnect lease expires. */
@@ -684,6 +713,17 @@ export function cloneMatchState(state: MatchState): MatchState {
 
 export function hashMatchState(state: MatchState): string {
   return fnv1a(stableStringify(state));
+}
+
+/** Computes the recipient-visible checksum without requiring or exposing canonical MatchState. */
+export function hashVisibleSnapshot(snapshot: VisibleSnapshot | Omit<VisibleSnapshot, "checksum">): string {
+  const { checksum: _checksum, ...body } = snapshot as VisibleSnapshot;
+  // Hash exactly what can cross JSON/WebSocket boundaries; optional undefined fields are not wire data.
+  return fnv1a(stableStringify(JSON.parse(JSON.stringify(body))));
+}
+
+export function verifyVisibleSnapshotChecksum(snapshot: VisibleSnapshot): boolean {
+  return hashVisibleSnapshot(snapshot) === snapshot.checksum;
 }
 
 export function hashReplay(initialState: MatchState, commands: readonly CommandEnvelope[], deltaTicks: number): string {
@@ -841,7 +881,7 @@ export function toVisibleSnapshot(state: MatchState, playerId: PlayerId): Visibl
     visibleTileIndices: [...visibility.visibleTileIndices],
     visibleEntityIds: entities.map((entity) => entity.id),
   };
-  return { ...body, checksum: fnv1a(stableStringify(body)) };
+  return { ...body, checksum: hashVisibleSnapshot(body) };
 }
 
 export function projectDomainEventsForPlayer(
@@ -1165,7 +1205,8 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
   if (command.type === "setStance" || command.type === "setFormation") return { ok: true };
   if (command.type === "stop") return { ok: true };
   const target = state.entities.find((entity) => entity.id === command.targetId);
-  if (!target) return rejected("INVALID_PAYLOAD");
+  // Missing and fog-hidden target IDs are intentionally indistinguishable to prevent entity-ID probing.
+  if (!target) return rejected("TARGET_NOT_VISIBLE");
   if (!isEntityVisibleToPlayer(state, player.id, target)) return rejected("TARGET_NOT_VISIBLE");
   if (command.type === "gather") {
     const resourceKind = gatherSourceKind(target);

@@ -1,7 +1,11 @@
 import { randomBytes, randomInt } from "node:crypto";
 import { matchMaker, Room } from "@colyseus/core";
 import type { Client } from "@colyseus/core";
-import type { PlayableVillageId } from "@village-siege/shared";
+import {
+  MATCH_PROTOCOL_VERSION,
+  RULES_VERSION,
+  type PlayableVillageId,
+} from "@village-siege/shared";
 import { issueMatchLaunch, revokeMatchLaunch, type AuthorizedMatchParticipant } from "../matchLaunchRegistry.js";
 import { createRoomCode, normalizeRoomCode } from "../roomCode.js";
 import { LobbyState, PlayerState } from "../schema/GameState.js";
@@ -10,6 +14,8 @@ interface JoinOptions {
   roomCode?: unknown;
   playerName?: unknown;
   villageId?: unknown;
+  protocolVersion?: unknown;
+  rulesVersion?: unknown;
 }
 
 interface MatchAssignment {
@@ -28,12 +34,14 @@ export class LobbyRoom extends Room<{
   metadata: { roomCode: string };
 }> {
   maxClients = 5;
+  maxMessagesPerSecond = 20;
   patchRate = 100;
+  private seed = 0;
 
   async onCreate(options: JoinOptions): Promise<void> {
     this.setState(new LobbyState());
     this.state.roomCode = normalizeRoomCode(options.roomCode) ?? createRoomCode();
-    this.state.seed = randomInt(0, 0x1_0000_0000);
+    this.seed = randomInt(0, 0x1_0000_0000);
     await this.setMetadata({ roomCode: this.state.roomCode });
 
     this.onMessage("lobby.ready", (client, payload: unknown) => {
@@ -52,7 +60,9 @@ export class LobbyRoom extends Room<{
   }
 
   onAuth(_client: Client, options: JoinOptions): boolean {
-    return normalizeRoomCode(options.roomCode) !== null;
+    return normalizeRoomCode(options.roomCode) !== null
+      && options.protocolVersion === MATCH_PROTOCOL_VERSION
+      && options.rulesVersion === RULES_VERSION;
   }
 
   onJoin(client: Client, options: JoinOptions): void {
@@ -123,7 +133,7 @@ export class LobbyRoom extends Room<{
     });
 
     try {
-      const launchToken = issueMatchLaunch({ seed: this.state.seed, participants });
+      const launchToken = issueMatchLaunch({ seed: this.seed, participants });
       let matchRoom;
       try {
         matchRoom = await matchMaker.createRoom(MATCH_ROOM_NAME, { launchToken });
@@ -135,7 +145,11 @@ export class LobbyRoom extends Room<{
         matchRoom,
         [...assignments.values()].map((assignment) => ({
           sessionId: assignment.reservationSessionId,
-          options: { accessToken: assignment.accessToken },
+          options: {
+            accessToken: assignment.accessToken,
+            protocolVersion: MATCH_PROTOCOL_VERSION,
+            rulesVersion: RULES_VERSION,
+          },
           auth: null,
         })),
       );

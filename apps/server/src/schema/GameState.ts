@@ -10,13 +10,11 @@ export class PlayerState extends Schema {
   @type("boolean") ready = false;
   @type("boolean") connected = true;
   @type("boolean") host = false;
-  @type("uint32") lastSequence = 0;
 }
 
 export class LobbyState extends Schema {
   @type("string") roomCode = "";
   @type("string") phase: LobbyPhase = "lobby";
-  @type("uint32") seed = 0;
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
 }
 

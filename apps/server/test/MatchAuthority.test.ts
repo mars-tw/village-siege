@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { MatchAuthority, type MatchParticipant } from "../src/authority/MatchAuthority.js";
+import {
+  MATCH_PROTOCOL_VERSION,
+  RULES_VERSION,
+  applyVisibleSnapshotDelta,
+  type GameCommand,
+  type MatchCommandIntent,
+  type MatchReplicationFrame,
+  type VisibleSnapshot,
+} from "@village-siege/shared";
+import {
+  CANONICAL_HASH_INTERVAL_TICKS,
+  FULL_SNAPSHOT_INTERVAL_TICKS,
+  MatchAuthority,
+  type MatchParticipant,
+} from "../src/authority/MatchAuthority.js";
 
 function participants(count = 2): MatchParticipant[] {
   const villages = ["pinehold", "riverstead", "highcrag"] as const;
@@ -11,8 +25,14 @@ function participants(count = 2): MatchParticipant[] {
   }));
 }
 
+function initialSnapshot(authority: MatchAuthority, playerId: string): VisibleSnapshot {
+  const frame = authority.initialFrames().get(playerId);
+  if (!frame || frame.kind !== "snapshot") throw new Error(`Missing initial snapshot for ${playerId}`);
+  return frame.snapshot;
+}
+
 function ownUnitId(authority: MatchAuthority, playerId: string): string {
-  const entity = authority.initialFrames().get(playerId)?.snapshot.entities.find((candidate) => (
+  const entity = initialSnapshot(authority, playerId).entities.find((candidate) => (
     candidate.ownerId === playerId && candidate.kind === "unit"
   ));
   if (!entity) throw new Error(`Missing visible unit for ${playerId}`);
@@ -20,15 +40,31 @@ function ownUnitId(authority: MatchAuthority, playerId: string): string {
 }
 
 function ownTownCenterId(authority: MatchAuthority, playerId: string): string {
-  const entity = authority.initialFrames().get(playerId)?.snapshot.entities.find((candidate) => (
+  const entity = initialSnapshot(authority, playerId).entities.find((candidate) => (
     candidate.ownerId === playerId && candidate.kind === "building" && candidate.typeId === "townCenter"
   ));
   if (!entity) throw new Error(`Missing visible town center for ${playerId}`);
   return entity.id;
 }
 
-describe("MatchAuthority", () => {
-  it.each([2, 3, 4, 5])("creates a fixed-step authoritative battlefield for %i factions", (count) => {
+function intent(
+  clientCommandSeq: number,
+  command: GameCommand,
+  commandId = `command_${clientCommandSeq.toString().padStart(8, "0")}`,
+  lastServerTickSeen = 0,
+): MatchCommandIntent {
+  return {
+    protocolVersion: MATCH_PROTOCOL_VERSION,
+    rulesVersion: RULES_VERSION,
+    commandId,
+    clientCommandSeq,
+    lastServerTickSeen,
+    command,
+  };
+}
+
+describe("MatchAuthority TASK-019 replication and idempotence", () => {
+  it.each([2, 3, 4, 5])("creates an isolated fixed-step battlefield for %i factions", (count) => {
     const authority = new MatchAuthority(`match-${count}`, 1701 + count, participants(count));
     const initial = authority.initialFrames();
 
@@ -38,98 +74,176 @@ describe("MatchAuthority", () => {
     expect(result.serverTick).toBe(1);
     expect(result.frames.size).toBe(count);
     for (const participant of participants(count)) {
-      const snapshot = result.frames.get(participant.playerId)?.snapshot;
-      expect(snapshot?.recipientPlayerId).toBe(participant.playerId);
-      expect(snapshot?.matchId).toBe(`match-${count}`);
-      expect(snapshot).not.toHaveProperty("aiControllers");
-      expect(snapshot).not.toHaveProperty("players");
+      const frame = result.frames.get(participant.playerId)!;
+      expect(frame.kind).toBe("delta");
+      expect(frame.recipientPlayerId).toBe(participant.playerId);
+      expect(frame.matchId).toBe(`match-${count}`);
+      expect(JSON.stringify(frame)).not.toContain("aiControllers");
+      expect(JSON.stringify(frame)).not.toContain("canonicalCheckpoint");
     }
   });
 
-  it("isolates acknowledgements when two players use the same sequence", () => {
+  it("isolates identical command IDs and sequences between players on one result channel", () => {
     const authority = new MatchAuthority("ack-isolation", 42, participants());
-    expect(authority.submitIntent("player-1", {
-      sequence: 0,
-      clientTick: 0,
-      command: { type: "stop", entityIds: [ownUnitId(authority, "player-1")] },
-    })).toMatchObject({ queued: true });
-    expect(authority.submitIntent("player-2", {
-      sequence: 0,
-      clientTick: 0,
-      command: { type: "stop", entityIds: [ownUnitId(authority, "player-2")] },
-    })).toMatchObject({ queued: true });
+    const sharedId = "shared_command_0001";
+    expect(authority.submitIntent("player-1", intent(0, {
+      type: "stop",
+      entityIds: [ownUnitId(authority, "player-1")],
+    }, sharedId))).toMatchObject({ queued: true });
+    expect(authority.submitIntent("player-2", intent(0, {
+      type: "stop",
+      entityIds: [ownUnitId(authority, "player-2")],
+    }, sharedId))).toMatchObject({ queued: true });
 
     const result = authority.step();
     for (const playerId of ["player-1", "player-2"]) {
-      const frame = result.frames.get(playerId)!;
-      expect(frame.commandResults).toEqual([{ accepted: true, sequence: 0, serverTick: 1 }]);
-      expect(frame.events.filter((event) => event.type === "commandAccepted")).toHaveLength(1);
+      expect(result.commandResults.get(playerId)).toEqual([{
+        commandId: sharedId,
+        clientCommandSeq: 0,
+        accepted: true,
+        serverTick: 1,
+      }]);
+      expect(result.frames.get(playerId)!.events.some((event) => event.type.startsWith("command"))).toBe(false);
     }
   });
 
-  it("constructs ownership server-side and rejects forged entity control", () => {
-    const authority = new MatchAuthority("ownership", 43, participants());
-    const victimId = ownUnitId(authority, "player-2");
-    expect(authority.submitIntent("player-1", {
-      sequence: 0,
-      clientTick: 0,
-      command: { type: "stop", entityIds: [victimId] },
-    })).toMatchObject({ queued: true });
+  it("buffers out-of-order commands and executes them in contiguous sequence order", () => {
+    const authority = new MatchAuthority("reorder", 43, participants());
+    const unitId = ownUnitId(authority, "player-1");
+    expect(authority.submitIntent("player-1", intent(1, {
+      type: "setStance",
+      entityIds: [unitId],
+      stance: "defensive",
+    }))).toMatchObject({ queued: true });
+    expect(authority.step().commandResults.get("player-1")).toBeUndefined();
 
-    const frame = authority.step().frames.get("player-1")!;
-    expect(frame.commandResults).toEqual([{
-      accepted: false,
-      sequence: 0,
-      code: "ENTITY_NOT_OWNED",
-      serverTick: 1,
-    }]);
+    expect(authority.submitIntent("player-1", intent(0, { type: "stop", entityIds: [unitId] }, "command_00000000", 1)))
+      .toMatchObject({ queued: true });
+    expect(authority.step().commandResults.get("player-1")?.map((result) => result.clientCommandSeq)).toEqual([0, 1]);
   });
 
-  it("never reopens a received sequence after a same-tick semantic rejection", () => {
-    const authority = new MatchAuthority("monotonic-received", 44, participants());
+  it("deduplicates pending and completed commands and replays the immutable result", () => {
+    const authority = new MatchAuthority("dedup", 44, participants());
     const producerId = ownTownCenterId(authority, "player-1");
-    expect(authority.submitIntent("player-1", {
-      sequence: 1,
-      clientTick: 0,
-      command: { type: "train", producerId, unitType: "villager", count: 5 },
-    })).toMatchObject({ queued: true });
-    expect(authority.submitIntent("player-1", {
-      sequence: 2,
-      clientTick: 0,
-      command: { type: "train", producerId, unitType: "villager", count: 3 },
-    })).toMatchObject({ queued: true });
+    const command = intent(0, { type: "train", producerId, unitType: "villager", count: 1 });
+    const foodBefore = initialSnapshot(authority, "player-1").wallet.food;
 
-    const results = authority.step().frames.get("player-1")!.commandResults;
-    expect(results[0]).toMatchObject({ accepted: true, sequence: 1 });
-    expect(results[1]).toMatchObject({ accepted: false, sequence: 2 });
-    expect(authority.submitIntent("player-1", {
-      sequence: 2,
-      clientTick: 1,
-      command: { type: "stop", entityIds: [ownUnitId(authority, "player-1")] },
-    })).toEqual({ queued: false, sequence: 2, code: "STALE_OR_DUPLICATE_SEQUENCE" });
+    expect(authority.submitIntent("player-1", command)).toMatchObject({ queued: true, duplicate: false });
+    expect(authority.submitIntent("player-1", command)).toMatchObject({ queued: true, duplicate: true });
+    const firstResult = authority.step().commandResults.get("player-1")![0]!;
+    expect(firstResult.accepted).toBe(true);
+    expect(authority.submitIntent("player-1", command)).toEqual({
+      queued: false,
+      replayed: true,
+      result: firstResult,
+    });
+    expect(initialSnapshot(authority, "player-1").wallet.food).toBe(foodBefore - 50);
   });
 
-  it("rejects strict payload extras and bounds each player's next-tick queue", () => {
-    const authority = new MatchAuthority("bounded", 45, participants());
+  it("rejects command-ID payload collisions and same-sequence different IDs without mutation", () => {
+    const authority = new MatchAuthority("collision", 45, participants());
+    const unitId = ownUnitId(authority, "player-1");
+    const original = intent(0, { type: "stop", entityIds: [unitId] });
+    expect(authority.submitIntent("player-1", original)).toMatchObject({ queued: true });
+    expect(authority.submitIntent("player-1", {
+      ...original,
+      command: { type: "setStance", entityIds: [unitId], stance: "defensive" },
+    })).toMatchObject({ queued: false, result: { code: "COMMAND_ID_CONFLICT" } });
+    expect(authority.submitIntent("player-1", intent(0, { type: "stop", entityIds: [unitId] }, "different_command_01")))
+      .toMatchObject({ queued: false, result: { code: "COMMAND_ID_CONFLICT" } });
+    expect(authority.step().commandResults.get("player-1")).toHaveLength(1);
+  });
+
+  it("replays semantic rejection without revalidating it against a later world", () => {
+    const authority = new MatchAuthority("reject-replay", 46, participants());
+    const command = intent(0, {
+      type: "stop",
+      entityIds: [ownUnitId(authority, "player-2")],
+    });
+    authority.submitIntent("player-1", command);
+    const rejected = authority.step().commandResults.get("player-1")![0]!;
+    expect(rejected).toMatchObject({ accepted: false, code: "ENTITY_NOT_OWNED" });
+    authority.step();
+    expect(authority.submitIntent("player-1", command)).toEqual({ queued: false, replayed: true, result: rejected });
+  });
+
+  it("replicates a terminal surrender on a strictly newer server tick", () => {
+    const authority = new MatchAuthority("terminal-revision", 50, participants());
+    const base = initialSnapshot(authority, "player-1");
+    expect(authority.submitIntent("player-1", intent(0, { type: "surrender" }))).toMatchObject({ queued: true });
+
+    const result = authority.step();
+    const frame = result.frames.get("player-1")!;
+    expect(result.serverTick).toBe(base.serverTick + 1);
+    expect(result.phase).toBe("finished");
+    expect(frame.kind).toBe("snapshot");
+    if (frame.kind === "snapshot") {
+      expect(frame.snapshot.serverTick).toBe(base.serverTick + 1);
+      expect(frame.snapshot.victory).toMatchObject({ finishReason: "surrender", finishedAtTick: 1 });
+    }
+  });
+
+  it("emits tick deltas, five-second snapshots and server-private two-second hashes", () => {
+    const authority = new MatchAuthority("cadence", 47, participants());
+    let view = initialSnapshot(authority, "player-1");
+    const checkpointTicks: number[] = [];
+
+    for (let tick = 1; tick <= FULL_SNAPSHOT_INTERVAL_TICKS + 1; tick += 1) {
+      const result = authority.step();
+      const frame = result.frames.get("player-1")!;
+      if (tick % CANONICAL_HASH_INTERVAL_TICKS === 0) {
+        expect(result.canonicalCheckpoint).toMatchObject({ serverTick: tick, algorithm: "fnv1a-32" });
+        checkpointTicks.push(tick);
+      } else {
+        expect(result.canonicalCheckpoint).toBeUndefined();
+      }
+      expect(JSON.stringify(frame)).not.toContain("canonical");
+      if (tick === FULL_SNAPSHOT_INTERVAL_TICKS) {
+        expect(frame.kind).toBe("snapshot");
+        if (frame.kind === "snapshot") view = frame.snapshot;
+      } else {
+        expect(frame.kind).toBe("delta");
+        if (frame.kind === "delta") view = applyVisibleSnapshotDelta(view, frame.delta);
+      }
+      expect(view.serverTick).toBe(tick);
+    }
+    expect(checkpointTicks).toEqual([20, 40]);
+  });
+
+  it("classifies version failures, rejects authority-field injection and bounds the reorder window", () => {
+    const authority = new MatchAuthority("bounded", 48, participants());
     const unitId = ownUnitId(authority, "player-1");
     expect(authority.submitIntent("player-1", {
-      sequence: 0,
-      clientTick: 0,
-      command: { type: "stop", entityIds: [unitId] },
-      playerId: "player-2",
-    })).toEqual({ queued: false, sequence: 0, code: "INVALID_PAYLOAD" });
-
-    for (let sequence = 0; sequence < 16; sequence += 1) {
-      expect(authority.submitIntent("player-1", {
-        sequence,
-        clientTick: 0,
-        command: { type: "stop", entityIds: [unitId] },
-      })).toMatchObject({ queued: true });
-    }
+      ...intent(0, { type: "stop", entityIds: [unitId] }),
+      protocolVersion: "old-protocol",
+    })).toMatchObject({ queued: false, result: { code: "PROTOCOL_MISMATCH" } });
     expect(authority.submitIntent("player-1", {
-      sequence: 16,
-      clientTick: 0,
-      command: { type: "stop", entityIds: [unitId] },
-    })).toEqual({ queued: false, sequence: 16, code: "RATE_LIMITED" });
+      ...intent(0, { type: "stop", entityIds: [unitId] }),
+      playerId: "player-2",
+    })).toMatchObject({ queued: false, result: { code: "INVALID_PAYLOAD" } });
+    for (let sequence = 0; sequence < 16; sequence += 1) {
+      expect(authority.submitIntent("player-1", intent(sequence, {
+        type: "stop",
+        entityIds: [unitId],
+      }))).toMatchObject({ queued: true });
+    }
+    const retryable = intent(16, { type: "stop", entityIds: [unitId] });
+    expect(authority.submitIntent("player-1", retryable))
+      .toMatchObject({ queued: false, result: { code: "RATE_LIMITED" } });
+    authority.step();
+    expect(authority.submitIntent("player-1", retryable)).toMatchObject({ queued: true });
+    expect(authority.step().commandResults.get("player-1")).toEqual([
+      expect.objectContaining({ commandId: retryable.commandId, clientCommandSeq: 16, accepted: true }),
+    ]);
+  });
+
+  it("force-resync always returns only the requested recipient's full filtered snapshot", () => {
+    const authority = new MatchAuthority("resync", 49, participants());
+    authority.initialFrames();
+    authority.step();
+    const frame: MatchReplicationFrame = authority.forceSnapshotFrame("player-1");
+    expect(frame.kind).toBe("snapshot");
+    expect(frame.recipientPlayerId).toBe("player-1");
+    expect(JSON.stringify(frame)).not.toContain(ownTownCenterId(authority, "player-2"));
   });
 });

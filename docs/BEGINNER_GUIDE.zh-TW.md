@@ -4,6 +4,8 @@
 
 只想直接遊玩，請開啟 **[GitHub Pages 公開單機版](https://mars-tw.github.io/village-siege/)**；想研究、修改或回報問題可前往 **[GitHub 原始碼](https://github.com/mars-tw/village-siege)**。後面的本機安裝步驟主要提供給開發者。
 
+目前公開網站可完整遊玩單機。多人底層已完成版本握手、權威命令去重、10 Hz 差異同步與完整 Snapshot 恢復，但線上戰場畫面與 120 秒斷線續戰仍在施工，所以「多人連線」目前是技術預覽，不應視為可完成一場戰役的正式模式。
+
 ![Village Siege 採集、兵營與產兵戰場](../output/playwright/archer-trained.png)
 
 ## 一、五分鐘開始單機遊戲

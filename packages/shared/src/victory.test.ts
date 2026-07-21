@@ -137,6 +137,17 @@ describe("deterministic victory policies", () => {
     expect(hashMatchState(first.state)).toBe(hashMatchState(second.state));
   });
 
+  it("consumes one authoritative tick when a surrender finishes a stepped match", () => {
+    const initial = createInitialState({ seed: 817 });
+    const result = stepSimulation(initial, [envelope(initial, "player-1", 0, { type: "surrender" })], 1);
+
+    expect(result.state.tick).toBe(1);
+    expect(result.state.victory.finishedAtTick).toBe(1);
+    expect(result.state.victory.teams.find((team) => team.teamId === "team-1")?.eliminatedAtTick).toBe(1);
+    expect(result.events).toContainEqual(expect.objectContaining({ type: "matchFinished", finishedAtTick: 1 }));
+    expect(result.events).toContainEqual(expect.objectContaining({ type: "teamEliminated", eliminatedAtTick: 1 }));
+  });
+
   it("keeps a surrendered ally's units, towers, queues and projectiles inactive while the team continues", () => {
     let state = createInitialState({
       seed: 808,

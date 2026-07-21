@@ -2,7 +2,7 @@
 
 Date: 2026-07-20
 
-Status: in progress; TASK-018 server authority is implemented, while protocol recovery, online rendering and full multiplayer E2E remain TASK-019 through TASK-022.
+Status: in progress; TASK-019 versioned delta replication is implemented, while durable recovery, online rendering and full multiplayer E2E remain TASK-020 through TASK-022.
 
 ## Product boundary
 
@@ -28,7 +28,7 @@ Colyseus gateway
 
 The browser never commits resources, damage, training, research, visibility or victory during an online match. `packages/shared` contains deterministic rules used by the server and offline mode. The online client may predict cursors, route previews and presentation timing only.
 
-The current `VillageAssaultRuntime` intentionally owns a complete `MatchState` because it is the offline single-player authority. It is not a secrecy or anti-cheat boundary. The future online transport must never instantiate that authority in a player browser: it may deliver only the recipient's `VisibleSnapshot`, projected events and command acknowledgements.
+The current `VillageAssaultRuntime` intentionally owns a complete `MatchState` because it is the offline single-player authority. It is not a secrecy or anti-cheat boundary. The online transport never instantiates that authority in a player browser: it delivers only the recipient's `VisibleSnapshot`, filtered deltas, projected world events and correlated command acknowledgements.
 
 ## Versioned command envelope
 
@@ -38,8 +38,6 @@ Every online intent shall include:
 interface OnlineCommandEnvelope {
   protocolVersion: string;
   rulesVersion: string;
-  matchId: string;
-  playerId: string;
   commandId: string;
   clientCommandSeq: number;
   lastServerTickSeen: number;
@@ -47,25 +45,27 @@ interface OnlineCommandEnvelope {
 }
 ```
 
-The server rejects unsupported protocol or rules versions before joining a match. `commandId` and `clientCommandSeq` provide idempotence and total ordering per player. A retry of the same command cannot spend resources or enqueue work twice.
+The browser does not supply trusted `matchId` or `playerId`; the match room derives both from its authenticated seat and constructs the internal shared-simulation envelope. Lobby admission and a client-initiated match hello both require the exact supported protocol/rules tuple before simulation starts. `commandId` and `clientCommandSeq` provide idempotence and total ordering per player. A bounded reorder window waits for missing earlier sequences. An identical pending retry is not queued again, an identical completed retry replays the immutable result, and an ID/payload collision is rejected without world mutation.
 
 ## Simulation and replication
 
 - Server simulation: fixed 10 Hz, using the shared `TICK_MILLISECONDS = 100` rules clock. Changing this rate requires a rules-version migration because every economy, movement, combat and victory duration is expressed in simulation ticks.
-- TASK-018 replication: a complete recipient-filtered frame at 10 Hz. TASK-019 replaces this temporary transport with filtered deltas at 10 Hz plus periodic full snapshots.
+- Recipient-filtered deltas: 10 Hz, built only by comparing two consecutive `VisibleSnapshot` values for the same player.
 - Full player-filtered snapshot: every 5 seconds and on reconnect.
-- Canonical state hash: every 2 seconds. The current FNV-1a checksum is a deterministic change/desync hint, not a cryptographic authentication or security proof; authenticated online transport requires a server-held integrity mechanism.
+- Canonical state hash: every 2 seconds inside the server boundary. The current FNV-1a checksum is a deterministic change/desync hint, not a cryptographic authentication or security proof, and is not sent to recipients because it would expose a hidden-state change oracle they cannot verify.
 - Reconnect lease: 120 seconds.
 - Determinism: integer or fixed-point values, seeded random state, stable entity IDs and explicit sorted iteration.
-- Hash mismatch: stop delta application and request a full server snapshot; never accept a client state upload as truth.
+- Visible checksum/base-tick mismatch: atomically reject the delta, freeze further delta application and request one full recipient snapshot; never accept a client state upload as truth.
 
 Owner-private recovery snapshots include the complete canonical player/team state, orders, queues, AI authority and PRNG state. Browser recipients instead receive only `VisibleSnapshot`: their own wallet/progression plus visibility-filtered public entities, projectiles, stale sightings and victory state. Fog filtering occurs before serialization, so hidden live enemy data never reaches the browser.
 
-TASK-018 splits `village_siege_lobby` from private `village_siege_match` rooms. A lobby consumes a process-private launch capability, uses distinct 32-byte internal tokens to reserve every participant seat server-side, and sends each browser only its own Colyseus reservation plus stable gameplay player ID. Reserving the complete roster locks the match before its room ID can be abused through public matchmaking. The match room stores canonical `MatchState` only inside `MatchAuthority`; its Colyseus schema exposes only match ID, phase and server tick. Clients submit strict `{ sequence, clientTick, command }` intents, while the server supplies trusted match/player identities, batches them into one shared fixed tick and privately sends each recipient's projected frame. Same numeric sequences from different players cannot cross-route acknowledgements, and a received queued sequence never becomes reusable after later semantic rejection.
+TASK-018 splits `village_siege_lobby` from private `village_siege_match` rooms. A lobby consumes a process-private launch capability, uses distinct 32-byte internal tokens to reserve every participant seat server-side, and sends each browser only its own Colyseus reservation plus stable gameplay player ID. Reserving the complete roster locks the match before its room ID can be abused through public matchmaking. The match room stores canonical `MatchState` only inside `MatchAuthority`; its Colyseus schema exposes only match ID, phase and server tick.
+
+TASK-019 adds `village-siege-network/1` negotiation, strict command IDs, a per-player reorder/dedup ledger, one dedicated command-result channel, 10 Hz filtered deltas, five-second full snapshots, resync requests and server-private two-second canonical checkpoints. The lobby seed is no longer public schema. Each delta names its exact base tick and recipient-visible checksum; the shared client store applies a candidate copy and swaps it in only after reconstructing the server checksum. Snapshot checksums hash JSON-wire data, so optional `undefined` fields cannot create a browser/server checksum split.
 
 ## Versioned save, journal and replay contract
 
-Rules version `village-siege/0.13.0` defines three owner-private persistence documents: a complete authoritative save snapshot, an ordered tick command journal and a deterministic replay that binds an initial snapshot to its journal. Each document declares its own `schemaVersion` plus the command `protocolVersion` and simulation `rulesVersion`. Import accepts data only when all three layers exactly match a supported tuple; missing, older, newer or mixed versions fail explicitly before any live runtime state is replaced. Compatibility is never inferred from package SemVer and v1 performs no best-effort migration.
+Rules version `village-siege/0.14.0` defines three owner-private persistence documents: a complete authoritative save snapshot, an ordered tick command journal and a deterministic replay that binds an initial snapshot to its journal. Each document declares its own `schemaVersion` plus the command `protocolVersion` and simulation `rulesVersion`. Import accepts data only when all three layers exactly match a supported tuple; missing, older, newer or mixed versions fail explicitly before any live runtime state is replaced. Compatibility is never inferred from package SemVer and v1 performs no best-effort migration.
 
 The snapshot preserves the complete canonical `MatchState`, including server tick, PRNG state, AI authority and memory, fog authority, hidden entities, production queues, projectiles and victory progress. The operation journal preserves accepted human and AI commands, the exact conditionally committed private AI authority, and each fixed-tick advance in authoritative order. Replay re-runs every recorded command through the validator, installs AI authority only at its recorded commit point, advances the shared simulation one fixed tick at a time and checks the pre/post hash chain. It deliberately does not re-run the AI reducer: this proves deterministic recovery from the recorded private authority, but it is not independent evidence that the authority was originally produced by the claimed observation, PRNG and reducer. Rejected commands are not replay operations, while final runtime metadata preserves consumed local sequence gaps, the sub-tick accumulator and deterministic AI budget. A domain-separated continuation hash binds those four runtime fields to the actual final canonical state hash. Import verifies document shape, match identity, complete AI/entity discriminated state, monotonic operation order, command results and hash checkpoints atomically; any mismatch rejects the entire load without partially mutating the active match.
 
@@ -111,7 +111,7 @@ Defeat rewards are deterministic and divided across active members of the credit
 
 Beginning with rules version `village-siege/0.11.0`, every configured AI controller is stored in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator.
 
-The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Rules version `village-siege/0.13.0` carries this private authority through the versioned save and deterministic replay contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
+The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Current rules version `village-siege/0.14.0` carries this private authority through the versioned save and deterministic replay contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
 
 AI observation is an owner-private view assembled from current fog authority. Mobile enemy memories expire after a fixed lifetime; static enemy topology persists only while the authoritative last-sighting record remains, and is removed when its footprint is re-scouted empty. Hidden unit, gate, wall or tower mutations cannot change planner output. Human `VisibleSnapshot` data never contains AI authority state, internal thresholds, target paths, force counts or wave numbers.
 
@@ -127,7 +127,7 @@ Every ordered command in one server-tick batch is applied before victory is eval
 
 Walls, gates, rubble, projectiles and orphaned construction sites do not preserve strategic presence. An incomplete site counts only while a living active builder is assigned to it. Surrendered or eliminated players cannot move, attack, produce, occupy objectives or preserve a victory condition, even when an allied player keeps their team in the match. A terminal result atomically records outcome, sorted winners, causal reason, trigger set, score and finish tick; it emits `matchFinished` exactly once and rejects later commands without mutation.
 
-The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. TASK-018 now supplies the Colyseus fixed-step battlefield and recipient-safe command routing; protocol negotiation/deltas, durable recovery, online Phaser rendering and full two-client result synchronization remain `TASK-019` through `TASK-022`. Versioned snapshot and command-journal replay belong to the owner-private TASK-016 boundary and are not evidence that those remaining online-play gates have passed.
+The local runtime executes this shared authority for single-player. The Phaser scene renders only the public victory snapshot, keeps result text persistent in the existing fixed HUD, announces the complete result assertively and exposes replay download beside the rematch and return controls without adding a modal. TASK-019 now supplies exact negotiation, idempotent commands and verified filtered delta transport; durable recovery, online Phaser rendering and full two-client result synchronization remain `TASK-020` through `TASK-022`. Versioned snapshot and command-journal replay belong to the owner-private TASK-016 boundary and are not evidence that those remaining online-play gates have passed.
 
 ## Tactical combat contract
 

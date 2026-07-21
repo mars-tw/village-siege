@@ -1,11 +1,20 @@
 import { randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { Client } from "@colyseus/sdk";
+import {
+  MATCH_PROTOCOL_VERSION,
+  RULES_VERSION,
+  applyVisibleSnapshotDelta,
+  isMatchReplicationFrame,
+  isMatchServerHello,
+  verifyVisibleSnapshotChecksum,
+} from "@village-siege/shared";
 
 const SERVER_URL = process.env.COLYSEUS_URL ?? "http://localhost:2567";
 const LOBBY_ROOM_NAME = "village_siege_lobby";
 const MATCH_ROOM_NAME = "village_siege_match";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const VERSION_OFFER = { protocolVersion: MATCH_PROTOCOL_VERSION, rulesVersion: RULES_VERSION };
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -65,6 +74,84 @@ function createRoomCode() {
   return [...randomBytes(6)].map((byte) => ALPHABET[byte & 31]).join("");
 }
 
+function createRecipientStream(room, assignment) {
+  let hello;
+  let view;
+  let latestFrame;
+  let streamError;
+  let sawDelta = false;
+  let lastSnapshotTick = -1;
+  let dropNextDelta = false;
+  let resyncNeeded = false;
+
+  room.onMessage("match.hello", (payload) => {
+    if (!isMatchServerHello(payload)
+      || payload.matchId !== room.roomId
+      || payload.recipientPlayerId !== assignment.playerId
+      || payload.protocolVersion !== MATCH_PROTOCOL_VERSION
+      || payload.rulesVersion !== RULES_VERSION) {
+      streamError = new Error("Invalid match hello tuple.");
+      return;
+    }
+    hello = payload;
+  });
+  room.onMessage("match.frame", (payload) => {
+    if (!isMatchReplicationFrame(payload)
+      || payload.matchId !== room.roomId
+      || payload.recipientPlayerId !== assignment.playerId
+      || payload.protocolVersion !== MATCH_PROTOCOL_VERSION
+      || payload.rulesVersion !== RULES_VERSION) {
+      streamError = new Error("Invalid recipient replication frame.");
+      return;
+    }
+    try {
+      if (payload.kind === "snapshot") {
+        if (!verifyVisibleSnapshotChecksum(payload.snapshot)) throw new Error("Snapshot checksum mismatch.");
+        view = payload.snapshot;
+        lastSnapshotTick = payload.serverTick;
+        resyncNeeded = false;
+      } else {
+        sawDelta = true;
+        if (dropNextDelta) {
+          dropNextDelta = false;
+          return;
+        }
+        if (!view || resyncNeeded) return;
+        try {
+          view = applyVisibleSnapshotDelta(view, payload.delta);
+        } catch {
+          resyncNeeded = true;
+          return;
+        }
+      }
+      latestFrame = payload;
+    } catch (error) {
+      streamError = error instanceof Error ? error : new Error(String(error));
+    }
+  });
+  return {
+    get hello() { return hello; },
+    get view() { return view; },
+    get latestFrame() { return latestFrame; },
+    get sawDelta() { return sawDelta; },
+    get lastSnapshotTick() { return lastSnapshotTick; },
+    get resyncNeeded() { return resyncNeeded; },
+    assertHealthy() { if (streamError) throw streamError; },
+    dropOneDelta() { dropNextDelta = true; },
+  };
+}
+
+function onlineIntent(commandId, clientCommandSeq, view, command) {
+  return {
+    protocolVersion: MATCH_PROTOCOL_VERSION,
+    rulesVersion: RULES_VERSION,
+    commandId,
+    clientCommandSeq,
+    lastServerTickSeen: view.serverTick,
+    command,
+  };
+}
+
 export async function runMultiplayerSmoke() {
   const hostClient = new Client(SERVER_URL);
   const guestClient = new Client(SERVER_URL);
@@ -80,11 +167,13 @@ export async function runMultiplayerSmoke() {
       roomCode,
       playerName: "Host smoke test",
       villageId: "pinehold",
+      ...VERSION_OFFER,
     });
     guestLobby = await guestClient.join(LOBBY_ROOM_NAME, {
       roomCode,
       playerName: "Guest smoke test",
       villageId: "riverstead",
+      ...VERSION_OFFER,
     });
 
     await waitFor(() => hostLobby.state.players.size === 2, "two-player lobby roster");
@@ -119,94 +208,133 @@ export async function runMultiplayerSmoke() {
     await expectUnreservedJoinRejected(hostAssignment.reservation.roomId);
 
     hostMatch = await hostClient.consumeSeatReservation(hostAssignment.reservation);
-    let hostFrame;
-    hostMatch.onMessage("match.frame", (frame) => { hostFrame = frame; });
+    const hostStream = createRecipientStream(hostMatch, hostAssignment);
     guestMatch = await guestClient.consumeSeatReservation(guestAssignment.reservation);
-    let guestFrame;
-    guestMatch.onMessage("match.frame", (frame) => { guestFrame = frame; });
-    await waitFor(
-      () => hostFrame?.snapshot?.serverTick >= 2 && guestFrame?.snapshot?.serverTick >= 2,
-      "recipient authoritative frames",
-    );
+    const guestStream = createRecipientStream(guestMatch, guestAssignment);
+    hostMatch.send("match.hello", VERSION_OFFER);
+    guestMatch.send("match.hello", VERSION_OFFER);
+    await waitFor(() => {
+      hostStream.assertHealthy();
+      guestStream.assertHealthy();
+      return hostStream.hello && guestStream.hello && hostStream.view && guestStream.view;
+    }, "protocol hello and initial filtered snapshots");
+    await waitFor(() => hostStream.view.serverTick >= 2 && guestStream.view.serverTick >= 2, "recipient delta streams");
 
-    assertSafeFrame(hostFrame, hostAssignment, hostMatch.roomId);
-    assertSafeFrame(guestFrame, guestAssignment, guestMatch.roomId);
-    const guestTownId = guestFrame.snapshot.entities.find((entity) => (
+    assertSafeView(hostStream.view, hostAssignment, hostMatch.roomId);
+    assertSafeView(guestStream.view, guestAssignment, guestMatch.roomId);
+    const guestTownId = guestStream.view.entities.find((entity) => (
       entity.ownerId === guestAssignment.playerId && entity.kind === "building" && entity.typeId === "townCenter"
     ))?.id;
     if (!guestTownId) throw new Error("Guest did not receive its own town center.");
-    if (hostFrame.snapshot.entities.some((entity) => entity.id === guestTownId)) {
+    if (hostStream.view.entities.some((entity) => entity.id === guestTownId)) {
       throw new Error("Host frame leaked the guest town center through fog.");
     }
 
-    const hostUnitId = ownEntityId(hostFrame, hostAssignment.playerId, "unit");
-    const guestUnitId = ownEntityId(guestFrame, guestAssignment.playerId, "unit");
+    hostStream.dropOneDelta();
+    await waitFor(() => hostStream.resyncNeeded, "intentional delta gap detection");
+    await expectMessage(
+      hostMatch,
+      "match.frame",
+      (payload) => payload?.kind === "snapshot" && payload?.recipientPlayerId === hostAssignment.playerId,
+      "full snapshot resynchronization",
+      () => hostMatch.send("match.syncRequest", VERSION_OFFER),
+    );
+    await waitFor(() => !hostStream.resyncNeeded, "resynchronized host stream");
+
+    const hostUnitId = ownEntityId(hostStream.view, hostAssignment.playerId, "unit");
+    const guestUnitId = ownEntityId(guestStream.view, guestAssignment.playerId, "unit");
     const [hostAck, guestAck] = await Promise.all([
       expectCommandResult(
         hostMatch,
-        (payload) => payload?.sequence === 0,
+        (payload) => payload?.commandId === "host_stop_000001",
         "host sequence-zero acknowledgement",
-        () => hostMatch.send("match.command", {
-          sequence: 0,
-          clientTick: hostFrame.snapshot.serverTick,
-          command: { type: "stop", entityIds: [hostUnitId] },
-        }),
+        () => hostMatch.send("match.command", onlineIntent(
+          "host_stop_000001",
+          0,
+          hostStream.view,
+          { type: "stop", entityIds: [hostUnitId] },
+        )),
       ),
       expectCommandResult(
         guestMatch,
-        (payload) => payload?.sequence === 0,
+        (payload) => payload?.commandId === "guest_stop_00001",
         "guest sequence-zero acknowledgement",
-        () => guestMatch.send("match.command", {
-          sequence: 0,
-          clientTick: guestFrame.snapshot.serverTick,
-          command: { type: "stop", entityIds: [guestUnitId] },
-        }),
+        () => guestMatch.send("match.command", onlineIntent(
+          "guest_stop_00001",
+          0,
+          guestStream.view,
+          { type: "stop", entityIds: [guestUnitId] },
+        )),
       ),
     ]);
     if (!hostAck.accepted || !guestAck.accepted) throw new Error("Valid same-sequence commands were rejected.");
 
     const forged = await expectCommandResult(
       hostMatch,
-      (payload) => payload?.sequence === 1,
+      (payload) => payload?.commandId === "host_forge_00001",
       "forged ownership rejection",
-      () => hostMatch.send("match.command", {
-        sequence: 1,
-        clientTick: hostFrame.snapshot.serverTick,
-        command: { type: "stop", entityIds: [guestUnitId] },
-      }),
+      () => hostMatch.send("match.command", onlineIntent(
+        "host_forge_00001",
+        1,
+        hostStream.view,
+        { type: "stop", entityIds: [guestUnitId] },
+      )),
     );
     if (forged.accepted !== false || forged.code !== "ENTITY_NOT_OWNED") {
       throw new Error(`Expected ENTITY_NOT_OWNED, received ${JSON.stringify(forged)}.`);
     }
 
+    const invalidPayload = {
+      ...onlineIntent(
+        "guest_bad_000001",
+        1,
+        guestStream.view,
+        { type: "stop", entityIds: [guestUnitId] },
+      ),
+      playerId: hostAssignment.playerId,
+    };
     const invalid = await expectCommandResult(
       guestMatch,
-      (payload) => payload?.code === "INVALID_PAYLOAD",
+      (payload) => payload?.commandId === "guest_bad_000001",
       "authority field injection rejection",
-      () => guestMatch.send("match.command", {
-        sequence: 1,
-        clientTick: guestFrame.snapshot.serverTick,
-        playerId: hostAssignment.playerId,
-        command: { type: "stop", entityIds: [guestUnitId] },
-      }),
+      () => guestMatch.send("match.command", invalidPayload),
     );
-    if (invalid.accepted !== false) throw new Error("Injected authority fields were not rejected.");
+    if (invalid.accepted !== false || invalid.code !== "INVALID_PAYLOAD") {
+      throw new Error(`Expected INVALID_PAYLOAD, received ${JSON.stringify(invalid)}.`);
+    }
 
-    const hostTownId = ownTownCenterId(hostFrame, hostAssignment.playerId);
-    const foodBefore = hostFrame.snapshot.wallet.food;
+    const hostTownId = ownTownCenterId(hostStream.view, hostAssignment.playerId);
+    const foodBefore = hostStream.view.wallet.food;
+    const trainIntent = onlineIntent(
+      "host_train_00001",
+      2,
+      hostStream.view,
+      { type: "train", producerId: hostTownId, unitType: "villager", count: 1 },
+    );
     const trained = await expectCommandResult(
       hostMatch,
-      (payload) => payload?.sequence === 2,
+      (payload) => payload?.commandId === trainIntent.commandId,
       "server-side training acceptance",
-      () => hostMatch.send("match.command", {
-        sequence: 2,
-        clientTick: hostFrame.snapshot.serverTick,
-        command: { type: "train", producerId: hostTownId, unitType: "villager", count: 1 },
-      }),
+      () => hostMatch.send("match.command", trainIntent),
     );
     if (!trained.accepted) throw new Error(`Training was rejected: ${JSON.stringify(trained)}.`);
-    await waitFor(() => hostFrame.snapshot.wallet.food < foodBefore, "authoritative resource spend");
+    await waitFor(() => hostStream.view.wallet.food === foodBefore - 50, "authoritative resource spend");
+    const foodAfter = hostStream.view.wallet.food;
+    const replayed = await expectCommandResult(
+      hostMatch,
+      (payload) => payload?.commandId === trainIntent.commandId,
+      "deduplicated training result replay",
+      () => hostMatch.send("match.command", trainIntent),
+    );
+    if (JSON.stringify(replayed) !== JSON.stringify(trained)) throw new Error("Duplicate command did not replay the immutable result.");
+    await sleep(250);
+    if (hostStream.view.wallet.food !== foodAfter) throw new Error("Duplicate training command spent resources twice.");
 
+    await waitFor(() => hostStream.lastSnapshotTick >= 50 && guestStream.lastSnapshotTick >= 50, "five-second periodic snapshots", 10_000);
+    if (!hostStream.sawDelta || !guestStream.sawDelta) throw new Error("Recipient streams did not deliver filtered deltas.");
+
+    const lobbyStateKeys = Object.keys(hostLobby.state.toJSON()).sort();
+    if (lobbyStateKeys.includes("seed")) throw new Error("Lobby schema exposed the private match seed.");
     const stateKeys = Object.keys(hostMatch.state.toJSON()).sort();
     if (JSON.stringify(stateKeys) !== JSON.stringify(["matchId", "phase", "serverTick"])) {
       throw new Error(`Match schema exposed unexpected authority fields: ${stateKeys.join(", ")}`);
@@ -218,18 +346,21 @@ export async function runMultiplayerSmoke() {
       lobbyRoomId: hostLobby.roomId,
       matchRoomId: hostMatch.roomId,
       players: 2,
-      serverTick: hostFrame.snapshot.serverTick,
+      serverTick: hostStream.view.serverTick,
       checks: {
-        publicMatchCreationRejected: true,
+        exactVersionNegotiation: true,
         splitRooms: true,
         privateSeatHandoff: true,
         unreservedSeatTheftRejected: true,
-        recipientFilteredFrames: true,
+        filteredDeltaChain: true,
+        deltaGapFullResync: true,
+        fiveSecondSnapshot: hostStream.lastSnapshotTick,
         sameSequenceAckIsolation: true,
         forgedOwnershipRejected: forged.code,
         injectedAuthorityRejected: invalid.code,
-        authoritativeResourceSpend: foodBefore - hostFrame.snapshot.wallet.food,
+        duplicateCommandAppliedOnce: foodBefore - hostStream.view.wallet.food,
         canonicalStateNotSerialized: true,
+        privateSeedNotSerialized: true,
       },
     };
     console.log(JSON.stringify(result));
@@ -245,7 +376,7 @@ export async function runMultiplayerSmoke() {
 async function expectPublicMatchCreationRejected() {
   const client = new Client(SERVER_URL);
   try {
-    const room = await client.create(MATCH_ROOM_NAME, {});
+    const room = await client.create(MATCH_ROOM_NAME, VERSION_OFFER);
     await room.leave().catch(() => undefined);
     throw new Error("Public client created an authoritative match without a launch capability.");
   } catch (error) {
@@ -259,7 +390,7 @@ async function expectPublicMatchCreationRejected() {
 async function expectUnreservedJoinRejected(roomId) {
   const client = new Client(SERVER_URL);
   try {
-    const room = await client.joinById(roomId, {});
+    const room = await client.joinById(roomId, VERSION_OFFER);
     await room.leave().catch(() => undefined);
     throw new Error("Unreserved client entered the locked authoritative match.");
   } catch (error) {
@@ -271,23 +402,24 @@ async function expectUnreservedJoinRejected(roomId) {
   }
 }
 
-function assertSafeFrame(frame, assignment, matchId) {
-  if (frame.snapshot.matchId !== matchId) throw new Error("Frame match identity mismatch.");
-  if (frame.snapshot.recipientPlayerId !== assignment.playerId) throw new Error("Frame recipient identity mismatch.");
-  const serialized = JSON.stringify(frame);
-  for (const forbidden of ["accessToken", "aiControllers", "productionQueue", "randomState"]) {
+function assertSafeView(view, assignment, matchId) {
+  if (view.matchId !== matchId) throw new Error("Frame match identity mismatch.");
+  if (view.recipientPlayerId !== assignment.playerId) throw new Error("Frame recipient identity mismatch.");
+  if (!verifyVisibleSnapshotChecksum(view)) throw new Error("Visible snapshot checksum mismatch.");
+  const serialized = JSON.stringify(view);
+  for (const forbidden of ["accessToken", "aiControllers", "productionQueue", "randomState", "canonicalHash"]) {
     if (serialized.includes(forbidden)) throw new Error(`Recipient frame leaked ${forbidden}.`);
   }
 }
 
-function ownEntityId(frame, playerId, kind) {
-  const entity = frame.snapshot.entities.find((candidate) => candidate.ownerId === playerId && candidate.kind === kind);
+function ownEntityId(view, playerId, kind) {
+  const entity = view.entities.find((candidate) => candidate.ownerId === playerId && candidate.kind === kind);
   if (!entity) throw new Error(`Missing owned ${kind} for ${playerId}.`);
   return entity.id;
 }
 
-function ownTownCenterId(frame, playerId) {
-  const entity = frame.snapshot.entities.find((candidate) => (
+function ownTownCenterId(view, playerId) {
+  const entity = view.entities.find((candidate) => (
     candidate.ownerId === playerId && candidate.kind === "building" && candidate.typeId === "townCenter"
   ));
   if (!entity) throw new Error(`Missing owned town center for ${playerId}.`);
