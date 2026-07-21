@@ -11,7 +11,7 @@ import { FRAME_ANIMATED_ACTION_ROWS } from "../src/game/sixRowAnimationManifest.
 
 describe("combat animation manifest", () => {
   it("ships approved unit migrations as six independently addressed facing sheets", () => {
-    for (const unitId of ["warrior", "archer"] as const) {
+    for (const unitId of ["warrior", "archer", "shieldBearer"] as const) {
       const asset = ANIMATED_UNIT_FRAME_ASSETS.find((candidate) => candidate.unitId === unitId);
       expect(asset).toBeDefined();
       expect(asset?.directionalPaths).toBeDefined();
@@ -24,16 +24,18 @@ describe("combat animation manifest", () => {
       expect(files.map(({ path }) => path.split("/").at(-1))).toEqual(
         FACING_ORDER.map((facing) => `${facing}.png`),
       );
-      expect(asset?.manifest.frameWidth).toBe(96);
+      expect(asset?.manifest.frameWidth).toBe(unitId === "shieldBearer" ? 112 : 96);
       expect(asset?.manifest.frameHeight).toBe(112);
+      expect(asset?.manifest.anchorX).toBe(unitId === "shieldBearer" ? 56 : 48);
+      expect(asset?.manifest.anchorY).toBe(88);
       expect(asset?.manifest.artScale).toBe(1);
     }
   });
 
   it("keeps unapproved migrations on their single authored sheet", () => {
-    const approved = new Set(["warrior", "archer"]);
+    const approved = new Set(["warrior", "archer", "shieldBearer"]);
     const remaining = ANIMATED_UNIT_FRAME_ASSETS.filter(({ unitId }) => !approved.has(unitId));
-    expect(remaining).toHaveLength(5);
+    expect(remaining).toHaveLength(4);
     for (const asset of remaining) {
       expect(asset.directionalPaths).toBeUndefined();
       expect(asset.manifest.directionalTextureKeys).toBeUndefined();
@@ -53,6 +55,7 @@ describe("combat animation manifest", () => {
     expect(validateCombatAnimationManifest()).toEqual([]);
     expect(COMBAT_ANIMATION_MANIFEST.warrior?.directionalTextureKeys).toBeDefined();
     expect(COMBAT_ANIMATION_MANIFEST.archer?.directionalTextureKeys).toBeDefined();
+    expect(COMBAT_ANIMATION_MANIFEST.shieldbearer?.directionalTextureKeys).toBeDefined();
     expect(FRAME_ANIMATED_ACTION_ROWS).toEqual(["idle", "walk", "attack", "hurt", "death", "cast"]);
     expect(COMBAT_ANIMATION_MANIFEST.warrior?.actions).toMatchObject({
       idle: { row: 0 },

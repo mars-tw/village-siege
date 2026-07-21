@@ -4,6 +4,13 @@
 
 開源專案：[github.com/mars-tw/village-siege](https://github.com/mars-tw/village-siege)
 
+## v3 v0.20（六向持盾槍衛，2026-07-22）
+
+- 發行三元組為 app `0.20.0`、protocol `village-siege-network/4`、rules `village-siege/0.18.0`；production Compose、環境範例與 `/version` 驗收文件使用相同版本。
+- 持盾槍衛改用六個獨立生成的 E／NE／NW／W／SW／SE 透明動作表，每方向包含 `idle`、`walk`、短槍 `attack`、盾擊 `hurt`、`death`、盾牆 `brace` 六列與各四格。Runtime 採美術聖經 `112x112`、錨點 `(56,88)`，144 格通過唯一性、跨方向鏡像、透明 RGB 與安全邊界檢查。
+- 舊的槌盾單方向圖與新角色契約衝突，已移出公開 runtime 並只保留為拒收稽核證據；client manifest、release asset manifest、MIT attribution、版本與部署範本同步更新。
+- 公開多人仍維持安全關閉；永久 WSS 需要外部 Linux 主機、DNS、TLS 與有效雲端登入，不能用 Pages 靜態站冒充已上線。
+
 ## v3 v0.19（六向弓箭手、友軍動態避讓，2026-07-22）
 
 - 發行三元組為 app `0.19.0`、protocol `village-siege-network/4`、rules `village-siege/0.18.0`；production Compose、環境範例與 `/version` 驗收文件使用相同版本。

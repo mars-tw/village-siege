@@ -1,6 +1,6 @@
 {
   "name": "village-siege",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
   "license": "MIT",
   "workspaces": [
@@ -16,7 +16,7 @@
     "test": "npm run test --workspaces --if-present",
     "verify": "npm run typecheck && npm test && npm run test:ops && npm run validate:directional-art && npm run build",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "validate:directional-art": "node scripts/validate-directional-action-sheets.mjs --cell-width 96 --cell-height 112 --edge-padding 1 --reject-cross-sheet-reuse apps/client/public/assets/original/units/warrior/sprites/facings/e.png apps/client/public/assets/original/units/warrior/sprites/facings/ne.png apps/client/public/assets/original/units/warrior/sprites/facings/nw.png apps/client/public/assets/original/units/warrior/sprites/facings/w.png apps/client/public/assets/original/units/warrior/sprites/facings/sw.png apps/client/public/assets/original/units/warrior/sprites/facings/se.png apps/client/public/assets/original/units/archer/sprites/facings/e.png apps/client/public/assets/original/units/archer/sprites/facings/ne.png apps/client/public/assets/original/units/archer/sprites/facings/nw.png apps/client/public/assets/original/units/archer/sprites/facings/w.png apps/client/public/assets/original/units/archer/sprites/facings/sw.png apps/client/public/assets/original/units/archer/sprites/facings/se.png",
+    "validate:directional-art": "node scripts/validate-directional-action-sheets.mjs --cell-width 96 --cell-height 112 --edge-padding 1 --reject-cross-sheet-reuse apps/client/public/assets/original/units/warrior/sprites/facings/e.png apps/client/public/assets/original/units/warrior/sprites/facings/ne.png apps/client/public/assets/original/units/warrior/sprites/facings/nw.png apps/client/public/assets/original/units/warrior/sprites/facings/w.png apps/client/public/assets/original/units/warrior/sprites/facings/sw.png apps/client/public/assets/original/units/warrior/sprites/facings/se.png apps/client/public/assets/original/units/archer/sprites/facings/e.png apps/client/public/assets/original/units/archer/sprites/facings/ne.png apps/client/public/assets/original/units/archer/sprites/facings/nw.png apps/client/public/assets/original/units/archer/sprites/facings/w.png apps/client/public/assets/original/units/archer/sprites/facings/sw.png apps/client/public/assets/original/units/archer/sprites/facings/se.png && node scripts/validate-directional-action-sheets.mjs --cell-width 112 --cell-height 112 --edge-padding 1 --reject-cross-sheet-reuse apps/client/public/assets/original/units/shieldBearer/sprites/facings/e.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/ne.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/nw.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/w.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/sw.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/se.png",
     "validate:compliance": "node scripts/validate-release-compliance.mjs",
     "validate:runtime-assets": "node scripts/validate-release-compliance.mjs --runtime-dir apps/client/dist",
     "prune:runtime-art": "node scripts/prune-runtime-art.mjs --runtime-dir apps/client/dist",

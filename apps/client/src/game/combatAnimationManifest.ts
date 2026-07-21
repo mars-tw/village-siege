@@ -90,6 +90,14 @@ const DIRECTIONAL_UNIT_SHEETS: Readonly<Partial<Record<AnimatedUnitId, Direction
     anchorY: 88,
     artScale: 1,
   },
+  shieldBearer: {
+    assetFolder: "shieldBearer",
+    frameWidth: 112,
+    frameHeight: 112,
+    anchorX: 56,
+    anchorY: 88,
+    artScale: 1,
+  },
 };
 
 const DIRECTIONAL_MONSTER_SHEETS: Readonly<Partial<Record<AnimatedMonsterId, DirectionalSheetConfig>>> = {};

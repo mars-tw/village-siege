@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-07-21T21:45:06.152Z",
+  "representatives": [
+    {
+      "facing": "e",
+      "action": "attack",
+      "textureKey": "unit-action-sheet-shieldbearer-e",
+      "frameName": "unit-action-frame-shieldbearer:e:attack:1",
+      "frame": 1,
+      "flipX": false
+    },
+    {
+      "facing": "nw",
+      "action": "walk",
+      "textureKey": "unit-action-sheet-shieldbearer-nw",
+      "frameName": "unit-action-frame-shieldbearer:nw:walk:1",
+      "frame": 1,
+      "flipX": false
+    },
+    {
+      "facing": "se",
+      "action": "cast",
+      "textureKey": "unit-action-sheet-shieldbearer-se",
+      "frameName": "unit-action-frame-shieldbearer:se:cast:1",
+      "frame": 1,
+      "flipX": false
+    }
+  ]
+}

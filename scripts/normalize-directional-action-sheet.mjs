@@ -46,6 +46,14 @@ if (info.channels !== 4 || info.width < columns * 64 || info.height < rows * 64)
 }
 const sourceCellWidth = info.width / columns;
 const sourceCellHeight = info.height / rows;
+const strictSourceGrid = process.argv.includes("--strict-source-grid");
+const clusterSourceFrames = process.argv.includes("--cluster-source-frames");
+if (strictSourceGrid && clusterSourceFrames) {
+  throw new Error("Use only one source-assignment mode: --strict-source-grid or --cluster-source-frames");
+}
+if (strictSourceGrid && (!Number.isInteger(sourceCellWidth) || !Number.isInteger(sourceCellHeight))) {
+  throw new Error(`--strict-source-grid requires dimensions divisible by ${columns}x${rows}; received ${info.width}x${info.height}`);
+}
 
 const pixelCount = info.width * info.height;
 const labels = new Int32Array(pixelCount);
@@ -108,27 +116,100 @@ const slots = Array.from({ length: rows * columns }, (_, index) => ({
   maxY: -1,
 }));
 
-for (const component of components) {
-  if (component.area < 16) continue;
-  let bestSlot = slots[0];
-  let bestDistance = Number.POSITIVE_INFINITY;
+function isCredibleComponent(component) {
+  const width = component.maxX - component.minX + 1;
+  const height = component.maxY - component.minY + 1;
+  return component.area >= 16
+    && width >= 3
+    && height >= 3
+    && component.minX > 0
+    && component.minY > 0
+    && component.maxX < info.width - 1
+    && component.maxY < info.height - 1;
+}
+
+if (strictSourceGrid) {
   for (const slot of slots) {
-    const centerX = (slot.column + 0.5) * sourceCellWidth;
-    const centerY = (slot.row + 0.5) * sourceCellHeight;
-    const dx = (component.centerX - centerX) / sourceCellWidth;
-    const dy = (component.centerY - centerY) / sourceCellHeight;
-    const distance = dx * dx + dy * dy;
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestSlot = slot;
+    const left = slot.column * sourceCellWidth;
+    const top = slot.row * sourceCellHeight;
+    for (let y = top; y < top + sourceCellHeight; y += 1) {
+      for (let x = left; x < left + sourceCellWidth; x += 1) {
+        const pixel = y * info.width + x;
+        if (data[pixel * 4 + 3] <= alphaThreshold) continue;
+        slot.area += 1;
+        slot.minX = Math.min(slot.minX, x);
+        slot.minY = Math.min(slot.minY, y);
+        slot.maxX = Math.max(slot.maxX, x);
+        slot.maxY = Math.max(slot.maxY, y);
+      }
     }
   }
-  bestSlot.labels.add(component.label);
-  bestSlot.area += component.area;
-  bestSlot.minX = Math.min(bestSlot.minX, component.minX);
-  bestSlot.minY = Math.min(bestSlot.minY, component.minY);
-  bestSlot.maxX = Math.max(bestSlot.maxX, component.maxX);
-  bestSlot.maxY = Math.max(bestSlot.maxY, component.maxY);
+} else {
+  for (const component of components) {
+    if (!isCredibleComponent(component)) continue;
+    let bestSlot = slots[0];
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const slot of slots) {
+      const centerX = (slot.column + 0.5) * sourceCellWidth;
+      const centerY = (slot.row + 0.5) * sourceCellHeight;
+      const dx = (component.centerX - centerX) / sourceCellWidth;
+      const dy = (component.centerY - centerY) / sourceCellHeight;
+      const distance = dx * dx + dy * dy;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestSlot = slot;
+      }
+    }
+    bestSlot.labels.add(component.label);
+    bestSlot.area += component.area;
+    bestSlot.minX = Math.min(bestSlot.minX, component.minX);
+    bestSlot.minY = Math.min(bestSlot.minY, component.minY);
+    bestSlot.maxX = Math.max(bestSlot.maxX, component.maxX);
+    bestSlot.maxY = Math.max(bestSlot.maxY, component.maxY);
+  }
+}
+
+if (clusterSourceFrames) {
+  const primaries = slots.map((slot) => {
+    const candidates = components.filter((component) => slot.labels.has(component.label));
+    const primary = candidates.sort((left, right) => right.area - left.area)[0];
+    if (!primary) throw new Error(`Unable to identify a primary figure for r${slot.row + 1}c${slot.column + 1}`);
+    return primary;
+  });
+  for (const slot of slots) {
+    slot.labels.clear();
+    slot.area = 0;
+    slot.minX = info.width;
+    slot.minY = info.height;
+    slot.maxX = -1;
+    slot.maxY = -1;
+  }
+  for (const component of components) {
+    if (!isCredibleComponent(component)) continue;
+    let bestIndex = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < primaries.length; index += 1) {
+      const primary = primaries[index];
+      const dx = component.centerX < primary.minX
+        ? primary.minX - component.centerX
+        : component.centerX > primary.maxX ? component.centerX - primary.maxX : 0;
+      const dy = component.centerY < primary.minY
+        ? primary.minY - component.centerY
+        : component.centerY > primary.maxY ? component.centerY - primary.maxY : 0;
+      const distance = (dx / sourceCellWidth) ** 2 + (dy / sourceCellHeight) ** 2;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    }
+    const slot = slots[bestIndex];
+    slot.labels.add(component.label);
+    slot.area += component.area;
+    slot.minX = Math.min(slot.minX, component.minX);
+    slot.minY = Math.min(slot.minY, component.minY);
+    slot.maxX = Math.max(slot.maxX, component.maxX);
+    slot.maxY = Math.max(slot.maxY, component.maxY);
+  }
 }
 
 const output = sharp({
@@ -155,7 +236,9 @@ for (const slot of slots) {
       const sourceX = slot.minX + x;
       const sourceY = slot.minY + y;
       const sourcePixel = sourceY * info.width + sourceX;
-      if (!slot.labels.has(labels[sourcePixel])) continue;
+      if (strictSourceGrid) {
+        if (data[sourcePixel * 4 + 3] <= alphaThreshold) continue;
+      } else if (!slot.labels.has(labels[sourcePixel])) continue;
       const sourceOffset = sourcePixel * 4;
       const targetOffset = (y * width + x) * 4;
       isolated[targetOffset] = data[sourceOffset];
