@@ -1,4 +1,4 @@
-import type { CombatAction, CombatArtId } from "./directionalAnimation";
+import { FACING_ORDER, type CombatAction, type CombatArtId, type Facing } from "./directionalAnimation";
 import {
   createSixRowManifest,
   type FrameAnimatedCombatActorManifest,
@@ -26,6 +26,7 @@ export interface UnitFrameAsset {
   readonly artId: CombatArtId;
   readonly textureKey: string;
   readonly path: string;
+  readonly directionalPaths?: Readonly<Record<Facing, string>>;
   readonly manifest: FrameAnimatedCombatActorManifest;
 }
 
@@ -34,6 +35,7 @@ export interface MonsterFrameAsset {
   readonly artId: CombatArtId;
   readonly textureKey: string;
   readonly path: string;
+  readonly directionalPaths?: Readonly<Record<Facing, string>>;
   readonly manifest: FrameAnimatedCombatActorManifest;
 }
 
@@ -133,6 +135,21 @@ export const COMBAT_ANIMATION_MANIFEST: FrameAnimatedCombatActorManifestTable = 
   [...ANIMATED_UNIT_FRAME_ASSETS, ...ANIMATED_MONSTER_FRAME_ASSETS].map((asset) => [asset.artId, asset.manifest]),
 ) as FrameAnimatedCombatActorManifestTable;
 
+export interface FrameAssetFile {
+  readonly textureKey: string;
+  readonly path: string;
+}
+
+export function frameAssetFiles(asset: UnitFrameAsset | MonsterFrameAsset): readonly FrameAssetFile[] {
+  if (!asset.directionalPaths || !asset.manifest.directionalTextureKeys) {
+    return [{ textureKey: asset.textureKey, path: asset.path }];
+  }
+  return FACING_ORDER.map((facing) => ({
+    textureKey: asset.manifest.directionalTextureKeys![facing],
+    path: asset.directionalPaths![facing],
+  }));
+}
+
 export function getUnitFrameAsset(unitId: string): UnitFrameAsset | undefined {
   return ANIMATED_UNIT_FRAME_ASSETS.find((asset) => asset.unitId === unitId);
 }
@@ -149,6 +166,12 @@ export function validateCombatAnimationManifest(): readonly string[] {
     unitIds.add(asset.unitId);
     artIds.add(asset.artId);
     textureKeys.add(asset.textureKey);
+    if (Boolean(asset.directionalPaths) !== Boolean(asset.manifest.directionalTextureKeys)) {
+      issues.push(`${asset.unitId} directional paths and texture keys must be declared together`);
+    }
+    for (const file of frameAssetFiles(asset)) {
+      if (!file.path.endsWith(".png")) issues.push(`invalid directional action-sheet path: ${file.path}`);
+    }
     if (!asset.path.endsWith("/sprites/action-sheet.png")) issues.push(`invalid action-sheet path: ${asset.path}`);
     for (const action of ["idle", "walk", "attack", "cast", "hurt", "death"] as const) {
       const row = asset.manifest.actions[action];
@@ -161,6 +184,12 @@ export function validateCombatAnimationManifest(): readonly string[] {
     if (textureKeys.has(asset.textureKey)) issues.push(`duplicate monster texture key: ${asset.textureKey}`);
     artIds.add(asset.artId);
     textureKeys.add(asset.textureKey);
+    if (Boolean(asset.directionalPaths) !== Boolean(asset.manifest.directionalTextureKeys)) {
+      issues.push(`${asset.monsterId} directional paths and texture keys must be declared together`);
+    }
+    for (const file of frameAssetFiles(asset)) {
+      if (!file.path.endsWith(".png")) issues.push(`invalid monster directional action-sheet path: ${file.path}`);
+    }
     if (!asset.path.endsWith("/sprites/action-sheet.png")) issues.push(`invalid monster action-sheet path: ${asset.path}`);
     for (const action of ["idle", "walk", "attack", "cast", "hurt", "death"] as const) {
       if (asset.manifest.actions[action].frames < 4) issues.push(`${asset.monsterId}.${action} has fewer than four frames`);

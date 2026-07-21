@@ -6,6 +6,7 @@ import {
   type CombatAction,
   type CombatArtId,
   type Facing,
+  FACING_ORDER,
   resolveFacing,
 } from "./directionalAnimation";
 
@@ -35,6 +36,8 @@ export interface FrameAnimatedActionRow {
 export interface FrameAnimatedCombatActorManifest {
   readonly id: CombatArtId;
   readonly textureKey: string;
+  /** Six independently authored source sheets. When present, mirroring is disabled. */
+  readonly directionalTextureKeys?: Readonly<Record<Facing, string>>;
   readonly frameWidth: number;
   readonly frameHeight: number;
   readonly sourceIndex?: number;
@@ -132,7 +135,7 @@ export function validateFrameAnimatedCombatActorManifest(
   if (manifest.id !== expectedId) {
     throw new Error(`Frame-animation manifest id mismatch: expected ${expectedId}, received ${manifest.id}`);
   }
-  if (!manifest.textureKey || !scene.textures.exists(manifest.textureKey)) {
+  if (!manifest.textureKey || (!manifest.directionalTextureKeys && !scene.textures.exists(manifest.textureKey))) {
     throw new Error(`Required frame-animation texture is missing: ${manifest.textureKey || "<empty texture key>"}`);
   }
   assertPositiveInteger(manifest.frameWidth, "frameWidth", manifest.id);
@@ -172,17 +175,26 @@ export function validateFrameAnimatedCombatActorManifest(
     requiredHeight = Math.max(requiredHeight, cellY(manifest, row.row) + manifest.frameHeight);
   }
 
-  const texture = scene.textures.get(manifest.textureKey);
-  const sourceIndex = manifest.sourceIndex ?? 0;
-  const source = texture.source[sourceIndex];
-  if (!source) {
-    throw new Error(`Frame-animation texture ${manifest.textureKey} has no source at index ${sourceIndex}`);
+  const textureKeys = textureKeysForManifest(manifest);
+  if (manifest.directionalTextureKeys && new Set(textureKeys).size !== FACING_ORDER.length) {
+    throw new Error(`Directional frame-animation textures must be unique for all six facings: ${manifest.id}`);
   }
-  if (requiredWidth > source.width || requiredHeight > source.height) {
-    throw new Error(
-      `Frame-animation sheet is too small for ${manifest.id}: requires ${requiredWidth}x${requiredHeight}, ` +
-      `loaded ${source.width}x${source.height}`,
-    );
+  for (const textureKey of textureKeys) {
+    if (!textureKey || !scene.textures.exists(textureKey)) {
+      throw new Error(`Required frame-animation texture is missing: ${textureKey || "<empty texture key>"}`);
+    }
+    const texture = scene.textures.get(textureKey);
+    const sourceIndex = manifest.sourceIndex ?? 0;
+    const source = texture.source[sourceIndex];
+    if (!source) {
+      throw new Error(`Frame-animation texture ${textureKey} has no source at index ${sourceIndex}`);
+    }
+    if (requiredWidth > source.width || requiredHeight > source.height) {
+      throw new Error(
+        `Frame-animation sheet is too small for ${manifest.id}/${textureKey}: requires ${requiredWidth}x${requiredHeight}, ` +
+        `loaded ${source.width}x${source.height}`,
+      );
+    }
   }
 }
 
@@ -193,7 +205,7 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
   private readonly image: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly aura: Phaser.GameObjects.Ellipse;
-  private readonly frameNames: Readonly<Record<CombatAction, readonly string[]>>;
+  private readonly frameNames: Readonly<Record<Facing, Readonly<Record<CombatAction, readonly string[]>>>>;
   private palette: TeamPalette;
   private currentAction: CombatAction;
   private currentFacing: Facing;
@@ -217,7 +229,12 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
     const contract = ANCHOR_CONTRACT[options.id];
     this.shadow = scene.add.ellipse(0, 2, contract.shadowWidth * 1.2, contract.shadowHeight * 1.15, 0x10241e, 0.38);
     this.aura = scene.add.ellipse(0, -7, contract.shadowWidth * 1.25, contract.shadowHeight * 1.2, this.palette.highlight, 0.08);
-    this.image = scene.add.image(0, 0, manifest.textureKey, this.frameNames[this.currentAction][0]);
+    this.image = scene.add.image(
+      0,
+      0,
+      textureKeyForFacing(manifest, this.currentFacing),
+      this.frameNames[this.currentFacing][this.currentAction][0],
+    );
     this.image
       .setOrigin(
         (manifest.anchorX ?? contract.anchorX) / manifest.frameWidth,
@@ -321,14 +338,19 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
   }
 
   private renderFrame(): void {
-    const frameName = this.frameNames[this.currentAction][this.currentFrame];
+    const frameName = this.frameNames[this.currentFacing][this.currentAction][this.currentFrame];
     if (!frameName) {
       throw new Error(`Registered frame is missing for ${this.manifest.id}.${this.currentAction}[${this.currentFrame}]`);
     }
-    this.image?.setFrame(frameName);
+    this.image?.setTexture(textureKeyForFacing(this.manifest, this.currentFacing), frameName);
   }
 
   private renderFacing(): void {
+    if (this.manifest.directionalTextureKeys) {
+      this.image.setFlipX(false);
+      this.renderFrame();
+      return;
+    }
     const facingLeft = LEFT_FACINGS.has(this.currentFacing);
     const sourceFacesLeft = this.manifest.authoredFacing === "left";
     this.image.setFlipX(facingLeft !== sourceFacesLeft);
@@ -346,8 +368,29 @@ export function createFrameAnimatedCombatActor(
 function registerSpriteSheetFrames(
   scene: Phaser.Scene,
   manifest: FrameAnimatedCombatActorManifest,
+): Readonly<Record<Facing, Readonly<Record<CombatAction, readonly string[]>>>> {
+  if (!manifest.directionalTextureKeys) {
+    const shared = registerTextureFrames(scene, manifest, manifest.textureKey);
+    return Object.fromEntries(FACING_ORDER.map((facing) => [facing, shared])) as Record<
+      Facing,
+      Readonly<Record<CombatAction, readonly string[]>>
+    >;
+  }
+  return Object.fromEntries(
+    FACING_ORDER.map((facing) => [
+      facing,
+      registerTextureFrames(scene, manifest, manifest.directionalTextureKeys![facing], facing),
+    ]),
+  ) as Record<Facing, Readonly<Record<CombatAction, readonly string[]>>>;
+}
+
+function registerTextureFrames(
+  scene: Phaser.Scene,
+  manifest: FrameAnimatedCombatActorManifest,
+  textureKey: string,
+  facing?: Facing,
 ): Readonly<Record<CombatAction, readonly string[]>> {
-  const texture = scene.textures.get(manifest.textureKey);
+  const texture = scene.textures.get(textureKey);
   const sourceIndex = manifest.sourceIndex ?? 0;
   const prefix = manifest.frameNamePrefix ?? `__frame-animated:${manifest.id}`;
   const registered = {} as Record<CombatAction, readonly string[]>;
@@ -355,7 +398,7 @@ function registerSpriteSheetFrames(
     const row = manifest.actions[action];
     const names: string[] = [];
     for (let frameIndex = 0; frameIndex < row.frames; frameIndex += 1) {
-      const name = `${prefix}:${action}:${frameIndex}`;
+      const name = `${prefix}${facing ? `:${facing}` : ""}:${action}:${frameIndex}`;
       const x = cellX(manifest, frameIndex);
       const y = cellY(manifest, row.row);
       if (texture.has(name)) {
@@ -367,16 +410,26 @@ function registerSpriteSheetFrames(
           existing.cutWidth !== manifest.frameWidth ||
           existing.cutHeight !== manifest.frameHeight
         ) {
-          throw new Error(`Conflicting registered sprite frame: ${manifest.textureKey}/${name}`);
+          throw new Error(`Conflicting registered sprite frame: ${textureKey}/${name}`);
         }
       } else if (!texture.add(name, sourceIndex, x, y, manifest.frameWidth, manifest.frameHeight)) {
-        throw new Error(`Failed to register sprite frame: ${manifest.textureKey}/${name}`);
+        throw new Error(`Failed to register sprite frame: ${textureKey}/${name}`);
       }
       names.push(name);
     }
     registered[action] = names;
   }
   return registered;
+}
+
+function textureKeysForManifest(manifest: FrameAnimatedCombatActorManifest): readonly string[] {
+  return manifest.directionalTextureKeys
+    ? FACING_ORDER.map((facing) => manifest.directionalTextureKeys![facing])
+    : [manifest.textureKey];
+}
+
+function textureKeyForFacing(manifest: FrameAnimatedCombatActorManifest, facing: Facing): string {
+  return manifest.directionalTextureKeys?.[facing] ?? manifest.textureKey;
 }
 
 function cellX(manifest: FrameAnimatedCombatActorManifest, column: number): number {

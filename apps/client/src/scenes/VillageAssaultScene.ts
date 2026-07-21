@@ -62,6 +62,7 @@ import {
   ANIMATED_UNIT_FRAME_ASSETS,
   COMBAT_ANIMATION_MANIFEST,
   assertCombatAnimationManifestValid,
+  frameAssetFiles,
 } from "../game/combatAnimationManifest";
 import { DEFAULT_TEAM_PALETTES } from "../game/combatArt";
 import { createProjectileVisual, spawnDeathDust, spawnFloatingText, spawnImpactBurst, spawnSkillTelegraph } from "../game/combatEffects";
@@ -394,7 +395,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     const assets = [
       ...ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior"),
       ...ANIMATED_MONSTER_FRAME_ASSETS,
-    ].filter((asset) => !this.textures.exists(asset.textureKey));
+    ].flatMap((asset) => frameAssetFiles(asset)).filter((asset) => !this.textures.exists(asset.textureKey));
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
     for (const asset of assets) this.load.image(asset.textureKey, asset.path);
   }
@@ -2713,7 +2714,6 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private isArtReady(artId: CombatArtId): boolean {
     const manifest = requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, artId);
-    if (!this.textures.exists(manifest.textureKey)) return false;
     try {
       validateFrameAnimatedCombatActorManifest(this, manifest, artId);
       return true;
@@ -2728,40 +2728,47 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (pending) return pending;
     const asset = ANIMATED_UNIT_FRAME_ASSETS.find((candidate) => candidate.artId === artId);
     if (!asset) return Promise.reject(new Error(`Missing unit art asset for ${artId}`));
-    if (this.textures.exists(asset.textureKey)) this.textures.remove(asset.textureKey);
+    const files = frameAssetFiles(asset);
+    const requiredKeys = new Set(files.map((file) => file.textureKey));
+    for (const key of requiredKeys) if (this.textures.exists(key)) this.textures.remove(key);
     const generation = this.artLoadGeneration;
     const promise = new Promise<void>((resolve, reject) => {
+      const completedKeys = new Set<string>();
       const cleanup = (): void => {
         this.load.off(Phaser.Loader.Events.FILE_COMPLETE, onComplete);
         this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
         this.artLoadPromises.delete(artId);
       };
       const onComplete = (key: string): void => {
-        if (key !== asset.textureKey) return;
-        cleanup();
+        if (!requiredKeys.has(key)) return;
+        completedKeys.add(key);
+        if (completedKeys.size !== requiredKeys.size) return;
         if (generation !== this.artLoadGeneration) {
-          if (this.textures.exists(asset.textureKey)) this.textures.remove(asset.textureKey);
+          cleanup();
+          for (const loadedKey of requiredKeys) if (this.textures.exists(loadedKey)) this.textures.remove(loadedKey);
           reject(new Error(`Scene changed while loading ${artId}`));
           return;
         }
         try {
           validateFrameAnimatedCombatActorManifest(this, asset.manifest, artId);
+          cleanup();
           this.dynamicArtIds.add(artId);
           this.failedArtIds.delete(artId);
           this.artRetryAt.delete(artId);
           resolve();
         } catch (error) {
+          cleanup();
           reject(error);
         }
       };
       const onError = (file: { readonly key?: unknown }): void => {
-        if (file.key !== asset.textureKey) return;
+        if (typeof file.key !== "string" || !requiredKeys.has(file.key)) return;
         cleanup();
-        reject(new Error(`Failed to load ${asset.textureKey}`));
+        reject(new Error(`Failed to load ${file.key}`));
       };
       this.load.on(Phaser.Loader.Events.FILE_COMPLETE, onComplete);
       this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
-      this.load.image(asset.textureKey, asset.path);
+      for (const file of files) this.load.image(file.textureKey, file.path);
       if (!this.load.isLoading()) this.load.start();
     });
     this.artLoadPromises.set(artId, promise);
@@ -4183,8 +4190,10 @@ export class VillageAssaultScene extends Phaser.Scene {
       ...ANIMATED_MONSTER_FRAME_ASSETS.map((asset) => asset.artId),
     ]);
     for (const artId of battleScopedArtIds) {
-      const textureKey = requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, artId).textureKey;
-      if (this.textures.exists(textureKey)) this.textures.remove(textureKey);
+      const asset = [...ANIMATED_UNIT_FRAME_ASSETS, ...ANIMATED_MONSTER_FRAME_ASSETS]
+        .find((candidate) => candidate.artId === artId);
+      if (!asset) continue;
+      for (const file of frameAssetFiles(asset)) if (this.textures.exists(file.textureKey)) this.textures.remove(file.textureKey);
     }
     this.dynamicArtIds.clear();
     this.artLoadPromises.clear();
