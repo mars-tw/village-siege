@@ -16,6 +16,8 @@
     "test": "npm run test --workspaces --if-present",
     "verify": "npm run typecheck && npm test && npm run build",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "validate:compliance": "node scripts/validate-release-compliance.mjs",
+    "validate:runtime-assets": "node scripts/validate-release-compliance.mjs --runtime-dir apps/client/dist",
     "sbom": "npm sbom --sbom-format=cyclonedx",
     "validate:ops": "node deploy/scripts/validate-ops-assets.mjs",
     "start:server": "npm run start --workspace @village-siege/server",

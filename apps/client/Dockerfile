@@ -30,7 +30,10 @@ ENV VITE_MULTIPLAYER_ENABLED=${VITE_MULTIPLAYER_ENABLED} \
     VITE_COLYSEUS_URL=${VITE_COLYSEUS_URL}
 
 RUN npm run build --workspace @village-siege/shared \
-    && npm run build --workspace @village-siege/client -- --base="${VITE_BASE_URL}"
+    && npm run build --workspace @village-siege/client -- --base="${VITE_BASE_URL}" \
+    && rm -rf /app/apps/client/dist/assets/original/source \
+    && find /app/apps/client/dist/assets/original -type f \
+      \( -name 'action-sheet-source.png' -o -name 'portrait.png' \) -delete
 
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 
