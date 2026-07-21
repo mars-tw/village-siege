@@ -1,6 +1,7 @@
 import { createReadStream, existsSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, resolve, sep } from "node:path";
+import { createRuntimeConfigBody, normalizeConnectOrigin } from "./runtime-config.mjs";
 
 const root = resolve(process.env.STATIC_ROOT ?? "/app/public");
 const port = Number.parseInt(process.env.PORT ?? "8080", 10);
@@ -10,6 +11,7 @@ const connectOrigin = normalizeConnectOrigin(process.env.PUBLIC_CONNECT_ORIGIN);
 const connectSource = connectOrigin
   ? ` ${connectOrigin} ${connectOrigin.replace(/^https:/, "wss:")}`
   : "";
+const runtimeConfigBody = createRuntimeConfigBody(connectOrigin);
 const securityHeaders = {
   "Content-Security-Policy": `default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'${connectSource}; font-src 'self' data:; media-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'none'; form-action 'self'; frame-ancestors 'none'`,
   "Cross-Origin-Opener-Policy": "same-origin",
@@ -41,6 +43,15 @@ createServer((request, response) => {
     response.end();
     return;
   }
+  if (pathname === "/runtime-config.js") {
+    response.writeHead(200, {
+      "Cache-Control": "no-store",
+      "Content-Type": "text/javascript; charset=utf-8",
+    });
+    if (request.method === "HEAD") response.end();
+    else response.end(runtimeConfigBody);
+    return;
+  }
   const requested = pathname === "/" ? "/index.html" : pathname;
   let filePath = resolve(root, `.${requested}`);
   if (filePath !== root && !filePath.startsWith(`${root}${sep}`)) {
@@ -57,15 +68,6 @@ createServer((request, response) => {
   if (request.method === "HEAD") response.end();
   else createReadStream(filePath).on("error", () => response.destroy()).pipe(response);
 }).listen(port, "0.0.0.0", () => console.log(`Village Siege client listening on http://0.0.0.0:${port}`));
-
-function normalizeConnectOrigin(value) {
-  if (!value) return undefined;
-  const parsed = new URL(value);
-  if (parsed.protocol !== "https:" || parsed.origin !== value) {
-    throw new Error("PUBLIC_CONNECT_ORIGIN must be an exact HTTPS origin");
-  }
-  return parsed.origin;
-}
 
 function contentType(filePath) {
   return ({

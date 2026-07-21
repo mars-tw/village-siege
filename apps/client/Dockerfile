@@ -44,6 +44,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=node:node /app/apps/client/dist ./public
 COPY --chown=root:root deploy/static-server.mjs ./static-server.mjs
+COPY --chown=root:root deploy/runtime-config.mjs ./runtime-config.mjs
 
 USER node
 EXPOSE 8080

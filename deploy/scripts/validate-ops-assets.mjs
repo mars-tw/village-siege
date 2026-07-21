@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const relativeFiles = [
+  ".github/workflows/publish-containers.yml",
+  "apps/client/Dockerfile",
+  "apps/client/public/runtime-config.js",
   "deploy/backup/backup-postgres.sh",
   "deploy/backup/README.md",
   "deploy/backup/restore-postgres.sh",
@@ -15,7 +18,11 @@ const relativeFiles = [
   "deploy/monitoring/grafana/provisioning/dashboards/dashboards.yml",
   "deploy/monitoring/grafana/dashboards/village-siege-overview.json",
   "deploy/production-compose.sh",
+  "deploy/compose.production.yaml",
+  "deploy/runtime-config.mjs",
   "deploy/scripts/validate-ops-assets.mjs",
+  "deploy/static-server.mjs",
+  "deploy/test/runtime-config.test.mjs",
 ];
 
 const contents = new Map();
@@ -50,6 +57,58 @@ for (const required of [
   "exec docker compose",
 ]) {
   if (!productionCompose.includes(required)) throw new Error(`production Compose wrapper check missing: ${required}`);
+}
+
+const runtimeServer = contents.get("deploy/static-server.mjs");
+for (const required of [
+  '"Cache-Control": "no-store"',
+  'pathname === "/runtime-config.js"',
+]) {
+  if (!runtimeServer.includes(required)) throw new Error(`runtime server safety check missing: ${required}`);
+}
+
+const runtimeConfig = contents.get("deploy/runtime-config.mjs");
+for (const required of [
+  "__VILLAGE_SIEGE_RUNTIME_CONFIG__",
+  "multiplayerEnabled",
+  "colyseusUrl",
+  'parsed.protocol !== "https:"',
+  "parsed.origin !== value",
+  "PUBLIC_CONNECT_ORIGIN must be an exact HTTPS origin",
+]) {
+  if (!runtimeConfig.includes(required)) throw new Error(`runtime config safety check missing: ${required}`);
+}
+
+const runtimeFallback = contents.get("apps/client/public/runtime-config.js").trim();
+if (runtimeFallback !== "globalThis.__VILLAGE_SIEGE_RUNTIME_CONFIG__ = Object.freeze({});") {
+  throw new Error("public runtime config fallback must remain an empty frozen object");
+}
+
+const productionTemplate = contents.get("deploy/compose.production.yaml");
+if (!productionTemplate.includes('VITE_MULTIPLAYER_ENABLED: "false"')
+  || productionTemplate.includes("VITE_COLYSEUS_URL:")) {
+  throw new Error("production client build must remain domain-agnostic and runtime-configured");
+}
+
+const containerWorkflow = contents.get(".github/workflows/publish-containers.yml");
+for (const required of [
+  "packages: write",
+  "attestations: write",
+  "id-token: write",
+  "linux/amd64,linux/arm64",
+  "org.opencontainers.image.source",
+  "org.opencontainers.image.licenses=MIT",
+  "sbom: true",
+  "push-to-registry: true",
+]) {
+  if (!containerWorkflow.includes(required)) throw new Error(`container publication check missing: ${required}`);
+}
+const actionUses = [...containerWorkflow.matchAll(/^\s*uses:\s*([^@\s]+)@([^\s#]+)/gmu)];
+if (actionUses.length === 0) throw new Error("container publication workflow contains no actions");
+for (const [, action, reference] of actionUses) {
+  if (!/^[0-9a-f]{40}$/u.test(reference)) {
+    throw new Error(`container publication action is not pinned to a full commit SHA: ${action}@${reference}`);
+  }
 }
 
 const backup = contents.get("deploy/backup/backup-postgres.sh");

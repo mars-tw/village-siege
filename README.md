@@ -149,7 +149,9 @@ audit/             主管／稽核紀錄與驗證證據
 
 ## 建置與發布
 
-客戶端建置時必須把公開的 Colyseus HTTPS 端點寫入 `VITE_COLYSEUS_URL`，瀏覽器 SDK 會使用對應的安全 WebSocket：
+正式容器部署優先使用 GHCR 的 `village-siege-client`／`village-siege-server` release 映像。前端映像不寫死網域，啟動時由 `PUBLIC_CONNECT_ORIGIN` 提供不可快取的 `/runtime-config.js`；拉取與 TLS/WSS 設定見 [production 操作指南](docs/PRODUCTION_OPERATIONS.zh-TW.md)。
+
+只有發布到無法提供 runtime config 的純靜態網站／CDN 時，才把公開的 Colyseus HTTPS 端點寫入自建 bundle：
 
 ```powershell
 $env:VITE_COLYSEUS_URL = "https://game.example.com"
@@ -157,7 +159,7 @@ $env:VITE_MULTIPLAYER_ENABLED = "true"
 npm run build
 ```
 
-- 將 `apps/client/dist/` 發布至靜態網站或 CDN。
+- 將這條替代路徑產生的 `apps/client/dist/` 發布至靜態網站或 CDN；不要把它誤當成可跨網域重用的 GHCR 映像。
 - 以 `PORT` 指定伺服器連接埠；自有網域部署須先把客戶端來源（只填 origin，不含路徑）加入逗號分隔的 `ALLOWED_ORIGINS`，再執行 `npm run start:server`。官方 GitHub Pages origin 已內建；非 production 模式另允許 loopback HTTP 方便本機開發。
 - HTTP 配對與 WebSocket 握手共用 exact-origin 白名單，瀏覽器端另有 CSP；production 拒絕所有明文瀏覽器 Origin，公開部署仍須在反向代理終止 TLS、使用 `wss`，並通過邊緣速率限制、監控與健康檢查。
 - TASK-023 已加入前端／伺服器 Dockerfile、單 replica Compose、Redis/PostgreSQL 持久卷、健康／版本端點、SBOM 與 CI；操作方式與限制見 [自架指南](docs/SELF_HOSTING.zh-TW.md)。
