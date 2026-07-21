@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2026-07-21T19:51:09.973Z",
+  "expectedDimensions": {
+    "width": 384,
+    "height": 672
+  },
+  "pass": true,
+  "results": [
+    {
+      "facing": "e",
+      "url": "/assets/original/units/archer/sprites/facings/e.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "byteLength": 208100,
+      "decoded": true,
+      "width": 384,
+      "height": 672,
+      "decodeError": null,
+      "pass": true
+    },
+    {
+      "facing": "ne",
+      "url": "/assets/original/units/archer/sprites/facings/ne.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "byteLength": 212944,
+      "decoded": true,
+      "width": 384,
+      "height": 672,
+      "decodeError": null,
+      "pass": true
+    },
+    {
+      "facing": "nw",
+      "url": "/assets/original/units/archer/sprites/facings/nw.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "byteLength": 209654,
+      "decoded": true,
+      "width": 384,
+      "height": 672,
+      "decodeError": null,
+      "pass": true
+    },
+    {
+      "facing": "w",
+      "url": "/assets/original/units/archer/sprites/facings/w.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "byteLength": 209272,
+      "decoded": true,
+      "width": 384,
+      "height": 672,
+      "decodeError": null,
+      "pass": true
+    },
+    {
+      "facing": "sw",
+      "url": "/assets/original/units/archer/sprites/facings/sw.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "byteLength": 216658,
+      "decoded": true,
+      "width": 384,
+      "height": 672,
+      "decodeError": null,
+      "pass": true
+    },
+    {
+      "facing": "se",
+      "url": "/assets/original/units/archer/sprites/facings/se.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "byteLength": 221504,
+      "decoded": true,
+      "width": 384,
+      "height": 672,
+      "decodeError": null,
+      "pass": true
+    }
+  ]
+}

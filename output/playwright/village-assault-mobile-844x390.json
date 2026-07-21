@@ -1,0 +1,521 @@
+{
+  "generatedAt": "2026-07-21T19:51:16.891Z",
+  "targetViewport": {
+    "width": 844,
+    "height": 390
+  },
+  "menuOpenResult": {
+    "opened": true,
+    "activeScenes": [
+      "VillageAssaultScene"
+    ],
+    "selectedCount": 3,
+    "interaction": {
+      "workerSelectProxy": "assault-action-1",
+      "workerSelectLabel": "全選工匠",
+      "buildLabel": "建造",
+      "method": "Playwright dispatchEvent(click) on live accessibility proxies"
+    }
+  },
+  "defaultLayout": {
+    "state": "default",
+    "activeScenes": [
+      "VillageAssaultScene"
+    ],
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "media": {
+      "landscape": true,
+      "coarsePointer": false
+    },
+    "body": {
+      "scrollWidth": 844,
+      "scrollHeight": 390,
+      "fitsViewport": true
+    },
+    "canvasRect": {
+      "x": 0,
+      "y": 0,
+      "width": 843,
+      "height": 390,
+      "right": 843,
+      "bottom": 390
+    },
+    "canvasFitsViewport": true,
+    "gameSize": {
+      "width": 1558.1538461538462,
+      "height": 720
+    },
+    "cssScale": {
+      "x": 0.5410248815165877,
+      "y": 0.5416666666666666
+    },
+    "compactUi": true,
+    "uiScale": 1,
+    "orientationBlocked": false,
+    "buildMenuOpen": false,
+    "roots": [
+      {
+        "name": "Container",
+        "x": 191.02,
+        "y": 12.46,
+        "width": 460.95,
+        "height": 29.25,
+        "right": 651.98,
+        "bottom": 41.71,
+        "worldRect": {
+          "x": 353.08,
+          "y": 23,
+          "width": 852,
+          "height": 54
+        }
+      },
+      {
+        "name": "Container",
+        "x": 189.94,
+        "y": 306.58,
+        "width": 443.64,
+        "height": 77.46,
+        "right": 633.58,
+        "bottom": 384.04,
+        "worldRect": {
+          "x": 351.08,
+          "y": 566,
+          "width": 820,
+          "height": 143
+        }
+      }
+    ],
+    "hudItems": [
+      {
+        "name": "Text",
+        "x": 191.02,
+        "y": 13.54,
+        "width": 142.29,
+        "height": 28.17,
+        "right": 333.31,
+        "bottom": 41.71,
+        "worldRect": {
+          "x": 353.08,
+          "y": 25,
+          "width": 263,
+          "height": 52
+        }
+      },
+      {
+        "name": "Text",
+        "x": 448.55,
+        "y": 12.46,
+        "width": 53.02,
+        "height": 27.08,
+        "right": 501.57,
+        "bottom": 39.54,
+        "worldRect": {
+          "x": 829.08,
+          "y": 23,
+          "width": 98,
+          "height": 50
+        }
+      },
+      {
+        "name": "Text",
+        "x": 189.94,
+        "y": 306.58,
+        "width": 182.33,
+        "height": 16.25,
+        "right": 372.27,
+        "bottom": 322.83,
+        "worldRect": {
+          "x": 351.08,
+          "y": 566,
+          "width": 337,
+          "height": 30
+        }
+      }
+    ],
+    "actionButtons": [
+      {
+        "name": "assault-action-1",
+        "rect": {
+          "name": "assault-action-1",
+          "x": 189.94,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 250.54,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 351.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-2",
+        "rect": {
+          "name": "assault-action-2",
+          "x": 253.78,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 314.38,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 469.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-3",
+        "rect": {
+          "name": "assault-action-3",
+          "x": 317.62,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 378.22,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 587.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-4",
+        "rect": {
+          "name": "assault-action-4",
+          "x": 381.46,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 442.06,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 705.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-5",
+        "rect": {
+          "name": "assault-action-5",
+          "x": 445.31,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 505.9,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 823.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-6",
+        "rect": {
+          "name": "assault-action-6",
+          "x": 509.15,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 569.74,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 941.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-7",
+        "rect": {
+          "name": "assault-action-7",
+          "x": 572.99,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 633.58,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 1059.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      }
+    ],
+    "overlaps": [],
+    "outOfBounds": [],
+    "pass": true
+  },
+  "buildMenuLayout": {
+    "state": "build-menu",
+    "activeScenes": [
+      "VillageAssaultScene"
+    ],
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "media": {
+      "landscape": true,
+      "coarsePointer": false
+    },
+    "body": {
+      "scrollWidth": 844,
+      "scrollHeight": 390,
+      "fitsViewport": true
+    },
+    "canvasRect": {
+      "x": 0,
+      "y": 0,
+      "width": 843,
+      "height": 390,
+      "right": 843,
+      "bottom": 390
+    },
+    "canvasFitsViewport": true,
+    "gameSize": {
+      "width": 1558.1538461538462,
+      "height": 720
+    },
+    "cssScale": {
+      "x": 0.5410248815165877,
+      "y": 0.5416666666666666
+    },
+    "compactUi": true,
+    "uiScale": 1,
+    "orientationBlocked": false,
+    "buildMenuOpen": true,
+    "roots": [
+      {
+        "name": "Container",
+        "x": 191.02,
+        "y": 12.46,
+        "width": 460.95,
+        "height": 29.25,
+        "right": 651.98,
+        "bottom": 41.71,
+        "worldRect": {
+          "x": 353.08,
+          "y": 23,
+          "width": 852,
+          "height": 54
+        }
+      },
+      {
+        "name": "Container",
+        "x": 189.94,
+        "y": 306.58,
+        "width": 443.64,
+        "height": 79.35,
+        "right": 633.58,
+        "bottom": 385.94,
+        "worldRect": {
+          "x": 351.08,
+          "y": 566,
+          "width": 820,
+          "height": 146.5
+        }
+      }
+    ],
+    "hudItems": [
+      {
+        "name": "Text",
+        "x": 191.02,
+        "y": 13.54,
+        "width": 142.29,
+        "height": 28.17,
+        "right": 333.31,
+        "bottom": 41.71,
+        "worldRect": {
+          "x": 353.08,
+          "y": 25,
+          "width": 263,
+          "height": 52
+        }
+      },
+      {
+        "name": "Text",
+        "x": 448.55,
+        "y": 12.46,
+        "width": 53.02,
+        "height": 27.08,
+        "right": 501.57,
+        "bottom": 39.54,
+        "worldRect": {
+          "x": 829.08,
+          "y": 23,
+          "width": 98,
+          "height": 50
+        }
+      },
+      {
+        "name": "Text",
+        "x": 189.94,
+        "y": 306.58,
+        "width": 182.33,
+        "height": 16.25,
+        "right": 372.27,
+        "bottom": 322.83,
+        "worldRect": {
+          "x": 351.08,
+          "y": 566,
+          "width": 337,
+          "height": 30
+        }
+      }
+    ],
+    "actionButtons": [
+      {
+        "name": "assault-action-1",
+        "rect": {
+          "name": "assault-action-1",
+          "x": 189.94,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 250.54,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 351.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-2",
+        "rect": {
+          "name": "assault-action-2",
+          "x": 253.78,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 314.38,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 469.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-3",
+        "rect": {
+          "name": "assault-action-3",
+          "x": 317.62,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 65.81,
+          "right": 378.22,
+          "bottom": 385.94,
+          "worldRect": {
+            "x": 587.08,
+            "y": 591,
+            "width": 112,
+            "height": 121.5
+          }
+        }
+      },
+      {
+        "name": "assault-action-4",
+        "rect": {
+          "name": "assault-action-4",
+          "x": 381.46,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 65.81,
+          "right": 442.06,
+          "bottom": 385.94,
+          "worldRect": {
+            "x": 705.08,
+            "y": 591,
+            "width": 112,
+            "height": 121.5
+          }
+        }
+      },
+      {
+        "name": "assault-action-5",
+        "rect": {
+          "name": "assault-action-5",
+          "x": 445.31,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 505.9,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 823.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-6",
+        "rect": {
+          "name": "assault-action-6",
+          "x": 509.15,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 569.74,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 941.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      },
+      {
+        "name": "assault-action-7",
+        "rect": {
+          "name": "assault-action-7",
+          "x": 572.99,
+          "y": 320.13,
+          "width": 60.59,
+          "height": 63.92,
+          "right": 633.58,
+          "bottom": 384.04,
+          "worldRect": {
+            "x": 1059.08,
+            "y": 591,
+            "width": 112,
+            "height": 118
+          }
+        }
+      }
+    ],
+    "overlaps": [],
+    "outOfBounds": [],
+    "pass": true
+  },
+  "pass": true
+}

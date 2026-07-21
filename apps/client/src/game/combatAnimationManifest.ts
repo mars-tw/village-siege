@@ -59,15 +59,51 @@ const ACTION_FPS: Readonly<Record<AnimatedUnitId, Readonly<Record<CombatAction, 
   heavyCrossbowman: { idle: 5, walk: 8, attack: 9, cast: 9, hurt: 8, death: 7 },
 };
 
+interface DirectionalSheetConfig {
+  readonly assetFolder: string;
+  readonly frameWidth: number;
+  readonly frameHeight: number;
+  readonly anchorX: number;
+  readonly anchorY: number;
+  readonly artScale: number;
+}
+
+/**
+ * Production-approved six-facing migrations live here. Keeping the registry
+ * separate from createAsset makes each promotion an auditable data change:
+ * six files, one metrics contract and no actor-specific loader branch.
+ */
+const DIRECTIONAL_UNIT_SHEETS: Readonly<Partial<Record<AnimatedUnitId, DirectionalSheetConfig>>> = {
+  warrior: {
+    assetFolder: "warrior",
+    frameWidth: 96,
+    frameHeight: 112,
+    anchorX: 48,
+    anchorY: 88,
+    artScale: 1,
+  },
+  archer: {
+    assetFolder: "archer",
+    frameWidth: 96,
+    frameHeight: 112,
+    anchorX: 48,
+    anchorY: 88,
+    artScale: 1,
+  },
+};
+
+const DIRECTIONAL_MONSTER_SHEETS: Readonly<Partial<Record<AnimatedMonsterId, DirectionalSheetConfig>>> = {};
+
 function createAsset(unitId: AnimatedUnitId): UnitFrameAsset {
   const artId = ART_IDS[unitId];
-  const directionalTextureKeys = unitId === "warrior"
+  const directional = DIRECTIONAL_UNIT_SHEETS[unitId];
+  const directionalTextureKeys = directional
     ? Object.fromEntries(FACING_ORDER.map((facing) => [facing, `unit-action-sheet-${artId}-${facing}`])) as Record<Facing, string>
     : undefined;
-  const directionalPaths = unitId === "warrior"
+  const directionalPaths = directional
     ? Object.fromEntries(FACING_ORDER.map((facing) => [
       facing,
-      publicAssetUrl(`assets/original/units/${unitId}/sprites/facings/${facing}.png`),
+      publicAssetUrl(`assets/original/units/${directional.assetFolder}/sprites/facings/${facing}.png`),
     ])) as Record<Facing, string>
     : undefined;
   const textureKey = directionalTextureKeys?.se ?? `unit-action-sheet-${artId}`;
@@ -89,11 +125,11 @@ function createAsset(unitId: AnimatedUnitId): UnitFrameAsset {
       id: artId,
       textureKey,
       directionalTextureKeys,
-      frameWidth: unitId === "warrior" ? 96 : 256,
-      frameHeight: unitId === "warrior" ? 112 : 256,
-      anchorX: unitId === "warrior" ? 48 : 128,
-      anchorY: unitId === "warrior" ? 88 : 224,
-      artScale: unitId === "warrior" ? 1 : artId === "boar_rider" ? 0.55 : 0.5,
+      frameWidth: directional?.frameWidth ?? 256,
+      frameHeight: directional?.frameHeight ?? 256,
+      anchorX: directional?.anchorX ?? 128,
+      anchorY: directional?.anchorY ?? 224,
+      artScale: directional?.artScale ?? (artId === "boar_rider" ? 0.55 : 0.5),
       authoredFacing: "right",
       frameNamePrefix: `unit-action-frame-${artId}`,
     }, frames, ACTION_FPS[unitId]),
@@ -104,7 +140,17 @@ function createAsset(unitId: AnimatedUnitId): UnitFrameAsset {
 export const ANIMATED_UNIT_FRAME_ASSETS: readonly UnitFrameAsset[] = ANIMATED_UNIT_IDS.map(createAsset);
 
 function createMonsterAsset(monsterId: AnimatedMonsterId): MonsterFrameAsset {
-  const textureKey = `monster-action-sheet-${monsterId}`;
+  const directional = DIRECTIONAL_MONSTER_SHEETS[monsterId];
+  const directionalTextureKeys = directional
+    ? Object.fromEntries(FACING_ORDER.map((facing) => [facing, `monster-action-sheet-${monsterId}-${facing}`])) as Record<Facing, string>
+    : undefined;
+  const directionalPaths = directional
+    ? Object.fromEntries(FACING_ORDER.map((facing) => [
+      facing,
+      publicAssetUrl(`assets/original/monsters/${directional.assetFolder}/sprites/facings/${facing}.png`),
+    ])) as Record<Facing, string>
+    : undefined;
+  const textureKey = directionalTextureKeys?.se ?? `monster-action-sheet-${monsterId}`;
   const fps: Readonly<Record<CombatAction, number>> = {
     idle: 5,
     walk: monsterId === "ashwing" ? 10 : 8,
@@ -125,18 +171,20 @@ function createMonsterAsset(monsterId: AnimatedMonsterId): MonsterFrameAsset {
     monsterId,
     artId: monsterId,
     textureKey,
-    path: publicAssetUrl(`assets/original/monsters/${monsterId}/sprites/action-sheet.png`),
+    path: directionalPaths?.se ?? publicAssetUrl(`assets/original/monsters/${monsterId}/sprites/action-sheet.png`),
     manifest: createSixRowManifest({
       id: monsterId,
       textureKey,
-      frameWidth: 256,
-      frameHeight: 256,
-      anchorX: 128,
-      anchorY: 224,
-      artScale: monsterId === "rootback" ? 0.55 : 0.52,
+      directionalTextureKeys,
+      frameWidth: directional?.frameWidth ?? 256,
+      frameHeight: directional?.frameHeight ?? 256,
+      anchorX: directional?.anchorX ?? 128,
+      anchorY: directional?.anchorY ?? 224,
+      artScale: directional?.artScale ?? (monsterId === "rootback" ? 0.55 : 0.52),
       authoredFacing: "right",
       frameNamePrefix: `monster-action-frame-${monsterId}`,
     }, frames, fps),
+    directionalPaths,
   };
 }
 

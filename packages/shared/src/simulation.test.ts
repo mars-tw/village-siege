@@ -95,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.17.0");
+    expect(RULES_VERSION).toBe("village-siege/0.18.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -964,6 +964,376 @@ describe("deterministic shared simulation", () => {
     expect(first).toEqual(second);
     expect(hashMatchState(first)).toBe(hashMatchState(second));
     expect(hashReplay(initial, commands, 20)).toBe(hashReplay(initial, commands, 20));
+  });
+
+  it("reserves allied unit cells while forty movers drain through a two-cell gate deterministically", () => {
+    const initial = createInitialState({
+      seed: 251,
+      matchId: "forty-unit-gate-reservations",
+      map: { width: 32, height: 12 },
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const template = initial.entities.find((entity): entity is UnitEntityState => (
+      entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager"
+    ))!;
+    const starts = Array.from({ length: 40 }, (_, index) => ({
+      x: index % 5,
+      y: 2 + Math.floor(index / 5),
+    }));
+    const targets = Array.from({ length: 40 }, (_, index) => ({
+      x: 29 - Math.floor(index / 2),
+      y: 5 + index % 2,
+    }));
+    const movers = starts.map((position, index): UnitEntityState => ({
+      ...template,
+      id: `gate-mover-${index.toString().padStart(2, "0")}`,
+      position: { ...position },
+      order: { type: "move", target: { ...targets[index]! } },
+      movementProgress: 0,
+      stateRevision: 0,
+      combat: { ...template.combat },
+      passive: { ...template.passive },
+      statuses: [],
+      cargo: { ...template.cargo },
+      gatherRemainderMilli: { ...template.gatherRemainderMilli },
+    }));
+    const gate = addCompletedBuilding(initial, "player-1", "surveyGate", "reservation-gate", { x: 6, y: 5 });
+    gate.orientation = "sw";
+    gate.gateOpen = false;
+    const walls = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11].map((y) => (
+      addCompletedBuilding(initial, "player-1", "resinPalisade", `reservation-wall-${y}`, { x: 6, y })
+    ));
+    initial.entities = [...walls, gate, ...movers];
+
+    const run = (): { readonly state: MatchState; readonly crossedIds: readonly string[] } => {
+      let state = cloneMatchState(initial);
+      const crossedIds = new Set<string>();
+      const assertLegalReservationState = (gateIsOpen: boolean): void => {
+        const units = state.entities.filter((entity): entity is UnitEntityState => entity.kind === "unit");
+        const occupied = units.map((unit) => `${unit.position.x},${unit.position.y}`);
+        expect(new Set(occupied).size).toBe(units.length);
+        for (const unit of units) {
+          expect(unit.position.x).toBeGreaterThanOrEqual(0);
+          expect(unit.position.x).toBeLessThan(state.map.width);
+          expect(unit.position.y).toBeGreaterThanOrEqual(0);
+          expect(unit.position.y).toBeLessThan(state.map.height);
+          if (unit.position.x === 6) expect([5, 6]).toContain(unit.position.y);
+          if (!gateIsOpen) expect(unit.position.x).toBeLessThan(6);
+        }
+      };
+
+      state = stepSimulation(state, [], 100).state;
+      assertLegalReservationState(false);
+      const liveGate = state.entities.find((entity): entity is BuildingEntityState => entity.id === gate.id && entity.kind === "building")!;
+      liveGate.gateOpen = true;
+      for (let tick = 0; tick < 600; tick += 20) {
+        state = stepSimulation(state, [], 20).state;
+        assertLegalReservationState(true);
+        for (const unit of state.entities.filter((entity): entity is UnitEntityState => entity.kind === "unit")) {
+          if (unit.position.x > 6) crossedIds.add(unit.id);
+        }
+      }
+      return { state, crossedIds: [...crossedIds].sort() };
+    };
+
+    const first = run();
+    const second = run();
+    const finalUnits = first.state.entities.filter((entity): entity is UnitEntityState => entity.kind === "unit");
+    expect(finalUnits).toHaveLength(movers.length);
+    expect(first.crossedIds).toEqual(movers.map((unit) => unit.id).sort());
+    expect(second.crossedIds).toEqual(first.crossedIds);
+    expect(first).toEqual(second);
+    expect(hashMatchState(first.state)).toBe(hashMatchState(second.state));
+  }, 30_000);
+
+  it("keeps ready movement credit while a closed gate reopens", () => {
+    let state = createInitialState({
+      seed: 2511,
+      matchId: "gate-reopen-ready-credit",
+      map: { width: 12, height: 12 },
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const mover = state.entities.find((entity): entity is UnitEntityState => (
+      entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager"
+    ))!;
+    mover.position = { x: 5, y: 5 };
+    mover.order = { type: "move", target: { x: 8, y: 5 } };
+    mover.movementProgress = 0;
+    const gate = addCompletedBuilding(state, "player-1", "surveyGate", "reopen-credit-gate", { x: 6, y: 5 });
+    gate.orientation = "sw";
+    gate.gateOpen = false;
+    const walls = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11].map((y) => (
+      addCompletedBuilding(state, "player-1", "resinPalisade", `reopen-credit-wall-${y}`, { x: 6, y })
+    ));
+    state.entities = [...walls, gate, mover];
+
+    state = stepSimulation(state, [], 10).state;
+    expect(state.entities.find((entity) => entity.id === mover.id)?.position).toEqual({ x: 5, y: 5 });
+    const liveGate = state.entities.find((entity): entity is BuildingEntityState => entity.id === gate.id && entity.kind === "building")!;
+    liveGate.gateOpen = true;
+    state = stepSimulation(state, [], 1).state;
+    expect(state.entities.find((entity) => entity.id === mover.id)?.position).toEqual({ x: 6, y: 5 });
+  });
+
+  it("shares allied reservations across different players on the same team", () => {
+    let state = createInitialState({
+      seed: 25111,
+      matchId: "cross-player-allied-reservations",
+      players: [
+        { id: "player-1", teamId: "alliance", villageId: "pinehold" },
+        { id: "player-2", teamId: "enemy", villageId: "riverstead" },
+        { id: "player-3", teamId: "alliance", villageId: "highcrag" },
+      ],
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const first = configureCombatUnit(state, "player-1", 0, "warrior", { x: 1, y: 2 });
+    const second = configureCombatUnit(state, "player-3", 0, "warrior", { x: 3, y: 2 });
+    first.id = "reservation-a-player-1";
+    first.order = { type: "move", target: { x: 2, y: 2 } };
+    first.movementProgress = 10_000;
+    second.id = "reservation-b-player-3";
+    second.order = { type: "move", target: { x: 2, y: 2 } };
+    second.movementProgress = 10_000;
+    state.entities = [first, second];
+
+    state = stepSimulation(state, [], 1).state;
+    const resolvedFirst = state.entities.find((entity) => entity.id === first.id)!;
+    const resolvedSecond = state.entities.find((entity) => entity.id === second.id)!;
+    expect(resolvedFirst.position).toEqual({ x: 2, y: 2 });
+    expect(resolvedSecond.position).not.toEqual(resolvedFirst.position);
+  });
+
+  it("releases a surrendered ally cell before an operational teammate moves", () => {
+    let state = createInitialState({
+      seed: 25112,
+      matchId: "surrender-releases-allied-reservation",
+      players: [
+        { id: "player-1", teamId: "alliance", villageId: "pinehold" },
+        { id: "player-2", teamId: "enemy", villageId: "riverstead" },
+        { id: "player-3", teamId: "alliance", villageId: "highcrag" },
+      ],
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const surrendered = configureCombatUnit(state, "player-1", 0, "warrior", { x: 2, y: 2 });
+    const mover = configureCombatUnit(state, "player-3", 0, "warrior", { x: 1, y: 2 });
+    surrendered.id = "reservation-a-surrendered";
+    surrendered.order = { type: "idle" };
+    mover.id = "reservation-b-operational";
+    mover.order = { type: "move", target: { x: 4, y: 2 } };
+    mover.movementProgress = 10_000;
+    state.players.find((player) => player.id === surrendered.ownerId)!.surrendered = true;
+    state.entities = [surrendered, mover];
+
+    state = stepSimulation(state, [], 1).state;
+    expect(state.entities.find((entity) => entity.id === mover.id)?.position).toEqual({ x: 2, y: 2 });
+  });
+
+  it("releases a unit cell after same-tick burn death before the next mover updates", () => {
+    let state = createInitialState({
+      seed: 2512,
+      matchId: "burn-death-releases-reservation",
+      map: { width: 6, height: 5 },
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const template = state.entities.find((entity): entity is UnitEntityState => (
+      entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager"
+    ))!;
+    const burning: UnitEntityState = {
+      ...template,
+      id: "reservation-a-burning",
+      position: { x: 2, y: 2 },
+      hitPoints: 1,
+      order: { type: "idle" },
+      combat: { ...template.combat }, passive: { ...template.passive },
+      statuses: [{ id: "burn", sourceId: "burn-source", sourceOwnerId: "player-2", expiresAtTick: 100, nextTickAt: 1 }],
+      cargo: { ...template.cargo }, gatherRemainderMilli: { ...template.gatherRemainderMilli },
+    };
+    const mover: UnitEntityState = {
+      ...template,
+      id: "reservation-b-mover",
+      position: { x: 1, y: 2 },
+      order: { type: "move", target: { x: 4, y: 2 } },
+      movementProgress: 10_000,
+      combat: { ...template.combat }, passive: { ...template.passive }, statuses: [],
+      cargo: { ...template.cargo }, gatherRemainderMilli: { ...template.gatherRemainderMilli },
+    };
+    const corridorWalls = [1, 3].flatMap((y) => Array.from({ length: 6 }, (_, x) => (
+      addCompletedBuilding(state, "player-1", "resinPalisade", `burn-release-wall-${x}-${y}`, { x, y })
+    )));
+    state.entities = [...corridorWalls, burning, mover];
+
+    state = stepSimulation(state, [], 1).state;
+    expect(state.entities.some((entity) => entity.id === burning.id)).toBe(false);
+    expect(state.entities.find((entity) => entity.id === mover.id)?.position).toEqual({ x: 2, y: 2 });
+  });
+
+  it("releases a combat victim cell before a later same-team mover updates", () => {
+    let state = createInitialState({
+      seed: 25121,
+      matchId: "combat-death-releases-reservation",
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const attacker = configureCombatUnit(state, "player-2", 0, "warrior", { x: 4, y: 2 });
+    const victim = configureCombatUnit(state, "player-1", 0, "warrior", { x: 3, y: 2 });
+    const mover = configureCombatUnit(state, "player-1", 1, "warrior", { x: 2, y: 2 });
+    attacker.id = "reservation-a-attacker";
+    attacker.order = { type: "attack", targetId: "reservation-z-victim" };
+    attacker.combat = {
+      phase: "windup", action: "attack", abilityId: null,
+      target: { kind: "entity", entityId: "reservation-z-victim" },
+      commitTick: 1, readyTick: 2,
+    };
+    mover.id = "reservation-m-mover";
+    mover.order = { type: "move", target: { x: 6, y: 2 } };
+    mover.movementProgress = 10_000;
+    victim.id = "reservation-z-victim";
+    victim.hitPoints = 1;
+    victim.order = { type: "idle" };
+    state.entities = [attacker, mover, victim];
+
+    const result = stepSimulation(state, [], 1);
+    expect(result.events.some((event) => (
+      event.type === "entityDamaged" && event.targetId === victim.id && event.hitPoints === 0
+    ))).toBe(true);
+    expect(result.state.entities.some((entity) => entity.id === victim.id)).toBe(false);
+    expect(result.state.entities.find((entity) => entity.id === mover.id)?.position).toEqual({ x: 3, y: 2 });
+  });
+
+  it("hands cargo through one allied perimeter occupant without overlapping cells", () => {
+    let state = createInitialState({
+      seed: 2513,
+      matchId: "allied-perimeter-cargo-handoff",
+      map: { width: 8, height: 6 },
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const player = state.players.find((candidate) => candidate.id === "player-1")!;
+    const template = state.entities.find((entity): entity is UnitEntityState => (
+      entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager"
+    ))!;
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => (
+      entity.kind === "building" && entity.ownerId === player.id && entity.typeId === "townCenter"
+    ))!;
+    townCenter.position = { x: 4, y: 1 };
+    const perimeterWorker: UnitEntityState = {
+      ...template,
+      id: "handoff-perimeter-worker",
+      position: { x: 3, y: 2 },
+      order: { type: "idle" },
+      combat: { ...template.combat }, passive: { ...template.passive }, statuses: [],
+      cargo: { kind: null, amount: 0 }, gatherRemainderMilli: { ...template.gatherRemainderMilli },
+    };
+    const carrier: UnitEntityState = {
+      ...template,
+      id: "handoff-queued-carrier",
+      position: { x: 2, y: 2 },
+      order: { type: "deliver", targetId: townCenter.id },
+      combat: { ...template.combat }, passive: { ...template.passive }, statuses: [],
+      cargo: { kind: "wood", amount: 5 }, gatherRemainderMilli: { ...template.gatherRemainderMilli },
+    };
+    state.entities = [townCenter, perimeterWorker, carrier];
+    const startingWood = player.resources.wood;
+
+    const result = stepSimulation(state, [], 1);
+    expect(result.events).toContainEqual({
+      type: "resourcesDeposited", playerId: player.id, unitId: carrier.id,
+      dropOffId: townCenter.id, resourceKind: "wood", amount: 5,
+    });
+    expect(result.state.players.find((candidate) => candidate.id === player.id)?.resources.wood).toBe(startingWood + 5);
+    const positions = result.state.entities
+      .filter((entity): entity is UnitEntityState => entity.kind === "unit")
+      .map((unit) => `${unit.position.x},${unit.position.y}`);
+    expect(new Set(positions).size).toBe(positions.length);
+  });
+
+  it("continues an entity detour instead of reversing into an occupied shortcut", () => {
+    let state = createInitialState({
+      seed: 2514,
+      matchId: "construct-detour-continuation",
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const townCenter = state.entities.find((entity): entity is BuildingEntityState => (
+      entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter"
+    ))!;
+    const wood = state.entities.find((entity): entity is ResourceEntityState => (
+      entity.kind === "resource" && entity.typeId === "wood" && entity.position.x < 10
+    ))!;
+    const food = state.entities.find((entity): entity is ResourceEntityState => (
+      entity.kind === "resource" && entity.typeId === "food" && entity.position.x < 10
+    ))!;
+    const villagers = state.entities.filter((entity): entity is UnitEntityState => (
+      entity.kind === "unit" && entity.ownerId === "player-1" && entity.typeId === "villager"
+    ));
+    const [idleNorth, builder, idleNorthEast] = villagers;
+    idleNorth!.position = { x: 5, y: 5 };
+    idleNorth!.order = { type: "idle" };
+    idleNorthEast!.position = { x: 6, y: 5 };
+    idleNorthEast!.order = { type: "idle" };
+    builder!.position = { x: 5, y: 6 };
+    const barracks = addCompletedBuilding(state, "player-1", "barracks", "detour-barracks", { x: 6, y: 8 });
+    const site = addCompletedBuilding(state, "player-1", "lumberCamp", "detour-site", { x: 9, y: 6 });
+    site.complete = false;
+    site.hitPoints = 1;
+    site.constructionRemainingTicks = 40;
+    builder!.order = { type: "construct", targetId: site.id };
+    state.entities = [townCenter, wood, food, barracks, site, idleNorth!, builder!, idleNorthEast!];
+
+    for (let tick = 0; tick < 200; tick += 10) {
+      state = stepSimulation(state, [], 10).state;
+      const positions = state.entities
+        .filter((entity): entity is UnitEntityState => entity.kind === "unit")
+        .map((unit) => `${unit.position.x},${unit.position.y}`);
+      expect(new Set(positions).size).toBe(positions.length);
+    }
+    expect(state.entities.find((entity) => entity.id === site.id)).toMatchObject({
+      complete: true, constructionRemainingTicks: 0,
+    });
+  });
+
+  it("keeps a constructing villager out of an idle ally cell and resumes after the lane clears", () => {
+    let state = createInitialState({
+      seed: 252,
+      matchId: "construct-allied-reservation",
+      map: { width: 8, height: 5 },
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const template = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    const site = addCompletedBuilding(state, "player-1", "house", "reservation-site", { x: 5, y: 2 });
+    site.complete = false;
+    site.constructionRemainingTicks = 20;
+    site.hitPoints = 1;
+    const builder: UnitEntityState = {
+      ...template,
+      id: "reservation-builder",
+      position: { x: 1, y: 2 },
+      order: { type: "construct", targetId: site.id },
+      combat: { ...template.combat }, passive: { ...template.passive }, statuses: [],
+      cargo: { ...template.cargo }, gatherRemainderMilli: { ...template.gatherRemainderMilli },
+    };
+    const idleAlly: UnitEntityState = {
+      ...template,
+      id: "reservation-idle-ally",
+      position: { x: 2, y: 2 },
+      order: { type: "idle" },
+      combat: { ...template.combat }, passive: { ...template.passive }, statuses: [],
+      cargo: { ...template.cargo }, gatherRemainderMilli: { ...template.gatherRemainderMilli },
+    };
+    const corridorWalls = [1, 3].flatMap((y) => Array.from({ length: 5 }, (_, x) => (
+      addCompletedBuilding(state, "player-1", "resinPalisade", `construct-wall-${x}-${y}`, { x, y })
+    )));
+    state.entities = [...corridorWalls, site, builder, idleAlly];
+
+    state = stepSimulation(state, [], 40).state;
+    const waitingBuilder = state.entities.find((entity): entity is UnitEntityState => entity.id === builder.id && entity.kind === "unit")!;
+    const waitingAlly = state.entities.find((entity): entity is UnitEntityState => entity.id === idleAlly.id && entity.kind === "unit")!;
+    expect(waitingBuilder.position).not.toEqual(waitingAlly.position);
+    expect(state.entities.find((entity) => entity.id === site.id)).toMatchObject({ complete: false });
+
+    waitingAlly.position = { x: 7, y: 4 };
+    state = stepSimulation(state, [], 200).state;
+    const completedBuilder = state.entities.find((entity): entity is UnitEntityState => entity.id === builder.id && entity.kind === "unit")!;
+    const completedAlly = state.entities.find((entity): entity is UnitEntityState => entity.id === idleAlly.id && entity.kind === "unit")!;
+    expect(completedBuilder.position).not.toEqual(completedAlly.position);
+    expect(state.entities.find((entity) => entity.id === site.id)).toMatchObject({ complete: true });
   });
 
   it("spawns queued units on distinct free perimeter cells", () => {
@@ -1876,6 +2246,35 @@ describe("deterministic shared simulation", () => {
     const chargeResult = stepSimulation(charge, [], 4);
     expect(chargeResult.state.entities.find((entity) => entity.id === rider.id)!.position).toEqual({ x: 11, y: 5 });
     expect(chargeResult.events.some((event) => event.type === "statusApplied" && event.targetId === chargeTarget.id && event.statusId === "stagger")).toBe(true);
+  });
+
+  it("stops a tusk charge before an allied cell and refuses to push a target into its ally", () => {
+    let state = createInitialState({
+      seed: 3331,
+      matchId: "tusk-charge-allied-reservations",
+      victoryPolicy: { commandCenterConquest: null, elimination: false, landmark: null, timedControl: null },
+    });
+    const rider = configureCombatUnit(state, "player-1", 0, "boarRider", { x: 5, y: 5 });
+    const riderAlly = configureCombatUnit(state, "player-1", 1, "warrior", { x: 7, y: 5 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 9, y: 5 });
+    const targetAlly = configureCombatUnit(state, "player-2", 1, "warrior", { x: 10, y: 5 });
+    state.entities = [rider, riderAlly, target, targetAlly];
+    state = applyCommand(state, envelope(state, 0, {
+      type: "castAbility", casterId: rider.id, abilityId: "tuskCharge", target: { kind: "direction", vector: { x: 6, y: 0 } },
+    })).state;
+
+    const targetHitPoints = target.hitPoints;
+    const result = stepSimulation(state, [], 4);
+    expect(result.state.entities.find((entity) => entity.id === rider.id)?.position).toEqual({ x: 6, y: 5 });
+    expect(result.state.entities.find((entity) => entity.id === riderAlly.id)?.position).toEqual({ x: 7, y: 5 });
+    expect(result.state.entities.find((entity) => entity.id === target.id)).toMatchObject({
+      position: { x: 9, y: 5 }, hitPoints: targetHitPoints, statuses: [],
+    });
+    expect(result.state.entities.find((entity) => entity.id === targetAlly.id)?.position).toEqual({ x: 10, y: 5 });
+    expect(result.events.some((event) => event.type === "entityDamaged" && event.targetId === target.id)).toBe(false);
+    expect(result.events.some((event) => event.type === "statusApplied" && event.targetId === target.id && event.statusId === "stagger")).toBe(false);
+    const occupied = result.state.entities.filter((entity): entity is UnitEntityState => entity.kind === "unit").map((unit) => `${unit.position.x},${unit.position.y}`);
+    expect(new Set(occupied).size).toBe(occupied.length);
   });
 
   it("reduces projectile damage only inside the active shield-wall front arc", () => {

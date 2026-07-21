@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const relativeFiles = [
   ".gitattributes",
+  ".github/workflows/deploy-pages.yml",
   ".github/workflows/publish-containers.yml",
   ".env.example",
   "Dockerfile",
@@ -80,8 +81,19 @@ for (const required of [
   'parsed.protocol !== "https:"',
   "parsed.origin !== value",
   "PUBLIC_CONNECT_ORIGIN must be an exact HTTPS origin",
+  "validatePagesBuildConfig",
+  "VILLAGE_SIEGE_COLYSEUS_URL is required when public multiplayer is enabled",
 ]) {
   if (!runtimeConfig.includes(required)) throw new Error(`runtime config safety check missing: ${required}`);
+}
+
+const pagesWorkflow = contents.get(".github/workflows/deploy-pages.yml");
+for (const required of [
+  "vars.VILLAGE_SIEGE_MULTIPLAYER_ENABLED || 'false'",
+  "vars.VILLAGE_SIEGE_COLYSEUS_URL || ''",
+  "validatePagesBuildConfig",
+]) {
+  if (!pagesWorkflow.includes(required)) throw new Error(`Pages multiplayer release gate missing: ${required}`);
 }
 
 const runtimeFallback = contents.get("apps/client/public/runtime-config.js").trim();
@@ -93,6 +105,16 @@ const productionTemplate = contents.get("deploy/compose.production.yaml");
 if (!productionTemplate.includes('VITE_MULTIPLAYER_ENABLED: "false"')
   || productionTemplate.includes("VITE_COLYSEUS_URL:")) {
   throw new Error("production client build must remain domain-agnostic and runtime-configured");
+}
+for (const required of [
+  "VILLAGE_SIEGE_TAG:-0.19.0",
+  "ghcr.io/mars-tw/village-siege-client",
+  "ghcr.io/mars-tw/village-siege-server",
+]) {
+  if (!productionTemplate.includes(required)) throw new Error(`production release tag check missing: ${required}`);
+}
+if (!contents.get("deploy/production.env.example").includes("VILLAGE_SIEGE_TAG=0.19.0")) {
+  throw new Error("production environment example must select the current release tag");
 }
 
 const rootDockerfile = contents.get("Dockerfile");

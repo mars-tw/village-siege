@@ -32,7 +32,7 @@ Redis secret 必須是 32～128 個 base64url 字元；不符合時容器會 fai
 cp deploy/production.env.example deploy/production.env
 ```
 
-在 `deploy/production.env` 填入實際兩個 hostname、ACME email、完整 Git commit SHA 與要部署的 release tag。所有 production Compose 指令一律透過 `deploy/production-compose.sh` 執行；它會強制檢查 secret 目錄為 `0700`、檔案為 `0444`。檔案權限讓容器內的非 root UID 可讀，但主機其他帳號無法穿越 `0700` 目錄，因此仍無法讀取。密碼不會寫入映像、Git、`.env`、程序環境或應用程式環境。
+在 `deploy/production.env` 填入實際兩個 hostname、ACME email、完整 Git commit SHA 與要部署的 release tag。所有 production Compose 指令一律透過 `deploy/production-compose.sh` 執行；它會強制檢查 secret 目錄為 `0700`、檔案為 `0444`。檔案權限讓容器內的非 root UID 可讀，但主機其他帳號無法穿越 `0700` 目錄，因此仍無法讀取。密碼不會寫入映像、Git 或 `.env`；server entrypoint 會在容器內讀取 secret 檔、組成 `REDIS_URL`／`DATABASE_URL` 並只匯出給隨即 `exec` 的 Node 程序。因此具備容器程序環境讀取權的管理者仍可取得連線憑證，正式主機必須限制 Docker socket、容器 inspect／exec 與診斷輸出權限。
 
 直接使用已簽署的公開 GHCR release 映像：
 
@@ -64,7 +64,7 @@ curl --fail --silent --show-error https://server.play.example.com/health/ready
 curl --fail --silent --show-error https://server.play.example.com/version
 ```
 
-`/version` 必須回 app `0.18.0`、protocol `village-siege-network/4`、rules `village-siege/0.17.0` 與實際 commit。`/health/ready` 在 draining 或 Redis/PostgreSQL 失效時回 503。
+`/version` 必須回 app `0.19.0`、protocol `village-siege-network/4`、rules `village-siege/0.18.0` 與實際 commit。`/health/ready` 在 draining 或 Redis/PostgreSQL 失效時回 503。
 
 Metrics 只能由 internal network 讀取：
 
@@ -72,6 +72,15 @@ Metrics 只能由 internal network 讀取：
 sh deploy/production-compose.sh exec -T server \
   node -e "fetch('http://127.0.0.1:2567/metrics').then(r=>r.text()).then(console.log)"
 ```
+
+### GitHub Pages 多人入口
+
+GitHub Pages 預設仍以單機安全模式建置。公開 WSS 完成 DNS、TLS、Origin 與雙客戶端 live gate 後，在 GitHub repository variables 設定：
+
+- `VILLAGE_SIEGE_MULTIPLAYER_ENABLED=true`
+- `VILLAGE_SIEGE_COLYSEUS_URL=https://<PUBLIC_SERVER_HOST>`
+
+接著重新執行 `Deploy playable client to GitHub Pages`。工作流程會拒絕非 `true`／`false` 的開關、非 HTTPS endpoint、帶 path、query、fragment 或尾斜線的 endpoint。移除變數或將開關設回 `false` 後重新部署，即會隱藏公開多人入口；不得在公開 WSS 尚未通過上述 live gate 時先行開啟。
 
 ## 5. 監控
 

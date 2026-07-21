@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-07-21T19:53:49.509Z",
+  "representatives": [
+    {
+      "facing": "e",
+      "action": "attack",
+      "textureKey": "unit-action-sheet-archer-e",
+      "frameName": "unit-action-frame-archer:e:attack:1",
+      "frame": 1,
+      "flipX": false
+    },
+    {
+      "facing": "nw",
+      "action": "walk",
+      "textureKey": "unit-action-sheet-archer-nw",
+      "frameName": "unit-action-frame-archer:nw:walk:1",
+      "frame": 1,
+      "flipX": false
+    },
+    {
+      "facing": "se",
+      "action": "cast",
+      "textureKey": "unit-action-sheet-archer-se",
+      "frameName": "unit-action-frame-archer:se:cast:1",
+      "frame": 1,
+      "flipX": false
+    }
+  ]
+}

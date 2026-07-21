@@ -38,9 +38,15 @@ jobs:
 
       - name: Build shared package and client for repository Pages path
         env:
-          # Hidden until TASK026 injects and verifies the public HTTPS/WSS origin.
-          VITE_MULTIPLAYER_ENABLED: "false"
+          # Safe default is disabled. TASK-026 may enable this without changing
+          # source after the public HTTPS/WSS origin passes its live gate.
+          VITE_MULTIPLAYER_ENABLED: ${{ vars.VILLAGE_SIEGE_MULTIPLAYER_ENABLED || 'false' }}
+          VITE_COLYSEUS_URL: ${{ vars.VILLAGE_SIEGE_COLYSEUS_URL || '' }}
         run: |
+          node --input-type=module -e '
+            import { validatePagesBuildConfig } from "./deploy/runtime-config.mjs";
+            validatePagesBuildConfig(process.env.VITE_MULTIPLAYER_ENABLED, process.env.VITE_COLYSEUS_URL);
+          '
           npm run build --workspace @village-siege/shared
           npm run build --workspace @village-siege/client -- --base=/village-siege/
 

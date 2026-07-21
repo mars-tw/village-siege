@@ -13,7 +13,7 @@ describe("service status documents", () => {
       name: "village-siege-server",
       version: APPLICATION_VERSION,
       protocolVersion: "village-siege-network/4",
-      rulesVersion: "village-siege/0.17.0",
+      rulesVersion: "village-siege/0.18.0",
       commit: "abc1234",
     });
     expect(versionDocument({ GIT_COMMIT_SHA: "not a commit; secret" }).commit).toBe("unknown");
