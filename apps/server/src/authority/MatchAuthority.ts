@@ -10,14 +10,18 @@ import {
   cloneMatchState,
   createInitialState,
   createVisibleSnapshotDelta,
+  getAiObservation,
   hashMatchState,
   isCommandEnvelope,
   isMatchCommandIntent,
   isMatchCommandResult,
   projectDomainEventsForPlayer,
+  reduceAi,
   stepSimulation,
   toVisibleSnapshot,
   type CanonicalStateHash,
+  type AiDifficulty,
+  type AiPersonality,
   type CommandEnvelope,
   type CommandRejectCode,
   type MatchCommandIntent,
@@ -42,6 +46,11 @@ export interface MatchParticipant {
   readonly teamId: string;
   readonly name: string;
   readonly villageId: PlayableVillageId;
+  /** Server-owned deterministic participant. AI factions never receive a network seat or command acknowledgement. */
+  readonly ai?: {
+    readonly personality: AiPersonality;
+    readonly difficulty: AiDifficulty;
+  };
 }
 
 export type IntentSubmission =
@@ -122,6 +131,16 @@ interface QueuedCommand {
   readonly record: CommandRecord;
 }
 
+interface AuthorityCommandExecution {
+  readonly envelope: CommandEnvelope;
+  readonly human?: QueuedCommand;
+}
+
+interface AiTickPlan {
+  readonly state: MatchState;
+  readonly commands: readonly CommandEnvelope[];
+}
+
 const MAX_BUFFERED_COMMANDS_PER_PLAYER = 16;
 const MAX_COMPLETED_COMMAND_RECORDS_PER_PLAYER = 512;
 
@@ -152,6 +171,7 @@ export class MatchAuthority {
         id: participant.playerId,
         teamId: participant.teamId,
         villageId: participant.villageId,
+        ...(participant.ai ? { ai: { ...participant.ai } } : {}),
       })),
       map: {
         id: VILLAGE_ASSAULT_MAP_ID,
@@ -162,7 +182,7 @@ export class MatchAuthority {
     });
     this.checkpointState = cloneMatchState(this.state);
     this.checkpointStateHash = hashMatchState(this.checkpointState);
-    for (const player of this.state.players) {
+    for (const player of this.state.players.filter((candidate) => this.isNetworkPlayer(candidate.id))) {
       this.pendingByPlayer.set(player.id, new Map());
       this.recordByPlayer.set(player.id, new Map());
       this.nextExpectedSequence.set(player.id, player.lastSequence + 1);
@@ -177,9 +197,26 @@ export class MatchAuthority {
       let previousTick = restoredState.tick;
       for (const operation of parsed.journal) {
         if (operation.fromTick !== previousTick) throw new Error("Authority recovery journal has a tick gap");
-        const replayed = operation.kind === "simulation"
-          ? stepSimulation(restoredState, operation.commands, 1)
-          : applyDisconnectedTeamDefeats(restoredState, operation.teamIds);
+        let replayed;
+        if (operation.kind === "simulation") {
+          const stateBeforeAiPlanning = restoredState;
+          const aiPlan = planAiTick(restoredState, parsed.participants);
+          const aiPlayerIds = new Set(parsed.participants.filter((participant) => participant.ai).map((participant) => participant.playerId));
+          const recordedAiCommands = operation.commands.filter((command) => aiPlayerIds.has(command.playerId));
+          if (canonicalJson(recordedAiCommands) !== canonicalJson(aiPlan.commands)) {
+            throw new Error("Authority recovery AI command batch diverged from deterministic planning");
+          }
+          replayed = stepSimulation(aiPlan.state, operation.commands, 1);
+          rollbackRejectedAiAuthorities(
+            stateBeforeAiPlanning,
+            replayed.state,
+            operation.commands,
+            replayed.events,
+            parsed.participants,
+          );
+        } else {
+          replayed = applyDisconnectedTeamDefeats(restoredState, operation.teamIds);
+        }
         if (replayed.state.tick !== operation.toTick || hashMatchState(replayed.state) !== operation.stateHash) {
           throw new Error("Authority recovery journal diverged from its committed state hash");
         }
@@ -194,7 +231,7 @@ export class MatchAuthority {
       authority.recordByPlayer.clear();
       authority.nextExpectedSequence.clear();
       authority.lastVisibleSnapshot.clear();
-      for (const participant of authority.participants) {
+      for (const participant of authority.networkParticipants()) {
         authority.pendingByPlayer.set(participant.playerId, new Map());
         authority.recordByPlayer.set(participant.playerId, new Map());
       }
@@ -234,7 +271,7 @@ export class MatchAuthority {
   }
 
   hasPlayer(playerId: string): boolean {
-    return this.state.players.some((player) => player.id === playerId);
+    return this.isNetworkPlayer(playerId);
   }
 
   serverHello(playerId: string): MatchServerHello {
@@ -318,7 +355,7 @@ export class MatchAuthority {
   }
 
   initialFrames(): ReadonlyMap<string, MatchReplicationFrame> {
-    return new Map(this.participants.map((participant) => [
+    return new Map(this.networkParticipants().map((participant) => [
       participant.playerId,
       this.fullSnapshotFrame(participant.playerId, []),
     ]));
@@ -332,7 +369,7 @@ export class MatchAuthority {
   recoveryRecord(): MatchAuthorityRecoveryRecord {
     const commandRecords: MatchAuthorityRecoveryRecord["commandRecords"][number][] = [];
     const pendingCommands: MatchAuthorityRecoveryRecord["pendingCommands"][number][] = [];
-    for (const participant of this.participants) {
+    for (const participant of this.networkParticipants()) {
       for (const [commandId, record] of this.recordByPlayer.get(participant.playerId)!) {
         commandRecords.push({
           playerId: participant.playerId,
@@ -360,7 +397,7 @@ export class MatchAuthority {
       participants: this.participants,
       checkpoint: { state: this.checkpointState, stateHash: this.checkpointStateHash },
       journal: this.journal,
-      nextExpectedSequences: this.participants.map((participant) => ({
+      nextExpectedSequences: this.networkParticipants().map((participant) => ({
         playerId: participant.playerId,
         sequence: this.nextExpectedSequence.get(participant.playerId)!,
       })),
@@ -371,30 +408,46 @@ export class MatchAuthority {
 
   step(): MatchTickResult {
     const queued = this.drainContiguousCommands();
+    const stateBeforeAiPlanning = this.state;
+    const aiPlan = planAiTick(this.state, this.participants);
+    this.state = aiPlan.state;
+    const executions: AuthorityCommandExecution[] = [
+      ...queued.map((human) => ({ envelope: human.envelope, human })),
+      ...aiPlan.commands.map((envelope) => ({ envelope })),
+    ].sort((left, right) => (
+      compareText(left.envelope.playerId, right.envelope.playerId)
+      || left.envelope.sequence - right.envelope.sequence
+      || compareText(canonicalJson(left.envelope.command), canonicalJson(right.envelope.command))
+    ));
     const fromTick = this.state.tick;
-    const advanced = stepSimulation(this.state, queued.map((entry) => entry.envelope), 1);
+    const advanced = stepSimulation(this.state, executions.map((entry) => entry.envelope), 1);
+    rollbackRejectedAiAuthorities(
+      stateBeforeAiPlanning,
+      advanced.state,
+      executions.map((entry) => entry.envelope),
+      advanced.events,
+      this.participants,
+    );
     this.state = advanced.state;
     this.recordJournalEntry({
       kind: "simulation",
       fromTick,
       toTick: this.state.tick,
-      commands: queued.map((entry) => cloneWire(entry.envelope)),
+      commands: executions.map((entry) => cloneWire(entry.envelope)),
       stateHash: hashMatchState(this.state),
     });
-    const orderedQueued = [...queued].sort((left, right) => (
-      compareText(left.envelope.playerId, right.envelope.playerId)
-      || left.envelope.sequence - right.envelope.sequence
-    ));
     const acknowledgements = advanced.events.filter((event) => (
       event.type === "commandAccepted" || event.type === "commandRejected"
     ));
-    if (acknowledgements.length !== orderedQueued.length) {
+    if (acknowledgements.length !== executions.length) {
       throw new Error("Authoritative command acknowledgement count diverged from the command batch");
     }
 
     const resultsByPlayer = new Map<string, MatchCommandResult[]>();
-    for (const [index, entry] of orderedQueued.entries()) {
+    for (const [index, execution] of executions.entries()) {
       const acknowledgement = acknowledgements[index]!;
+      const entry = execution.human;
+      if (!entry) continue;
       const result: MatchCommandResult = acknowledgement.type === "commandAccepted"
         ? {
             commandId: entry.record.intent.commandId,
@@ -414,13 +467,13 @@ export class MatchAuthority {
       ownResults.push(result);
       resultsByPlayer.set(entry.envelope.playerId, ownResults);
     }
-    for (const participant of this.participants) this.trimCompletedRecords(participant.playerId);
+    for (const participant of this.networkParticipants()) this.trimCompletedRecords(participant.playerId);
 
     const worldEvents = advanced.events.filter((event): event is ReplicatedWorldEvent => (
       event.type !== "commandAccepted" && event.type !== "commandRejected"
     ));
     const frames = new Map<string, MatchReplicationFrame>();
-    for (const participant of this.participants) {
+    for (const participant of this.networkParticipants()) {
       const events = projectDomainEventsForPlayer(
         this.state,
         participant.playerId,
@@ -458,7 +511,7 @@ export class MatchAuthority {
       event.type !== "commandAccepted" && event.type !== "commandRejected"
     ));
     const frames = new Map<string, MatchReplicationFrame>();
-    for (const participant of this.participants) {
+    for (const participant of this.networkParticipants()) {
       const events = projectDomainEventsForPlayer(
         this.state,
         participant.playerId,
@@ -480,7 +533,7 @@ export class MatchAuthority {
 
   private drainContiguousCommands(): QueuedCommand[] {
     const drained: QueuedCommand[] = [];
-    for (const participant of this.participants) {
+    for (const participant of this.networkParticipants()) {
       const pending = this.pendingByPlayer.get(participant.playerId)!;
       let next = this.nextExpectedSequence.get(participant.playerId)!;
       while (pending.has(next)) {
@@ -554,6 +607,82 @@ export class MatchAuthority {
     const excess = completed.length - MAX_COMPLETED_COMMAND_RECORDS_PER_PLAYER;
     for (let index = 0; index < excess; index += 1) records.delete(completed[index]![0]);
   }
+
+  private networkParticipants(): readonly MatchParticipant[] {
+    return this.participants.filter((participant) => !participant.ai);
+  }
+
+  private isNetworkPlayer(playerId: string): boolean {
+    return this.participants.some((participant) => participant.playerId === playerId && !participant.ai);
+  }
+}
+
+function planAiTick(state: MatchState, participants: readonly MatchParticipant[]): AiTickPlan {
+  const next = cloneMatchState(state);
+  const commands: CommandEnvelope[] = [];
+  const aiParticipants = participants
+    .filter((participant) => participant.ai)
+    .sort((left, right) => compareText(left.playerId, right.playerId));
+
+  for (const participant of aiParticipants) {
+    const player = next.players.find((candidate) => candidate.id === participant.playerId);
+    const authority = next.aiControllers.find((candidate) => candidate.playerId === participant.playerId);
+    if (!player || !authority) throw new Error(`Missing canonical AI authority for ${participant.playerId}`);
+    if (player.surrendered || player.eliminated || next.phase !== "playing") continue;
+
+    const reduced = reduceAi(authority, getAiObservation(next, participant.playerId), 5);
+    next.aiControllers = next.aiControllers
+      .map((candidate) => candidate.playerId === participant.playerId ? cloneWire(reduced.authority) : candidate)
+      .sort((left, right) => compareText(left.playerId, right.playerId));
+    let nextSequence = player.lastSequence + 1;
+    for (const command of reduced.commands) {
+      commands.push({
+        matchId: next.matchId,
+        playerId: participant.playerId,
+        sequence: nextSequence,
+        clientTick: next.tick,
+        command: cloneWire(command),
+      });
+      nextSequence += 1;
+    }
+  }
+
+  return {
+    state: next,
+    commands: commands.sort((left, right) => (
+      compareText(left.playerId, right.playerId)
+      || left.sequence - right.sequence
+      || compareText(canonicalJson(left.command), canonicalJson(right.command))
+    )),
+  };
+}
+
+export function rollbackRejectedAiAuthorities(
+  stateBeforePlanning: MatchState,
+  stateAfterStep: MatchState,
+  orderedCommands: readonly CommandEnvelope[],
+  events: readonly { readonly type: string }[],
+  participants: readonly MatchParticipant[],
+): void {
+  const acknowledgements = events.filter((event) => (
+    event.type === "commandAccepted" || event.type === "commandRejected"
+  ));
+  if (acknowledgements.length !== orderedCommands.length) return;
+  const aiPlayerIds = new Set(participants.filter((participant) => participant.ai).map((participant) => participant.playerId));
+  const rejectedAiPlayerIds = new Set<string>();
+  orderedCommands.forEach((command, index) => {
+    if (aiPlayerIds.has(command.playerId) && acknowledgements[index]?.type === "commandRejected") {
+      rejectedAiPlayerIds.add(command.playerId);
+    }
+  });
+  if (rejectedAiPlayerIds.size === 0) return;
+  const previousByPlayer = new Map(stateBeforePlanning.aiControllers.map((authority) => [authority.playerId, authority]));
+  stateAfterStep.aiControllers = stateAfterStep.aiControllers.map((authority) => {
+    if (!rejectedAiPlayerIds.has(authority.playerId)) return authority;
+    const previous = previousByPlayer.get(authority.playerId);
+    if (!previous) throw new Error(`Missing previous AI authority for rejected command: ${authority.playerId}`);
+    return cloneWire(previous);
+  });
 }
 
 function assertParticipants(participants: readonly MatchParticipant[]): void {
@@ -564,6 +693,25 @@ function assertParticipants(participants: readonly MatchParticipant[]): void {
   if (new Set(participants.map((participant) => participant.teamId)).size < 2) {
     throw new Error("A match requires at least two opposing teams");
   }
+  if (!participants.some((participant) => !participant.ai)) {
+    throw new Error("A network match requires at least one human participant");
+  }
+  for (const participant of participants) {
+    if (participant.ai && !isAiConfiguration(participant.ai)) {
+      throw new Error(`Invalid AI configuration for ${participant.playerId}`);
+    }
+  }
+}
+
+function isAiConfiguration(value: unknown): value is NonNullable<MatchParticipant["ai"]> {
+  return isRecord(value)
+    && (value.personality === "aggressor"
+      || value.personality === "guardian"
+      || value.personality === "prosperer"
+      || value.personality === "balanced"
+      || value.personality === "raider")
+    && (value.difficulty === "novice" || value.difficulty === "standard" || value.difficulty === "veteran")
+    && Object.keys(value).every((key) => key === "personality" || key === "difficulty");
 }
 
 function rejected(
@@ -640,11 +788,20 @@ function validateRecoveryRecord(input: MatchAuthorityRecoveryRecord): MatchAutho
     && typeof participant.playerId === "string"
     && typeof participant.teamId === "string"
     && typeof participant.name === "string"
-    && (participant.villageId === "pinehold" || participant.villageId === "riverstead" || participant.villageId === "highcrag"))) {
+    && (participant.villageId === "pinehold"
+      || participant.villageId === "riverstead"
+      || participant.villageId === "highcrag")
+    && (participant.ai === undefined || isAiConfiguration(participant.ai)))) {
     throw new Error("Invalid authority recovery participants");
   }
   assertParticipants(participants as unknown as MatchParticipant[]);
   const participantIds = new Set((participants as unknown as MatchParticipant[]).map((participant) => participant.playerId));
+  const networkParticipantIds = new Set((participants as unknown as MatchParticipant[])
+    .filter((participant) => !participant.ai)
+    .map((participant) => participant.playerId));
+  const aiParticipantIds = new Set((participants as unknown as MatchParticipant[])
+    .filter((participant) => participant.ai)
+    .map((participant) => participant.playerId));
   const checkpoint = value.checkpoint;
   if (!isRecord(checkpoint.state)
     || checkpoint.state.matchId !== value.matchId
@@ -660,6 +817,32 @@ function validateRecoveryRecord(input: MatchAuthorityRecoveryRecord): MatchAutho
     throw new Error("Authority recovery checkpoint is corrupt");
   }
   if (checkpointHash !== checkpoint.stateHash) throw new Error("Authority recovery checkpoint hash mismatch");
+  const checkpointAiControllers = Array.isArray(checkpoint.state.aiControllers)
+    ? checkpoint.state.aiControllers
+    : [];
+  const checkpointAiControllerIds = new Set(checkpointAiControllers.flatMap((authority) => (
+    isRecord(authority) && typeof authority.playerId === "string" ? [authority.playerId] : []
+  )));
+  if (checkpointAiControllers.length !== aiParticipantIds.size
+    || checkpointAiControllerIds.size !== aiParticipantIds.size
+    || checkpointAiControllers.some((authority) => (
+      !isRecord(authority)
+      || typeof authority.playerId !== "string"
+      || !aiParticipantIds.has(authority.playerId)
+    ))) {
+    throw new Error("Authority recovery checkpoint AI roster mismatch");
+  }
+  for (const participant of participants as unknown as MatchParticipant[]) {
+    if (!participant.ai) continue;
+    const authority = checkpointAiControllers.find((candidate) => (
+      isRecord(candidate) && candidate.playerId === participant.playerId
+    ));
+    if (!isRecord(authority)
+      || authority.personality !== participant.ai.personality
+      || authority.difficulty !== participant.ai.difficulty) {
+      throw new Error("Authority recovery checkpoint AI configuration mismatch");
+    }
+  }
   if (value.journal.length >= AUTHORITY_RECOVERY_CHECKPOINT_INTERVAL_TICKS) {
     throw new Error("Authority recovery journal exceeds its checkpoint window");
   }
@@ -694,7 +877,7 @@ function validateRecoveryRecord(input: MatchAuthorityRecoveryRecord): MatchAutho
   for (const cursor of value.nextExpectedSequences) {
     if (!isRecord(cursor)
       || typeof cursor.playerId !== "string"
-      || !participantIds.has(cursor.playerId)
+      || !networkParticipantIds.has(cursor.playerId)
       || !Number.isSafeInteger(cursor.sequence)
       || (cursor.sequence as number) < 0
       || cursorByPlayer.has(cursor.playerId)) {
@@ -702,7 +885,7 @@ function validateRecoveryRecord(input: MatchAuthorityRecoveryRecord): MatchAutho
     }
     cursorByPlayer.set(cursor.playerId, cursor.sequence as number);
   }
-  if (cursorByPlayer.size !== participantIds.size) throw new Error("Authority recovery sequence cursor is incomplete");
+  if (cursorByPlayer.size !== networkParticipantIds.size) throw new Error("Authority recovery sequence cursor is incomplete");
 
   const recordByIdentity = new Map<string, {
     readonly intentSequence: number;
@@ -712,7 +895,7 @@ function validateRecoveryRecord(input: MatchAuthorityRecoveryRecord): MatchAutho
   for (const persisted of value.commandRecords) {
     if (!isRecord(persisted)
       || typeof persisted.playerId !== "string"
-      || !participantIds.has(persisted.playerId)
+      || !networkParticipantIds.has(persisted.playerId)
       || typeof persisted.commandId !== "string"
       || typeof persisted.fingerprint !== "string"
       || !isMatchCommandIntent(persisted.intent)
@@ -742,7 +925,7 @@ function validateRecoveryRecord(input: MatchAuthorityRecoveryRecord): MatchAutho
   for (const pending of value.pendingCommands) {
     if (!isRecord(pending)
       || typeof pending.playerId !== "string"
-      || !participantIds.has(pending.playerId)
+      || !networkParticipantIds.has(pending.playerId)
       || typeof pending.commandId !== "string"
       || !Number.isSafeInteger(pending.sequence)
       || (pending.sequence as number) < 0) {

@@ -40,6 +40,44 @@ describe("MultiplayerClient lifecycle", () => {
     await client.leave();
   });
 
+  it("publishes AI lobby slots and sends only their public configuration", async () => {
+    const aiSlot = {
+      slotId: "ai-slot-1",
+      personality: "guardian",
+      difficulty: "veteran",
+      villageId: "highcrag",
+    };
+    const lobby = fakeRoom({
+      roomId: "lobby-with-ai",
+      state: {
+        roomCode: "ABC234",
+        phase: "lobby",
+        players: { forEach: () => undefined },
+        aiSlots: { forEach: (callback: (slot: typeof aiSlot, key: string) => void) => callback(aiSlot, aiSlot.slotId) },
+      },
+    });
+    const transport = {
+      create: vi.fn(async () => lobby.room),
+      join: vi.fn(async () => lobby.room),
+      consumeSeatReservation: vi.fn(),
+    };
+    const client = new MultiplayerClient(transport as never);
+    const states: Array<{ aiSlots: unknown[] }> = [];
+    client.onState((state) => states.push(state));
+
+    await client.createRoom("Host", "pinehold");
+    expect(states.at(-1)?.aiSlots).toEqual([aiSlot]);
+    client.configureAiSlots([{
+      personality: "aggressor",
+      difficulty: "standard",
+      villageId: "riverstead",
+    }]);
+    expect(lobby.send).toHaveBeenCalledWith("lobby.ai.configure", {
+      slots: [{ personality: "aggressor", difficulty: "standard", villageId: "riverstead" }],
+    });
+    await client.leave();
+  });
+
   it("closes a delayed match room when leave cancels the seat handoff", async () => {
     const reservation = deferred<unknown>();
     const lobby = fakeLobbyRoom();

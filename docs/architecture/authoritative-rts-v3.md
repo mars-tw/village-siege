@@ -2,7 +2,7 @@
 
 Date: 2026-07-20
 
-Status: in progress; TASK-021 authoritative online rendering is implemented, while full adverse-network multiplayer E2E remains TASK-022.
+Status: in progress; TASK-022 authoritative AI, adverse-network and security-boundary gates are implemented. Open deployment and public live-service gates remain TASK-023 through TASK-026.
 
 ## Product boundary
 
@@ -63,6 +63,8 @@ TASK-018 splits `village_siege_lobby` from private `village_siege_match` rooms. 
 
 TASK-019 adds `village-siege-network/1` negotiation, strict command IDs, a per-player reorder/dedup ledger, one dedicated command-result channel, 10 Hz filtered deltas, five-second full snapshots, resync requests and server-private two-second canonical checkpoints. The lobby seed is no longer public schema. Each delta names its exact base tick and recipient-visible checksum; the shared client store applies a candidate copy and swaps it in only after reconstructing the server checksum. Snapshot checksums hash JSON-wire data, so optional `undefined` fields cannot create a browser/server checksum split.
 
+TASK-022 also replaces the framework default reflected wildcard CORS policy with one exact-origin policy shared by matchmaking HTTP and the WebSocket handshake. The official GitHub Pages origin is built in; self-hosted client origins must be supplied through `ALLOWED_ORIGINS`, while loopback HTTP is accepted only outside production. Matchmaking retains `Access-Control-Allow-Credentials: true` because the Colyseus browser SDK uses credentialed fetch, but it is paired only with an exact allowed origin and never `*`; responses also restrict allowed methods and carry no-store, nosniff, framing, referrer and permissions headers. The static client supplies an early meta CSP that disallows inline script, eval, objects and frames. TLS/HSTS and rate limiting remain deployment-edge responsibilities for TASK-023.
+
 ## Versioned save, journal and replay contract
 
 Rules version `village-siege/0.14.0` defines three owner-private persistence documents: a complete authoritative save snapshot, an ordered tick command journal and a deterministic replay that binds an initial snapshot to its journal. Each document declares its own `schemaVersion` plus the command `protocolVersion` and simulation `rulesVersion`. Import accepts data only when all three layers exactly match a supported tuple; missing, older, newer or mixed versions fail explicitly before any live runtime state is replaced. Compatibility is never inferred from package SemVer and v1 performs no best-effort migration.
@@ -109,9 +111,9 @@ Defeat rewards are deterministic and divided across active members of the credit
 
 ## Strategic AI authority contract
 
-Beginning with rules version `village-siege/0.11.0`, every configured AI controller is stored in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator.
+Beginning with rules version `village-siege/0.11.0`, every configured AI controller is stored in canonical `MatchState`, sorted by player ID. Seeded random state, last decision tick, authorized enemy memory, counter lock, repair target, phase lock, regroup point, active wave, cooldown and telemetry therefore participate in save cloning and the deterministic state hash. The planner is a pure fixed-work reducer; wall-clock speed never changes candidate depth or output. AI commands derive their sequence from the same authoritative player sequence and pass through the normal command validator. Current rules version `village-siege/0.17.0` also permits server-owned AI participants in a five-faction online match. They receive no socket seat, hello, frame or acknowledgement channel; their private planner state and deterministic command batch remain inside `MatchAuthority` and its fenced recovery record.
 
-The runtime commits the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Current rules version `village-siege/0.16.0` carries this private authority through the versioned save, deterministic replay and reconnect-expiry revision contract. TASK-016 passed its complete Codex and Grok validation gate on 2026-07-21 with no open P0, P1 or P2 findings.
+The runtime and online authority commit the reduced planner authority only after its emitted command is accepted, or immediately for a commandless phase transition. A rejected self-issued command therefore cannot advance phase, wave or telemetry state ahead of the world state. Recovery deterministically replans every AI tick and compares the recorded AI command batch before accepting its state hash. TASK-016 passed its save/replay gate on 2026-07-21; TASK-022 additionally proves three online AI factions issue zero rejected commands during a 600-tick five-faction soak and restore to the same final canonical hash.
 
 AI observation is an owner-private view assembled from current fog authority. Mobile enemy memories expire after a fixed lifetime; static enemy topology persists only while the authoritative last-sighting record remains, and is removed when its footprint is re-scouted empty. Hidden unit, gate, wall or tower mutations cannot change planner output. Human `VisibleSnapshot` data never contains AI authority state, internal thresholds, target paths, force counts or wave numbers.
 
@@ -127,7 +129,7 @@ Every ordered command in one server-tick batch is applied before victory is eval
 
 Walls, gates, rubble, projectiles and orphaned construction sites do not preserve strategic presence. An incomplete site counts only while a living active builder is assigned to it. Surrendered or eliminated players cannot move, attack, produce, occupy objectives or preserve a victory condition, even when an allied player keeps their team in the match. A terminal result atomically records outcome, sorted winners, causal reason, trigger set, score and finish tick; it emits `matchFinished` exactly once and rejects later commands without mutation.
 
-The local runtime executes this shared authority for single-player. The same Phaser scene now has a separate TASK-021 online source: it accepts only verified player-filtered frames, interpolates positions without extrapolation, and submits intents without stepping or mutating the local runtime. Result text remains persistent in the fixed HUD and is announced assertively. Exact negotiation, idempotent commands, filtered delta transport and durable replay come from TASK-019/TASK-020; the complete adverse-network E2E gate remains `TASK-022`. Versioned owner-private TASK-016 saves are distinct from the bounded online recovery record.
+The local runtime executes this shared authority for single-player. The same Phaser scene has a separate TASK-021 online source: it accepts only verified player-filtered frames, interpolates positions without extrapolation, and submits intents without stepping or mutating the local runtime. Result text remains persistent in the fixed HUD and is announced assertively. Exact negotiation, idempotent commands, filtered delta transport and durable replay come from TASK-019/TASK-020. TASK-022 adds five-faction server AI plus a deterministic post-receive delivery harness with exact 50/100/200 ms delay, two-percent delta loss and reordering, together with real socket reconnect, fog, malicious-command and final-hash gates. The delay/loss harness begins after Colyseus delivers each frame and is not transport-layer proxy or netem evidence; deployment-edge network shaping remains a later live gate. Versioned owner-private TASK-016 saves remain distinct from the bounded online recovery record.
 
 ## Tactical combat contract
 
@@ -151,11 +153,11 @@ Every command validates membership, ownership, entity life, resource balance, po
 
 ## Recovery
 
-There is no player-host migration because no browser is authoritative. `village-siege-network/2` gives each room a stable logical match ID independent of its temporary Colyseus room ID and defines strict `recovering`, `resumed` and `failed` lifecycle messages. Failure codes distinguish reconnect expiry, server/storage loss, corrupt state, lost fencing authority, sequence divergence and an already-ended match; server infrastructure failure never manufactures a disconnect winner.
+There is no player-host migration because no browser is authoritative. Beginning with `village-siege-network/2`, each room has a stable logical match ID independent of its temporary Colyseus room ID and strict `recovering`, `resumed` and `failed` lifecycle messages. Current `village-siege-network/4` adds seatless server-AI lobby configuration while retaining that recovery contract. Failure codes distinguish reconnect expiry, server/storage loss, corrupt state, lost fencing authority, sequence divergence and an already-ended match; server infrastructure failure never manufactures a disconnect winner.
 
 A transport drop immediately freezes new client commands and removes that player from the connected start gate. The reconnect interval is `[dropTime, dropTime + 120000ms)`: 119999 ms remains valid and the exact 120000 ms boundary is expired. A repeated callback for the same disconnected generation cannot extend the deadline. Successful reconnect first persists lease cancellation, then sends the lifecycle pair, a changed server hello cursor and a recipient-filtered full snapshot. Only that full snapshot unlocks replay. Every unresolved original intent is resent without renumbering or changing `lastServerTickSeen`, sorted by `(clientCommandSeq, commandId)`; results already committed before the drop are replayed from the immutable result ledger.
 
-The server holds a fenced 15-second authority lease. Every simulation tick or batched disconnect expiry records a private checkpoint plus a bounded batch-tick journal, per-player sequence cursors, unresolved reorder entries and accepted or rejected command results. Checkpoints rotate every 20 ticks. A restore validates schema/protocol/rules, participant tuple, checkpoint hash, contiguous journal hashes, ledger fingerprints and bounds before replacing live state. Recipient delta bases are discarded, so the first recovered frame is always a full filtered snapshot.
+The server holds a fenced 120-second authority lease and renews it when no more than 60 seconds remain. Every simulation tick or batched disconnect expiry records a private checkpoint plus a bounded batch-tick journal, human-player sequence cursors, unresolved reorder entries, accepted or rejected human command results and deterministic AI command batches. Checkpoints rotate every 20 ticks. A restore validates schema/protocol/rules, participant and AI tuple, checkpoint hash, contiguous journal hashes, AI replanning, ledger fingerprints and bounds before replacing live state. Recipient delta bases are discarded, so the first recovered frame is always a full filtered snapshot.
 
 Durability ordering is write before publish: the authority commits its recovery record before sending command results or frames. A failed commit restores the previous authority record, emits a terminal lifecycle failure and stops the room without exposing the uncommitted candidate frame or winner. The default development process uses the deterministic memory adapter. When both `REDIS_URL` and `DATABASE_URL` are configured, the production adapter uses Redis owner/fence TTL routing and PostgreSQL `SELECT FOR UPDATE` records; stale owners fail before durable mutation, and the two variables are required together. Cross-room deployment routing, TLS and automated replacement-instance orchestration remain infrastructure gates in TASK-024 and TASK-026 rather than browser authority.
 
@@ -163,14 +165,14 @@ The real TASK-020 smoke closes an actual SDK WebSocket with reconnectable code 4
 
 ## Fully open deployment
 
-The public `village-siege` repository includes:
+Before the public multiplayer release, the `village-siege` repository will include:
 
 - MIT client, server and shared simulation.
 - Dockerfiles, `.env.example`, local Compose and self-host guide.
 - Sanitized Terraform or Compose deployment templates for TLS/WSS, Redis, PostgreSQL, encrypted backups and monitoring.
 - No password, token, private key or other live credential.
 
-GitHub Pages continues to host the static client. Any operator may self-host Colyseus behind Caddy or Traefik by using the public templates. The public client enables online combat only when its configured `wss://` endpoint passes health, version and authoritative-match checks.
+GitHub Pages currently continues to host the earlier static single-player client. TASK-023 and TASK-024 must add and validate the public container and infrastructure templates; TASK-026 must then connect the public client only after its configured `wss://` endpoint passes health, version and authoritative-match checks.
 
 ## Release gates
 
@@ -181,6 +183,6 @@ Multiplayer may be called playable only after automation proves:
 3. Forged ownership, resource, era, visibility and range commands are rejected without mutation.
 4. Fog payloads contain no hidden enemy state.
 5. Replaying 10,000 fixed ticks twice from the same compatible authoritative snapshot and command journal produces identical checkpoint and final canonical hashes.
-6. Five players plus AI remain stable under 50, 100 and 200 ms latency, two-percent packet loss and packet reordering.
+6. Five factions including server-owned AI remain stable when the deterministic client delivery harness applies 50, 100 and 200 ms post-receive delay, drops exactly one of 50 deltas per recipient and reorders delivery; real socket drop/reconnect also converges. Transport-layer proxy/netem shaping is a separate public-deployment gate.
 7. Reconnect restores the same server tick, wallet, queues, entities and final hash.
 8. Save/replay schema, command protocol and simulation rules mismatches each fail explicitly and atomically.

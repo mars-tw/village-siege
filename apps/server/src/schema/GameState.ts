@@ -12,10 +12,18 @@ export class PlayerState extends Schema {
   @type("boolean") host = false;
 }
 
+export class AiSlotState extends Schema {
+  @type("string") slotId = "";
+  @type("string") personality = "balanced";
+  @type("string") difficulty = "standard";
+  @type("string") villageId = "pinehold";
+}
+
 export class LobbyState extends Schema {
   @type("string") roomCode = "";
   @type("string") phase: LobbyPhase = "lobby";
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
+  @type({ map: AiSlotState }) aiSlots = new MapSchema<AiSlotState>();
 }
 
 export class MatchRoomState extends Schema {

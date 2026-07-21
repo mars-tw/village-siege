@@ -95,7 +95,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 | TASK-019 | Add protocol and rules negotiation, command IDs, deduplication, filtered deltas, five-second snapshots and two-second canonical hashes. | Yes | 2026-07-21 |
 | TASK-020 | Add 120-second reconnect leases, snapshot recovery, command journal replay and explicit server-failure outcomes. | Yes | 2026-07-21 |
 | TASK-021 | Convert `VillageAssaultScene.ts` online mode to interpolate server state without locally committing resources, damage, training or victory. | Yes | 2026-07-21 |
-| TASK-022 | Add two-client and five-player-plus-AI latency, packet loss, malicious command, fog leak, reconnect and final-hash tests. |  |  |
+| TASK-022 | Add two-client and five-faction-including-AI deterministic post-receive delay/loss/reordering, malicious command, fog leak, real reconnect and final-hash tests. | Yes | 2026-07-21 |
 
 ### Implementation Phase 6 - Open deployment, open-source release and quality gate
 
@@ -143,7 +143,7 @@ This plan turns Village Siege into a genre-complete, original settlement RTS wit
 - **TEST-003**: Five AI profiles finish 30-minute simulated matches with distinct telemetry and zero rejected self-issued commands.
 - **TEST-004**: Fog serialization tests prove hidden enemy entities and orders never reach an unauthorized client.
 - **TEST-005**: Two browsers complete an authoritative match including build, train, research, combat, disconnect, reconnect and victory with the same final hash.
-- **TEST-006**: Five players plus AI remain stable under 50, 100 and 200 ms latency, two-percent packet loss and command reordering without duplicate costs.
+- **TEST-006**: Five factions including server-owned AI remain stable while the post-receive delivery harness applies 50, 100 and 200 ms delay, exact two-percent delta loss and reordering without duplicate costs; a real socket drop/reconnect also converges. Proxy/netem transport shaping belongs to the public deployment gate.
 - **TEST-007**: Desktop 1280x720 and mobile 667x375 plus 844x390 touch-only flows have no overlap, scrolling, clipped controls or targets under 44 CSS pixels.
 - **TEST-008**: Public deployment artifacts pass secret, dependency, license, asset, SBOM and live HTTP/WSS checks.
 

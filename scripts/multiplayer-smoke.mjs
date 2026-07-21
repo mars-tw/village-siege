@@ -180,6 +180,15 @@ export async function runMultiplayerSmoke() {
     await expectLobbyError(guestLobby, "HOST_ONLY", () => guestLobby.send("lobby.start", {}));
     await expectLobbyError(hostLobby, "PLAYERS_NOT_READY", () => hostLobby.send("lobby.start", {}));
     await expectLobbyError(guestLobby, "INVALID_PAYLOAD", () => guestLobby.send("lobby.ready", { ready: "yes" }));
+    await expectLobbyError(guestLobby, "HOST_ONLY", () => guestLobby.send("lobby.ai.configure", { slots: [] }));
+    hostLobby.send("lobby.ai.configure", {
+      slots: [
+        { personality: "aggressor", difficulty: "standard", villageId: "highcrag" },
+        { personality: "guardian", difficulty: "standard", villageId: "pinehold" },
+        { personality: "raider", difficulty: "standard", villageId: "riverstead" },
+      ],
+    });
+    await waitFor(() => hostLobby.state.aiSlots?.size === 3, "three server-owned AI lobby slots");
 
     hostLobby.send("lobby.ready", { ready: true });
     guestLobby.send("lobby.ready", { ready: true });
@@ -225,6 +234,12 @@ export async function runMultiplayerSmoke() {
 
     assertSafeView(hostStream.view, hostAssignment, hostAssignment.matchId);
     assertSafeView(guestStream.view, guestAssignment, guestAssignment.matchId);
+    if (hostStream.view.participants.length !== 5 || guestStream.view.participants.length !== 5) {
+      throw new Error("Authoritative match did not preserve the two-human plus three-AI faction roster.");
+    }
+    if (hostStream.view.participants.filter((participant) => participant.id.startsWith("ai-")).length !== 3) {
+      throw new Error("Recipient roster did not expose the three public AI faction identities.");
+    }
     const guestTownId = guestStream.view.entities.find((entity) => (
       entity.ownerId === guestAssignment.playerId && entity.kind === "building" && entity.typeId === "townCenter"
     ))?.id;
@@ -350,6 +365,7 @@ export async function runMultiplayerSmoke() {
       matchRoomId: hostMatch.roomId,
       durableMatchId: hostAssignment.matchId,
       players: 2,
+      factions: 5,
       serverTick: hostStream.view.serverTick,
       checks: {
         exactVersionNegotiation: true,
@@ -365,6 +381,7 @@ export async function runMultiplayerSmoke() {
         duplicateCommandAppliedOnce: foodBefore - hostStream.view.wallet.food,
         canonicalStateNotSerialized: true,
         privateSeedNotSerialized: true,
+        serverOwnedAiFactions: 3,
       },
     };
     console.log(JSON.stringify(result));

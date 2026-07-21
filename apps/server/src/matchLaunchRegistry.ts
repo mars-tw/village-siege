@@ -1,8 +1,22 @@
 import { randomBytes } from "node:crypto";
 import type { MatchParticipant } from "./authority/MatchAuthority.js";
 
-export interface AuthorizedMatchParticipant extends MatchParticipant {
+export interface AuthorizedHumanMatchParticipant extends MatchParticipant {
   readonly accessToken: string;
+  readonly ai?: undefined;
+}
+
+export interface AuthorizedAiMatchParticipant extends MatchParticipant {
+  readonly ai: NonNullable<MatchParticipant["ai"]>;
+  readonly accessToken?: undefined;
+}
+
+export type AuthorizedMatchParticipant = AuthorizedHumanMatchParticipant | AuthorizedAiMatchParticipant;
+
+export function isAuthorizedHumanMatchParticipant(
+  participant: AuthorizedMatchParticipant,
+): participant is AuthorizedHumanMatchParticipant {
+  return typeof participant.accessToken === "string" && participant.ai === undefined;
 }
 
 export interface MatchLaunch {

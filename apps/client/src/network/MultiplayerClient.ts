@@ -3,6 +3,8 @@ import {
   MATCH_PROTOCOL_VERSION,
   RULES_VERSION,
   isMatchLifecycleMessage,
+  type AiDifficulty,
+  type AiPersonality,
   type GameCommand,
   type MatchCommandResult,
   type MatchLifecycleMessage,
@@ -22,20 +24,30 @@ export interface LobbyPlayer {
   host: boolean;
 }
 
+export interface LobbyAiSlot {
+  slotId: string;
+  personality: AiPersonality;
+  difficulty: AiDifficulty;
+  villageId: string;
+}
+
 export interface LobbySnapshot {
   roomCode: string;
   phase: "lobby" | "starting";
   selfId: string;
   players: LobbyPlayer[];
+  aiSlots: LobbyAiSlot[];
 }
 
 export type MatchFrame = ResolvedMatchFrame;
 
 interface NetworkPlayer extends LobbyPlayer {}
+interface NetworkAiSlot extends LobbyAiSlot {}
 interface NetworkState {
   roomCode: string;
   phase: LobbySnapshot["phase"];
   players: { forEach(callback: (player: NetworkPlayer, key: string) => void): void };
+  aiSlots?: { forEach(callback: (slot: NetworkAiSlot, key: string) => void): void };
 }
 
 interface NetworkMatchState {
@@ -139,6 +151,12 @@ export class MultiplayerClient {
 
   setReady(ready: boolean): void {
     this.requireLobbyRoom().send("lobby.ready", { ready });
+  }
+
+  configureAiSlots(slots: readonly Omit<LobbyAiSlot, "slotId">[]): void {
+    this.requireLobbyRoom().send("lobby.ai.configure", {
+      slots: slots.map((slot) => ({ ...slot })),
+    });
   }
 
   startMatch(): void {
@@ -419,11 +437,21 @@ export class MultiplayerClient {
         host: player.host,
       });
     });
+    const aiSlots: LobbyAiSlot[] = [];
+    room.state.aiSlots?.forEach((slot: NetworkAiSlot, slotId: string) => {
+      aiSlots.push({
+        slotId,
+        personality: slot.personality,
+        difficulty: slot.difficulty,
+        villageId: slot.villageId,
+      });
+    });
     return {
       roomCode: room.state.roomCode,
       phase: room.state.phase,
       selfId: room.sessionId,
       players,
+      aiSlots,
     };
   }
 

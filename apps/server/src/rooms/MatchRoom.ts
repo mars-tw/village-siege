@@ -16,7 +16,12 @@ import {
   TICK_MILLISECONDS,
   type MatchAuthorityRecoveryRecord,
 } from "../authority/MatchAuthority.js";
-import { consumeMatchLaunch, type AuthorizedMatchParticipant } from "../matchLaunchRegistry.js";
+import {
+  consumeMatchLaunch,
+  isAuthorizedHumanMatchParticipant,
+  type AuthorizedHumanMatchParticipant,
+  type AuthorizedMatchParticipant,
+} from "../matchLaunchRegistry.js";
 import {
   MemoryMatchRecoveryStore,
   type MatchRecoveryLease,
@@ -104,12 +109,13 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
     }
     this.participants = launch.participants;
     this.state.matchId = launch.matchId;
-    this.maxClients = this.participants.length;
+    this.maxClients = this.humanParticipants.length;
     this.authority = new MatchAuthority(launch.matchId, launch.seed, this.participants.map((participant) => ({
       playerId: participant.playerId,
       teamId: participant.teamId,
       name: participant.name,
       villageId: participant.villageId,
+      ...(participant.ai ? { ai: { ...participant.ai } } : {}),
     })));
     this.recoveryMetadata = {
       schemaVersion: AUTHORITY_RECOVERY_SCHEMA_VERSION,
@@ -133,7 +139,9 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
               || participant.playerId !== expected.playerId
               || participant.teamId !== expected.teamId
               || participant.name !== expected.name
-              || participant.villageId !== expected.villageId;
+              || participant.villageId !== expected.villageId
+              || participant.ai?.personality !== expected.ai?.personality
+              || participant.ai?.difficulty !== expected.ai?.difficulty;
           })) {
           throw new Error("Recovered authority participants do not match the authorized launch roster");
         }
@@ -143,7 +151,7 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
         this.state.serverTick = restored.serverTick;
         this.state.phase = restored.phase === "finished" ? "finished" : "playing";
         for (const disconnected of stored.payload.disconnectedPlayers) {
-          if (!this.authority.hasPlayer(disconnected.playerId)
+          if (!this.humanParticipants.some((participant) => participant.playerId === disconnected.playerId)
             || !Number.isSafeInteger(disconnected.generation)
             || disconnected.generation < 1
             || !Number.isSafeInteger(disconnected.expiresAtEpochMs)
@@ -350,8 +358,8 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
     this.negotiatedPlayerIds.add(playerId);
     client.send("match.hello", this.authority.serverHello(playerId));
     if (!this.started
-      && this.connectedPlayerIds.size === this.participants.length
-      && this.negotiatedPlayerIds.size === this.participants.length) {
+      && this.connectedPlayerIds.size === this.humanParticipants.length
+      && this.negotiatedPlayerIds.size === this.humanParticipants.length) {
       this.started = true;
       this.autoDispose = true;
       void this.lock();
@@ -470,9 +478,9 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
     const duePlayerIds = new Set([...this.disconnectedPlayers.values()]
       .filter((entry) => entry.expiresAtEpochMs <= now)
       .map((entry) => entry.playerId));
-    const teamIds = [...new Set(this.participants
+    const teamIds = [...new Set(this.humanParticipants
       .filter((participant) => {
-        const teammates = this.participants.filter((candidate) => candidate.teamId === participant.teamId);
+        const teammates = this.humanParticipants.filter((candidate) => candidate.teamId === participant.teamId);
         return teammates.every((teammate) => !this.connectedPlayerIds.has(teammate.playerId)
           && duePlayerIds.has(teammate.playerId));
       })
@@ -614,9 +622,13 @@ export class MatchRoom extends Room<{ state: MatchRoomState }> {
     client.send("match.protocolError", { code });
   }
 
-  private participantForToken(value: unknown): AuthorizedMatchParticipant | undefined {
+  private participantForToken(value: unknown): AuthorizedHumanMatchParticipant | undefined {
     if (typeof value !== "string") return undefined;
-    return this.participants.find((participant) => participant.accessToken === value);
+    return this.humanParticipants.find((participant) => participant.accessToken === value);
+  }
+
+  private get humanParticipants(): readonly AuthorizedHumanMatchParticipant[] {
+    return this.participants.filter(isAuthorizedHumanMatchParticipant);
   }
 
   private isSmallPayload(payload: unknown): boolean {

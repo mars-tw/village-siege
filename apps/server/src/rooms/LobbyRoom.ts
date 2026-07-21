@@ -4,11 +4,13 @@ import type { Client } from "@colyseus/core";
 import {
   MATCH_PROTOCOL_VERSION,
   RULES_VERSION,
+  type AiDifficulty,
+  type AiPersonality,
   type PlayableVillageId,
 } from "@village-siege/shared";
 import { issueMatchLaunch, revokeMatchLaunch, type AuthorizedMatchParticipant } from "../matchLaunchRegistry.js";
 import { createRoomCode, normalizeRoomCode } from "../roomCode.js";
-import { LobbyState, PlayerState } from "../schema/GameState.js";
+import { AiSlotState, LobbyState, PlayerState } from "../schema/GameState.js";
 
 interface JoinOptions {
   roomCode?: unknown;
@@ -24,8 +26,16 @@ interface MatchAssignment {
   readonly reservationSessionId: string;
 }
 
+interface AiSlotInput {
+  readonly personality: AiPersonality;
+  readonly difficulty: AiDifficulty;
+  readonly villageId: PlayableVillageId;
+}
+
 const MATCH_ROOM_NAME = "village_siege_match";
 const VILLAGE_IDS = new Set<PlayableVillageId>(["pinehold", "riverstead", "highcrag"]);
+const AI_PERSONALITIES = new Set<AiPersonality>(["aggressor", "guardian", "prosperer", "balanced", "raider"]);
+const AI_DIFFICULTIES = new Set<AiDifficulty>(["novice", "standard", "veteran"]);
 const MAX_MESSAGE_BYTES = 8 * 1024;
 const HANDOFF_RECOVERY_MILLISECONDS = 35_000;
 
@@ -57,6 +67,9 @@ export class LobbyRoom extends Room<{
     this.onMessage("lobby.start", (client, payload: unknown) => {
       void this.startMatch(client, payload);
     });
+    this.onMessage("lobby.ai.configure", (client, payload: unknown) => {
+      this.configureAiSlots(client, payload);
+    });
   }
 
   onAuth(_client: Client, options: JoinOptions): boolean {
@@ -77,6 +90,7 @@ export class LobbyRoom extends Room<{
     player.villageId = this.normalizeVillageId(options.villageId);
     player.host = this.state.players.size === 0;
     this.state.players.set(client.sessionId, player);
+    this.trimAiSlotsToCapacity();
   }
 
   async onDrop(client: Client): Promise<void> {
@@ -106,6 +120,7 @@ export class LobbyRoom extends Room<{
     }
     const player = this.state.players.get(client.sessionId);
     const roster = [...this.state.players.values()];
+    const aiRoster = [...this.state.aiSlots.values()];
     if (this.state.phase !== "lobby") return this.reject(client, "MATCH_NOT_IN_LOBBY");
     if (!player?.host) return this.reject(client, "HOST_ONLY");
     if (roster.length < 2) return this.reject(client, "NEED_TWO_PLAYERS");
@@ -116,7 +131,7 @@ export class LobbyRoom extends Room<{
     this.state.phase = "starting";
     await this.lock();
     const assignments = new Map<string, MatchAssignment>();
-    const participants: AuthorizedMatchParticipant[] = roster.map((entry, index) => {
+    const humanParticipants: AuthorizedMatchParticipant[] = roster.map((entry, index) => {
       const assignment = {
         playerId: `player-${index + 1}`,
         accessToken: randomBytes(32).toString("base64url"),
@@ -131,6 +146,17 @@ export class LobbyRoom extends Room<{
         accessToken: assignment.accessToken,
       };
     });
+    const aiParticipants: AuthorizedMatchParticipant[] = aiRoster.map((entry, index) => ({
+      playerId: `ai-${index + 1}`,
+      teamId: `team-${roster.length + index + 1}`,
+      name: `AI ${entry.personality}`,
+      villageId: entry.villageId as PlayableVillageId,
+      ai: {
+        personality: entry.personality as AiPersonality,
+        difficulty: entry.difficulty as AiDifficulty,
+      },
+    }));
+    const participants = [...humanParticipants, ...aiParticipants];
 
     try {
       const matchId = `match-${randomBytes(16).toString("hex")}`;
@@ -185,6 +211,33 @@ export class LobbyRoom extends Room<{
     this.broadcast("lobby.error", { code: "MATCH_HANDOFF_EXPIRED" });
   }
 
+  private configureAiSlots(client: Client, payload: unknown): void {
+    if (this.state.phase !== "lobby") return this.reject(client, "MATCH_NOT_IN_LOBBY");
+    const player = this.state.players.get(client.sessionId);
+    if (!player?.host) return this.reject(client, "HOST_ONLY");
+    if (!this.isSmallPayload(payload) || !this.isAiSlotsPayload(payload)) {
+      return this.reject(client, "INVALID_PAYLOAD");
+    }
+    if (payload.slots.length > 5 - this.state.players.size) {
+      return this.reject(client, "TOO_MANY_FACTIONS");
+    }
+    this.state.aiSlots.clear();
+    payload.slots.forEach((slot, index) => {
+      const state = new AiSlotState();
+      state.slotId = `ai-slot-${index + 1}`;
+      state.personality = slot.personality;
+      state.difficulty = slot.difficulty;
+      state.villageId = slot.villageId;
+      this.state.aiSlots.set(state.slotId, state);
+    });
+    for (const entry of this.state.players.values()) entry.ready = false;
+  }
+
+  private trimAiSlotsToCapacity(): void {
+    const capacity = Math.max(0, 5 - this.state.players.size);
+    for (const key of [...this.state.aiSlots.keys()].slice(capacity)) this.state.aiSlots.delete(key);
+  }
+
   private reject(client: Client, code: string): void {
     client.send("lobby.error", { code });
   }
@@ -199,6 +252,18 @@ export class LobbyRoom extends Room<{
 
   private isReadyPayload(payload: unknown): payload is { ready: boolean } {
     return this.isRecord(payload) && Object.keys(payload).length === 1 && typeof payload.ready === "boolean";
+  }
+
+  private isAiSlotsPayload(payload: unknown): payload is { slots: readonly AiSlotInput[] } {
+    if (!this.isRecord(payload) || Object.keys(payload).length !== 1 || !Array.isArray(payload.slots)) return false;
+    return payload.slots.every((slot) => this.isRecord(slot)
+      && Object.keys(slot).length === 3
+      && typeof slot.personality === "string"
+      && AI_PERSONALITIES.has(slot.personality as AiPersonality)
+      && typeof slot.difficulty === "string"
+      && AI_DIFFICULTIES.has(slot.difficulty as AiDifficulty)
+      && typeof slot.villageId === "string"
+      && VILLAGE_IDS.has(slot.villageId as PlayableVillageId));
   }
 
   private isEmptyPayload(payload: unknown): boolean {

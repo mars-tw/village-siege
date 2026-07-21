@@ -17,7 +17,7 @@ import {
 export type MatchId = string;
 export type PlayerId = string;
 export type EntityId = string;
-export const MATCH_PROTOCOL_VERSION = "village-siege-network/3" as const;
+export const MATCH_PROTOCOL_VERSION = "village-siege-network/4" as const;
 export type VillageId = "pinehold" | "riverstead" | "highcrag" | "marshwatch" | "sunfield";
 export type PlayableVillageId = "pinehold" | "riverstead" | "highcrag";
 export type ResourceKind = "food" | "wood" | "stone";
