@@ -101,6 +101,7 @@ jobs:
       PUBLIC_GAME_HOST: localhost
       PUBLIC_SERVER_HOST: 127.0.0.1
       ACME_EMAIL: operator@example.com
+      PRODUCTION_ENV_FILE: ${{ github.workspace }}/deploy/production.env.example
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -114,6 +115,7 @@ jobs:
         shell: bash
         run: |
           npm run validate:ops
+          sh -n deploy/production-compose.sh
           sh -n deploy/server-entrypoint.sh
           sh -n deploy/backup/backup-postgres.sh
           sh -n deploy/backup/restore-postgres.sh
@@ -129,7 +131,7 @@ jobs:
       - name: Validate the independent production Compose and Caddy config
         shell: bash
         run: |
-          docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml config --quiet
+          sh deploy/production-compose.sh config --quiet
           docker run --rm \
             -e ACME_EMAIL=operator@example.com \
             -e PUBLIC_GAME_HOST=play.example.com \
@@ -142,16 +144,16 @@ jobs:
             prom/prometheus:v3.13.1 check config /etc/prometheus/prometheus.yml
 
       - name: Build and start the complete production template
-        run: docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml up --build --detach --wait postgres redis server client caddy
+        run: sh deploy/production-compose.sh up --build --detach --wait postgres redis server client caddy
 
       - name: Verify production readiness, metrics and non-root application users
         shell: bash
         run: |
-          docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml exec -T server node -e "Promise.all([fetch('http://127.0.0.1:2567/health/ready'),fetch('http://127.0.0.1:2567/metrics')]).then(async r=>{if(r.some(x=>!x.ok))process.exit(1);const m=await r[1].text();const names=['village_siege_match_rooms','village_siege_recovery_fail_stops_total','village_siege_persistence_failures_total','village_siege_tick_duration_seconds_sum','village_siege_tick_duration_seconds_count','village_siege_persistence_duration_seconds_sum','village_siege_persistence_duration_seconds_count'];if(names.some(n=>!m.includes(n)))process.exit(1)})"
-          docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml exec -T client node -e "fetch('http://127.0.0.1:8080/_health').then(r=>{if(!r.ok)process.exit(1)})"
-          docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml exec -T client node -e "const f=require('node:fs'),p=require('node:path'),c=require('node:crypto'),walk=d=>f.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(p.join(d,e.name)):[p.join(d,e.name)]);let s='';process.stdin.on('data',x=>s+=x).on('end',()=>{const m=JSON.parse(s),expected=new Map(m.assets.filter(x=>x.runtime).map(x=>[x.file.slice('apps/client/public/'.length),x])),files=walk('/app/public'),pngs=files.filter(x=>x.endsWith('.png')),sizes=files.map(x=>f.statSync(x).size),total=sizes.reduce((a,b)=>a+b,0);for(const file of pngs){const rel=p.relative('/app/public',file).split(p.sep).join('/'),entry=expected.get(rel),hash=c.createHash('sha256').update(f.readFileSync(file)).digest('hex');if(!entry||hash!==entry.sha256)process.exit(1);expected.delete(rel)}if(expected.size||pngs.length!==10||total>m.runtimeBundleBudgetBytes||Math.max(...sizes)>m.perRuntimeFileBudgetBytes)process.exit(1)})" < assets/release-asset-manifest.json
-          test "$(docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml exec -T server id -u)" != "0"
-          test "$(docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml exec -T client id -u)" != "0"
+          sh deploy/production-compose.sh exec -T server node -e "Promise.all([fetch('http://127.0.0.1:2567/health/ready'),fetch('http://127.0.0.1:2567/metrics')]).then(async r=>{if(r.some(x=>!x.ok))process.exit(1);const m=await r[1].text();const names=['village_siege_match_rooms','village_siege_recovery_fail_stops_total','village_siege_persistence_failures_total','village_siege_tick_duration_seconds_sum','village_siege_tick_duration_seconds_count','village_siege_persistence_duration_seconds_sum','village_siege_persistence_duration_seconds_count'];if(names.some(n=>!m.includes(n)))process.exit(1)})"
+          sh deploy/production-compose.sh exec -T client node -e "fetch('http://127.0.0.1:8080/_health').then(r=>{if(!r.ok)process.exit(1)})"
+          sh deploy/production-compose.sh exec -T client node -e "const f=require('node:fs'),p=require('node:path'),c=require('node:crypto'),walk=d=>f.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(p.join(d,e.name)):[p.join(d,e.name)]);let s='';process.stdin.on('data',x=>s+=x).on('end',()=>{const m=JSON.parse(s),expected=new Map(m.assets.filter(x=>x.runtime).map(x=>[x.file.slice('apps/client/public/'.length),x])),files=walk('/app/public'),pngs=files.filter(x=>x.endsWith('.png')),sizes=files.map(x=>f.statSync(x).size),total=sizes.reduce((a,b)=>a+b,0);for(const file of pngs){const rel=p.relative('/app/public',file).split(p.sep).join('/'),entry=expected.get(rel),hash=c.createHash('sha256').update(f.readFileSync(file)).digest('hex');if(!entry||hash!==entry.sha256)process.exit(1);expected.delete(rel)}if(expected.size||pngs.length!==10||total>m.runtimeBundleBudgetBytes||Math.max(...sizes)>m.perRuntimeFileBudgetBytes)process.exit(1)})" < assets/release-asset-manifest.json
+          test "$(sh deploy/production-compose.sh exec -T server id -u)" != "0"
+          test "$(sh deploy/production-compose.sh exec -T client id -u)" != "0"
 
       - name: Verify the live TLS edge boundary and WebSocket upgrade
         shell: bash
@@ -161,6 +163,13 @@ jobs:
           test "$(curl --insecure --silent --output /dev/null --write-out '%{http_code}' https://127.0.0.1/metrics)" = "404"
           node -e "const tls=require('node:tls');const timer=setTimeout(()=>process.exit(1),5000);const socket=tls.connect({host:'127.0.0.1',port:443,rejectUnauthorized:false},()=>socket.write('GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nOrigin: https://localhost\r\n\r\n'));let response='';socket.on('data',chunk=>{response+=chunk;if(response.includes('\r\n\r\n')){clearTimeout(timer);if(!response.startsWith('HTTP/1.1 101'))process.exit(1);socket.destroy();process.exit(0)}});socket.on('error',()=>process.exit(1))"
 
+      - name: Capture production startup diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          sh deploy/production-compose.sh ps --all
+          sh deploy/production-compose.sh logs --no-color --tail 200 postgres redis server client caddy
+
       - name: Stop the production template stack
         if: always()
-        run: docker compose --env-file deploy/production.env.example -f deploy/compose.production.yaml down --volumes
+        run: sh deploy/production-compose.sh down --volumes

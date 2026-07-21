@@ -14,6 +14,7 @@ const relativeFiles = [
   "deploy/monitoring/grafana/provisioning/datasources/prometheus.yml",
   "deploy/monitoring/grafana/provisioning/dashboards/dashboards.yml",
   "deploy/monitoring/grafana/dashboards/village-siege-overview.json",
+  "deploy/production-compose.sh",
   "deploy/scripts/validate-ops-assets.mjs",
 ];
 
@@ -37,6 +38,16 @@ for (const forbidden of [
   /(?:password|token|secret)\s*[:=]\s*["']?[A-Za-z0-9+/=_-]{16,}/iu,
 ]) {
   if (forbidden.test(allPublicConfig)) throw new Error(`possible embedded credential matched ${forbidden}`);
+}
+
+const productionCompose = contents.get("deploy/production-compose.sh");
+for (const required of [
+  "VILLAGE_SIEGE_REDIS_PASSWORD",
+  "VILLAGE_SIEGE_POSTGRES_PASSWORD",
+  "read_base64url_secret",
+  "exec docker compose",
+]) {
+  if (!productionCompose.includes(required)) throw new Error(`production Compose wrapper check missing: ${required}`);
 }
 
 const backup = contents.get("deploy/backup/backup-postgres.sh");

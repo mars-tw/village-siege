@@ -112,8 +112,16 @@ services:
     expose:
       - "2567"
     secrets:
-      - redis_password
-      - postgres_password
+      - source: redis_password
+        target: redis_password
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: postgres_password
+        target: postgres_password
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
     networks:
       - application
       - data
@@ -170,7 +178,11 @@ services:
     expose:
       - "6379"
     secrets:
-      - redis_password
+      - source: redis_password
+        target: redis_password
+        uid: "999"
+        gid: "1000"
+        mode: 0400
     volumes:
       - redis-data:/data
     networks:
@@ -202,7 +214,11 @@ services:
     expose:
       - "5432"
     secrets:
-      - postgres_password
+      - source: postgres_password
+        target: postgres_password
+        uid: "0"
+        gid: "0"
+        mode: 0400
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -235,6 +251,6 @@ volumes:
 
 secrets:
   redis_password:
-    file: ${REDIS_PASSWORD_FILE:?Set an absolute path to the Redis password file}
+    environment: VILLAGE_SIEGE_REDIS_PASSWORD
   postgres_password:
-    file: ${POSTGRES_PASSWORD_FILE:?Set an absolute path to the PostgreSQL password file}
+    environment: VILLAGE_SIEGE_POSTGRES_PASSWORD
