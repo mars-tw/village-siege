@@ -1,38 +1,46 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDirectory, "..");
-const toolRoot = path.join(scriptDirectory, ".asset-tools");
-const toolRequire = createRequire(path.join(toolRoot, "package.json"));
 
-let sharp;
-try {
-  sharp = toolRequire("sharp");
-} catch (error) {
-  throw new Error(
-    "Missing local asset tools. Run: npm install --prefix scripts/.asset-tools --no-save --package-lock=false sharp@0.32.6",
-    { cause: error },
-  );
+function positiveIntegerOption(name, fallback) {
+  const index = process.argv.indexOf(`--${name}`);
+  if (index < 0) return fallback;
+  const value = Number(process.argv[index + 1]);
+  if (!Number.isInteger(value) || value <= 0) throw new Error(`--${name} must be a positive integer`);
+  return value;
 }
 
-const files = process.argv.slice(2).filter((value) => !value.startsWith("--"));
+const optionNames = new Set(["--cell-width", "--cell-height", "--edge-padding"]);
+const flagNames = new Set(["--reject-cross-sheet-reuse"]);
+const files = [];
+for (let index = 2; index < process.argv.length; index += 1) {
+  if (optionNames.has(process.argv[index])) {
+    index += 1;
+    continue;
+  }
+  if (flagNames.has(process.argv[index])) continue;
+  files.push(process.argv[index]);
+}
 if (files.length === 0) {
   throw new Error("Usage: node scripts/validate-directional-action-sheets.mjs <sheet.png> [...]");
 }
 
-const cellWidth = 256;
-const cellHeight = 256;
+const cellWidth = positiveIntegerOption("cell-width", 256);
+const cellHeight = positiveIntegerOption("cell-height", 256);
 const columns = 4;
 const rows = 6;
 const alphaThreshold = 8;
-const edgePadding = 2;
+const edgePadding = positiveIntegerOption("edge-padding", Math.max(1, Math.round(cellWidth * 0.008)));
 const expectedWidth = cellWidth * columns;
 const expectedHeight = cellHeight * rows;
 const failures = [];
+const rejectCrossSheetReuse = process.argv.includes("--reject-cross-sheet-reuse");
+const inspectedSheets = [];
 
 for (const input of files) {
   const absolute = path.resolve(projectRoot, input);
@@ -48,6 +56,8 @@ for (const input of files) {
   let partialPixels = 0;
   let nonBlackTransparentPixels = 0;
   const frameHashes = new Set();
+  const frameDigests = [];
+  const mirroredFrameDigests = [];
   const boxes = [];
 
   for (let offset = 0; offset < data.length; offset += info.channels) {
@@ -70,11 +80,16 @@ for (const input of files) {
       let maxY = -1;
       let foreground = 0;
       const hash = createHash("sha256");
+      const mirroredHash = createHash("sha256");
 
       for (let y = 0; y < cellHeight; y += 1) {
         const start = ((top + y) * info.width + left) * info.channels;
         const end = start + cellWidth * info.channels;
         hash.update(data.subarray(start, end));
+        for (let x = cellWidth - 1; x >= 0; x -= 1) {
+          const pixel = start + x * info.channels;
+          mirroredHash.update(data.subarray(pixel, pixel + info.channels));
+        }
         for (let x = 0; x < cellWidth; x += 1) {
           const alpha = data[start + x * info.channels + 3];
           if (alpha <= alphaThreshold) continue;
@@ -94,8 +109,11 @@ for (const input of files) {
         failures.push(`${input} ${frameLabel}: foreground touches the ${edgePadding}px safety border (${minX},${minY})-(${maxX},${maxY})`);
       }
       const digest = hash.digest("hex");
+      const mirroredDigest = mirroredHash.digest("hex");
       if (frameHashes.has(digest)) failures.push(`${input} ${frameLabel}: exact duplicate frame`);
       frameHashes.add(digest);
+      frameDigests.push(digest);
+      mirroredFrameDigests.push(mirroredDigest);
       boxes.push(`${frameLabel}:${minX},${minY}-${maxX},${maxY}`);
     }
   }
@@ -108,6 +126,25 @@ for (const input of files) {
     `${input}: ${metadata.width}x${metadata.height}; transparent=${(transparentRatio * 100).toFixed(1)}%; partial=${((partialPixels / pixelCount) * 100).toFixed(1)}%; frames=${frameHashes.size}`,
   );
   console.log(`  ${boxes.join(" | ")}`);
+  inspectedSheets.push({ input, frameDigests, mirroredFrameDigests });
+}
+
+if (rejectCrossSheetReuse) {
+  for (let leftIndex = 0; leftIndex < inspectedSheets.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < inspectedSheets.length; rightIndex += 1) {
+      const left = inspectedSheets[leftIndex];
+      const right = inspectedSheets[rightIndex];
+      for (let frame = 0; frame < rows * columns; frame += 1) {
+        const label = `r${Math.floor(frame / columns) + 1}c${frame % columns + 1}`;
+        if (left.frameDigests[frame] === right.frameDigests[frame]) {
+          failures.push(`${left.input} and ${right.input} ${label}: exact cross-facing frame reuse`);
+        }
+        if (left.mirroredFrameDigests[frame] === right.frameDigests[frame] || right.mirroredFrameDigests[frame] === left.frameDigests[frame]) {
+          failures.push(`${left.input} and ${right.input} ${label}: exact horizontal-mirror reuse`);
+        }
+      }
+    }
+  }
 }
 
 if (failures.length > 0) {

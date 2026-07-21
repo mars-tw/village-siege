@@ -15,6 +15,60 @@ These are original production references, not runtime sprite atlases. Approval h
 
 Do not add this sheet to the production preload or release asset manifest.
 
+## Warrior E/W/NW runtime-source v2
+
+These replacements preserve the approved v1 direction/identity decisions while providing exact 24-pose chroma sources for native runtime normalization.
+
+| Facing | File | Dimensions | SHA-256 | Review |
+| --- | --- | ---: | --- | --- |
+| E | `warrior-e-v2.png` | `1024x1536` | `561b2847d8390a42ce5ee533ffe1609c5ab679f31a438e604b00e727d122faa2` | Approved runtime source |
+| W | `warrior-w-v2.png` | `1024x1536` | `6a11a6e0adadf7e430d754b6f9b5bbcf02551c1c87c4de9cb48daf2ad614692d` | Approved runtime source |
+| NW | `warrior-nw-v2.png` | `1024x1536` | `689b832a5a19d832668893858fcf763d22142800f27da2b53820ec975433891a` | Approved runtime source |
+
+Each sheet contains four independently authored frames for `idle`, `walk`, `attack`, `hurt`, `death`, and `cast/cleave`; each death row ends fully grounded; the physical sword hand is stable; and no facing is an exact horizontal mirror of another source.
+
+Do not add these chroma sources to the production preload or release asset manifest.
+
+## Warrior SW v1
+
+- File: `warrior-sw-v1.png`
+- Reference: approved warrior turnaround plus the approved five-direction action set.
+- SHA-256: `2636efdd2021c07b1f62725dabd164f9dd9ea13ce17aa8af53662518221a0657`
+- Dimensions: `1402x1122`
+- Review status: **APPROVED — SIX-DIRECTION KEY-POSE GATE PASSED**
+- Pose inventory: idle 4, walk 4, attack 4, hurt 4, death 4, special cleave 4.
+- Passed: independently authored SW front-left three-quarter view, stable sword hand and front torso, distinct walk contacts, chronological attack/hurt/death/cleave phases, and a terminal grounded death.
+- Direction-set result: `E`, `NE`, `NW`, `W`, `SW`, and `SE` now exist as independently authored key-pose references; exact runtime-cell and no-mirror gates remain separate.
+- Still required: alpha extraction, fixed-cell normalization, pivot/foot-slide validation, directional runtime integration, and browser QA.
+
+Do not add this sheet to the production preload or release asset manifest.
+
+## Mage NE v1
+
+- File: `mage-ne-v1.png`
+- Reference: approved `docs/art/turnarounds/mage-six-facing-v5.png`.
+- SHA-256: `706c073fbca90b78d040b9151db5bb6e2a888bcfd088d654c72097e25efbb75e`
+- Dimensions: `1024x1536`
+- Review status: **APPROVED FOR DIRECTION-SET CONTINUATION**
+- Pose inventory: idle 4, walk 4, attack 4, hurt 4, death 4, cast 4.
+- Passed: NE rear-right identity, stable ring-staff hand, continuous walking, readable ember attack and arcane cast, four-stage flinch, staff-drop collapse, and terminal grounded death.
+- Still required: five other facings, projectile sheet, cell normalization, pivot validation, and runtime/browser QA.
+
+Do not add this sheet to the production preload or release asset manifest.
+
+## Shield-bearer NE v1
+
+- File: `shield-bearer-ne-v1.png`
+- Reference: approved `docs/art/turnarounds/shield-bearer-six-facing-v5.png`.
+- SHA-256: `76889c12d1e1f2ebcd9ec4f5d109ae696ede6fbf9a4f7dd6219d451872a7d775`
+- Dimensions: `1536x1024`
+- Review status: **APPROVED FOR DIRECTION-SET CONTINUATION**
+- Pose inventory: idle 4, walk 4, attack 4, hurt 4, death 4, brace 4.
+- Passed: NE rear-right identity, stable shield/spear hands, distinct walk contacts and spear phases, shield-led hurt response, four-stage grounded death, and readable brace sequence.
+- Still required: five other facings, cell normalization, pivot validation, and runtime/browser QA.
+
+Do not add this sheet to the production preload or release asset manifest.
+
 ## Warrior E v1
 
 - File: `warrior-e-v1.png`

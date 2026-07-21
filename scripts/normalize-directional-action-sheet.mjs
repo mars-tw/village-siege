@@ -1,26 +1,22 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDirectory, "..");
-const toolRoot = path.join(scriptDirectory, ".asset-tools");
-const toolRequire = createRequire(path.join(toolRoot, "package.json"));
-
-let sharp;
-try {
-  sharp = toolRequire("sharp");
-} catch (error) {
-  throw new Error(
-    "Missing local asset tools. Run: npm install --prefix scripts/.asset-tools --no-save --package-lock=false sharp@0.32.6",
-    { cause: error },
-  );
-}
 
 function option(name) {
   const index = process.argv.indexOf(`--${name}`);
   return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+function positiveIntegerOption(name, fallback) {
+  const raw = option(name);
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) throw new Error(`--${name} must be a positive integer`);
+  return value;
 }
 
 const inputValue = option("input");
@@ -36,13 +32,20 @@ const { data, info } = await sharp(source).ensureAlpha().raw().toBuffer({ resolv
 
 const columns = 4;
 const rows = 6;
-const cellWidth = 256;
-const cellHeight = 256;
+const cellWidth = positiveIntegerOption("cell-width", 256);
+const cellHeight = positiveIntegerOption("cell-height", 256);
+const anchorY = positiveIntegerOption("anchor-y", cellHeight - 32);
+const safetyPadding = positiveIntegerOption("safety-padding", Math.max(2, Math.round(cellWidth * 0.047)));
+if (anchorY >= cellHeight || safetyPadding * 2 >= cellWidth || safetyPadding >= anchorY) {
+  throw new Error(`Invalid output cell contract: ${cellWidth}x${cellHeight}, anchorY=${anchorY}, padding=${safetyPadding}`);
+}
 const expectedWidth = columns * cellWidth;
 const expectedHeight = rows * cellHeight;
-if (info.width !== expectedWidth || info.height !== expectedHeight || info.channels !== 4) {
-  throw new Error(`Expected ${expectedWidth}x${expectedHeight} RGBA input, received ${info.width}x${info.height} with ${info.channels} channels`);
+if (info.channels !== 4 || info.width < columns * 64 || info.height < rows * 64) {
+  throw new Error(`Expected a credible 4x6 RGBA input, received ${info.width}x${info.height} with ${info.channels} channels`);
 }
+const sourceCellWidth = info.width / columns;
+const sourceCellHeight = info.height / rows;
 
 const pixelCount = info.width * info.height;
 const labels = new Int32Array(pixelCount);
@@ -110,10 +113,10 @@ for (const component of components) {
   let bestSlot = slots[0];
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const slot of slots) {
-    const centerX = (slot.column + 0.5) * cellWidth;
-    const centerY = (slot.row + 0.5) * cellHeight;
-    const dx = (component.centerX - centerX) / cellWidth;
-    const dy = (component.centerY - centerY) / cellHeight;
+    const centerX = (slot.column + 0.5) * sourceCellWidth;
+    const centerY = (slot.row + 0.5) * sourceCellHeight;
+    const dx = (component.centerX - centerX) / sourceCellWidth;
+    const dy = (component.centerY - centerY) / sourceCellHeight;
     const distance = dx * dx + dy * dy;
     if (distance < bestDistance) {
       bestDistance = distance;
@@ -137,8 +140,6 @@ const output = sharp({
   },
 });
 const composites = [];
-const safetyPadding = 12;
-const anchorY = 224;
 const maxFrameWidth = cellWidth - safetyPadding * 2;
 const maxFrameHeight = anchorY - safetyPadding;
 

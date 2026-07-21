@@ -79,7 +79,7 @@ function validateAssetsAndAttribution() {
     assert(!declared.has(entry.file), `Duplicate asset manifest entry: ${entry.file}`);
     assert(/^[a-f0-9]{64}$/.test(entry.sha256), `Invalid SHA-256 for ${entry.file}`);
     assert(Number.isSafeInteger(entry.bytes) && entry.bytes > 0, `Invalid byte count for ${entry.file}`);
-    const expectedRuntime = /\/sprites\/action-sheet\.png$/.test(entry.file);
+    const expectedRuntime = /\/sprites\/(?:action-sheet|facings\/[^/]+)\.png$/.test(entry.file);
     assert(entry.runtime === expectedRuntime, `Incorrect runtime classification for ${entry.file}`);
     declared.set(entry.file, entry);
   }

@@ -38,6 +38,11 @@
     { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/action-sheet.png", "sha256": "c3cc54b85fa869879ad208b3bb0286bbaaba83bcd4f6086ebdd8e4f746fd21e8", "bytes": 1297435, "runtime": true },
     { "file": "apps/client/public/assets/original/units/warrior/portrait.png", "sha256": "2011a5900bf9876fb824916f71ed51e9ddf3d6996b2e7d4c337b48d4e61d1d6e", "bytes": 230297, "runtime": false },
     { "file": "apps/client/public/assets/original/units/warrior/sprites/action-sheet-source.png", "sha256": "31261888a82ff93888d18b15065581759fe9a4528f8ee6dfa3f7540368421ccc", "bytes": 2207015, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/action-sheet.png", "sha256": "d8a2e199b562ba8fc3321d0692c32f2b39592a75de4b8e9da7a3485a855c8265", "bytes": 1320906, "runtime": true }
+    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/e.png", "sha256": "2e8ec0dfba7ba2e7c25db64f5473223762db6a1d17785d7b780d3f3d7df2165e", "bytes": 211458, "runtime": true },
+    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/ne.png", "sha256": "9c228f8861b9f55213f8899712156e825d06d729116060a1e25495b9534ee65d", "bytes": 223668, "runtime": true },
+    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/nw.png", "sha256": "3ad79d9021a5c5a6f97863368dcbe3f1481a2a4214d453d4ee11645b55f4fe00", "bytes": 224308, "runtime": true },
+    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/se.png", "sha256": "b1fda8a7e55fc8ca9ed257310d1cc23ddd258bb47d05f3af627f552b4f94d735", "bytes": 226867, "runtime": true },
+    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/sw.png", "sha256": "8daa14f1a3b23705d56752628fbd7600b6874fa4250a155659c304e353442676", "bytes": 233205, "runtime": true },
+    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/w.png", "sha256": "e882467e1aee8598f7c3916f2ffaa9e380b6564708420a70751403b720376439", "bytes": 213502, "runtime": true }
   ]
 }

@@ -44,12 +44,10 @@ jobs:
           npm run build --workspace @village-siege/shared
           npm run build --workspace @village-siege/client -- --base=/village-siege/
 
-      - name: Remove non-runtime art source files
-        shell: bash
+      - name: Prune and validate the Pages runtime art bundle
         run: |
-          rm -rf apps/client/dist/assets/original/source
-          find apps/client/dist/assets/original -type f -name 'action-sheet-source.png' -delete
-          find apps/client/dist/assets/original -type f -name 'portrait.png' -delete
+          npm run prune:runtime-art
+          npm run validate:runtime-assets
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6

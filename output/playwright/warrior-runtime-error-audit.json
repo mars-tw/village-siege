@@ -1,0 +1,27 @@
+{
+  "activeScenes": [
+    "CombatShowcaseScene"
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "artLoadFailures": [],
+  "actorCount": 17,
+  "warriorReady": true,
+  "warriorState": {
+    "id": "warrior",
+    "action": "cast",
+    "facing": "ne",
+    "frame": 1,
+    "normalizedTime": 0.3333333333333333,
+    "finished": false
+  },
+  "manifestRows": {
+    "idle": 0,
+    "walk": 1,
+    "attack": 2,
+    "hurt": 3,
+    "death": 4,
+    "cast": 5
+  },
+  "fullActionAudit": "warrior-runtime-full-action-matrix.json"
+}

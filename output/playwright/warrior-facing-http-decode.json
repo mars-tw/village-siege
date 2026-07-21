@@ -1,0 +1,66 @@
+{
+  "origin": "http://127.0.0.1:5173",
+  "rows": [
+    {
+      "facing": "e",
+      "url": "/assets/original/units/warrior/sprites/facings/e.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "bytes": 211458,
+      "width": 384,
+      "height": 672
+    },
+    {
+      "facing": "ne",
+      "url": "/assets/original/units/warrior/sprites/facings/ne.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "bytes": 223668,
+      "width": 384,
+      "height": 672
+    },
+    {
+      "facing": "nw",
+      "url": "/assets/original/units/warrior/sprites/facings/nw.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "bytes": 224308,
+      "width": 384,
+      "height": 672
+    },
+    {
+      "facing": "w",
+      "url": "/assets/original/units/warrior/sprites/facings/w.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "bytes": 213502,
+      "width": 384,
+      "height": 672
+    },
+    {
+      "facing": "sw",
+      "url": "/assets/original/units/warrior/sprites/facings/sw.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "bytes": 233205,
+      "width": 384,
+      "height": 672
+    },
+    {
+      "facing": "se",
+      "url": "/assets/original/units/warrior/sprites/facings/se.png",
+      "status": 200,
+      "ok": true,
+      "contentType": "image/png",
+      "bytes": 226867,
+      "width": 384,
+      "height": 672
+    }
+  ],
+  "allPass": true
+}
