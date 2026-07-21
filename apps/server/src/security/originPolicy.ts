@@ -42,10 +42,14 @@ export function isRequestOriginAllowed(
   }
   if (parsed.origin !== origin || (parsed.protocol !== "https:" && parsed.protocol !== "http:")) return false;
 
+  const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV;
+  // A production browser transport must be HTTPS/WSS even if an operator
+  // accidentally lists an insecure origin explicitly.
+  if (nodeEnv === "production" && parsed.protocol !== "https:") return false;
+
   const allowedOrigins = options.allowedOrigins ?? parseAllowedOrigins();
   if (allowedOrigins.has(parsed.origin)) return true;
 
-  const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV;
   return nodeEnv !== "production"
     && LOOPBACK_HOSTS.has(parsed.hostname)
     && parsed.protocol === "http:";

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
 import { toggleGameFullscreen } from "../game/gameFullscreen";
+import { multiplayerAvailability } from "../network/multiplayerAvailability";
 
 export type VillageId = "pinehold" | "riverstead" | "highcrag";
 export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" | "raider";
@@ -33,6 +34,9 @@ export class VillageSelectScene extends Phaser.Scene {
     host.classList.add("selection-active");
     const root = document.createElement("main");
     root.className = "village-select-shell";
+    const multiplayerButton = multiplayerAvailability.enabled
+      ? `<button type="button" class="secondary-action" data-multiplayer>多人連線 <small>2–5 方</small></button>`
+      : "";
     root.innerHTML = `
       <div class="map-scrim" aria-hidden="true"><span></span><span></span><span></span></div>
       <header class="select-masthead"><p class="select-kicker">Village Siege · 戰前會議</p><h1>選擇你的村莊</h1><p>挑選地形與對手風格，開始單機戰役或進入私人多人房間。</p></header>
@@ -42,7 +46,7 @@ export class VillageSelectScene extends Phaser.Scene {
       <section class="ai-roster"><div class="section-heading"><span>02</span><div><h2>電腦對手</h2><p>只套用於單機模式。</p></div></div><div class="ai-options">
         ${AI_PROFILES.map((profile) => `<button type="button" class="ai-choice" data-ai="${profile.id}" aria-pressed="false"><span class="ai-mark">${profile.mark}</span><strong>${profile.name}</strong><small>${profile.detail}</small><span class="choice-state">選擇</span></button>`).join("")}
       </div></section>
-      <footer class="march-actions"><p class="selection-readout" role="status"></p><div><button type="button" class="secondary-action" data-tutorial>互動教學 <small>7 個實戰目標</small></button><button type="button" class="secondary-action" data-multiplayer>多人連線 <small>2–4 人</small></button><button type="button" class="primary-action" data-start>開始單機戰役</button></div></footer>`;
+      <footer class="march-actions"><p class="selection-readout" role="status"></p><div><button type="button" class="secondary-action" data-tutorial>互動教學 <small>7 個實戰目標</small></button>${multiplayerButton}<button type="button" class="primary-action" data-start>開始單機戰役</button></div></footer>`;
     host.append(root);
     this.root = root;
     root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach((button) => button.addEventListener("click", () => { this.villageId = button.dataset.village as VillageId; this.syncSelection(); }));

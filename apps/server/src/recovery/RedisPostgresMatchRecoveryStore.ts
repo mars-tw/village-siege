@@ -30,6 +30,7 @@ interface RedisLeaseClient {
   set(key: string, value: string, options: { readonly PX: number }): Promise<string | null>;
   eval(script: string, options: { readonly keys: readonly string[]; readonly arguments: readonly string[] }): Promise<unknown>;
   connect(): Promise<unknown>;
+  ping(): Promise<string>;
   quit(): Promise<unknown>;
 }
 
@@ -317,6 +318,7 @@ export async function createProductionRecoveryStore<TPayload = unknown>(
   options: ProductionRecoveryStoreOptions,
 ): Promise<{
   readonly store: RedisPostgresMatchRecoveryStore<TPayload>;
+  readonly check: () => Promise<void>;
   readonly close: () => Promise<void>;
 }> {
   if (!options.redisUrl || !options.postgresUrl) throw new Error("REDIS_URL and DATABASE_URL are required together");
@@ -332,6 +334,15 @@ export async function createProductionRecoveryStore<TPayload = unknown>(
   }
   return {
     store,
+    check: async () => {
+      const [postgresResult, redisResult] = await Promise.all([
+        postgres.query("SELECT 1 AS ready"),
+        redis.ping(),
+      ]);
+      if (postgresResult.rowCount !== 1 || redisResult !== "PONG") {
+        throw new Error("Durable recovery dependencies are not ready");
+      }
+    },
     close: async () => { await Promise.all([redis.quit(), postgres.end()]); },
   };
 }

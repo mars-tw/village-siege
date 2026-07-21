@@ -14,6 +14,7 @@ import {
   AuthoritativeMatchStore,
   type ResolvedMatchFrame,
 } from "./AuthoritativeMatchStore.js";
+import { multiplayerAvailability } from "./multiplayerAvailability.js";
 
 export interface LobbyPlayer {
   sessionId: string;
@@ -104,7 +105,9 @@ export class MultiplayerClient {
   private recoveryDeadlineTimer?: ReturnType<typeof globalThis.setTimeout>;
 
   constructor(client?: MultiplayerTransport) {
-    this.client = client ?? new Client(import.meta.env.VITE_COLYSEUS_URL ?? "http://localhost:2567");
+    // Disabled production builds still instantiate Phaser scenes at startup;
+    // use a non-routable HTTPS origin without initiating any connection.
+    this.client = client ?? new Client(multiplayerAvailability.endpoint ?? "https://multiplayer.invalid");
   }
 
   onState(listener: (state: LobbySnapshot) => void): Dispose {

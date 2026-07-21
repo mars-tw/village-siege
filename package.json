@@ -15,6 +15,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "verify": "npm run typecheck && npm test && npm run build",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "sbom": "npm sbom --sbom-format=cyclonedx",
     "start:server": "npm run start --workspace @village-siege/server",
     "smoke:multiplayer": "node scripts/multiplayer-smoke.mjs",
     "smoke:multiplayer:local": "npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && node scripts/multiplayer-smoke-local.mjs",

@@ -1,0 +1,81 @@
+name: Verify source and supply chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Type-check, test and build every workspace
+        run: npm run verify
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Generate CycloneDX SBOM
+        run: npm run --silent sbom > village-siege.cdx.json
+
+      - name: Validate CycloneDX document
+        run: node -e "const fs=require('node:fs');const sbom=JSON.parse(fs.readFileSync('village-siege.cdx.json','utf8'));if(sbom.bomFormat!=='CycloneDX'||!Array.isArray(sbom.components))throw new Error('Invalid CycloneDX SBOM')"
+
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: village-siege-cyclonedx
+          path: village-siege.cdx.json
+          if-no-files-found: error
+          retention-days: 30
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Validate local Compose contract
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: Build non-root client and server images
+        run: docker compose --env-file .env.example build client server
+
+      - name: Start the durable local stack
+        run: docker compose --env-file .env.example up --detach --wait
+
+      - name: Verify health, version and runtime users
+        shell: bash
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:8080/_health
+          curl --fail --silent --show-error http://127.0.0.1:2567/health/ready
+          curl --fail --silent --show-error http://127.0.0.1:2567/version | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const v=JSON.parse(s);if(v.version!=='0.18.0'||v.protocolVersion!=='village-siege-network/4')process.exit(1)})"
+          test "$(docker compose --env-file .env.example exec -T client id -u)" != "0"
+          test "$(docker compose --env-file .env.example exec -T server id -u)" != "0"
+
+      - name: Stop the local stack
+        if: always()
+        run: docker compose --env-file .env.example down --volumes

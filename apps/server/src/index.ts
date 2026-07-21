@@ -3,24 +3,32 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { LobbyRoom } from "./rooms/LobbyRoom.js";
 import { MatchRoom, configureMatchRecoveryStore, type MatchRoomRecoveryPayload } from "./rooms/MatchRoom.js";
 import { createProductionRecoveryStore } from "./recovery/RedisPostgresMatchRecoveryStore.js";
+import { resolveRecoveryConfiguration } from "./config/productionConfig.js";
+import { readinessDocument, versionDocument } from "./http/serviceStatus.js";
 import {
   configureMatchmakingHttpSecurity,
   isRequestOriginAllowed,
   parseAllowedOrigins,
 } from "./security/originPolicy.js";
 
+interface JsonResponse {
+  status(code: number): JsonResponse;
+  json(body: unknown): JsonResponse;
+}
+
 const allowedOrigins = parseAllowedOrigins();
 configureMatchmakingHttpSecurity(allowedOrigins);
 
-const redisUrl = process.env.REDIS_URL;
-const postgresUrl = process.env.DATABASE_URL;
-if (Boolean(redisUrl) !== Boolean(postgresUrl)) {
-  throw new Error("REDIS_URL and DATABASE_URL must be configured together for durable match recovery");
-}
-const productionRecovery = redisUrl && postgresUrl
-  ? await createProductionRecoveryStore<MatchRoomRecoveryPayload>({ redisUrl, postgresUrl })
+const recoveryConfiguration = resolveRecoveryConfiguration();
+const productionRecovery = recoveryConfiguration.durable
+  ? await createProductionRecoveryStore<MatchRoomRecoveryPayload>({
+    redisUrl: recoveryConfiguration.redisUrl!,
+    postgresUrl: recoveryConfiguration.postgresUrl!,
+  })
   : undefined;
 if (productionRecovery) configureMatchRecoveryStore(productionRecovery.store);
+
+let draining = false;
 
 export const server = defineServer({
   transport: new WebSocketTransport({
@@ -29,11 +37,23 @@ export const server = defineServer({
     maxPayload: 16 * 1024,
     verifyClient: ({ origin }: { origin: string | undefined }) => isRequestOriginAllowed(origin, { allowedOrigins }),
   }),
+  express: (app) => {
+    app.get("/health/live", (_request: unknown, response: JsonResponse) => response.status(200).json({ status: "live" }));
+    app.get("/health/ready", async (_request: unknown, response: JsonResponse) => {
+      const result = await readinessDocument({
+        isDraining: () => draining,
+        checkDependencies: productionRecovery?.check,
+      });
+      response.status(result.statusCode).json(result.body);
+    });
+    app.get("/version", (_request: unknown, response: JsonResponse) => response.status(200).json(versionDocument()));
+  },
   rooms: {
     village_siege_lobby: defineRoom(LobbyRoom).filterBy(["roomCode"]),
     village_siege_match: defineRoom(MatchRoom),
   },
 });
+server.onBeforeShutdown(() => { draining = true; });
 if (productionRecovery) server.onShutdown(productionRecovery.close);
 
 const httpServer = server.transport.server;

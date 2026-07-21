@@ -40,6 +40,12 @@ describe("origin policy", () => {
     expect(isRequestOriginAllowed("not an origin", { allowedOrigins: allowed, nodeEnv: "test" })).toBe(false);
   });
 
+  it("rejects explicitly configured HTTP origins in production", () => {
+    const allowed = parseAllowedOrigins("http://play.example.com,https://secure.example.com");
+    expect(isRequestOriginAllowed("http://play.example.com", { allowedOrigins: allowed, nodeEnv: "production" })).toBe(false);
+    expect(isRequestOriginAllowed("https://secure.example.com", { allowedOrigins: allowed, nodeEnv: "production" })).toBe(true);
+  });
+
   it("uses the process environment when the live WebSocket wiring omits an override", () => {
     const previousNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
