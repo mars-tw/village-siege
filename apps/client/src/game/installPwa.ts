@@ -55,13 +55,16 @@ export function installPwa(isMainMenu: () => boolean): () => void {
   const downloadButton = document.createElement("button");
   downloadButton.type = "button";
   downloadButton.className = "pwa-download";
-  downloadButton.title = "下載約 18 MB，完成後可離線玩單人戰役";
+  downloadButton.title = "下載約 10 MB，完成後可離線玩單人戰役";
   const installButton = document.createElement("button");
   installButton.type = "button";
   installButton.className = "pwa-install";
   installButton.hidden = true;
   toolbar.append(status, downloadButton, installButton);
-  document.body.append(toolbar);
+  // Fullscreen puts the game root in the browser's top layer. Body siblings
+  // cannot receive pointer events there, regardless of their z-index.
+  const uiHost = document.getElementById("game-root") ?? document.body;
+  uiHost.append(toolbar);
 
   const help = document.createElement("dialog");
   help.className = "pwa-install-help";
@@ -74,7 +77,7 @@ export function installPwa(isMainMenu: () => boolean): () => void {
   close.textContent = "知道了";
   close.addEventListener("click", () => help.close());
   help.append(title, instructions, close);
-  document.body.append(help);
+  uiHost.append(help);
 
   function cancelDownload(): void {
     if (downloadState !== "downloading") return;

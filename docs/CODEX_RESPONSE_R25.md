@@ -1,6 +1,6 @@
 # R25：三位 AI 實玩後的深度優化
 
-2026-10-01。App 1.1.0，rules village-siege/0.20.0，network 4。基準為公開 1.0.0／90e2a412；本輪完成真實遊玩、來源修正、重新遊玩與正式驗證。
+2026-10-01。發布版 App 1.1.1，rules village-siege/0.20.0，network 4。基準為公開 1.0.0／90e2a412；主要實玩版為 1.1.0，最後補修公開版全螢幕 PWA 入口。
 
 ## 體驗結果
 
@@ -34,8 +34,16 @@
 ## 最終驗證
 
 - npm run verify：157 client、86 server、262 shared、21 ops，共 526 項，typecheck、美術契約與正式建置通過。[紀錄](evidence/r25/verify-final.log)
-- 正式 runtime 52 檔、9,934,552 bytes；87／87 素材 hash、36 檔原創 runtime 圖、授權與秘密掃描通過，production audit 零漏洞。[產包](evidence/r25/runtime-final.log)、[依賴](evidence/r25/audit-prod.log)
+- 1.1.1 正式 runtime 52 檔、9,934,586 bytes；87／87 素材 hash、36 檔原創 runtime 圖、授權與秘密掃描通過，production audit 零漏洞。[產包](evidence/r25/runtime-final.log)、[依賴](evidence/r25/audit-prod.log)
 - 所有體驗停止且無測試並行後，桌 1280×720 及 Chromium mobile 844×390 各三跑五秒活動戰場，rAF p95 中位均 16.8ms；每跑 tick 前進 50／51。[效能](evidence/r25/final-render-performance.json)。手機是觸控模擬；這是暖機場景，不是所有實機／大型戰場保證。
 - [獨立最終讀審](RELEASE_REVIEW_R25.md)無未解來源碼阻斷。私有完整存檔、重播、錄影與內部日誌留在 Git 忽略的 .audit-tmp/r25。
 
 本輪用字已依台灣繁中 mode 2 直接校正：舊版「目前 1.0」→「最新 1.1」，避免入口過時；「全部工匠同批採集」→「逐人分工」，對應真功能；「已達 AoE III」不採用，保留實際完成範圍與後續差距。
+
+## 公開版覆驗與補修
+
+公開 1.1.0 桌機與觸控都實際進場、使用科技／工匠面板，單次訓練只扣 50、sequence 與佇列各增加一項。桌面離線下載 50 檔後，真斷網重載、進場與科技操作成功；但手機全螢幕返回選單時，BODY 內的 PWA 工具列被全螢幕遊戲層攔截。1.1.1 將工具列與說明放在同一遊戲根節點，以正式 production preview 及公開版重新驗證。
+
+此輪公開冷載確實偏慢：building atlas 約 38–58 秒、約 40 KB 的工匠圖亦約 21–32 秒。ResourceTiming 慢段在 responseStart 之後，不能只歸因首次回應或編碼；同頁再次取圖約 2ms。這是本次發布後網路樣本，沒有改寫為冷載通過，也沒有宣稱所有玩家會相同。素材量、離線下載與可見載入／重試入口仍需持續優化。
+
+PWA 小修另通過 [7 項 focused](evidence/r25/hotfix-pwa-tests.log)、[21 項 ops](evidence/r25/hotfix-ops.log)與[正式建置](evidence/r25/hotfix-build.log)。完整 526 項及三位玩家紀錄來自主體 1.1.0 實作；每次發布由同一 commit 的完整 CI 重驗。

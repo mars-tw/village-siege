@@ -2,7 +2,7 @@
 
 這份指南寫給第一次接觸 Village Siege 的玩家與開發者。只想玩單機時，不需要帳號、API 金鑰或多人伺服器。
 
-只想直接遊玩，請開啟 **[GitHub Pages 1.1.0 公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.1.0)**；想研究、修改或回報問題可前往 **[GitHub 原始碼](https://github.com/mars-tw/village-siege)**。後面的本機安裝步驟主要提供給開發者。
+只想直接遊玩，請開啟 **[GitHub Pages 1.1.1 公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.1.1)**；想研究、修改或回報問題可前往 **[GitHub 原始碼](https://github.com/mars-tw/village-siege)**。後面的本機安裝步驟主要提供給開發者。
 
 目前公開網站提供完整單機與離線 PWA。Android／iOS 簽署原生 App、長期公開 WSS 多人服務與劇情戰役尚未交付；多人功能只供本機開發與自架測試，不是官方公開服務。
 

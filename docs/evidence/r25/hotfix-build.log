@@ -1,0 +1,32 @@
+
+> village-siege@1.1.1 build
+> npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && npm run build --workspace @village-siege/client
+
+
+> @village-siege/shared@1.1.1 build
+> tsc -p tsconfig.build.json
+
+
+> @village-siege/server@1.1.1 build
+> tsc -p tsconfig.json
+
+
+> @village-siege/client@1.1.1 build
+> tsc -p tsconfig.json && vite build
+
+vite v8.1.5 building client environment for production...
+[2K
+transforming...✓ 107 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     2.98 kB │ gzip:   1.34 kB
+dist/assets/index-DnZE8Kma.css     45.87 kB │ gzip:   9.94 kB
+dist/assets/index-CTKMhSr8.js   2,088.15 kB │ gzip: 564.11 kB
+
+✓ built in 614ms
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+PWA: prepared 50 runtime files for offline play.
