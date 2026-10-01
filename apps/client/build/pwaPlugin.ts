@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { copyFile, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
 
@@ -22,6 +22,10 @@ export function villageSiegePwa(): Plugin {
       if (failed) return;
       const outputRoot = path.resolve(config.root, config.build.outDir);
       const repoRoot = path.resolve(config.root, "../..");
+      const { version: appVersion } = JSON.parse(await readFile(path.join(config.root, "package.json"), "utf8")) as { version: string };
+      // Existing workers bypass this new entry path, allowing a network-fresh boot.
+      // Copy after Vite rewrites the module URL and before pinning offline bytes.
+      await copyFile(path.join(outputRoot, "index.html"), path.join(outputRoot, "play.html"));
       const manifest = JSON.parse(await readFile(path.join(repoRoot, "assets/release-asset-manifest.json"), "utf8")) as {
         assets: ReleaseAsset[];
       };
@@ -58,6 +62,7 @@ export function villageSiegePwa(): Plugin {
       const integrity: Record<string, string> = {};
       // Base and every byte are part of the revision, so art-only changes update too.
       revision.update(config.base);
+      revision.update(appVersion);
       for (const file of files) {
         const content = await readFile(path.join(outputRoot, file));
         revision.update(file);
@@ -69,6 +74,7 @@ export function villageSiegePwa(): Plugin {
       revision.update(template);
       const worker = template
         .replace("__VILLAGE_SIEGE_BUILD_VERSION__", revision.digest("hex").slice(0, 20))
+        .replace("__VILLAGE_SIEGE_APP_VERSION__", appVersion)
         .replace('["__VILLAGE_SIEGE_PRECACHE__"]', JSON.stringify(files))
         .replace('{"__VILLAGE_SIEGE_INTEGRITY__": ""}', JSON.stringify(integrity));
       await writeFile(path.join(outputRoot, "sw.js"), worker, "utf8");

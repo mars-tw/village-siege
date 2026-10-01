@@ -5,30 +5,41 @@ import test from "node:test";
 import vm from "node:vm";
 
 const workerTemplate = await readFile(new URL("../../apps/client/public/sw.js", import.meta.url), "utf8");
-const precache = ["index.html", "assets/main-123.js", "assets/world.png", "manifest.webmanifest"];
-const cachedBody = (url) => url.endsWith("index.html") ? "cached generation" : "cached art";
+const precache = ["index.html", "play.html", "assets/main-123.js", "assets/world.png", "manifest.webmanifest"];
+const cachedBody = (url) => url.endsWith(".html") ? "cached generation" : "cached art";
 const digest = (content) => `sha256-${createHash("sha256").update(content).digest("base64")}`;
 const integrity = Object.fromEntries(precache.map((path) => [path, digest(cachedBody(path))]));
 
-function workerHarness({ scope = "https://game.example/village-siege/", online = true, failDownload = false, tamperDownload = false } = {}) {
+function workerHarness({ scope = "https://game.example/village-siege/", online = true, failDownload = false, tamperDownload = false, requestVersion = "0.21.1", holdDownload = false } = {}) {
   const listeners = new Map();
   const storage = new Map();
   const deleted = [];
   const requests = [];
   let skippedWaiting = false;
   let claimed = false;
+  let shouldFailDownload = failDownload;
+  let resolveStarted;
+  const downloadStarted = new Promise((resolve) => { resolveStarted = resolve; });
   const caches = {
     async open(name) {
       if (!storage.has(name)) storage.set(name, new Map());
       const entries = storage.get(name);
       return {
         async addAll(items) {
+          if (items.some((request) => request.signal.aborted)) throw new Error("Download aborted");
+          if (holdDownload) {
+            const request = items[0];
+            requests.push(request);
+            resolveStarted();
+            await new Promise((_resolve, reject) => request.signal.addEventListener("abort", () => reject(new Error("Download aborted")), { once: true }));
+            return;
+          }
           for (const item of items) {
             requests.push(item);
             const body = tamperDownload ? "mixed deployment generation" : cachedBody(item.url);
             if (item.integrity !== digest(body)) throw new TypeError("Fetch integrity mismatch");
             entries.set(item.url, new Response(body));
-            if (failDownload) throw new TypeError("Partial download failure");
+            if (shouldFailDownload) throw new TypeError("Partial download failure");
           }
         },
         async match(url) { return entries.get(typeof url === "string" ? url : url.url)?.clone(); },
@@ -40,15 +51,17 @@ function workerHarness({ scope = "https://game.example/village-siege/", online =
   };
   vm.runInNewContext(workerTemplate
     .replace("__VILLAGE_SIEGE_BUILD_VERSION__", "test-revision")
+    .replace("__VILLAGE_SIEGE_APP_VERSION__", "0.21.1")
     .replace('["__VILLAGE_SIEGE_PRECACHE__"]', JSON.stringify(precache))
     .replace('{"__VILLAGE_SIEGE_INTEGRITY__": ""}', JSON.stringify(integrity)), {
     self: {
       registration: { scope },
+      location: { href: `${scope}sw.js${requestVersion === null ? "" : `?offline=${requestVersion}`}` },
       addEventListener(type, listener) { listeners.set(type, listener); },
       skipWaiting() { skippedWaiting = true; },
       clients: { claim() { claimed = true; } },
     },
-    URL, Request, Response, Set, Promise, caches,
+    URL, Request, Response, Set, Promise, AbortController, caches,
     fetch: async (request) => {
       requests.push(request);
       if (!online) throw new TypeError("Offline");
@@ -68,6 +81,20 @@ function workerHarness({ scope = "https://game.example/village-siege/", online =
   }
   return {
     scope, storage, requests, deleted, lifecycle, route,
+    downloadStarted,
+    failFutureDownload() { shouldFailDownload = true; },
+    cancelInstall() { listeners.get("message")({ data: { type: "VILLAGE_SIEGE_CANCEL_INSTALL" } }); },
+    async repair(appVersion = "0.21.1") {
+      let work;
+      let result;
+      listeners.get("message")({
+        data: { type: "VILLAGE_SIEGE_REPAIR_CACHE", appVersion },
+        ports: [{ postMessage(value) { result = value; } }],
+        waitUntil(promise) { work = promise; },
+      });
+      await work;
+      return result;
+    },
     get interrupted() { return skippedWaiting || claimed; },
     async state() {
       let work;
@@ -86,7 +113,7 @@ function workerHarness({ scope = "https://game.example/village-siege/", online =
 test("PWA manifest and icon URLs remain under a GitHub Pages base", async () => {
   const manifest = JSON.parse(await readFile(new URL("../../apps/client/public/manifest.webmanifest", import.meta.url), "utf8"));
   const root = "https://game.example/village-siege/";
-  assert.equal(new URL(manifest.start_url, root).href, root);
+  assert.equal(new URL(manifest.start_url, root).href, `${root}play.html`);
   assert.equal(new URL(manifest.scope, root).href, root);
   assert.equal(manifest.display, "standalone");
   assert.deepEqual(manifest.icons.map((icon) => icon.sizes), ["192x192", "512x512", "512x512"]);
@@ -105,6 +132,67 @@ test("worker precaches only base-scoped files and never interrupts active games"
   assert.ok(worker.requests.every((request) => request.cache === "reload"));
   assert.ok(worker.requests.every((request) => request.integrity.startsWith("sha256-")));
   assert.equal((await worker.state()).ready, true);
+  assert.equal((await worker.state()).appVersion, "0.21.1");
+});
+
+test("browser soft updates without the current explicit download token never start a full cache", async () => {
+  for (const requestVersion of [null, "0.21.0"]) {
+    const worker = workerHarness({ requestVersion });
+    const old = `village-siege:${encodeURIComponent(worker.scope)}:old`;
+    worker.storage.set(old, new Map());
+    await assert.rejects(worker.lifecycle("install"), /explicit request/);
+    assert.equal(worker.requests.length, 0);
+    assert.deepEqual([...worker.storage.keys()], [old]);
+  }
+});
+
+test("cancelling an installing worker aborts its requests and preserves an old active cache", async () => {
+  const worker = workerHarness({ holdDownload: true });
+  const old = `village-siege:${encodeURIComponent(worker.scope)}:old`;
+  worker.storage.set(old, new Map());
+  const install = worker.lifecycle("install");
+  await worker.downloadStarted;
+  worker.cancelInstall();
+  await assert.rejects(install, /Download aborted/);
+  assert.equal(worker.requests[0].signal.aborted, true);
+  assert.deepEqual([...worker.storage.keys()], [old]);
+});
+
+test("a cancel received before installation begins also prevents the complete download", async () => {
+  const worker = workerHarness();
+  worker.cancelInstall();
+  await assert.rejects(worker.lifecycle("install"), /Download aborted/);
+  assert.equal(worker.requests.length, 0);
+});
+
+test("an explicit current-version repair restores an incomplete active cache", async () => {
+  const worker = workerHarness();
+  await worker.lifecycle("install");
+  worker.storage.values().next().value.delete(worker.scope + "play.html");
+  assert.equal((await worker.state()).ready, false);
+  assert.equal((await worker.repair()).ready, true);
+  assert.equal((await worker.state()).ready, true);
+});
+
+test("a repair for a different release never changes stored offline bytes", async () => {
+  const worker = workerHarness();
+  await worker.lifecycle("install");
+  const requests = worker.requests.length;
+  assert.equal((await worker.repair("0.21.0")).ready, false);
+  assert.equal(worker.requests.length, requests);
+  assert.equal((await worker.state()).ready, true);
+});
+
+test("failed repair retains an active cache's remaining offline resources", async () => {
+  const worker = workerHarness();
+  await worker.lifecycle("install");
+  const cache = worker.storage.values().next().value;
+  cache.delete(worker.scope + "play.html");
+  const before = [...cache.keys()];
+  worker.failFutureDownload();
+  assert.equal((await worker.repair()).ready, false);
+  assert.deepEqual([...cache.keys()], before);
+  assert.equal(worker.deleted.length, 0);
 });
 
 test("offline-ready stays false when the complete download is absent", async () => {
@@ -136,6 +224,7 @@ test("offline navigation uses the shell paired with its precached code", async (
   await worker.lifecycle("install");
   assert.equal(await (await worker.route(worker.scope, { mode: "navigate" })).text(), "cached generation");
   assert.equal(await (await worker.route(worker.scope + "index.html?campaign=1", { mode: "navigate" })).text(), "cached generation");
+  assert.equal(await (await worker.route(worker.scope + "play.html?entry=fresh", { mode: "navigate" })).text(), "cached generation");
   assert.equal(await (await worker.route(worker.scope + "assets/world.png")).text(), "cached art");
 });
 

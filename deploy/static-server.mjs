@@ -62,7 +62,7 @@ createServer((request, response) => {
   if (!existsSync(filePath)) filePath = resolve(root, "index.html");
 
   response.writeHead(200, {
-    "Cache-Control": /(?:index\.html|sw\.js|manifest\.webmanifest)$/.test(filePath)
+    "Cache-Control": /(?:\.html|sw\.js|manifest\.webmanifest|startup\.js|startup\.css)$/.test(filePath)
       ? "no-cache" : "public, max-age=31536000, immutable",
     "Content-Type": contentType(filePath),
   });

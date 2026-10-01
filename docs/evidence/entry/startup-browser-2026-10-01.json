@@ -1,0 +1,58 @@
+{
+  "url": "http://localhost:5173/startup-probe.html",
+  "viewport": {
+    "width": 1093,
+    "height": 480
+  },
+  "fixture": "Project index.html with BASE_URL resolved to slash; direct route avoids dev HMR reset",
+  "moduleFailure": {
+    "visible": true,
+    "title": "遊戲沒有完成啟動",
+    "browserMessage": "遊戲程式下載失敗，請確認網路連線後重試。",
+    "controls": [
+      {
+        "text": "重新載入",
+        "disabled": false,
+        "rect": {
+          "x": 315.5,
+          "y": 317.734375,
+          "width": 225,
+          "height": 48,
+          "top": 317.734375,
+          "right": 540.5,
+          "bottom": 365.734375,
+          "left": 315.5
+        }
+      },
+      {
+        "text": "修復這個遊戲",
+        "disabled": false,
+        "rect": {
+          "x": 552.5,
+          "y": 317.734375,
+          "width": 225,
+          "height": 48,
+          "top": 317.734375,
+          "right": 777.5,
+          "bottom": 365.734375,
+          "left": 552.5
+        }
+      }
+    ],
+    "intercepted": 1
+  },
+  "retry": {
+    "menuVisible": true,
+    "startupHidden": true
+  },
+  "slow": {
+    "visible": true,
+    "title": "遊戲仍在載入",
+    "detailHidden": true,
+    "controlsHidden": false
+  },
+  "lateReadiness": {
+    "menuVisible": true,
+    "startupHidden": true
+  }
+}

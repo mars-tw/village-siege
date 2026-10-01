@@ -30,6 +30,7 @@ async function fixture(base = "/village-siege/") {
     await writeFile(destination, content, "utf8");
   }
   await mkdir(publicDir, { recursive: true });
+  await writeFile(path.join(client, "package.json"), JSON.stringify({ version: "0.21.1" }));
   await mkdir(path.join(root, "assets"), { recursive: true });
   await writeFile(path.join(publicDir, "sw.js"), workerTemplate);
   await writeFile(path.join(root, "assets/release-asset-manifest.json"), JSON.stringify({ assets: [
@@ -56,6 +57,7 @@ async function fixture(base = "/village-siege/") {
 function workerData(source: string) {
   return {
     version: /const BUILD_VERSION = "([a-f0-9]+)";/.exec(source)![1],
+    appVersion: /const APP_VERSION = "([^"]+)";/.exec(source)![1],
     files: JSON.parse(/const PRECACHE_PATHS = (.+);/.exec(source)![1]!) as string[],
     integrity: JSON.parse(/const PRECACHE_INTEGRITY = (.+);/.exec(source)![1]!) as Record<string, string>,
   };
@@ -67,6 +69,10 @@ describe("PWA build contract", () => {
     await project.build();
     const data = workerData(await readFile(path.join(project.output, "sw.js"), "utf8"));
     expect(data.files).toContain("assets/original/units/warrior/sprites/action-sheet.png");
+    expect(data.files).toContain("play.html");
+    expect(data.appVersion).toBe("0.21.1");
+    expect(await readFile(path.join(project.output, "play.html"), "utf8"))
+      .toBe(await readFile(path.join(project.output, "index.html"), "utf8"));
     expect(data.files).not.toContain("runtime-config.js");
     expect(data.files).not.toContain("sw.js");
     expect(data.files).not.toContain("assets/original/source/reference.png");

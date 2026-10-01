@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-01",
+  "scope": "PWA cold-entry hotfix; author verification in an isolated Chromium context",
+  "publishedBaseline": {
+    "url": "https://mars-tw.github.io/village-siege/",
+    "sourceCommit": "4b1d4c9",
+    "workerRevision": "e0ee154f4f8e3af7147c",
+    "coldMenuReadyMs": 1147,
+    "coldStartClickedMs": 1231,
+    "noBattleControlsAfterWaitMs": 45000,
+    "lastRequiredMonsterSheetRequestDurationMs": 77435,
+    "battleControlsEventuallyPresent": 7,
+    "serviceWorkerRequestsDuringColdProbe": 38,
+    "totalRequestsDuringColdProbe": 62,
+    "javascriptErrors": 0,
+    "interpretation": "Long blank battle preload while automatic full precache competes for the connection; no permanent JavaScript crash reproduced.",
+    "comparisonWithServiceWorkersBlocked": {
+      "context": "Fresh Chromium context; serviceWorkers:block; baseline browser closed first",
+      "menuReadyMs": 1730,
+      "clickToBattleMs": 36304,
+      "requests": 27,
+      "serviceWorkerRequests": 0,
+      "javascriptErrors": 0
+    },
+    "timingLimit": "Two sequential public network observations, not a universal performance benchmark. Local fixed timing below is not comparable with public CDN transfer time."
+  },
+  "fixedBuild": {
+    "appVersion": "0.21.1",
+    "base": "/village-siege/",
+    "entry": "play.html",
+    "testedWorkerRevision": "fd272309ce41d3c34ab1",
+    "offlineEntries": 40,
+    "runtimeFiles": 42,
+    "runtimeBytes": 18464254,
+    "buildPassed": true,
+    "prunePassed": true,
+    "runtimeCompliancePassed": true,
+    "note": "Root may rebuild after the separate battle-controller lane freezes; this evidence identifies the exact locally tested generation."
+  },
+  "fixedBrowserChecks": {
+    "origin": "http://127.0.0.1:4183/village-siege/play.html",
+    "freshVisit": {
+      "menuReadyMs": 314,
+      "clickToBattleMs": 334,
+      "registrationsBeforeAndAfter": 0,
+      "cacheEntriesBeforeAndAfter": 0,
+      "serviceWorkerRequests": 0,
+      "battleControls": 7,
+      "errors": 0,
+      "timingLimit": "Localhost only; proves removal of automatic worker downloads, not production latency."
+    },
+    "explicitDownload": {
+      "scriptUrlSuffix": "sw.js?offline=0.21.1",
+      "entries": 40,
+      "status": "離線版已備妥"
+    },
+    "offlineReloadAndStart": {
+      "controlled": true,
+      "bootOverlayHidden": true,
+      "battleControls": 7,
+      "pwaToolbarHidden": true,
+      "errors": 0
+    },
+    "partialActiveCacheRepair": {
+      "mutationScope": "Only play.html was removed from this isolated browser's own current cache",
+      "entriesBefore": 39,
+      "entriesAfterExplicitRepair": 40,
+      "newInstallingWorkerRequired": false,
+      "statusAfter": "離線版已備妥"
+    },
+    "cancelDownloadOnMatchEntry": {
+      "fixture": "Held only the service-worker-owned buildings.png request; normal page asset requests remained available",
+      "status": "下載已取消",
+      "battleControls": 7,
+      "remainingNewCacheNames": 0,
+      "remainingRegistrations": 0,
+      "errors": 0
+    },
+    "legacyWorkerEscape": {
+      "fixture": "Exact 4b1d4c9 worker code with one pinned synthetic index.html resource instead of a complete artwork download",
+      "indexServedOldShell": true,
+      "playHtmlLoadedNetworkFreshMenu": true,
+      "status": "已保留舊版離線遊戲",
+      "oldCacheUnchanged": true,
+      "newReleaseIncorrectlyReportedReady": false,
+      "errors": 0
+    },
+    "toolbarBounds": {
+      "engine": "Chromium touch contexts with an iPhone user agent; not actual Safari or physical iPhone",
+      "viewports": [[390, 667], [667, 375]],
+      "downloadAndIosInstallButtonsPresent": true,
+      "primaryActionCenterReachable": true,
+      "offscreenControls": 0,
+      "guideOverlapPx": 0,
+      "automaticRegistrations": 0
+    },
+    "allOwnBrowsersClosed": true,
+    "preview4183Stopped": true
+  },
+  "targetedTests": {
+    "workerTests": 16,
+    "buildContractTests": 3,
+    "versionReadinessTests": 4,
+    "clientTypecheck": "PASS"
+  },
+  "limitations": [
+    "No public publishing or credentials access was performed by this worker.",
+    "No physical Safari, native PWA installation, full offline battle completion or app-store package validation was performed.",
+    "Other lanes own the static bootstrap, battle loading UI, retry/cancel controller and final deployment verification."
+  ]
+}

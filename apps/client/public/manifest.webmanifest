@@ -4,7 +4,7 @@
   "short_name": "村落攻防",
   "description": "建設村落、調度軍隊，守住你的領地。",
   "lang": "zh-Hant-TW",
-  "start_url": "./",
+  "start_url": "./play.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#101917",

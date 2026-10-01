@@ -149,6 +149,8 @@ import {
   type VillageWorkerPose,
 } from "../game/villageWorkerActor";
 import { createCanvasButton, type CanvasButtonControl } from "../ui/canvasButton";
+import { createBattleLoading, type BattleLoadingView } from "../ui/battleLoading";
+import { captureBattlePreload, type BattlePreloadAttempt } from "../game/battlePreloadCancellation";
 import { OnlineAssaultMatchSource, type OnlineAssaultFrame } from "../match/OnlineAssaultMatchSource";
 import type { ConnectionState, MatchFrame, MultiplayerClient } from "../network/MultiplayerClient";
 
@@ -265,6 +267,10 @@ const UI_GAP = 6;
 const ACTION_PANEL_HEIGHT = 154;
 
 export class VillageAssaultScene extends Phaser.Scene {
+  private battleLoading?: BattleLoadingView;
+  private battlePreloadAttempt?: BattlePreloadAttempt;
+  private battlePreloadGeneration = 0;
+  private battlePreloadSetupFailed = false;
   private villageId: VillageId = "pinehold";
   private aiPersonality: AiPersonality = "balanced";
   private aiDifficulty: AiDifficulty = "standard";
@@ -346,6 +352,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   init(data: VillageAssaultSceneData): void {
+    this.invalidateBattlePreload();
+    this.battlePreloadSetupFailed = false;
     this.villageId = data.villageId ?? "pinehold";
     this.aiPersonality = data.aiPersonality ?? "balanced";
     this.aiDifficulty = data.aiDifficulty ?? "standard";
@@ -404,21 +412,50 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   preload(): void {
-    assertCombatAnimationManifestValid();
-    const assets = [
-      ...ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior"),
-      ...ANIMATED_MONSTER_FRAME_ASSETS,
-    ].flatMap((asset) => frameAssetFiles(asset)).filter((asset) => !this.textures.exists(asset.textureKey));
-    this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
-    if (!this.textures.exists(FRONTIER_BUILDING_TEXTURE)) this.load.image(FRONTIER_BUILDING_TEXTURE, FRONTIER_BUILDING_PATH);
-    for (const asset of assets) this.load.image(asset.textureKey, asset.path);
+    this.cleanupBattleLoading();
+    this.battleLoading = createBattleLoading(this.game.canvas.parentElement ?? document.body,
+      () => this.retryBattleLoading(), () => this.cancelBattleLoading());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanupBattleLoading, this);
+    this.events.once(Phaser.Scenes.Events.DESTROY, this.cleanupBattleLoading, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.invalidateBattlePreload, this);
+    this.events.once(Phaser.Scenes.Events.DESTROY, this.invalidateBattlePreload, this);
+    this.load.on(Phaser.Loader.Events.PROGRESS, this.updateBattleLoadProgress, this);
+    try {
+      assertCombatAnimationManifestValid();
+      const assets = [
+        ...ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior"),
+        ...ANIMATED_MONSTER_FRAME_ASSETS,
+      ].flatMap((asset) => frameAssetFiles(asset)).filter((asset) => !this.textures.exists(asset.textureKey));
+      this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
+      if (!this.textures.exists(FRONTIER_BUILDING_TEXTURE)) this.load.image(FRONTIER_BUILDING_TEXTURE, FRONTIER_BUILDING_PATH);
+      for (const asset of assets) this.load.image(asset.textureKey, asset.path);
+    } catch (error) {
+      this.battlePreloadSetupFailed = true;
+      console.error("Battle preload setup failed", error);
+      this.battleLoading.fail("戰場準備失敗。請重新載入，或返回主選單再試一次。");
+    } finally {
+      this.battlePreloadAttempt = captureBattlePreload(
+        [...this.load.list, ...this.load.inflight, ...this.load.queue],
+        { processing: Phaser.Loader.FILE_PROCESSING, complete: Phaser.Loader.FILE_COMPLETE, pendingDestroy: Phaser.Loader.FILE_PENDING_DESTROY },
+      );
+    }
   }
 
   create(): void {
+    if (this.battlePreloadSetupFailed) return;
+    try {
+      this.createBattle();
+    } catch (error) {
+      console.error("Battle startup failed", error);
+      this.battleLoading?.fail("戰場未能啟動。請重新載入，或返回主選單再試一次。");
+    }
+  }
+
+  private createBattle(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
     this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
     if (this.artLoadFailures.length > 0) {
-      this.showLoadFailure();
+      this.battleLoading?.fail("部分角色素材未能下載。請檢查網路後重新載入，或返回主選單。");
       return;
     }
     validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, "warrior"), "warrior");
@@ -429,6 +466,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.onlineSource = new OnlineAssaultMatchSource(this.multiplayerClient, { firstFrame: this.firstMatchFrame });
       const initial = this.onlineSource.current;
       if (!initial) {
+        this.battleLoading?.fail("尚未收到戰場資料。請返回大廳，確認連線後再加入。");
         this.showOnlineFailure("尚未收到可驗證的戰場快照");
         return;
       }
@@ -490,6 +528,54 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.layoutInterface();
     this.bindOnlineSource();
     this.refreshInterface(true);
+    this.cleanupBattleLoading();
+  }
+
+  private readonly updateBattleLoadProgress = (progress: number): void => {
+    this.battleLoading?.update(progress);
+  };
+
+  private cleanupBattleLoading(): void {
+    this.load.off(Phaser.Loader.Events.PROGRESS, this.updateBattleLoadProgress, this);
+    this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
+    this.events.off(Phaser.Scenes.Events.SHUTDOWN, this.cleanupBattleLoading, this);
+    this.events.off(Phaser.Scenes.Events.DESTROY, this.cleanupBattleLoading, this);
+    this.battleLoading?.destroy();
+    this.battleLoading = undefined;
+  }
+
+  private invalidateBattlePreload(): void {
+    this.battlePreloadAttempt?.abort();
+    this.battlePreloadAttempt = undefined;
+    this.battlePreloadGeneration += 1;
+    this.events.off(Phaser.Scenes.Events.SHUTDOWN, this.invalidateBattlePreload, this);
+    this.events.off(Phaser.Scenes.Events.DESTROY, this.invalidateBattlePreload, this);
+  }
+
+  private retryBattleLoading(): void {
+    if (this.multiplayerClient) { this.cancelBattleLoading(); return; }
+    this.invalidateBattlePreload();
+    this.scene.restart({villageId:this.villageId,aiPersonality:this.aiPersonality,aiDifficulty:this.aiDifficulty,
+      returnScene:this.returnScene,tutorial:this.tutorialEnabled,seed:this.battleSeed,
+      multiplayerClient:this.multiplayerClient,firstMatchFrame:this.firstMatchFrame});
+  }
+
+  private cancelBattleLoading(): void {
+    if (this.multiplayerClient) {
+      if (this.onlineLeaveRequested) return;
+      this.onlineLeaveRequested = true;
+      const client = this.multiplayerClient;
+      const generation = this.battlePreloadGeneration;
+      this.battlePreloadAttempt?.abort();
+      void client.leave().finally(() => {
+        // Loading scenes are active before RUNNING; isActive() excludes them.
+        if (this.battlePreloadGeneration !== generation || this.multiplayerClient !== client || !this.sys.settings.active) return;
+        this.scene.start("MultiplayerLobbyScene", {villageId:this.villageId});
+      });
+    } else {
+      this.invalidateBattlePreload();
+      this.scene.start(this.returnScene);
+    }
   }
 
   update(_time: number, delta: number): void {
@@ -4112,8 +4198,12 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private readonly onArtLoadError = (file: { readonly key?: unknown }): void => {
+    if (!this.battlePreloadAttempt?.owns(file)) return;
     const key = typeof file.key === "string" ? file.key : "unknown-unit-art";
-    if ((key.startsWith("unit-action-sheet-") || key.startsWith("monster-action-sheet-")) && !this.artLoadFailures.includes(key)) this.artLoadFailures.push(key);
+    if ((key.startsWith("unit-action-sheet-") || key.startsWith("monster-action-sheet-")) && !this.artLoadFailures.includes(key)) {
+      this.artLoadFailures.push(key);
+      this.battleLoading?.fail("部分角色素材未能下載。請檢查網路後重新載入，或返回主選單。");
+    }
   };
 
   private showLoadFailure(): void {

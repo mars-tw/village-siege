@@ -12,6 +12,7 @@
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <link rel="apple-touch-icon" href="%BASE_URL%icons/app-192.png" />
     <link rel="icon" type="image/png" href="%BASE_URL%icons/app-192.png" />
+    <link rel="stylesheet" href="%BASE_URL%startup.css" />
     <title>Village Siege｜村莊攻防</title>
     <style>
       * { box-sizing: border-box; }
@@ -24,6 +25,21 @@
   </head>
   <body>
     <main id="game-root" aria-label="Village Siege game"></main>
+    <section id="startup-status" class="startup-status" aria-labelledby="startup-title">
+      <div class="startup-card">
+        <p class="startup-brand">VILLAGE SIEGE</p>
+        <h1 id="startup-title">正在打開村莊攻防</h1>
+        <p id="startup-message" role="status" aria-live="polite">正在載入遊戲程式，第一次開啟可能需要稍候。</p>
+        <p id="startup-detail" class="startup-detail" hidden></p>
+        <div id="startup-controls" class="startup-controls" hidden>
+          <button id="startup-retry" type="button">重新載入</button>
+          <button id="startup-repair" type="button">修復這個遊戲</button>
+        </div>
+        <p id="startup-repair-note" class="startup-note" hidden>修復只移除這款遊戲的舊版下載資料，存檔會保留。</p>
+        <noscript><p class="startup-note">瀏覽器未啟用 JavaScript，請啟用後重新載入。</p></noscript>
+      </div>
+    </section>
+    <script src="%BASE_URL%startup.js" data-base="%BASE_URL%"></script>
     <script src="%BASE_URL%runtime-config.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>

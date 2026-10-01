@@ -35,7 +35,10 @@ export function getDeviceViewportProfile(): DeviceViewportProfile {
     touch,
     coarsePointer,
     mobileSized,
-    mobile: (touch || coarsePointer) && mobileSized,
+    // A touchscreen laptop can report many touch points while its primary
+    // pointer is still a mouse. Reserve mandatory mobile layout / fullscreen
+    // behavior for a coarse primary pointer; keep touch capability separate.
+    mobile: coarsePointer && mobileSized,
     landscape: width >= height,
     standalone,
     width,

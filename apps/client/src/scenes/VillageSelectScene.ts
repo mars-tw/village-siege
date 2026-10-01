@@ -39,7 +39,7 @@ export class VillageSelectScene extends Phaser.Scene {
   root.style.setProperty("--frontier-atlas",`url("${publicAssetUrl("assets/original/frontier/buildings.png")}")`);
   root.innerHTML=`
    <div class="frontier-landscape" aria-hidden="true"></div>
-   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v0.21</span></span></header>
+   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v${import.meta.env.VITE_APP_VERSION ?? "0.21.1"}</span></span></header>
    <div class="frontier-content">
     <div class="frontier-intro"><p class="frontier-eyebrow">一座村莊，一場攻防。</p><h1>把邊境，<br>變成你的堡壘。</h1><p class="frontier-description">開拓、築城、帶兵出征。<br>從松林深處，打開通往河谷的道路。</p></div>
     <section class="frontier-settings">
@@ -66,6 +66,7 @@ export class VillageSelectScene extends Phaser.Scene {
   root.querySelector("[data-guide]")?.addEventListener("click",()=>guide.showModal());
   root.querySelector("[data-close-guide]")?.addEventListener("click",()=>guide.close());
   this.syncSelection();this.events.once("shutdown",this.destroySelector,this);this.events.once("destroy",this.destroySelector,this);
+  window.dispatchEvent(new Event("village-siege-ready"));
  }
  private startBattle(tutorial:boolean):void {
   const p=getDeviceViewportProfile(); if(p.mobile&&!this.scale.isFullscreen)toggleGameFullscreen(this);
