@@ -1,0 +1,149 @@
+{
+  "method": "Normal build commands set up two unfinished sites, then real touchscreen taps return the selected worker to A and activate the site continuation button for B; only regular scene updates advance the simulation.",
+  "setup": {
+    "workerId": "unit-7",
+    "aId": "building-18",
+    "bId": "building-20",
+    "remainingA": 179,
+    "retainedWhileBuildingB": 179
+  },
+  "resumed": {
+    "workerOrder": {
+      "type": "construct",
+      "targetId": "building-18"
+    },
+    "remainingA": 179,
+    "commands": [
+      {
+        "command": {
+          "type": "repair",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "building-18"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 444,
+          "wood": 296,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 444,
+          "wood": 296,
+          "stone": 260
+        }
+      }
+    ]
+  },
+  "finishedA": {
+    "succeeded": true,
+    "bRemaining": 180
+  },
+  "finished": {
+    "sites": [
+      {
+        "id": "building-18",
+        "complete": true,
+        "remaining": 0
+      },
+      {
+        "id": "building-20",
+        "complete": true,
+        "remaining": 0
+      }
+    ],
+    "commands": [
+      {
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "house",
+          "origin": {
+            "x": 6,
+            "y": 8
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 420,
+          "wood": 340,
+          "stone": 260
+        }
+      },
+      {
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "house",
+          "origin": {
+            "x": 8,
+            "y": 8
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 444,
+          "wood": 364,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 444,
+          "wood": 284,
+          "stone": 260
+        }
+      },
+      {
+        "command": {
+          "type": "repair",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "building-18"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 444,
+          "wood": 296,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 444,
+          "wood": 296,
+          "stone": 260
+        }
+      },
+      {
+        "command": {
+          "type": "repair",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "building-20"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 492,
+          "wood": 332,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 492,
+          "wood": 332,
+          "stone": 260
+        }
+      }
+    ],
+    "rules": "village-siege/0.19.0"
+  },
+  "errors": []
+}

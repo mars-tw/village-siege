@@ -1306,7 +1306,14 @@ function validateGameCommand(state: MatchState, player: PlayerState, command: Ga
     return { ok: true };
   }
   if (command.type === "repair") {
-    if (units.some((unit) => unit.typeId !== "villager") || target.kind !== "building" || !arePlayersAllied(state, player.id, target.ownerId) || !target.complete || target.hitPoints <= 0 || target.hitPoints >= target.maxHitPoints) return rejected("INVALID_PAYLOAD");
+    if (units.some((unit) => unit.typeId !== "villager") || target.kind !== "building" || target.hitPoints <= 0) return rejected("INVALID_PAYLOAD");
+    if (!target.complete) {
+      // Construction was paid for when the foundation was placed. Reassigning
+      // a living owner worker only resumes its existing progress and damage.
+      if (target.ownerId !== player.id || units.some((unit) => unit.hitPoints <= 0)) return rejected("INVALID_PAYLOAD");
+      return units.every((unit) => isEntityReachable(state, unit.position, target)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
+    }
+    if (!arePlayersAllied(state, player.id, target.ownerId) || target.hitPoints >= target.maxHitPoints) return rejected("INVALID_PAYLOAD");
     if (player.resources.wood < 1) return rejected("INSUFFICIENT_RESOURCES");
     return units.every((unit) => isEntityReachable(state, unit.position, target)) ? { ok: true } : rejected("TARGET_NOT_REACHABLE");
   }
@@ -1349,9 +1356,11 @@ function applyGameCommand(state: MatchState, player: PlayerState, commandSequenc
     case "dropOff":
       setOrders(state, command.entityIds, { type: "deliver", targetId: command.targetId }, events);
       break;
-    case "repair":
-      setOrders(state, command.entityIds, { type: "repair", targetId: command.targetId }, events);
+    case "repair": {
+      const target = state.entities.find((entity): entity is BuildingEntityState => entity.id === command.targetId && entity.kind === "building")!;
+      setOrders(state, command.entityIds, { type: target.complete ? "repair" : "construct", targetId: command.targetId }, events);
       break;
+    }
     case "patrol":
       setOrders(state, command.entityIds, { type: "patrol", waypoints: [...command.waypoints], waypointIndex: 0 }, events);
       break;

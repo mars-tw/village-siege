@@ -11,6 +11,7 @@ import {
   getFootprintCells,
   getFootprintPerimeterCells,
   getOccupiedMapCells,
+  getNavigationBlockedMapCells,
   getVillageAssaultWalkBlockedCells,
   isBuildLocationAvailable,
   isEntityVisibleToPlayer,
@@ -77,6 +78,7 @@ import {
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
 import { constructionPreviewOccupiedCells } from "../game/constructionPreview";
+import { chooseContinuationWorker, constructionContinuationCommand, continuationMovementBlockedCells } from "../game/constructionContinuation";
 import { productionProgressLabel } from "../game/productionProgress";
 import {
   createFrameAnimatedCombatActor,
@@ -1486,6 +1488,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     const selectedUnits = this.selectedUnits();
     const selectedVillagers = selectedUnits.filter((unit) => unit.typeId === "villager");
     const selectedMilitary = selectedUnits.filter((unit) => unit.typeId !== "villager");
+    const continuation = constructionContinuationCommand(entity, selectedVillagers, VILLAGE_ASSAULT_PLAYER_ID);
+    if (continuation) {
+      this.issue(continuation, `繼續施工 ${this.entityDisplayName(entity)}`);
+      return;
+    }
     if (entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID && entity.complete) {
       const accepted = BUILDINGS[entity.typeId].dropOffResources ?? [];
       const carriers = selectedVillagers.filter((unit) => (
@@ -1734,6 +1741,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     const units = this.onlineSelectedUnits();
     const villagers = units.filter((unit) => unit.typeId === "villager");
     const military = units.filter((unit) => unit.typeId !== "villager");
+    const continuation = constructionContinuationCommand(entity, villagers, this.currentPlayerId());
+    if (continuation) {
+      this.issue(continuation, `繼續施工 ${this.publicEntityDisplayName(entity)}`);
+      return;
+    }
     if (isPublicBuilding(entity) && entity.ownerId === this.currentPlayerId() && entity.complete) {
       const accepted = BUILDINGS[entity.typeId].dropOffResources ?? [];
       const carriers = villagers.filter((unit) => {
@@ -1859,7 +1871,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     if (mode.kind === "repair") {
       if (!entity || !isPublicBuilding(entity) || entity.ownerId !== this.currentPlayerId()) return this.setNotice("修復必須點選己方建築", "warning");
-      if (this.issue({ type: "repair", entityIds: mode.entityIds, targetId: entity.id }, `開始修復 ${buildingDisplayName(entity.typeId)}`)) this.cancelTacticalMode();
+      if (this.issue({ type: "repair", entityIds: mode.entityIds, targetId: entity.id }, `${entity.complete === false ? "繼續施工" : "開始修復"} ${buildingDisplayName(entity.typeId)}`)) this.cancelTacticalMode();
       return;
     }
     const caster = this.onlineEntityById(mode.casterId);
@@ -2164,6 +2176,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private onlineBuildingActions(building: PublicBuildingEntity, connected: boolean): readonly ActionSpec[] {
+    if (building.complete === false) return this.constructionSiteActions(building, connected);
     const queue = building.ownerControl?.productionQueue ?? [];
     const trainable = (Object.keys(UNITS) as UnitType[]).filter((type) => UNITS[type].producers.includes(building.typeId));
     const technologies = TECHNOLOGY_ORDER.filter((technologyId) => TECHNOLOGIES[technologyId].producer === building.typeId && !this.currentView().completedTechnologyIds.includes(technologyId));
@@ -2178,6 +2191,41 @@ export class VillageAssaultScene extends Phaser.Scene {
     actions.push({ glyph: "◎", label: "置中建築", run: () => this.centerCameraOn(building.position) });
     actions.push(this.systemAction());
     return actions;
+  }
+
+  private constructionSiteActions(building: BuildingEntityState | PublicBuildingEntity, connected: boolean): readonly ActionSpec[] {
+    const chooseWorker = () => this.onlineSource
+      ? chooseContinuationWorker(this.currentView().entities, building, this.currentPlayerId(), worker => this.publicBuildingApproachDistance(worker.position, building))
+      : chooseContinuationWorker(this.runtime.state.entities, building, VILLAGE_ASSAULT_PLAYER_ID, worker => this.publicBuildingApproachDistance(worker.position, building));
+    const worker = chooseWorker();
+    const progress = Math.max(0, Math.min(100, Math.floor((1 - (building.constructionRemainingTicks ?? BUILDINGS[building.typeId].buildTicks) / BUILDINGS[building.typeId].buildTicks) * 100)));
+    return [
+      {
+        glyph: "續", label: "繼續施工", enabled: connected && worker !== null,
+        accessibleLabel: worker ? `派工匠繼續施工${buildingDisplayName(building.typeId)}，保留目前進度`
+          : "沒有可到達的閒置工匠；請先選取要調回的工匠，再點這個工地",
+        run: () => {
+          const currentWorker = chooseWorker();
+          if (!currentWorker) return this.setNotice("請先選取工匠，再點工地繼續施工", "warning");
+          const command = constructionContinuationCommand(building, [currentWorker], this.currentPlayerId());
+          if (command) this.issue(command, `繼續施工 ${buildingDisplayName(building.typeId)}`);
+        },
+      },
+      { glyph: "時", label: `施工 ${progress}%`, enabled: false, run: () => undefined },
+      { glyph: "⚒", label: "全選工匠", run: () => this.onlineSource ? this.onlineSelectUnitGroup("villager") : this.selectUnitGroup("villager") },
+      { glyph: "◎", label: "置中工地", run: () => this.centerCameraOn(building.position) },
+      this.zoomAction(-0.12), this.zoomAction(0.12), this.systemAction(),
+    ];
+  }
+
+  private publicBuildingApproachDistance(position: GridPoint, building: PublicBuildingEntity | BuildingEntityState): number | null {
+    const snapshot = this.currentView();
+    const blocked = [
+      ...(snapshot.map.id === "villageAssault" ? getVillageAssaultWalkBlockedCells(snapshot.map.layoutId) : []),
+      ...(this.onlineSource ? continuationMovementBlockedCells(snapshot.entities) : getNavigationBlockedMapCells(this.runtime.state)),
+    ];
+    const goals = getFootprintPerimeterCells(building.position, getBuildingFootprint(building.typeId, building.orientation ?? "ne"));
+    return findPathToAny(position, goals, snapshot.map.width, snapshot.map.height, blocked)?.distance ?? null;
   }
 
   private onlineUnitActions(units: readonly PublicUnitEntity[], connected: boolean): readonly ActionSpec[] {
@@ -2196,7 +2244,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     return [
       this.onlineGatherAction("food", villagers, connected), this.onlineGatherAction("wood", villagers, connected), this.onlineGatherAction("stone", villagers, connected),
       { glyph: "⌂", label: "建造", enabled: connected, run: () => this.openBuildMenu() },
-      { glyph: "修", label: "修復", enabled: connected, active: this.tacticalUiMode.kind === "repair", run: () => this.openTacticalMode({ kind: "repair", entityIds: villagers.map((unit) => unit.id) }) },
+      { glyph: "修", label: "續建／修復", enabled: connected, active: this.tacticalUiMode.kind === "repair", run: () => this.openTacticalMode({ kind: "repair", entityIds: villagers.map((unit) => unit.id) }) },
       { glyph: "■", label: "停止", enabled: connected, run: () => this.issue({ type: "stop", entityIds: villagers.map((unit) => unit.id) }, "工匠停止目前工作") },
       this.systemAction(),
     ];
@@ -2391,6 +2439,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.researchMenuOpen = false;
       this.researchPage = 0;
     }
+    if (ownBuilding?.complete === false) return this.constructionSiteActions(ownBuilding, true);
     if (ownBuilding?.typeId === "surveyGate") {
       const nextOpen = !ownBuilding.gateOpen;
       return [
@@ -2467,7 +2516,7 @@ export class VillageAssaultScene extends Phaser.Scene {
           { glyph: "⌂", label: "建造", run: () => this.openBuildMenu() },
           unload ?? {
             glyph: "修",
-            label: "修復",
+            label: "續建／修復",
             active: this.tacticalUiMode.kind === "repair",
             run: () => this.tacticalUiMode.kind === "repair"
               ? this.cancelTacticalMode("已取消修復選取")
@@ -2992,7 +3041,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.systemPanelOpen = false;
     this.hoverGrid = null;
     this.hoverEntityId = null;
-    const message = mode.kind === "attackMove" ? "點地圖下達攻擊移動" : mode.kind === "patrol" ? "依序點選兩個巡邏點" : mode.kind === "repair" ? "點選受損友方建築" : "選擇技能目標";
+    const message = mode.kind === "attackMove" ? "點地圖下達攻擊移動" : mode.kind === "patrol" ? "依序點選兩個巡邏點" : mode.kind === "repair" ? "點選未完工或受損友方建築" : "選擇技能目標";
     this.setNotice(message, "normal");
     this.refreshInterface(true);
   }
@@ -3034,10 +3083,10 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     if (mode.kind === "repair") {
       if (!entity || entity.kind !== "building") {
-        this.setNotice("修復必須點選受損友方建築", "warning");
+        this.setNotice("修復必須點選未完工或受損友方建築", "warning");
         return;
       }
-      if (this.issue({ type: "repair", entityIds: mode.entityIds, targetId: entity.id }, `開始修復 ${buildingDisplayName(entity.typeId)}`)) this.cancelTacticalMode();
+      if (this.issue({ type: "repair", entityIds: mode.entityIds, targetId: entity.id }, `${entity.complete === false ? "繼續施工" : "開始修復"} ${buildingDisplayName(entity.typeId)}`)) this.cancelTacticalMode();
       return;
     }
     const caster = this.entityById(mode.casterId);

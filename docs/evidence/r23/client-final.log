@@ -1,0 +1,13 @@
+
+> @village-siege/client@0.22.1 test
+> vitest run --no-file-parallelism test
+
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/apps/client
+
+
+ Test Files  21 passed (21)
+      Tests  132 passed (132)
+   Start at  14:06:59
+   Duration  6.73s (transform 1.84s, setup 0ms, import 2.55s, tests 1.61s, environment 1ms)
+

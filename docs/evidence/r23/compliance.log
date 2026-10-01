@@ -1,0 +1,9 @@
+
+> village-siege@0.22.1 validate:compliance
+> node scripts/validate-release-compliance.mjs
+
+[release-compliance] assets 85/85 hashed; attribution rows 26
+[release-compliance] runtime art 35 files, 7321143/16777216 bytes
+[release-compliance] production dependency licenses 119 allowed; optional unavailable 5
+[release-compliance] secret scan 302 text files; findings 0
+[release-compliance] PASS

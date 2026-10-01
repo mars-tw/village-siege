@@ -1,0 +1,20 @@
+
+> @village-siege/client@0.22.1 build
+> tsc -p tsconfig.json && vite build
+
+vite v8.1.5 building client environment for production...
+[2K
+transforming...✓ 92 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     2.98 kB │ gzip:   1.34 kB
+dist/assets/index-DCwCXD1a.css     36.00 kB │ gzip:   8.30 kB
+dist/assets/index-De3jnV0y.js   2,048.30 kB │ gzip: 551.08 kB
+
+✓ built in 813ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+PWA: prepared 48 runtime files for offline play.
