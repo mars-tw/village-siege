@@ -23,7 +23,13 @@ Village Siege ships original project artwork and programmatic UI marks. The comb
 
 ## Local asset tooling
 
-`scripts/extract-combat-portraits.mjs` uses the repository-pinned `sharp` 0.35.3 (Apache-2.0) as a local build-time crop and pixel-inspection tool; older asset metadata may record the 0.32.6 version used for that historical extraction. The prepared alpha master was produced with the installed imagegen skill helper at `$CODEX_HOME/skills/.system/imagegen/scripts/remove_chroma_key.py`. Neither tool nor its dependencies are bundled into the browser runtime. Exact crops, hashes, alpha statistics, cleanup counts, and tool versions are recorded in `apps/client/public/assets/original/asset-metadata.json`.
+| `apps/client/public/assets/original/frontier/buildings-source.png` | Original generated twelve-building source | Village Siege contributors / OpenAI built-in image_gen | MIT | Project-bound original generation and targeted cleanup; actual model slug was not exposed by the tool, so gpt-image-2 is not asserted |
+| `apps/client/public/assets/original/frontier/buildings.png` | Runtime transparent building atlas | Village Siege contributors / OpenAI built-in image_gen | MIT | Source cropped and normalized by scripts/prepare-frontier-atlas.mjs; alpha matte and neighbor fragments cleaned deterministically; 4 columns by 3 rows, 384px cells |
+| `apps/client/public/assets/original/frontier/cover.webp` | Original frontier valley menu painting | Village Siege contributors / OpenAI built-in image_gen | MIT | Generated for this project, converted to WebP with sharp; no commercial artwork imported |
+| `apps/client/public/icons/*.png` | PWA install icons | Village Siege contributors | MIT | Derived from the original frontier watchtower with a pine-green background; no SVG |
+| `apps/client/src/frontier-menu.css` | Original frontier menu design | Village Siege contributors | MIT | Project-authored responsive design, typography and color tokens |
+
+`scripts/extract-combat-portraits.mjs` uses the repository-pinned `sharp` 0.35.5 (Apache-2.0) as a local build-time crop and pixel-inspection tool; older asset metadata may record the 0.32.6 version used for that historical extraction. The prepared alpha master was produced with the installed imagegen skill helper at `$CODEX_HOME/skills/.system/imagegen/scripts/remove_chroma_key.py`. Neither tool nor its dependencies are bundled into the browser runtime. Exact crops, hashes, alpha statistics, cleanup counts, and tool versions are recorded in `apps/client/public/assets/original/asset-metadata.json`.
 
 ## Adding assets
 

@@ -1,0 +1,16 @@
+
+   ___      _                                    ___   _ _____
+  / __\___ | |_   _ ___  ___ _   _ ___   __   __/ _ \ / |___  |
+ / /  / _ \| | | | / __|/ _ \ | | / __|  \ \ / / | | || |  / /
+/ /__| (_) | | |_| \__ \  __/ |_| \__ \   \ V /| |_| || | / /
+\____/\___/|_|\__, |___/\___|\__,_|___/    \_/  \___(_)_|/_/
+              |___/
+
+             · Multiplayer Framework for Node.js ·
+
+💖 Consider becoming a Sponsor on GitHub → https://github.com/sponsors/endel
+🌟 Give us a star on GitHub → https://github.com/colyseus/colyseus
+☁️  Deploy and scale your project on Colyseus Cloud → https://cloud.colyseus.io
+
+Village Siege server listening on http://localhost:26567
+{"result":"PASS","roomCode":"GMQT8Z","lobbyRoomId":"Xr-Uy19hA","matchRoomId":"GQ4reK3Sj","durableMatchId":"match-a5f0e6392c443f10a014a71eebdca27d","players":2,"factions":5,"serverTick":50,"checks":{"exactVersionNegotiation":true,"splitRooms":true,"privateSeatHandoff":true,"unreservedSeatTheftRejected":true,"filteredDeltaChain":true,"deltaGapFullResync":true,"fiveSecondSnapshot":50,"sameSequenceAckIsolation":true,"forgedOwnershipRejected":"ENTITY_NOT_OWNED","injectedAuthorityRejected":"INVALID_PAYLOAD","duplicateCommandAppliedOnce":50,"canonicalStateNotSerialized":true,"privateSeedNotSerialized":true,"serverOwnedAiFactions":3}}

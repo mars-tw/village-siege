@@ -17,6 +17,8 @@ import {
   type PublicResourceEntity,
   type PublicRubbleEntity,
 } from "./assaultPublicPresentation";
+import { publicAssetUrl } from "./publicAssetUrl";
+import { productionProgressLabel } from "./productionProgress";
 
 export type AssaultSide = "player" | "enemy";
 type AssaultRenderableEntity = PublicEntityState | BuildingEntityState | ResourceEntityState | RubbleEntityState;
@@ -45,6 +47,16 @@ const VERDIGRIS = 0x4f8275;
 const EMBER = 0xf08a3c;
 const PLAYER = 0x315e4d;
 const ENEMY = 0x8f3b3a;
+
+export const FRONTIER_BUILDING_TEXTURE = "frontier-painted-buildings";
+export const FRONTIER_BUILDING_PATH = publicAssetUrl("assets/original/frontier/buildings.png");
+
+/** Row-major contract for the original, transparent 4 × 3 raster atlas. */
+const PAINTED_BUILDING_ORDER = [
+  "townCenter", "house", "barracks", "defenseTower",
+  "lumberCamp", "farmstead", "archeryRange", "mageSanctum",
+  "gunWorkshop", "beastStable", "siegeWorkshop", "copperLandmark",
+] as const satisfies readonly BuildingType[];
 
 const BUILDING_LABELS: Readonly<Record<BuildingType, string>> = {
   townCenter: "村鎮議事堂",
@@ -85,6 +97,7 @@ export function createBuildingView(
   const sideAccent = typeof side === "number" ? side : side === "player" ? PLAYER : ENEMY;
   const shadow = scene.add.ellipse(0, 11, footprintWidth(entity.typeId), footprintHeight(entity.typeId), INK, 0.34);
   const selection = scene.add.graphics();
+  const painted = createPaintedBuilding(scene, entity.typeId);
   const art = scene.add.graphics();
   const healthBack = scene.add.rectangle(0, -82, 92, 8, INK, 0.88).setOrigin(0.5);
   const health = scene.add.rectangle(-44, -82, 88, 4, sideAccent).setOrigin(0, 0.5);
@@ -104,7 +117,13 @@ export function createBuildingView(
     backgroundColor: "#101917cc",
     padding: { x: 4, y: 2 },
   }).setOrigin(0.5).setResolution(2);
-  const container = scene.add.container(0, 0, [shadow, selection, art, healthBack, health, label, progress]);
+  if (painted) {
+    const top = painted.y - painted.displayHeight * painted.originY;
+    healthBack.setY(top - 8);
+    health.setY(top - 8);
+    progress.setY(top - 22);
+  }
+  const container = scene.add.container(0, 0, [shadow, selection, ...(painted ? [painted] : []), art, healthBack, health, label, progress]);
   container.setName(`assault-building:${entity.id}`).setSize(110, 120);
   let lastRevision = -1;
   let lastSelected = false;
@@ -114,7 +133,11 @@ export function createBuildingView(
     const building = next as PublicBuildingEntity | BuildingEntityState;
     if (next.stateRevision !== lastRevision) {
       art.clear();
-      drawBuilding(art, building.typeId, side, completionRatio(building), building.hitPoints / building.maxHitPoints, building.orientation ?? "ne", building.gateOpen ?? false);
+      if (painted) {
+        updatePaintedBuilding(painted, art, building.typeId, sideAccent, completionRatio(building), building.hitPoints / building.maxHitPoints);
+      } else {
+        drawBuilding(art, building.typeId, side, completionRatio(building), building.hitPoints / building.maxHitPoints, building.orientation ?? "ne", building.gateOpen ?? false);
+      }
       const ratio = Phaser.Math.Clamp(next.hitPoints / next.maxHitPoints, 0, 1);
       health.setDisplaySize(88 * ratio, 4);
       lastRevision = next.stateRevision;
@@ -151,6 +174,7 @@ export function createStaleBuildingView(
   serverTick: number,
 ): StaleBuildingView {
   const shadow = scene.add.ellipse(0, 11, footprintWidth(sighting.typeId), footprintHeight(sighting.typeId), INK, 0.24);
+  const painted = createPaintedBuilding(scene, sighting.typeId);
   const art = scene.add.graphics();
   const label = scene.add.text(0, 25, BUILDING_LABELS[sighting.typeId], {
     color: "#c3cbc2",
@@ -167,7 +191,8 @@ export function createStaleBuildingView(
     backgroundColor: "#101917b8",
     padding: { x: 4, y: 2 },
   }).setOrigin(0.5).setResolution(2);
-  const container = scene.add.container(0, 0, [shadow, art, label, age])
+  if (painted) age.setY(painted.y - painted.displayHeight * painted.originY - 8);
+  const container = scene.add.container(0, 0, [shadow, ...(painted ? [painted] : []), art, label, age])
     .setName(`assault-stale-building:${sighting.entityId}`)
     .setAlpha(0.52);
   let lastRevision = -1;
@@ -175,7 +200,14 @@ export function createStaleBuildingView(
   const update = (next: StaleEntitySighting, currentTick: number): void => {
     if (next.stateRevision !== lastRevision) {
       art.clear();
-      drawBuilding(art, next.typeId, "enemy", 1, Phaser.Math.Clamp(next.hitPoints / Math.max(1, next.maxHitPoints), 0, 1), next.orientation, next.gateOpen ?? false);
+      const healthRatio = Phaser.Math.Clamp(next.hitPoints / Math.max(1, next.maxHitPoints), 0, 1);
+      const completion = completionRatio(next);
+      if (painted) {
+        updatePaintedBuilding(painted, art, next.typeId, ENEMY, completion, healthRatio);
+        painted.setTint(0x8c9992);
+      } else {
+        drawBuilding(art, next.typeId, "enemy", completion, healthRatio, next.orientation, next.gateOpen ?? false);
+      }
       lastRevision = next.stateRevision;
     }
     const elapsedSeconds = Math.max(0, Math.floor((currentTick - next.observedAtTick) / 10));
@@ -279,7 +311,7 @@ export function drawBuildGhost(
   graphics.lineStyle(3, valid ? 0xb7e4a7 : 0xff9d86, 0.95).strokeEllipse(0, 5, footprintWidth(type) + 12, footprintHeight(type) + 8);
 }
 
-function completionRatio(entity: PublicBuildingEntity | BuildingEntityState): number {
+function completionRatio(entity: PublicBuildingEntity | BuildingEntityState | StaleEntitySighting): number {
   if (entity.complete) return 1;
   return Phaser.Math.Clamp(entity.hitPoints / entity.maxHitPoints, 0.08, 0.99);
 }
@@ -287,8 +319,60 @@ function completionRatio(entity: PublicBuildingEntity | BuildingEntityState): nu
 function queueText(queue: readonly PublicProductionJob[]): string {
   if (queue.length === 0) return "";
   const job = queue[0]!;
-  const progress = Math.round(Phaser.Math.Clamp(1 - job.remainingTicks / Math.max(1, job.totalTicks), 0, 1) * 100);
-  return `列${queue.length} · ${job.kind === "research" ? "研" : "工"}${progress}%`;
+  return `列${queue.length} · ${productionProgressLabel(job)}`;
+}
+
+function createPaintedBuilding(scene: Phaser.Scene, type: BuildingType): Phaser.GameObjects.Image | undefined {
+  const index = PAINTED_BUILDING_ORDER.findIndex((candidate) => candidate === type);
+  if (index < 0 || !scene.textures.exists(FRONTIER_BUILDING_TEXTURE)) return undefined;
+  const texture = scene.textures.get(FRONTIER_BUILDING_TEXTURE);
+  if (!texture.has(type)) {
+    const base = texture.get("__BASE");
+    // Read the delivered PNG size rather than coupling loading to an image model's output resolution.
+    const cellWidth = Math.floor(base.cutWidth / 4);
+    const cellHeight = Math.floor(base.cutHeight / 3);
+    if (cellWidth <= 0 || cellHeight <= 0) return undefined;
+    texture.add(type, 0, index % 4 * cellWidth, Math.floor(index / 4) * cellHeight, cellWidth, cellHeight);
+  }
+  const image = scene.add.image(0, 14, FRONTIER_BUILDING_TEXTURE, type).setOrigin(0.5, 0.85);
+  const width = footprintWidth(type) * 1.32;
+  image.setDisplaySize(width, width * image.frame.cutHeight / image.frame.cutWidth);
+  return image;
+}
+
+function updatePaintedBuilding(
+  image: Phaser.GameObjects.Image,
+  overlay: Phaser.GameObjects.Graphics,
+  type: BuildingType,
+  accent: number,
+  completion: number,
+  healthRatio: number,
+): void {
+  const width = footprintWidth(type);
+  image.setVisible(completion >= 0.34).setAlpha(completion < 1 ? 0.76 : 1);
+  image.clearTint();
+  if (completion < 1) {
+    const cropY = Math.floor(image.frame.cutHeight * (1 - completion));
+    image.setCrop(0, cropY, image.frame.cutWidth, image.frame.cutHeight - cropY);
+    if (completion < 0.34) drawIsoDiamond(overlay, width, footprintHeight(type), STONE, 1, INK);
+    drawScaffolding(overlay, width, -6, Math.max(14, 72 * completion), accent);
+  } else {
+    image.setCrop();
+    if (healthRatio < 0.58) {
+      image.setTint(0xc8b6a2);
+      drawDamage(overlay, healthRatio);
+    }
+  }
+  drawOwnerHeraldry(overlay, width, accent);
+}
+
+/** Team color stays explicit without tinting the hand-painted material palette. */
+function drawOwnerHeraldry(graphics: Phaser.GameObjects.Graphics, width: number, accent: number): void {
+  const x = -width * 0.35;
+  graphics.lineStyle(2, INK, 0.85).lineBetween(x, 10, x, -16);
+  graphics.fillStyle(accent, 1).fillTriangle(x - 7, -15, x + 7, -15, x, -3).fillRect(x - 7, -21, 14, 7);
+  graphics.lineStyle(1, COPPER, 0.95).strokeTriangle(x - 7, -15, x + 7, -15, x, -3).lineBetween(x - 7, -21, x + 7, -21);
+  graphics.fillStyle(CHALK, 0.92).fillCircle(x, -14, 2);
 }
 
 function footprintWidth(type: BuildingType): number {
@@ -351,7 +435,7 @@ function drawBuilding(
     drawHall(g, type, accent, completion);
   }
   if (completion < 1) drawScaffolding(g, width, -6, 55 * completion, accent);
-  if (healthRatio < 0.58) drawDamage(g, healthRatio);
+  if (completion >= 1 && healthRatio < 0.58) drawDamage(g, healthRatio);
 }
 
 function drawResinPalisade(g: Phaser.GameObjects.Graphics, accent: number, completion: number, orientation: StructureOrientation): void {
@@ -617,10 +701,20 @@ function drawResource(g: Phaser.GameObjects.Graphics, type: ResourceKind, ratio:
     for (let index = 0; index < count; index += 1) {
       const x = [-24, -7, 18, 31][index]!;
       const y = [3, -8, 5, -3][index]!;
-      g.fillStyle(TIMBER, 1).fillRect(x - 4, y - 32, 8, 35);
-      g.fillStyle(0x284b37, 1).fillTriangle(x, y - 68, x - 23, y - 25, x + 23, y - 25);
-      g.fillStyle(0x3e6848, 1).fillTriangle(x, y - 57, x - 20, y - 34, x + 21, y - 34);
-      g.lineStyle(2, 0x162b22, 0.8).strokeTriangle(x, y - 68, x - 23, y - 25, x + 23, y - 25);
+      g.fillStyle(0x253d2b, 0.22).fillEllipse(x + 4, y + 4, 39, 12);
+      g.lineStyle(6, TIMBER, 1).lineBetween(x, y + 3, x, y - 37);
+      g.lineStyle(2, TIMBER_LIGHT, 0.9).lineBetween(x - 1, y + 1, x - 1, y - 30);
+      g.fillStyle(index % 2 ? 0x3e5d39 : 0x345334, 1)
+        .fillEllipse(x, y - 44, 45, 43)
+        .fillEllipse(x - 14, y - 34, 30, 28)
+        .fillEllipse(x + 16, y - 36, 28, 29);
+      g.fillStyle(0x708a4d, 0.82).fillEllipse(x - 7, y - 51, 29, 21).fillEllipse(x + 14, y - 38, 19, 16);
+      g.fillStyle(0xa0ab65, 0.55).fillEllipse(x - 11, y - 54, 17, 8).fillEllipse(x + 12, y - 43, 11, 6);
+    }
+    if (count === 0) {
+      g.fillStyle(TIMBER, 1).fillEllipse(-8, 6, 17, 8).fillRect(-16, 0, 16, 6);
+      g.fillStyle(TIMBER_LIGHT, 1).fillEllipse(-8, 0, 17, 7);
+      g.lineStyle(1, 0xc0a075, 0.8).strokeEllipse(-8, 0, 10, 4);
     }
   } else if (type === "stone") {
     const stoneCount = count === 0 ? 0 : count + 1;
@@ -629,7 +723,9 @@ function drawResource(g: Phaser.GameObjects.Graphics, type: ResourceKind, ratio:
       const y = [4, -7, 5, -1, -16][index]!;
       g.fillStyle(index % 2 === 0 ? STONE_LIGHT : STONE, 1)
         .fillTriangle(x - 15, y + 10, x + 13, y + 7, x + 5, y - 20);
-      g.lineStyle(2, 0x55584f, 0.9).strokeTriangle(x - 15, y + 10, x + 13, y + 7, x + 5, y - 20);
+      g.fillStyle(0x6e7464, 0.8).fillTriangle(x + 5, y - 20, x + 13, y + 7, x - 2, y + 1);
+      g.lineStyle(1, 0xd0c5a6, 0.8).lineBetween(x - 12, y + 5, x + 4, y - 17);
+      g.fillStyle(0x718246, 0.5).fillEllipse(x - 4, y + 8, 15, 5);
     }
   } else {
     g.fillStyle(0x7f5b32, 1).fillEllipse(0, 8, 68, 24);

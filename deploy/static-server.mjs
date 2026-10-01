@@ -62,7 +62,8 @@ createServer((request, response) => {
   if (!existsSync(filePath)) filePath = resolve(root, "index.html");
 
   response.writeHead(200, {
-    "Cache-Control": filePath.endsWith("index.html") ? "no-cache" : "public, max-age=31536000, immutable",
+    "Cache-Control": /(?:index\.html|sw\.js|manifest\.webmanifest)$/.test(filePath)
+      ? "no-cache" : "public, max-age=31536000, immutable",
     "Content-Type": contentType(filePath),
   });
   if (request.method === "HEAD") response.end();
@@ -75,6 +76,7 @@ function contentType(filePath) {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
     ".json": "application/json; charset=utf-8",
+    ".webmanifest": "application/manifest+json; charset=utf-8",
     ".png": "image/png",
     ".svg": "image/svg+xml",
     ".webp": "image/webp",

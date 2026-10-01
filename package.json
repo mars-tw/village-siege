@@ -1,6 +1,6 @@
 {
   "name": "village-siege",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "private": true,
   "license": "MIT",
   "workspaces": [
@@ -32,7 +32,7 @@
     "smoke:multiplayer:adverse:local": "npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && node scripts/multiplayer-adverse-smoke-local.mjs"
   },
   "devDependencies": {
-    "sharp": "0.35.3",
+    "sharp": "0.35.5",
     "typescript": "6.0.3"
   },
   "engines": {

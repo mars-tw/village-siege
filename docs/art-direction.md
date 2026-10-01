@@ -1,55 +1,31 @@
-# Village Siege art direction
+# Village Siege 美術方向：邊境的晨光
 
-## Creative thesis
+此文件取代 v0.20 的「石灰牆上的野外帳冊」與全畫面像素化方向。R21 使用原創的半手繪等角村落：陶紅屋瓦、石灰牆、橡木梁、松林陰影、河谷水面與少量銅器。遊戲呈現以可辨認的材料與用途為優先。
 
-The interface is an original **field ledger pinned to a limewashed village wall**. It should feel assembled by local surveyors with charcoal, river dye, pine seals, and hammered copper markers. The selector's signature is one winding river-valley route connecting three settlements; this replaces the familiar fantasy-game card wall and keeps the choice grounded in the world.
+## 共用視覺規格
 
-The work must not copy, trace, closely paraphrase, or recreate the layout, icon silhouettes, framing, typography, unit art, color relationships, or ornamental language of *Age of Empires II* or another commercial strategy game. The medieval setting is shared subject matter; every expression in this project must remain independently designed.
+| 角色 | 色彩 | 用途 |
+|---|---|---|
+| 深松綠 | #172B29 | 入口遮罩、HUD底色 |
+| 灰綠 | #ACC1B5 | 次要文字、植被陰影 |
+| 暖白 | #F0E6CA | 標題與資訊 |
+| 銅金 | #D6AA65 | 主行動、選取、焦點 |
+| 河谷藍 | #4F8589 | 水面與導覽 |
+| 陶紅 | #AF613F | 屋瓦及木材暖色 |
 
-## Design tokens
+入口以河谷城寨的原創點陣插畫為背景，左側放實際戰前設定與開始按鈕。顯示字使用 Noto Serif TC／PMingLiU／Georgia，內文使用 Segoe UI／Noto Sans TC／system，數值使用 Consolas。不下載外部字型。禁止使用 SVG、商業遊戲素材或描摹其介面。
 
-| Role | Name | Hex | Use |
-|---|---|---:|---|
-| Field | Lime wall | `#D8D1AD` | Main selector ground and information panels |
-| Structure | Pine green | `#25483C` | Seals, primary actions, friendly state |
-| Route | River-valley blue | `#356B78` | Route, informational state, focus ring |
-| Accent | Copper gold | `#B47A36` | Selected state and sparing emphasis |
-| Ink | Charcoal | `#1C211F` | Text, borders, canvas ground |
+戰場維持 shared 規則的 2:1 等角投影與地面格位。十二款建築採真正 alpha PNG，圖集為 4×3、每格384×384，腳底錨點為(0.5,0.85)。施工、損傷、血量、敵我標記、最後偵察殘影由既有狀態顯示。來源母版不進正式 runtime。
 
-Supporting tones are chalk `#F0EBCF`, aged lime `#AAA27D`, pale copper `#E0B866`, and warning red `#8F382F`. Copper is reserved for a current choice or one decisive action; it is not a decorative gradient.
+Canvas 以平滑採樣顯示手繪素材，避免整幅畫面像素化造成中文字與建築細節粗糙。選單與 HUD 的主要文字、按鈕及技能仍由程式呈現，所有文字有可讀名稱。地形和資源目前仍是 Canvas Graphics，重做材質配色、連續路面細節與不規則外緣。牆、門、工匠及多數角色仍保留原有美術，不能聲稱整個世界都已重繪。
 
-## Type and shape
+## 輸出與審查
 
-- Display: Georgia or the platform serif, heavy and tightly spaced, for chapter and settlement names.
-- Body: Segoe UI / Noto Sans TC / system sans for readable Traditional Chinese text.
-- Utility: Consolas / Courier New / monospace for counts, status, and small field labels.
-- No external web fonts are fetched. The fallbacks are intentional and keep the build self-contained.
-- Frames use uneven polygon corners, doubled rules, hard offset shadows, and stepped movement. Avoid rounded cards, glass blur, soft neon, and generic dashboard gradients.
+- ImageGen 新素材先檢查構圖、透明度、污染、裁切與鄰格碎片；加工僅做點陣裁切、去背邊缘整理和圖集正規化。
+- `scripts/prepare-frontier-atlas.mjs` 保存可重現的格位、清理與錨點；來源、SHA-256、bytes與是否 runtime 寫入 release asset manifest。
+- 原創性與來源記入 assets/ATTRIBUTION.md。內建 image_gen 未提供模型 slug，記錄工具來源，不能假稱已核實 gpt-image-2。
+- 敵我使用獨立旗標，不能整幅染色讓牆、瓦、皮膚都改變顏色。
+- 新人物的六向真影格仍屬 M2；不能以單圖位移、旋轉或鏡射填補缺件。
+- 桌機、手機橫向、手機直向入口與平板都要保存實際畫面。實機與商店驗收另列，不以瀏覽器模擬冒充。
 
-## Composition
-
-The selector begins with a large, two-line field-order headline. The three settlements occupy stops on one vertical water route; AI temperaments read as a compact opposing roster. At the bottom, a written expedition configuration sits opposite the single-player action and a clearly marked multiplayer placeholder.
-
-The match HUD uses a narrow resource tally at the top, a field-note selection panel at lower left, and a stamped status strip at lower right. It should leave the center of the battlefield clear. At supported 16:9 sizes the HUD must not consume more than one quarter of the viewport.
-
-## Pixel-handmade treatment
-
-Production rendering favors hard edges and `image-rendering: pixelated`. Small CSS marks, offset shadows, deliberately irregular clipping, and low-detail geometry carry the hand-drawn quality without importing an image pack. When future sprites are added, silhouettes should be authored on a small grid, use two or three value groups, and be checked at native scale before smoothing is disabled.
-
-## Interaction and accessibility
-
-- Keyboard focus is a high-contrast chalk-and-river double ring, never a subtle color shift.
-- Every selected choice shows both a copper field and explicit text such as `已選 ✓` or `敵手 ✓`.
-- HUD states pair tone with a mark and message: `✓` ready, `!` warning, `×` danger, `Ⅱ` paused.
-- Resource marks always have adjacent labels and values. Decorative glyphs are hidden from assistive technology.
-- Live status text uses polite announcements. User- or server-provided HUD copy is written through `textContent`.
-- `prefers-reduced-motion: reduce` removes stepped hover motion and any future ambient animation.
-- Pointer targets are at least 44 CSS pixels high, and the responsive selector remains keyboard reachable when its AI roster scrolls horizontally.
-
-## Originality review checklist
-
-1. Compare against this thesis, not against screenshots of a commercial RTS.
-2. Reject shield clusters, faux-gothic title treatments, bevelled stone control bars, or icon arrangements that resemble a named game.
-3. Confirm each mark was drawn in-project or has an approved provenance entry.
-4. Review selector and HUD at 1280×720, 1600×900, and 1920×1080, including keyboard focus and reduced motion.
-5. Keep screenshots and review notes with the release evidence; do not add third-party reference imagery to the repository.
+完整製作與 App 路線見 [REBUILD_ROADMAP_2026-09-30.zh-TW.md](REBUILD_ROADMAP_2026-09-30.zh-TW.md)。

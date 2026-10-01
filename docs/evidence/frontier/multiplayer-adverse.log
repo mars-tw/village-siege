@@ -1,0 +1,19 @@
+
+   ___      _                                    ___   _ _____
+  / __\___ | |_   _ ___  ___ _   _ ___   __   __/ _ \ / |___  |
+ / /  / _ \| | | | / __|/ _ \ | | / __|  \ \ / / | | || |  / /
+/ /__| (_) | | |_| \__ \  __/ |_| \__ \   \ V /| |_| || | / /
+\____/\___/|_|\__, |___/\___|\__,_|___/    \_/  \___(_)_|/_/
+              |___/
+
+             · Multiplayer Framework for Node.js ·
+
+💖 Consider becoming a Sponsor on GitHub → https://github.com/sponsors/endel
+🌟 Give us a star on GitHub → https://github.com/colyseus/colyseus
+☁️  Deploy and scale your project on Colyseus Cloud → https://cloud.colyseus.io
+
+Village Siege server listening on http://localhost:26569
+[Colyseus reconnection]: ⏳ will retry in 1.0 seconds...
+[Colyseus reconnection]: 🔄 Re-establishing sessionId 'gS4WKkAOemTYiO0hf-WIHg' with roomId 'QNrjrq3id'... (attempt 1 of 5)
+[Colyseus reconnection]: ✅ reconnection successful!
+{"result":"PASS","roomCode":"R3BSVQ","matchId":"match-85ba66d199882b36d55ddc5aeca4c81f","matchRoomId":"QNrjrq3id","players":2,"factions":5,"checks":{"realColyseusClients":true,"serverOwnedAiFactions":3,"deterministicReceiveLatencyMs":[50,100,200],"packetLossSample":{"deltasPerRecipient":50,"droppedPerRecipient":1,"percent":2},"droppedDeltas":{"host":1,"guest":1},"reorderedDeliveries":{"host":15,"guest":15},"deltaGapDetections":{"host":1,"guest":1},"fullSnapshotResync":{"hostSnapshots":1,"guestSnapshots":1},"realSocketDrops":1,"socketReconnects":1,"reconnectLifecycle":["recovering","resumed"],"authorityTicksDuringDisconnect":9,"perRecipientFinalHashConsistency":{"host":{"tick":60,"reference":"a286079b","adverse":"a286079b"},"guest":{"tick":60,"reference":"9427233b","adverse":"9427233b"}}}}

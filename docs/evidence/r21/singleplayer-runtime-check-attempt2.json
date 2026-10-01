@@ -1,0 +1,702 @@
+{
+  "evidenceKind": "deterministic-runtime-and-result-presenter",
+  "uiEvidence": false,
+  "options": {
+    "playerVillageId": "pinehold",
+    "aiVillageId": "riverstead",
+    "aiPersonality": "guardian",
+    "aiDifficulty": "novice",
+    "seed": 2121,
+    "matchId": "r21-accepted-command-playthrough"
+  },
+  "method": "Public runtime issuePlayerCommand and step only; no canonical-state mutation, no custom victory policy, no forced defeat, no surrendered opponent",
+  "initial": {
+    "tick": 0,
+    "wallet": {
+      "food": 420,
+      "wood": 420,
+      "stone": 260
+    },
+    "population": {
+      "used": 3,
+      "capacity": 10
+    },
+    "victoryPolicy": {
+      "commandCenterConquest": {
+        "rebuildGraceTicks": 600
+      },
+      "elimination": true,
+      "landmark": {
+        "buildingType": "copperLandmark",
+        "requiredCount": 1,
+        "holdTicks": 900
+      },
+      "timedControl": {
+        "point": {
+          "x": 8,
+          "y": 8
+        },
+        "radius": 2,
+        "startsAtTick": 600,
+        "targetTicks": 1200
+      }
+    }
+  },
+  "acceptedCommands": [
+    {
+      "label": "gather food",
+      "tick": 0,
+      "sequence": 0,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-34"
+        ],
+        "targetId": "resource-31"
+      },
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "rejection": null
+    },
+    {
+      "label": "gather wood",
+      "tick": 0,
+      "sequence": 1,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-35"
+        ],
+        "targetId": "resource-32"
+      },
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "rejection": null
+    },
+    {
+      "label": "gather stone",
+      "tick": 0,
+      "sequence": 2,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-36"
+        ],
+        "targetId": "resource-33"
+      },
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "rejection": null
+    },
+    {
+      "label": "build house using gathered economy",
+      "tick": 22,
+      "sequence": 3,
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-36"
+        ],
+        "buildingType": "house",
+        "origin": {
+          "x": 3,
+          "y": 10
+        }
+      },
+      "walletBefore": {
+        "food": 432,
+        "wood": 432,
+        "stone": 272
+      },
+      "walletAfter": {
+        "food": 432,
+        "wood": 352,
+        "stone": 272
+      },
+      "rejection": null
+    },
+    {
+      "label": "train shield bearer",
+      "tick": 22,
+      "sequence": 4,
+      "command": {
+        "type": "train",
+        "producerId": "building-29",
+        "unitType": "shieldBearer",
+        "count": 1
+      },
+      "walletBefore": {
+        "food": 432,
+        "wood": 352,
+        "stone": 272
+      },
+      "walletAfter": {
+        "food": 357,
+        "wood": 307,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "train four warriors",
+      "tick": 22,
+      "sequence": 5,
+      "command": {
+        "type": "train",
+        "producerId": "building-29",
+        "unitType": "warrior",
+        "count": 4
+      },
+      "walletBefore": {
+        "food": 357,
+        "wood": 307,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 97,
+        "wood": 187,
+        "stone": 252
+      },
+      "rejection": null
+    }
+  ],
+  "rejectedCommands": [
+    {
+      "label": "rally trained units through the normal open gate to the objective",
+      "tick": 22,
+      "sequence": 6,
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-29",
+        "target": {
+          "x": 8,
+          "y": 8
+        }
+      },
+      "walletBefore": {
+        "food": 97,
+        "wood": 187,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 97,
+        "wood": 187,
+        "stone": 252
+      },
+      "rejection": "TARGET_NOT_REACHABLE"
+    }
+  ],
+  "checkpoints": [
+    {
+      "label": "actual harvesting and deposit for all three resource kinds",
+      "tick": 22,
+      "wallet": {
+        "food": 432,
+        "wood": 432,
+        "stone": 272
+      },
+      "population": {
+        "used": 3,
+        "capacity": 10
+      },
+      "units": []
+    }
+  ],
+  "eventCounts": {
+    "commandAccepted": 6,
+    "resourcesDeposited": 3,
+    "entitySpawned": 1,
+    "commandRejected": 1
+  },
+  "samples": {
+    "resourcesDeposited": [
+      {
+        "observedAtTick": 12,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 12,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 22,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-36",
+          "dropOffId": "building-1",
+          "resourceKind": "stone",
+          "amount": 12
+        }
+      }
+    ],
+    "entitySpawned": [
+      {
+        "observedAtTick": 22,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "building-78",
+            "ownerId": "player-1",
+            "kind": "building",
+            "typeId": "house",
+            "position": {
+              "x": 3,
+              "y": 10
+            },
+            "hitPoints": 1,
+            "maxHitPoints": 381,
+            "stateRevision": 0,
+            "statuses": [],
+            "orientation": "ne",
+            "complete": false,
+            "constructionRemainingTicks": 180,
+            "healthBand": "critical",
+            "blocksMovement": true,
+            "ownerControl": {
+              "productionQueue": [],
+              "rallyPoint": null
+            }
+          }
+        }
+      }
+    ]
+  },
+  "deposits": {
+    "food": 12,
+    "wood": 12,
+    "stone": 12
+  },
+  "destroyedIds": [],
+  "result": {
+    "status": "LIMITATION",
+    "finalTick": 22,
+    "phase": "playing",
+    "victory": {
+      "policy": {
+        "commandCenterConquest": {
+          "rebuildGraceTicks": 600
+        },
+        "elimination": true,
+        "landmark": {
+          "buildingType": "copperLandmark",
+          "requiredCount": 1,
+          "holdTicks": 900
+        },
+        "timedControl": {
+          "point": {
+            "x": 8,
+            "y": 8
+          },
+          "radius": 2,
+          "startsAtTick": 600,
+          "targetTicks": 1200
+        }
+      },
+      "teams": [
+        {
+          "teamId": "team-ai",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 0,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        },
+        {
+          "teamId": "team-player",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 0,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        }
+      ],
+      "control": {
+        "controllerTeamId": null,
+        "contested": false
+      },
+      "outcome": null,
+      "winningTeamIds": [],
+      "finishReason": null,
+      "triggeredReasons": [],
+      "finishedAtTick": null
+    },
+    "error": "rally trained units through the normal open gate to the objective: TARGET_NOT_REACHABLE\n\nfalse !== true\n",
+    "ownEntities": [
+      {
+        "id": "building-1",
+        "typeId": "townCenter",
+        "position": {
+          "x": 3,
+          "y": 7
+        },
+        "hp": 1272,
+        "complete": true
+      },
+      {
+        "id": "building-10",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 5
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-11",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-12",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 6
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-13",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 6
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-14",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 7
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-15",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 8
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-16",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 9
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-17",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 9
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-18",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 10
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-19",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 10
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-2",
+        "typeId": "surveyGate",
+        "position": {
+          "x": 6,
+          "y": 7
+        },
+        "hp": 508,
+        "complete": true
+      },
+      {
+        "id": "building-20",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 11
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-21",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 11
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-22",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-23",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 3,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-24",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 4,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-25",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 5,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-26",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-27",
+        "typeId": "defenseTower",
+        "position": {
+          "x": 3,
+          "y": 4
+        },
+        "hp": 763,
+        "complete": true
+      },
+      {
+        "id": "building-28",
+        "typeId": "defenseTower",
+        "position": {
+          "x": 3,
+          "y": 11
+        },
+        "hp": 763,
+        "complete": true
+      },
+      {
+        "id": "building-29",
+        "typeId": "barracks",
+        "position": {
+          "x": 4,
+          "y": 4
+        },
+        "hp": 689,
+        "complete": true
+      },
+      {
+        "id": "building-3",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-30",
+        "typeId": "lumberCamp",
+        "position": {
+          "x": 4,
+          "y": 10
+        },
+        "hp": 455,
+        "complete": true
+      },
+      {
+        "id": "building-4",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 3,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-5",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 4,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-6",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 5,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-7",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-78",
+        "typeId": "house",
+        "position": {
+          "x": 3,
+          "y": 10
+        },
+        "hp": 1,
+        "complete": false
+      },
+      {
+        "id": "building-8",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 4
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-9",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 4
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "unit-34",
+        "typeId": "villager",
+        "position": {
+          "x": 4,
+          "y": 6
+        },
+        "hp": 55
+      },
+      {
+        "id": "unit-35",
+        "typeId": "villager",
+        "position": {
+          "x": 5,
+          "y": 8
+        },
+        "hp": 55
+      },
+      {
+        "id": "unit-36",
+        "typeId": "villager",
+        "position": {
+          "x": 4,
+          "y": 9
+        },
+        "hp": 55
+      }
+    ]
+  },
+  "wallMilliseconds": 115
+}

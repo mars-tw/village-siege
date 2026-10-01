@@ -1,0 +1,4605 @@
+{
+  "evidenceKind": "deterministic-runtime-and-result-presenter",
+  "uiEvidence": false,
+  "options": {
+    "playerVillageId": "pinehold",
+    "aiVillageId": "riverstead",
+    "aiPersonality": "guardian",
+    "aiDifficulty": "novice",
+    "seed": 2121,
+    "matchId": "r21-accepted-command-playthrough"
+  },
+  "method": "Public runtime issuePlayerCommand and step only; no canonical-state mutation, no custom victory policy, no forced defeat, no surrendered opponent",
+  "initial": {
+    "tick": 0,
+    "wallet": {
+      "food": 420,
+      "wood": 420,
+      "stone": 260
+    },
+    "population": {
+      "used": 3,
+      "capacity": 10
+    },
+    "victoryPolicy": {
+      "commandCenterConquest": {
+        "rebuildGraceTicks": 600
+      },
+      "elimination": true,
+      "landmark": {
+        "buildingType": "copperLandmark",
+        "requiredCount": 1,
+        "holdTicks": 900
+      },
+      "timedControl": {
+        "point": {
+          "x": 8,
+          "y": 8
+        },
+        "radius": 2,
+        "startsAtTick": 600,
+        "targetTicks": 1200
+      }
+    }
+  },
+  "acceptedCommands": [
+    {
+      "label": "gather food",
+      "tick": 0,
+      "sequence": 0,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-34"
+        ],
+        "targetId": "resource-31"
+      },
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "rejection": null
+    },
+    {
+      "label": "gather wood",
+      "tick": 0,
+      "sequence": 1,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-35"
+        ],
+        "targetId": "resource-32"
+      },
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "rejection": null
+    },
+    {
+      "label": "gather stone",
+      "tick": 0,
+      "sequence": 2,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-36"
+        ],
+        "targetId": "resource-33"
+      },
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "rejection": null
+    },
+    {
+      "label": "build house using gathered economy",
+      "tick": 22,
+      "sequence": 3,
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-36"
+        ],
+        "buildingType": "house",
+        "origin": {
+          "x": 3,
+          "y": 10
+        }
+      },
+      "walletBefore": {
+        "food": 432,
+        "wood": 432,
+        "stone": 272
+      },
+      "walletAfter": {
+        "food": 432,
+        "wood": 352,
+        "stone": 272
+      },
+      "rejection": null
+    },
+    {
+      "label": "train shield bearer",
+      "tick": 22,
+      "sequence": 4,
+      "command": {
+        "type": "train",
+        "producerId": "building-29",
+        "unitType": "shieldBearer",
+        "count": 1
+      },
+      "walletBefore": {
+        "food": 432,
+        "wood": 352,
+        "stone": 272
+      },
+      "walletAfter": {
+        "food": 357,
+        "wood": 307,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "train four warriors",
+      "tick": 22,
+      "sequence": 5,
+      "command": {
+        "type": "train",
+        "producerId": "building-29",
+        "unitType": "warrior",
+        "count": 4
+      },
+      "walletBefore": {
+        "food": 357,
+        "wood": 307,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 97,
+        "wood": 187,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "shield wall accepted immediately after real training",
+      "tick": 242,
+      "sequence": 8,
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-80",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "walletBefore": {
+        "food": 229,
+        "wood": 319,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 229,
+        "wood": 319,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "harvest the wood node obstructing the barracks exit",
+      "tick": 245,
+      "sequence": 9,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-34"
+        ],
+        "targetId": "resource-32"
+      },
+      "walletBefore": {
+        "food": 229,
+        "wood": 319,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 229,
+        "wood": 319,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "rally becomes legal after harvesting the exit obstacle",
+      "tick": 981,
+      "sequence": 10,
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-29",
+        "target": {
+          "x": 8,
+          "y": 8
+        }
+      },
+      "walletBefore": {
+        "food": 235,
+        "wood": 1171,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 235,
+        "wood": 1171,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "release already trained troops through the harvested corridor",
+      "tick": 981,
+      "sequence": 11,
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-80",
+          "unit-82"
+        ],
+        "target": {
+          "x": 8,
+          "y": 8
+        }
+      },
+      "walletBefore": {
+        "food": 235,
+        "wood": 1171,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 235,
+        "wood": 1171,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "alternate victory: legally rebuild food economy",
+      "tick": 1981,
+      "sequence": 12,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-34",
+          "unit-35"
+        ],
+        "targetId": "resource-31"
+      },
+      "walletBefore": {
+        "food": 235,
+        "wood": 1175,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 235,
+        "wood": 1175,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "alternate victory: gather stronghold and landmark stone",
+      "tick": 1981,
+      "sequence": 13,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-36"
+        ],
+        "targetId": "resource-33"
+      },
+      "walletBefore": {
+        "food": 235,
+        "wood": 1175,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 235,
+        "wood": 1175,
+        "stone": 252
+      },
+      "rejection": null
+    },
+    {
+      "label": "alternate victory: advance settlement using shared prerequisites and paid resources",
+      "tick": 2512,
+      "sequence": 14,
+      "command": {
+        "type": "advanceSettlement",
+        "producerId": "building-1",
+        "targetTier": "stronghold"
+      },
+      "walletBefore": {
+        "food": 517,
+        "wood": 1175,
+        "stone": 456
+      },
+      "walletAfter": {
+        "food": 17,
+        "wood": 875,
+        "stone": 356
+      },
+      "rejection": null
+    },
+    {
+      "label": "alternate victory: legal landmark plot 0,7",
+      "tick": 2962,
+      "sequence": 15,
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-34"
+        ],
+        "buildingType": "copperLandmark",
+        "origin": {
+          "x": 0,
+          "y": 7
+        }
+      },
+      "walletBefore": {
+        "food": 305,
+        "wood": 875,
+        "stone": 536
+      },
+      "walletAfter": {
+        "food": 305,
+        "wood": 665,
+        "stone": 276
+      },
+      "rejection": null
+    },
+    {
+      "label": "final micro: move the gathering blocker to an empty friendly base cell",
+      "tick": 3862,
+      "sequence": 16,
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-35"
+        ],
+        "target": {
+          "x": 5,
+          "y": 8
+        }
+      },
+      "walletBefore": {
+        "food": 665,
+        "wood": 665,
+        "stone": 580
+      },
+      "walletAfter": {
+        "food": 665,
+        "wood": 665,
+        "stone": 580
+      },
+      "rejection": null
+    },
+    {
+      "label": "final micro: order the shield bearer to a separate empty friendly base cell",
+      "tick": 3862,
+      "sequence": 17,
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-80"
+        ],
+        "target": {
+          "x": 3,
+          "y": 9
+        }
+      },
+      "walletBefore": {
+        "food": 665,
+        "wood": 665,
+        "stone": 580
+      },
+      "walletAfter": {
+        "food": 665,
+        "wood": 665,
+        "stone": 580
+      },
+      "rejection": null
+    }
+  ],
+  "rejectedCommands": [
+    {
+      "label": "initial rally attempt before resource obstacle is harvested",
+      "tick": 22,
+      "sequence": 6,
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-29",
+        "target": {
+          "x": 8,
+          "y": 8
+        }
+      },
+      "walletBefore": {
+        "food": 97,
+        "wood": 187,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 97,
+        "wood": 187,
+        "stone": 252
+      },
+      "rejection": "TARGET_NOT_REACHABLE"
+    },
+    {
+      "label": "return builder to economy; record blocked route honestly",
+      "tick": 212,
+      "sequence": 7,
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-36"
+        ],
+        "targetId": "resource-32"
+      },
+      "walletBefore": {
+        "food": 217,
+        "wood": 307,
+        "stone": 252
+      },
+      "walletAfter": {
+        "food": 217,
+        "wood": 307,
+        "stone": 252
+      },
+      "rejection": "TARGET_NOT_REACHABLE"
+    }
+  ],
+  "checkpoints": [
+    {
+      "label": "actual harvesting and deposit for all three resource kinds",
+      "tick": 22,
+      "wallet": {
+        "food": 432,
+        "wood": 432,
+        "stone": 272
+      },
+      "population": {
+        "used": 3,
+        "capacity": 10
+      },
+      "units": []
+    },
+    {
+      "label": "house completes through builder work",
+      "tick": 212,
+      "wallet": {
+        "food": 217,
+        "wood": 307,
+        "stone": 252
+      },
+      "population": {
+        "used": 9,
+        "capacity": 18
+      },
+      "units": []
+    },
+    {
+      "label": "first shield bearer actually completes training",
+      "tick": 242,
+      "wallet": {
+        "food": 229,
+        "wood": 319,
+        "stone": 252
+      },
+      "population": {
+        "used": 9,
+        "capacity": 18
+      },
+      "units": [
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "hitPoints": 230,
+          "position": {
+            "x": 3,
+            "y": 5
+          }
+        }
+      ]
+    },
+    {
+      "label": "player shield wall applies its real status",
+      "tick": 245,
+      "wallet": {
+        "food": 229,
+        "wood": 319,
+        "stone": 252
+      },
+      "population": {
+        "used": 9,
+        "capacity": 18
+      },
+      "units": [
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "hitPoints": 230,
+          "position": {
+            "x": 3,
+            "y": 5
+          }
+        }
+      ]
+    },
+    {
+      "label": "wood obstacle legitimately depleted by villagers",
+      "tick": 981,
+      "wallet": {
+        "food": 235,
+        "wood": 1171,
+        "stone": 252
+      },
+      "population": {
+        "used": 9,
+        "capacity": 18
+      },
+      "units": [
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "hitPoints": 230,
+          "position": {
+            "x": 3,
+            "y": 5
+          }
+        },
+        {
+          "id": "unit-82",
+          "typeId": "warrior",
+          "hitPoints": 150,
+          "position": {
+            "x": 5,
+            "y": 6
+          }
+        }
+      ]
+    },
+    {
+      "label": "real economy can afford stronghold plus landmark without resource grants",
+      "tick": 2512,
+      "wallet": {
+        "food": 517,
+        "wood": 1175,
+        "stone": 456
+      },
+      "population": {
+        "used": 5,
+        "capacity": 18
+      },
+      "units": [
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "hitPoints": 230,
+          "position": {
+            "x": 3,
+            "y": 5
+          }
+        }
+      ]
+    },
+    {
+      "label": "stronghold advancement completes through normal production",
+      "tick": 2962,
+      "wallet": {
+        "food": 305,
+        "wood": 875,
+        "stone": 536
+      },
+      "population": {
+        "used": 5,
+        "capacity": 18
+      },
+      "units": [
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "hitPoints": 230,
+          "position": {
+            "x": 3,
+            "y": 5
+          }
+        }
+      ]
+    }
+  ],
+  "eventCounts": {
+    "commandAccepted": 16,
+    "resourcesDeposited": 234,
+    "entitySpawned": 8,
+    "commandRejected": 2,
+    "entityUpdated": 4,
+    "combatPhaseChanged": 70,
+    "statusApplied": 2,
+    "statusExpired": 2,
+    "resourceDepleted": 12,
+    "entityRemoved": 8,
+    "rallyPointChanged": 1,
+    "tacticalSignalRaised": 1,
+    "controlObjectiveChanged": 8,
+    "projectileSpawned": 37,
+    "entityDamaged": 75,
+    "projectileImpacted": 57,
+    "victoryProgressChanged": 5,
+    "resourceRenewed": 8,
+    "settlementAdvanced": 1
+  },
+  "samples": {
+    "resourcesDeposited": [
+      {
+        "observedAtTick": 12,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 12,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 22,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-36",
+          "dropOffId": "building-1",
+          "resourceKind": "stone",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 32,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 32,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 52,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 52,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 72,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 72,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 92,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 92,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 112,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 112,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 132,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 132,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 152,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 152,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 172,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 172,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-35",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "observedAtTick": 192,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-34",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      }
+    ],
+    "entitySpawned": [
+      {
+        "observedAtTick": 22,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "building-78",
+            "ownerId": "player-1",
+            "kind": "building",
+            "typeId": "house",
+            "position": {
+              "x": 3,
+              "y": 10
+            },
+            "hitPoints": 1,
+            "maxHitPoints": 381,
+            "stateRevision": 0,
+            "statuses": [],
+            "orientation": "ne",
+            "complete": false,
+            "constructionRemainingTicks": 180,
+            "healthBand": "critical",
+            "blocksMovement": true,
+            "ownerControl": {
+              "productionQueue": [],
+              "rallyPoint": null
+            }
+          }
+        }
+      },
+      {
+        "observedAtTick": 161,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "building-79",
+            "ownerId": "player-2",
+            "kind": "building",
+            "typeId": "house",
+            "position": {
+              "x": 12,
+              "y": 7
+            },
+            "hitPoints": 1,
+            "maxHitPoints": 360,
+            "stateRevision": 0,
+            "statuses": [],
+            "orientation": "ne",
+            "complete": false,
+            "constructionRemainingTicks": 180,
+            "healthBand": "critical",
+            "blocksMovement": true
+          }
+        }
+      },
+      {
+        "observedAtTick": 242,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "unit-80",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "shieldBearer",
+            "position": {
+              "x": 3,
+              "y": 5
+            },
+            "hitPoints": 230,
+            "maxHitPoints": 230,
+            "stateRevision": 0,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "ready",
+            "combatActivity": "idle",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 242,
+              "movedTilesSinceAttack": 0,
+              "rhythmStacks": 0,
+              "rhythmExpiresAtTick": 0,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          }
+        }
+      },
+      {
+        "observedAtTick": 402,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "unit-82",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 5,
+              "y": 6
+            },
+            "hitPoints": 150,
+            "maxHitPoints": 150,
+            "stateRevision": 0,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "ready",
+            "combatActivity": "idle",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 402,
+              "movedTilesSinceAttack": 0,
+              "rhythmStacks": 0,
+              "rhythmExpiresAtTick": 0,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          }
+        }
+      },
+      {
+        "observedAtTick": 982,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "unit-86",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 5,
+              "y": 6
+            },
+            "hitPoints": 150,
+            "maxHitPoints": 150,
+            "stateRevision": 0,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "ready",
+            "combatActivity": "idle",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 982,
+              "movedTilesSinceAttack": 0,
+              "rhythmStacks": 0,
+              "rhythmExpiresAtTick": 0,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          }
+        }
+      },
+      {
+        "observedAtTick": 1142,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "unit-110",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 5,
+              "y": 6
+            },
+            "hitPoints": 150,
+            "maxHitPoints": 150,
+            "stateRevision": 0,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "ready",
+            "combatActivity": "idle",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 1142,
+              "movedTilesSinceAttack": 0,
+              "rhythmStacks": 0,
+              "rhythmExpiresAtTick": 0,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          }
+        }
+      },
+      {
+        "observedAtTick": 1302,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "unit-125",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 5,
+              "y": 6
+            },
+            "hitPoints": 150,
+            "maxHitPoints": 150,
+            "stateRevision": 0,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "ready",
+            "combatActivity": "idle",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 1302,
+              "movedTilesSinceAttack": 0,
+              "rhythmStacks": 0,
+              "rhythmExpiresAtTick": 0,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          }
+        }
+      },
+      {
+        "observedAtTick": 2962,
+        "event": {
+          "type": "entitySpawned",
+          "entity": {
+            "id": "building-140",
+            "ownerId": "player-1",
+            "kind": "building",
+            "typeId": "copperLandmark",
+            "position": {
+              "x": 0,
+              "y": 7
+            },
+            "hitPoints": 1,
+            "maxHitPoints": 1431,
+            "stateRevision": 0,
+            "statuses": [],
+            "orientation": "ne",
+            "complete": false,
+            "constructionRemainingTicks": 520,
+            "healthBand": "critical",
+            "blocksMovement": true,
+            "ownerControl": {
+              "productionQueue": [],
+              "rallyPoint": null
+            }
+          }
+        }
+      }
+    ],
+    "combatPhaseChanged": [
+      {
+        "observedAtTick": 242,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-80",
+          "phase": "windup",
+          "action": "ability"
+        }
+      },
+      {
+        "observedAtTick": 245,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-80",
+          "phase": "recovery",
+          "action": "ability"
+        }
+      },
+      {
+        "observedAtTick": 250,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-80",
+          "phase": "ready",
+          "action": null
+        }
+      },
+      {
+        "observedAtTick": 1050,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "windup",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1051,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "windup",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1052,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "recovery",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1053,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "recovery",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1061,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "ready",
+          "action": null
+        }
+      },
+      {
+        "observedAtTick": 1061,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "windup",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1062,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "ready",
+          "action": null
+        }
+      },
+      {
+        "observedAtTick": 1062,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "windup",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1063,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "recovery",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1064,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "recovery",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1072,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "ready",
+          "action": null
+        }
+      },
+      {
+        "observedAtTick": 1072,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "windup",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1073,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "ready",
+          "action": null
+        }
+      },
+      {
+        "observedAtTick": 1073,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "windup",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1074,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "recovery",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1075,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-86",
+          "phase": "recovery",
+          "action": "attack"
+        }
+      },
+      {
+        "observedAtTick": 1083,
+        "event": {
+          "type": "combatPhaseChanged",
+          "entityId": "unit-82",
+          "phase": "ready",
+          "action": null
+        }
+      }
+    ],
+    "statusApplied": [
+      {
+        "observedAtTick": 245,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-80",
+          "targetId": "unit-80",
+          "statusId": "shieldWall",
+          "expiresAtTick": 285
+        }
+      },
+      {
+        "observedAtTick": 250,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-80",
+          "targetId": "unit-80",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      }
+    ],
+    "entityRemoved": [
+      {
+        "observedAtTick": 981,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "resource-32",
+          "entity": {
+            "id": "resource-32",
+            "ownerId": null,
+            "kind": "resource",
+            "typeId": "wood",
+            "position": {
+              "x": 5,
+              "y": 7
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 1000,
+            "stateRevision": 167,
+            "resourceNode": {
+              "amount": 0,
+              "maxAmount": 1000,
+              "renewAtTick": null
+            }
+          },
+          "reason": "depleted"
+        }
+      },
+      {
+        "observedAtTick": 1119,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "unit-86",
+          "entity": {
+            "id": "unit-86",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 10,
+              "y": 8
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 150,
+            "stateRevision": 39,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "recovery",
+            "combatActivity": "attacking",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 1050,
+              "movedTilesSinceAttack": 7,
+              "rhythmStacks": 3,
+              "rhythmExpiresAtTick": 1139,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          },
+          "reason": "destroyed"
+        }
+      },
+      {
+        "observedAtTick": 1141,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "unit-82",
+          "entity": {
+            "id": "unit-82",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 10,
+              "y": 9
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 150,
+            "stateRevision": 46,
+            "facing": "e",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "recovery",
+            "combatActivity": "attacking",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 1049,
+              "movedTilesSinceAttack": 8,
+              "rhythmStacks": 3,
+              "rhythmExpiresAtTick": 1160,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          },
+          "reason": "destroyed"
+        }
+      },
+      {
+        "observedAtTick": 1250,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "unit-110",
+          "entity": {
+            "id": "unit-110",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 10,
+              "y": 8
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 150,
+            "stateRevision": 30,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "recovery",
+            "combatActivity": "attacking",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 1210,
+              "movedTilesSinceAttack": 7,
+              "rhythmStacks": 3,
+              "rhythmExpiresAtTick": 1266,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          },
+          "reason": "destroyed"
+        }
+      },
+      {
+        "observedAtTick": 1410,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "unit-125",
+          "entity": {
+            "id": "unit-125",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "warrior",
+            "position": {
+              "x": 10,
+              "y": 8
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 150,
+            "stateRevision": 30,
+            "facing": "ne",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "recovery",
+            "combatActivity": "attacking",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 1370,
+              "movedTilesSinceAttack": 7,
+              "rhythmStacks": 3,
+              "rhythmExpiresAtTick": 1426,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 0
+            }
+          },
+          "reason": "destroyed"
+        }
+      },
+      {
+        "observedAtTick": 1751,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "resource-70",
+          "entity": {
+            "id": "resource-70",
+            "ownerId": null,
+            "kind": "resource",
+            "typeId": "wood",
+            "position": {
+              "x": 13,
+              "y": 7
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 1000,
+            "stateRevision": 230,
+            "resourceNode": {
+              "amount": 0,
+              "maxAmount": 1000,
+              "renewAtTick": null
+            }
+          },
+          "reason": "depleted"
+        }
+      },
+      {
+        "observedAtTick": 3701,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "resource-33",
+          "entity": {
+            "id": "resource-33",
+            "ownerId": null,
+            "kind": "resource",
+            "typeId": "stone",
+            "position": {
+              "x": 5,
+              "y": 9
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 700,
+            "stateRevision": 175,
+            "resourceNode": {
+              "amount": 0,
+              "maxAmount": 700,
+              "renewAtTick": null
+            }
+          },
+          "reason": "depleted"
+        }
+      },
+      {
+        "observedAtTick": 3947,
+        "event": {
+          "type": "entityRemoved",
+          "entityId": "unit-34",
+          "entity": {
+            "id": "unit-34",
+            "ownerId": "player-1",
+            "kind": "unit",
+            "typeId": "villager",
+            "position": {
+              "x": 9,
+              "y": 9
+            },
+            "hitPoints": 0,
+            "maxHitPoints": 55,
+            "stateRevision": 378,
+            "facing": "sw",
+            "stance": "aggressive",
+            "formation": "line",
+            "combatPhase": "ready",
+            "combatActivity": "idle",
+            "abilityReadyTick": 0,
+            "statuses": [],
+            "passiveProgress": {
+              "stationarySinceTick": 3939,
+              "movedTilesSinceAttack": 18,
+              "rhythmStacks": 0,
+              "rhythmExpiresAtTick": 0,
+              "braceCooldownUntilTick": 0
+            },
+            "cargo": {
+              "kind": null,
+              "amount": 0,
+              "capacity": 12
+            },
+            "civilianActivity": "constructing"
+          },
+          "reason": "destroyed"
+        }
+      }
+    ],
+    "entityDamaged": [
+      {
+        "observedAtTick": 1027,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-37",
+          "targetId": "unit-86",
+          "amount": 10,
+          "hitPoints": 140
+        }
+      },
+      {
+        "observedAtTick": 1045,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-37",
+          "targetId": "unit-82",
+          "amount": 10,
+          "hitPoints": 140
+        }
+      },
+      {
+        "observedAtTick": 1046,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": null,
+          "targetId": "unit-82",
+          "amount": 15,
+          "hitPoints": 125
+        }
+      },
+      {
+        "observedAtTick": 1052,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-82",
+          "targetId": "building-53",
+          "amount": 19,
+          "hitPoints": 301
+        }
+      },
+      {
+        "observedAtTick": 1053,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-86",
+          "targetId": "building-38",
+          "amount": 19,
+          "hitPoints": 461
+        }
+      },
+      {
+        "observedAtTick": 1056,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": null,
+          "targetId": "unit-86",
+          "amount": 15,
+          "hitPoints": 125
+        }
+      },
+      {
+        "observedAtTick": 1057,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-66",
+          "targetId": "unit-82",
+          "amount": 15,
+          "hitPoints": 110
+        }
+      },
+      {
+        "observedAtTick": 1059,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-37",
+          "targetId": "unit-86",
+          "amount": 10,
+          "hitPoints": 115
+        }
+      },
+      {
+        "observedAtTick": 1063,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-82",
+          "targetId": "building-53",
+          "amount": 20,
+          "hitPoints": 281
+        }
+      },
+      {
+        "observedAtTick": 1064,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-86",
+          "targetId": "building-38",
+          "amount": 20,
+          "hitPoints": 441
+        }
+      },
+      {
+        "observedAtTick": 1068,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": null,
+          "targetId": "unit-86",
+          "amount": 15,
+          "hitPoints": 100
+        }
+      },
+      {
+        "observedAtTick": 1069,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-66",
+          "targetId": "unit-82",
+          "amount": 15,
+          "hitPoints": 95
+        }
+      },
+      {
+        "observedAtTick": 1074,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-82",
+          "targetId": "building-53",
+          "amount": 21,
+          "hitPoints": 260
+        }
+      },
+      {
+        "observedAtTick": 1074,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-37",
+          "targetId": "unit-86",
+          "amount": 10,
+          "hitPoints": 90
+        }
+      },
+      {
+        "observedAtTick": 1075,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-86",
+          "targetId": "building-38",
+          "amount": 21,
+          "hitPoints": 420
+        }
+      },
+      {
+        "observedAtTick": 1080,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": null,
+          "targetId": "unit-86",
+          "amount": 15,
+          "hitPoints": 75
+        }
+      },
+      {
+        "observedAtTick": 1081,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-66",
+          "targetId": "unit-82",
+          "amount": 15,
+          "hitPoints": 80
+        }
+      },
+      {
+        "observedAtTick": 1085,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-82",
+          "targetId": "building-53",
+          "amount": 22,
+          "hitPoints": 238
+        }
+      },
+      {
+        "observedAtTick": 1086,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-86",
+          "targetId": "building-38",
+          "amount": 21,
+          "hitPoints": 399
+        }
+      },
+      {
+        "observedAtTick": 1089,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "building-37",
+          "targetId": "unit-86",
+          "amount": 10,
+          "hitPoints": 65
+        }
+      }
+    ]
+  },
+  "deposits": {
+    "food": 1080,
+    "wood": 1000,
+    "stone": 700
+  },
+  "destroyedIds": [
+    "unit-86",
+    "unit-82",
+    "unit-110",
+    "unit-125",
+    "unit-34"
+  ],
+  "trainedOwnUnitIds": [
+    "unit-80",
+    "unit-82",
+    "unit-86",
+    "unit-110",
+    "unit-125"
+  ],
+  "ownCombatDamageReceived": [
+    {
+      "tick": 1027,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-86",
+        "amount": 10,
+        "hitPoints": 140
+      }
+    },
+    {
+      "tick": 1045,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-82",
+        "amount": 10,
+        "hitPoints": 140
+      }
+    },
+    {
+      "tick": 1046,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 125
+      }
+    },
+    {
+      "tick": 1056,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-86",
+        "amount": 15,
+        "hitPoints": 125
+      }
+    },
+    {
+      "tick": 1057,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 110
+      }
+    },
+    {
+      "tick": 1059,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-86",
+        "amount": 10,
+        "hitPoints": 115
+      }
+    },
+    {
+      "tick": 1068,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-86",
+        "amount": 15,
+        "hitPoints": 100
+      }
+    },
+    {
+      "tick": 1069,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 95
+      }
+    },
+    {
+      "tick": 1074,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-86",
+        "amount": 10,
+        "hitPoints": 90
+      }
+    },
+    {
+      "tick": 1080,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-86",
+        "amount": 15,
+        "hitPoints": 75
+      }
+    },
+    {
+      "tick": 1081,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 80
+      }
+    },
+    {
+      "tick": 1089,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-86",
+        "amount": 10,
+        "hitPoints": 65
+      }
+    },
+    {
+      "tick": 1092,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-86",
+        "amount": 15,
+        "hitPoints": 50
+      }
+    },
+    {
+      "tick": 1093,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 65
+      }
+    },
+    {
+      "tick": 1104,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-86",
+        "amount": 15,
+        "hitPoints": 35
+      }
+    },
+    {
+      "tick": 1104,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-86",
+        "amount": 10,
+        "hitPoints": 25
+      }
+    },
+    {
+      "tick": 1105,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 50
+      }
+    },
+    {
+      "tick": 1116,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-86",
+        "amount": 15,
+        "hitPoints": 10
+      }
+    },
+    {
+      "tick": 1117,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 35
+      }
+    },
+    {
+      "tick": 1119,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-86",
+        "amount": 10,
+        "hitPoints": 0
+      }
+    },
+    {
+      "tick": 1129,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 20
+      }
+    },
+    {
+      "tick": 1135,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-82",
+        "amount": 10,
+        "hitPoints": 10
+      }
+    },
+    {
+      "tick": 1141,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-82",
+        "amount": 15,
+        "hitPoints": 0
+      }
+    },
+    {
+      "tick": 1187,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-110",
+        "amount": 10,
+        "hitPoints": 140
+      }
+    },
+    {
+      "tick": 1206,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-110",
+        "amount": 10,
+        "hitPoints": 130
+      }
+    },
+    {
+      "tick": 1208,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-110",
+        "amount": 15,
+        "hitPoints": 115
+      }
+    },
+    {
+      "tick": 1216,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-110",
+        "amount": 15,
+        "hitPoints": 100
+      }
+    },
+    {
+      "tick": 1219,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-110",
+        "amount": 15,
+        "hitPoints": 85
+      }
+    },
+    {
+      "tick": 1220,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-110",
+        "amount": 10,
+        "hitPoints": 75
+      }
+    },
+    {
+      "tick": 1228,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-110",
+        "amount": 15,
+        "hitPoints": 60
+      }
+    },
+    {
+      "tick": 1231,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-110",
+        "amount": 15,
+        "hitPoints": 45
+      }
+    },
+    {
+      "tick": 1235,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-110",
+        "amount": 10,
+        "hitPoints": 35
+      }
+    },
+    {
+      "tick": 1240,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-110",
+        "amount": 15,
+        "hitPoints": 20
+      }
+    },
+    {
+      "tick": 1243,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-110",
+        "amount": 15,
+        "hitPoints": 5
+      }
+    },
+    {
+      "tick": 1250,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-110",
+        "amount": 10,
+        "hitPoints": 0
+      }
+    },
+    {
+      "tick": 1347,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-125",
+        "amount": 10,
+        "hitPoints": 140
+      }
+    },
+    {
+      "tick": 1366,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-125",
+        "amount": 10,
+        "hitPoints": 130
+      }
+    },
+    {
+      "tick": 1368,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-125",
+        "amount": 15,
+        "hitPoints": 115
+      }
+    },
+    {
+      "tick": 1376,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-125",
+        "amount": 15,
+        "hitPoints": 100
+      }
+    },
+    {
+      "tick": 1379,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-125",
+        "amount": 15,
+        "hitPoints": 85
+      }
+    },
+    {
+      "tick": 1380,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-125",
+        "amount": 10,
+        "hitPoints": 75
+      }
+    },
+    {
+      "tick": 1388,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-125",
+        "amount": 15,
+        "hitPoints": 60
+      }
+    },
+    {
+      "tick": 1391,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-125",
+        "amount": 15,
+        "hitPoints": 45
+      }
+    },
+    {
+      "tick": 1395,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-37",
+        "targetId": "unit-125",
+        "amount": 10,
+        "hitPoints": 35
+      }
+    },
+    {
+      "tick": 1400,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-125",
+        "amount": 15,
+        "hitPoints": 20
+      }
+    },
+    {
+      "tick": 1403,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-66",
+        "targetId": "unit-125",
+        "amount": 15,
+        "hitPoints": 5
+      }
+    },
+    {
+      "tick": 1410,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": null,
+        "targetId": "unit-125",
+        "amount": 10,
+        "hitPoints": 0
+      }
+    }
+  ],
+  "result": {
+    "status": "LIMITATION",
+    "finalTick": 1981,
+    "phase": "playing",
+    "victory": {
+      "policy": {
+        "commandCenterConquest": {
+          "rebuildGraceTicks": 600
+        },
+        "elimination": true,
+        "landmark": {
+          "buildingType": "copperLandmark",
+          "requiredCount": 1,
+          "holdTicks": 900
+        },
+        "timedControl": {
+          "point": {
+            "x": 8,
+            "y": 8
+          },
+          "radius": 2,
+          "startsAtTick": 600,
+          "targetTicks": 1200
+        }
+      },
+      "teams": [
+        {
+          "teamId": "team-ai",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 0,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        },
+        {
+          "teamId": "team-player",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 276,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        }
+      ],
+      "control": {
+        "controllerTeamId": null,
+        "contested": false
+      },
+      "outcome": null,
+      "winningTeamIds": [],
+      "finishReason": null,
+      "triggeredReasons": [],
+      "finishedAtTick": null
+    },
+    "error": "five real trained combat units spawn from production queue not reached by tick 1981",
+    "ownEntities": [
+      {
+        "id": "building-1",
+        "typeId": "townCenter",
+        "position": {
+          "x": 3,
+          "y": 7
+        },
+        "hp": 1272,
+        "complete": true
+      },
+      {
+        "id": "building-10",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 5
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-11",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-12",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 6
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-13",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 6
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-14",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 7
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-15",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 8
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-16",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 9
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-17",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 9
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-18",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 10
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-19",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 10
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-2",
+        "typeId": "surveyGate",
+        "position": {
+          "x": 6,
+          "y": 7
+        },
+        "hp": 508,
+        "complete": true
+      },
+      {
+        "id": "building-20",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 11
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-21",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 11
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-22",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-23",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 3,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-24",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 4,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-25",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 5,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-26",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 12
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-27",
+        "typeId": "defenseTower",
+        "position": {
+          "x": 3,
+          "y": 4
+        },
+        "hp": 763,
+        "complete": true
+      },
+      {
+        "id": "building-28",
+        "typeId": "defenseTower",
+        "position": {
+          "x": 3,
+          "y": 11
+        },
+        "hp": 763,
+        "complete": true
+      },
+      {
+        "id": "building-29",
+        "typeId": "barracks",
+        "position": {
+          "x": 4,
+          "y": 4
+        },
+        "hp": 689,
+        "complete": true
+      },
+      {
+        "id": "building-3",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-30",
+        "typeId": "lumberCamp",
+        "position": {
+          "x": 4,
+          "y": 10
+        },
+        "hp": 455,
+        "complete": true
+      },
+      {
+        "id": "building-4",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 3,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-5",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 4,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-6",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 5,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-7",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 3
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-78",
+        "typeId": "house",
+        "position": {
+          "x": 3,
+          "y": 10
+        },
+        "hp": 381,
+        "complete": true
+      },
+      {
+        "id": "building-8",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 2,
+          "y": 4
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "building-9",
+        "typeId": "resinPalisade",
+        "position": {
+          "x": 6,
+          "y": 4
+        },
+        "hp": 339,
+        "complete": true
+      },
+      {
+        "id": "unit-34",
+        "typeId": "villager",
+        "position": {
+          "x": 4,
+          "y": 6
+        },
+        "hp": 55
+      },
+      {
+        "id": "unit-35",
+        "typeId": "villager",
+        "position": {
+          "x": 5,
+          "y": 8
+        },
+        "hp": 55
+      },
+      {
+        "id": "unit-36",
+        "typeId": "villager",
+        "position": {
+          "x": 3,
+          "y": 9
+        },
+        "hp": 55
+      },
+      {
+        "id": "unit-80",
+        "typeId": "shieldBearer",
+        "position": {
+          "x": 3,
+          "y": 5
+        },
+        "hp": 230
+      }
+    ]
+  },
+  "landmarkTrace": [
+    {
+      "tick": 3000,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3100,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3200,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3300,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3400,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3500,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3600,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3700,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-33",
+            "resourceKind": "stone",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3800,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 6
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 4400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 6
+          },
+          "order": {
+            "type": "gather",
+            "targetId": "resource-31",
+            "resourceKind": "food",
+            "phase": "toSource",
+            "dropOffId": null
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 8,
+              "y": 8
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 3900,
+      "entities": [
+        {
+          "id": "unit-34",
+          "typeId": "villager",
+          "position": {
+            "x": 6,
+            "y": 7
+          },
+          "order": {
+            "type": "construct",
+            "targetId": "building-140"
+          },
+          "movementProgress": 7400,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4000,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4100,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4200,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4300,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4400,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4500,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4600,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4700,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4800,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 4900,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tick": 5000,
+      "entities": [
+        {
+          "id": "unit-35",
+          "typeId": "villager",
+          "position": {
+            "x": 5,
+            "y": 8
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 700,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-36",
+          "typeId": "villager",
+          "position": {
+            "x": 4,
+            "y": 9
+          },
+          "order": {
+            "type": "idle"
+          },
+          "movementProgress": 900,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "unit-80",
+          "typeId": "shieldBearer",
+          "position": {
+            "x": 3,
+            "y": 5
+          },
+          "order": {
+            "type": "move",
+            "target": {
+              "x": 3,
+              "y": 9
+            }
+          },
+          "movementProgress": 10000,
+          "remainingTicks": null,
+          "complete": null
+        },
+        {
+          "id": "building-140",
+          "typeId": "copperLandmark",
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "order": null,
+          "movementProgress": null,
+          "remainingTicks": 520,
+          "complete": false
+        }
+      ]
+    }
+  ],
+  "alternateVictory": {
+    "status": "LIMITATION",
+    "startedAtTick": 1981,
+    "finalTick": 3862,
+    "error": "landmark construction completes without forced state not reached by tick 3862",
+    "wallet": {
+      "food": 665,
+      "wood": 665,
+      "stone": 580
+    },
+    "tier": "stronghold",
+    "victory": {
+      "policy": {
+        "commandCenterConquest": {
+          "rebuildGraceTicks": 600
+        },
+        "elimination": true,
+        "landmark": {
+          "buildingType": "copperLandmark",
+          "requiredCount": 1,
+          "holdTicks": 900
+        },
+        "timedControl": {
+          "point": {
+            "x": 8,
+            "y": 8
+          },
+          "radius": 2,
+          "startsAtTick": 600,
+          "targetTicks": 1200
+        }
+      },
+      "teams": [
+        {
+          "teamId": "team-ai",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 0,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        },
+        {
+          "teamId": "team-player",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 276,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        }
+      ],
+      "control": {
+        "controllerTeamId": null,
+        "contested": false
+      },
+      "outcome": null,
+      "winningTeamIds": [],
+      "finishReason": null,
+      "triggeredReasons": [],
+      "finishedAtTick": null
+    }
+  },
+  "landmarkDiagnostic": {
+    "tick": 3862,
+    "entities": [
+      {
+        "id": "unit-34",
+        "typeId": "villager",
+        "position": {
+          "x": 4,
+          "y": 6
+        },
+        "order": {
+          "type": "construct",
+          "targetId": "building-140"
+        },
+        "movementProgress": 6600,
+        "remainingTicks": null,
+        "complete": null
+      },
+      {
+        "id": "unit-35",
+        "typeId": "villager",
+        "position": {
+          "x": 5,
+          "y": 6
+        },
+        "order": {
+          "type": "gather",
+          "targetId": "resource-31",
+          "resourceKind": "food",
+          "phase": "toSource",
+          "dropOffId": null
+        },
+        "movementProgress": 900,
+        "remainingTicks": null,
+        "complete": null
+      },
+      {
+        "id": "unit-36",
+        "typeId": "villager",
+        "position": {
+          "x": 4,
+          "y": 9
+        },
+        "order": {
+          "type": "idle"
+        },
+        "movementProgress": 900,
+        "remainingTicks": null,
+        "complete": null
+      },
+      {
+        "id": "unit-80",
+        "typeId": "shieldBearer",
+        "position": {
+          "x": 3,
+          "y": 5
+        },
+        "order": {
+          "type": "move",
+          "target": {
+            "x": 8,
+            "y": 8
+          }
+        },
+        "movementProgress": 10000,
+        "remainingTicks": null,
+        "complete": null
+      },
+      {
+        "id": "building-140",
+        "typeId": "copperLandmark",
+        "position": {
+          "x": 0,
+          "y": 7
+        },
+        "order": null,
+        "movementProgress": null,
+        "remainingTicks": 520,
+        "complete": false
+      }
+    ],
+    "allPerimeter": [
+      {
+        "x": 0,
+        "y": 6
+      },
+      {
+        "x": -1,
+        "y": 7
+      },
+      {
+        "x": 1,
+        "y": 6
+      },
+      {
+        "x": 2,
+        "y": 7
+      },
+      {
+        "x": 0,
+        "y": 9
+      },
+      {
+        "x": -1,
+        "y": 8
+      },
+      {
+        "x": 2,
+        "y": 8
+      },
+      {
+        "x": 1,
+        "y": 9
+      }
+    ],
+    "staticUnblockedPerimeter": [
+      {
+        "x": 0,
+        "y": 6
+      },
+      {
+        "x": 0,
+        "y": 9
+      }
+    ],
+    "staticApproachRoute": {
+      "target": {
+        "x": 0,
+        "y": 9
+      },
+      "firstStep": {
+        "x": 5,
+        "y": 6
+      },
+      "distance": 25
+    }
+  },
+  "microVictory": {
+    "status": "LIMITATION",
+    "tick": 5062,
+    "error": "landmark completes after normal movement orders clear the approach not reached by tick 5062",
+    "entities": [
+      {
+        "id": "unit-35",
+        "typeId": "villager",
+        "position": {
+          "x": 5,
+          "y": 8
+        },
+        "hitPoints": 55,
+        "order": {
+          "type": "idle"
+        },
+        "remainingTicks": null,
+        "complete": null
+      },
+      {
+        "id": "unit-36",
+        "typeId": "villager",
+        "position": {
+          "x": 4,
+          "y": 9
+        },
+        "hitPoints": 55,
+        "order": {
+          "type": "idle"
+        },
+        "remainingTicks": null,
+        "complete": null
+      },
+      {
+        "id": "unit-80",
+        "typeId": "shieldBearer",
+        "position": {
+          "x": 3,
+          "y": 5
+        },
+        "hitPoints": 230,
+        "order": {
+          "type": "move",
+          "target": {
+            "x": 3,
+            "y": 9
+          }
+        },
+        "remainingTicks": null,
+        "complete": null
+      },
+      {
+        "id": "building-140",
+        "typeId": "copperLandmark",
+        "position": {
+          "x": 0,
+          "y": 7
+        },
+        "hitPoints": 1,
+        "order": null,
+        "remainingTicks": 520,
+        "complete": false
+      }
+    ],
+    "victory": {
+      "policy": {
+        "commandCenterConquest": {
+          "rebuildGraceTicks": 600
+        },
+        "elimination": true,
+        "landmark": {
+          "buildingType": "copperLandmark",
+          "requiredCount": 1,
+          "holdTicks": 900
+        },
+        "timedControl": {
+          "point": {
+            "x": 8,
+            "y": 8
+          },
+          "radius": 2,
+          "startsAtTick": 600,
+          "targetTicks": 1200
+        }
+      },
+      "teams": [
+        {
+          "teamId": "team-ai",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 0,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        },
+        {
+          "teamId": "team-player",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 320,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        }
+      ],
+      "control": {
+        "controllerTeamId": null,
+        "contested": false
+      },
+      "outcome": null,
+      "winningTeamIds": [],
+      "finishReason": null,
+      "triggeredReasons": [],
+      "finishedAtTick": null
+    }
+  },
+  "wallMilliseconds": 17569,
+  "verificationScope": {
+    "resultAndRestart": "NOT VERIFIED",
+    "ownerPrivateCheckpoint": ".audit-tmp/r21-gameplay-final-owner-private-save.json",
+    "economy": "VERIFIED",
+    "cpuFinishedAtTaipei": "2026-09-30 18:28:39",
+    "houseConstruction": "VERIFIED",
+    "stronghold": "VERIFIED",
+    "production": "VERIFIED five spawned units",
+    "legitimateVictory": "NOT VERIFIED",
+    "ownSkill": "VERIFIED shieldWall statusApplied",
+    "realCombat": "VERIFIED outgoing and incoming damage",
+    "landmark": "accepted and paid; first friendly blocker, then builder destroyed after exit",
+    "ui": "NOT VERIFIED by this script"
+  }
+}

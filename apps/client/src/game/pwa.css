@@ -1,0 +1,59 @@
+.pwa-tools {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 6px 10px;
+  border: 1px solid #a9905840;
+  border-radius: 7px;
+  background: #111c19ed;
+  color: #c0cbb4;
+  font: 11px/1.5 system-ui, sans-serif;
+  touch-action: manipulation;
+}
+.pwa-tools[hidden], .pwa-tools button[hidden] { display: none; }
+body:has(.pwa-tools:not([hidden])) .frontier-bottom { display: none; }
+.pwa-tools button, .pwa-install-help button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #b6965c;
+  border-radius: 5px;
+  background: #a98848;
+  color: #17221c;
+  font: 700 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.pwa-tools button:focus-visible, .pwa-install-help button:focus-visible {
+  outline: 3px solid #f5e4aa;
+  outline-offset: 3px;
+}
+.pwa-install-help {
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid #b6965c;
+  border-radius: 12px;
+  background: #17251f;
+  color: #ece4ce;
+  font: 14px/1.8 system-ui, sans-serif;
+}
+.pwa-install-help h2 { margin: 0; font-size: 20px; }
+.pwa-install-help::backdrop { background: #09130dcc; }
+@media (max-width: 600px) {
+  .pwa-tools { right: max(10px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom)); gap: 6px; padding: 4px 7px; font-size: 10px; }
+  .pwa-tools button { padding: 6px 10px; }
+}
+@media (orientation: portrait) and (max-width: 700px) {
+  body:has(.pwa-tools:not([hidden]) button:not([hidden])) .frontier-content {
+    bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
+  }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .pwa-tools { top: max(4px, env(safe-area-inset-top)); bottom: auto; padding: 0 5px; max-width: 60vw; gap: 6px; font-size: 9px; }
+  .pwa-tools button { min-height: 44px; padding: 4px 8px; font-size: 10px; }
+  body:has(.pwa-tools:not([hidden])) .frontier-version { display: none; }
+}

@@ -26,7 +26,7 @@ html, body, #app { width: 100%; min-width: 320px; height: 100%; margin: 0; }
 body { overflow: hidden; background: var(--charcoal); overscroll-behavior: none; touch-action: none; }
 button, output { font: inherit; }
 button { color: inherit; }
-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+canvas { display: block; width: 100%; height: 100%; image-rendering: auto; }
 .canvas-control-proxy {
   position: fixed;
   width: 1px;

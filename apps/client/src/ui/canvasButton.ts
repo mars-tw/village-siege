@@ -39,19 +39,18 @@ export function createCanvasButton(
 ): CanvasButtonControl {
   const container = scene.add.container(0, 0).setName(options.name);
   const background = scene.add.graphics();
-  const glyph = scene.add.text(0, options.compact ? -22 : -13, options.glyph, {
+  const glyph = scene.add.text(0, options.compact ? -17 : -13, options.glyph, {
     color: "#f0ebcf",
     fontFamily: 'Georgia, "Noto Serif TC", serif',
-    fontSize: options.compact ? "31px" : "36px",
+    fontSize: options.compact ? "27px" : "36px",
     fontStyle: "bold",
   }).setOrigin(0.5);
   const label = scene.add.text(0, options.compact ? 19 : 27, options.label, {
     color: "#f0ebcf",
     fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
-    fontSize: options.compact ? "26px" : "28px",
+    fontSize: options.compact ? "20px" : "28px",
     fontStyle: "bold",
     align: "center",
-    wordWrap: options.compact ? { width: options.width - 14, useAdvancedWrap: true } : undefined,
   }).setOrigin(0.5);
   const hitZone = scene.add.zone(0, 0, options.width, options.height)
     .setName(`${options.name}:hit-zone`)
@@ -88,9 +87,9 @@ export function createCanvasButton(
           : COLORS.pineDark;
     const foreground = active || pressed ? COLORS.charcoal : interactive ? COLORS.chalk : COLORS.muted;
     background.clear();
-    background.fillStyle(COLORS.charcoal, 0.78).fillRect(-options.width / 2 + 5, -options.height / 2 + 7, options.width, options.height);
-    background.fillStyle(fill, interactive ? 0.98 : 0.72).fillRect(-options.width / 2, -options.height / 2, options.width - 5, options.height - 7);
-    background.lineStyle(active ? 4 : 3, options.accent || active ? COLORS.copper : COLORS.chalk, interactive ? 0.95 : 0.38)
+    background.fillStyle(COLORS.charcoal, 0.35).fillRoundedRect(-options.width / 2 + 2, -options.height / 2 + 3, options.width - 3, options.height - 3, 5);
+    background.fillStyle(fill, interactive ? 0.98 : 0.72).fillRoundedRect(-options.width / 2, -options.height / 2, options.width - 5, options.height - 7, 5);
+    background.lineStyle(active ? 3 : 1.5, options.accent || active ? COLORS.copper : 0x6d8271, interactive ? 0.95 : 0.38)
       .strokeRect(-options.width / 2, -options.height / 2, options.width - 5, options.height - 7);
     background.lineStyle(1, COLORS.charcoal, 0.88)
       .strokeRect(-options.width / 2 + 5, -options.height / 2 + 5, options.width - 15, options.height - 17);
@@ -177,6 +176,15 @@ export function createCanvasButton(
       if (destroyed) return;
       glyph.setText(nextGlyph);
       label.setText(nextLabel);
+      // Keep the unit/building name and its cost or queue status legible on
+      // phones, instead of shrinking the entire label into one tiny line.
+      if (options.compact && label.width > options.width - 16 && nextLabel.includes(" ")) {
+        label.setText(nextLabel.replace(" ", "\n"));
+      }
+      glyph.setY(options.compact ? (label.text.includes("\n") ? -26 : -17) : -13);
+      // Costs and long queue names stay inside the button instead of wrapping
+      // onto the hint strip; its accessible label retains the complete text.
+      label.setScale(Math.min(1, (options.width - 16) / Math.max(1, label.width)));
       accessibilityButton.setAttribute("aria-label", nextAccessibleLabel ?? nextLabel);
       accessibilityButton.textContent = `${nextGlyph} ${nextLabel}`;
       draw();

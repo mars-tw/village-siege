@@ -1,0 +1,66 @@
+{
+  "date": "2026-09-30",
+  "verification": "VERIFIED",
+  "reviewContext": "Separate harness agent context; same parent model, not external or third-party model review. PWA author also performed its PWA verification.",
+  "productionBuild": {
+    "base": "/village-siege/",
+    "workerRevision": "a295d24d629d75415d59",
+    "offlineEntries": 37,
+    "runtimeFiles": 39,
+    "runtimeBundleBytes": 18442791,
+    "runtimeArtFiles": 27,
+    "runtimeArtBytes": 16103842,
+    "buildPassed": true,
+    "prunePassed": true,
+    "runtimeCompliancePassed": true,
+    "allPrecacheFilesPresent": true,
+    "allPrecacheIntegrityHashesMatched": true,
+    "svgInPrecache": false,
+    "runtimeConfigInPrecache": false
+  },
+  "browser": {
+    "engine": "Chromium via Playwright CLI",
+    "scope": "http://127.0.0.1:4183/village-siege/",
+    "freshContext": true,
+    "completeOfflineDownload": true,
+    "controlledOfflineReload": true,
+    "offlineMultiplayerEnabled": false,
+    "offlineBattleStartedByPrimaryAction": true,
+    "battleToolbarHidden": true,
+    "consoleErrors": 0,
+    "consoleWarningsAfterOfflineReload": 0,
+    "physicalDevicesTested": false,
+    "nativeInstallConfirmed": false,
+    "fullOfflineMatchCompleted": false,
+    "updateActivationTestedInRealBrowser": false,
+    "installButtonLayoutTest": "Synthetic beforeinstallprompt event used to render the optional button; no native installation was attempted.",
+    "menuViewports": [
+      { "width": 667, "height": 375, "offscreenControls": 0, "primaryCenterReachable": true },
+      { "width": 390, "height": 667, "offscreenControls": 0, "primaryCenterReachable": true, "installToolbarGuideOverlapPx": 0 }
+    ],
+    "browserClosed": true,
+    "preview4183Stopped": true
+  },
+  "tests": {
+    "pwaWorkerTestsPassed": 10,
+    "pwaBuildContractTestsPassed": 3,
+    "opsTestsPassed": 15,
+    "clientTypecheckPassed": true,
+    "mixedGenerationIntegrityFailureTest": "Worker regression rejects a Fetch integrity mismatch and retains the old version; build tests independently recompute every generated digest. The complete browser download succeeded with native Fetch integrity validation."
+  },
+  "reviewFixes": [
+    "Imported AI difficulty is restored together with personality before restarting the match.",
+    "Each offline resource has a build-generated SHA-256 Fetch integrity pin.",
+    "Portrait menu reserves bottom space when the installation button is visible, removing an 8 px overlap with the guide button."
+  ],
+  "screenshots": [
+    "output/playwright/r21-pwa-landscape-667x375.png",
+    "output/playwright/r21-pwa-portrait-390x667.png",
+    "output/playwright/r21-pwa-offline-battle-667x375.png"
+  ],
+  "limitations": [
+    "App Store and Google Play packages are future work; no Capacitor project, store build, signing, submission or deployment was performed.",
+    "Natural waiting updates and partial/mismatched downloads are regression-tested; no real-browser deployment-change activation test was performed.",
+    "Root may rebuild the same source for base / as the final local preview; this evidence identifies the tested subpath build precisely."
+  ]
+}

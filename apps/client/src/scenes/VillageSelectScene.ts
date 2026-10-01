@@ -1,104 +1,85 @@
 import Phaser from "phaser";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
 import { toggleGameFullscreen } from "../game/gameFullscreen";
+import { publicAssetUrl } from "../game/publicAssetUrl";
 import { multiplayerAvailability } from "../network/multiplayerAvailability";
-
+import type { AiDifficulty } from "@village-siege/shared";
+import "../frontier-menu.css";
 export type VillageId = "pinehold" | "riverstead" | "highcrag";
 export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" | "raider";
-
-const VILLAGES: ReadonlyArray<{ id: VillageId; mark: string; name: string; subtitle: string }> = [
-  { id: "pinehold", mark: "松", name: "松林堡", subtitle: "林地資源與防禦兼備" },
-  { id: "riverstead", mark: "河", name: "河谷鎮", subtitle: "沿河展開、採集快速" },
-  { id: "highcrag", mark: "岩", name: "高地寨", subtitle: "高地要塞、石材充足" },
-];
-
-const AI_PROFILES: ReadonlyArray<{ id: AiPersonality; mark: string; name: string; detail: string }> = [
-  { id: "aggressor", mark: "攻", name: "侵略者", detail: "迅速集結進攻" },
-  { id: "guardian", mark: "守", name: "守城者", detail: "重視城防與反擊" },
-  { id: "prosperer", mark: "豐", name: "繁榮者", detail: "先擴張經濟" },
-  { id: "balanced", mark: "衡", name: "均衡者", detail: "穩健應對局勢" },
-  { id: "raider", mark: "襲", name: "掠襲者", detail: "騷擾薄弱據點" },
-];
-
+const VILLAGES = [
+ {id:"pinehold",name:"松林堡",detail:"穿過松林，守住通往村落的隘口。",bonus:"林木與城防",frame:0},
+ {id:"riverstead",name:"河谷鎮",detail:"沿河採集，爭奪橋頭與兩岸的通道。",bonus:"河道與採集",frame:5},
+ {id:"highcrag",name:"高地寨",detail:"依山築城，利用石材建立防線。",bonus:"石礦與隘道",frame:3},
+] as const;
+const AI_PROFILES = [
+ {id:"aggressor",name:"進攻",detail:"早期集結，迅速出兵"},
+ {id:"guardian",name:"守備",detail:"築城、修復，再伺機反攻"},
+ {id:"prosperer",name:"發展",detail:"擴張經濟，累積後期兵力"},
+ {id:"balanced",name:"均衡",detail:"偵察後調整兵種與進攻時機"},
+ {id:"raider",name:"襲擾",detail:"攻擊落單工匠與薄弱據點"},
+] as const;
+const DIFFICULTIES = [
+ {id:"novice",name:"新手",detail:"較長的發展空間，適合熟悉操作。"},
+ {id:"standard",name:"標準",detail:"穩定發展與反制，適合完整對戰。"},
+ {id:"veteran",name:"老練",detail:"更積極的調度，考驗偵察與配兵。"},
+] as const;
 export class VillageSelectScene extends Phaser.Scene {
-  private root?: HTMLElement;
-  private villageId: VillageId = "pinehold";
-  private aiPersonality: AiPersonality = "balanced";
-
-  constructor() { super({ key: "VillageSelectScene" }); }
-
-  create(): void {
-    this.cameras.main.setBackgroundColor("#1c211f");
-    const host = this.game.canvas.parentElement ?? document.body;
-    host.classList.add("village-siege-host");
-    host.classList.add("selection-active");
-    const root = document.createElement("main");
-    root.className = "village-select-shell";
-    const multiplayerButton = multiplayerAvailability.enabled
-      ? `<button type="button" class="secondary-action" data-multiplayer>多人連線 <small>2–5 方</small></button>`
-      : "";
-    root.innerHTML = `
-      <div class="map-scrim" aria-hidden="true"><span></span><span></span><span></span></div>
-      <header class="select-masthead"><p class="select-kicker">Village Siege · 戰前會議</p><h1>選擇你的村莊</h1><p>挑選地形與對手風格，開始單機戰役或進入私人多人房間。</p></header>
-      <section class="village-route"><div class="section-heading"><span>01</span><div><h2>村莊</h2><p>每座聚落有不同的作戰節奏。</p></div></div><div class="village-options">
-        ${VILLAGES.map((village) => `<button type="button" class="village-choice" data-village="${village.id}" aria-pressed="false"><span class="choice-mark">${village.mark}</span><span class="choice-copy"><strong>${village.name}</strong><small>${village.subtitle}</small></span><span class="choice-state">選擇</span></button>`).join("")}
-      </div></section>
-      <section class="ai-roster"><div class="section-heading"><span>02</span><div><h2>電腦對手</h2><p>只套用於單機模式。</p></div></div><div class="ai-options">
-        ${AI_PROFILES.map((profile) => `<button type="button" class="ai-choice" data-ai="${profile.id}" aria-pressed="false"><span class="ai-mark">${profile.mark}</span><strong>${profile.name}</strong><small>${profile.detail}</small><span class="choice-state">選擇</span></button>`).join("")}
-      </div></section>
-      <footer class="march-actions"><p class="selection-readout" role="status"></p><div><button type="button" class="secondary-action" data-tutorial>互動教學 <small>7 個實戰目標</small></button>${multiplayerButton}<button type="button" class="primary-action" data-start>開始單機戰役</button></div></footer>`;
-    host.append(root);
-    this.root = root;
-    root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach((button) => button.addEventListener("click", () => { this.villageId = button.dataset.village as VillageId; this.syncSelection(); }));
-    root.querySelectorAll<HTMLButtonElement>("[data-ai]").forEach((button) => button.addEventListener("click", () => { this.aiPersonality = button.dataset.ai as AiPersonality; this.syncSelection(); }));
-    root.querySelector("[data-start]")?.addEventListener("click", () => {
-      const profile = getDeviceViewportProfile();
-      if (profile.mobile && !this.scale.isFullscreen) toggleGameFullscreen(this);
-      this.scene.start("VillageAssaultScene", {
-        villageId: this.villageId,
-        aiPersonality: this.aiPersonality,
-        returnScene: "VillageSelectScene",
-        tutorial: false,
-      });
-    });
-    root.querySelector("[data-tutorial]")?.addEventListener("click", () => {
-      const profile = getDeviceViewportProfile();
-      if (profile.mobile && !this.scale.isFullscreen) toggleGameFullscreen(this);
-      this.scene.start("VillageAssaultScene", {
-        villageId: "pinehold",
-        aiPersonality: "balanced",
-        returnScene: "VillageSelectScene",
-        tutorial: true,
-      });
-    });
-    root.querySelector("[data-multiplayer]")?.addEventListener("click", () => this.scene.start("MultiplayerLobbyScene", { villageId: this.villageId }));
-    this.syncSelection();
-    this.events.once("shutdown", this.destroySelector, this);
-    this.events.once("destroy", this.destroySelector, this);
-  }
-
-  private syncSelection(): void {
-    if (!this.root) return;
-    this.root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach((button) => this.selectButton(button, button.dataset.village === this.villageId));
-    this.root.querySelectorAll<HTMLButtonElement>("[data-ai]").forEach((button) => this.selectButton(button, button.dataset.ai === this.aiPersonality));
-    const village = VILLAGES.find(({ id }) => id === this.villageId);
-    const profile = AI_PROFILES.find(({ id }) => id === this.aiPersonality);
-    const readout = this.root.querySelector<HTMLElement>(".selection-readout");
-    if (readout) readout.textContent = `${village?.name ?? ""} · ${profile?.name ?? ""}`;
-  }
-
-  private selectButton(button: HTMLButtonElement, selected: boolean): void {
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", String(selected));
-    const label = button.querySelector<HTMLElement>(".choice-state");
-    if (label) label.textContent = selected ? "已選" : "選擇";
-  }
-
-  private destroySelector(): void {
-    this.root?.remove();
-    (this.game.canvas.parentElement ?? document.body).classList.remove("selection-active");
-    this.root = undefined;
-  }
+ private root?: HTMLElement;
+ private villageId: VillageId = "pinehold";
+ private aiPersonality: AiPersonality = "balanced";
+ private aiDifficulty: AiDifficulty = "standard";
+ constructor(){super({key:"VillageSelectScene"});}
+ create():void {
+  this.cameras.main.setBackgroundColor("#172b29");
+  const host=this.game.canvas.parentElement ?? document.body;
+  host.classList.add("village-siege-host","selection-active");
+  const root=document.createElement("section"); root.className="frontier-menu"; root.setAttribute("aria-label","戰前準備");
+  root.style.setProperty("--frontier-cover",`url("${publicAssetUrl("assets/original/frontier/cover.webp")}")`);
+  root.style.setProperty("--frontier-atlas",`url("${publicAssetUrl("assets/original/frontier/buildings.png")}")`);
+  root.innerHTML=`
+   <div class="frontier-landscape" aria-hidden="true"></div>
+   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v0.21</span></span></header>
+   <div class="frontier-content">
+    <div class="frontier-intro"><p class="frontier-eyebrow">一座村莊，一場攻防。</p><h1>把邊境，<br>變成你的堡壘。</h1><p class="frontier-description">開拓、築城、帶兵出征。<br>從松林深處，打開通往河谷的道路。</p></div>
+    <section class="frontier-settings">
+     <div class="frontier-section-title"><h2>選擇聚落</h2><span>三片地形，三條進軍路線</span></div>
+     <div class="frontier-villages">${VILLAGES.map(v=>`<button type="button" class="frontier-village" data-village="${v.id}" aria-pressed="false"><span class="village-art village-art-${v.frame}" aria-hidden="true"></span><span class="village-name">${v.name}</span><small>${v.bonus}</small><span class="village-check" aria-hidden="true">✓</span></button>`).join("")}</div>
+     <p class="frontier-village-detail" data-village-detail></p>
+     <div class="frontier-opponent"><div><div class="frontier-section-title"><h2>對手風格</h2></div><div class="frontier-pills">${AI_PROFILES.map(p=>`<button type="button" data-ai="${p.id}" aria-pressed="false" title="${p.detail}">${p.name}</button>`).join("")}</div></div><div><div class="frontier-section-title"><h2>難度</h2></div><div class="frontier-pills difficulty-pills">${DIFFICULTIES.map(d=>`<button type="button" data-difficulty="${d.id}" aria-pressed="false" title="${d.detail}">${d.name}</button>`).join("")}</div></div></div>
+     <p class="frontier-rival-detail" data-rival-detail></p>
+    </section>
+    <footer class="frontier-actions"><button type="button" class="frontier-start" data-start><span>開始戰役</span><span aria-hidden="true">→</span></button><div class="frontier-secondary"><button type="button" data-tutorial>新手教學 <span>↗</span></button>${multiplayerAvailability.enabled?`<button type="button" data-multiplayer>私人連線 <span>↗</span></button>`:""}<button type="button" data-guide>操作指南 <span>?</span></button></div></footer>
+   </div>
+   <aside class="frontier-world-note" aria-label="戰役概要"><span>THE FRONTIER</span><h2>河谷的晨光</h2><p>三座聚落 · 七種兵種 · 四條勝途</p><div class="world-note-rule"></div><small>發展經濟，突破城防，或守住中域。</small></aside>
+   <div class="frontier-bottom"><span>原創等角即時戰略</span><output class="frontier-readout" aria-live="polite"></output><span class="frontier-device-note">滑鼠鍵盤／觸控操作</span></div>
+   <dialog class="frontier-guide"><div class="guide-heading"><h2>把第一座村莊守好</h2><button type="button" data-close-guide aria-label="關閉操作指南">×</button></div><div class="guide-body"><p><strong>先發展：</strong>點選工匠，再點林木、糧食或石礦。選取主城可訓練更多工匠。</p><p><strong>再出兵：</strong>建造兵營並訓練士兵。升級聚落後，開放弓箭、騎兵與攻城兵器。</p><p><strong>電腦：</strong>點選或框選單位，右鍵移動／攻擊；WASD 移動鏡頭，滾輪縮放，B 建造，P 暫停。</p><p><strong>手機／平板：</strong>戰場採橫向。點選單位後點目標，拖曳移動鏡頭，雙指縮放；底部指令可選工匠、全軍、建造與系統。</p><p><strong>贏得戰役：</strong>摧毀敵方議事堂、殲滅敵軍、持守拓界銅標，或取得中域控制。</p></div><button type="button" class="guide-play" data-guide-tutorial>用七個目標學會操作 →</button></dialog>`;
+  host.append(root);this.root=root;
+  root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach(b=>b.addEventListener("click",()=>{this.villageId=b.dataset.village as VillageId;this.syncSelection();}));
+  root.querySelectorAll<HTMLButtonElement>("[data-ai]").forEach(b=>b.addEventListener("click",()=>{this.aiPersonality=b.dataset.ai as AiPersonality;this.syncSelection();}));
+  root.querySelectorAll<HTMLButtonElement>("[data-difficulty]").forEach(b=>b.addEventListener("click",()=>{this.aiDifficulty=b.dataset.difficulty as AiDifficulty;this.syncSelection();}));
+  root.querySelector("[data-start]")?.addEventListener("click",()=>this.startBattle(false));
+  root.querySelector("[data-tutorial]")?.addEventListener("click",()=>this.startBattle(true));
+  root.querySelector("[data-guide-tutorial]")?.addEventListener("click",()=>this.startBattle(true));
+  root.querySelector("[data-multiplayer]")?.addEventListener("click",()=>this.scene.start("MultiplayerLobbyScene",{villageId:this.villageId}));
+  const guide=root.querySelector<HTMLDialogElement>("dialog")!;
+  root.querySelector("[data-guide]")?.addEventListener("click",()=>guide.showModal());
+  root.querySelector("[data-close-guide]")?.addEventListener("click",()=>guide.close());
+  this.syncSelection();this.events.once("shutdown",this.destroySelector,this);this.events.once("destroy",this.destroySelector,this);
+ }
+ private startBattle(tutorial:boolean):void {
+  const p=getDeviceViewportProfile(); if(p.mobile&&!this.scale.isFullscreen)toggleGameFullscreen(this);
+  this.scene.start("VillageAssaultScene",{villageId:tutorial?"pinehold":this.villageId,aiPersonality:tutorial?"balanced":this.aiPersonality,aiDifficulty:tutorial?"novice":this.aiDifficulty,returnScene:"VillageSelectScene",tutorial});
+ }
+ private syncSelection():void {
+  if(!this.root)return;
+  const groups:[[string,string,string],[string,string,string],[string,string,string]]=[["[data-village]","village",this.villageId],["[data-ai]","ai",this.aiPersonality],["[data-difficulty]","difficulty",this.aiDifficulty]];
+  for(const [selector,key,current] of groups)this.root.querySelectorAll<HTMLButtonElement>(selector).forEach(b=>{const selected=b.dataset[key]===current;b.classList.toggle("is-selected",selected);b.setAttribute("aria-pressed",String(selected));});
+  const v=VILLAGES.find(v=>v.id===this.villageId)!;const p=AI_PROFILES.find(p=>p.id===this.aiPersonality)!;const d=DIFFICULTIES.find(d=>d.id===this.aiDifficulty)!;
+  this.root.querySelector("[data-village-detail]")!.textContent=v.detail;
+  this.root.querySelector("[data-rival-detail]")!.textContent=`${p.detail}。${d.detail}`;
+  this.root.querySelector(".frontier-readout")!.textContent=`${v.name} ／ ${p.name} ／ ${d.name}`;
+ }
+ private destroySelector():void {this.root?.querySelector<HTMLDialogElement>("dialog")?.close();this.root?.remove();(this.game.canvas.parentElement??document.body).classList.remove("selection-active");this.root=undefined;}
 }
-
 export default VillageSelectScene;

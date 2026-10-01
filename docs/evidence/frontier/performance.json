@@ -1,0 +1,68 @@
+{
+  "engine": "Chromium requestAnimationFrame",
+  "origin": "http://localhost:4173",
+  "samples": 240,
+  "warmup": 60,
+  "physicalMobile": false,
+  "runs": [
+    {
+      "width": 1440,
+      "height": 900,
+      "pass": 1,
+      "visibility": "visible",
+      "p95": 16.800000000000182,
+      "median": 16.699999999999818,
+      "max": 16.90000000000009
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "pass": 2,
+      "visibility": "visible",
+      "p95": 16.800000000000182,
+      "median": 16.69999999999891,
+      "max": 16.900000000001455
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "pass": 3,
+      "visibility": "visible",
+      "p95": 16.80000000000109,
+      "median": 16.69999999999891,
+      "max": 16.900000000001455
+    }
+  ],
+  "cleanDesktop": true,
+  "discardedConcurrentDesktop": true,
+  "mobileViewportRuns": [
+    {
+      "width": 667,
+      "height": 375,
+      "pass": 1,
+      "visibility": "visible",
+      "p95": 16.799999999999955,
+      "median": 16.699999999999818,
+      "max": 16.90000000000009
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "pass": 2,
+      "visibility": "visible",
+      "p95": 16.800000000000182,
+      "median": 16.69999999999891,
+      "max": 16.900000000001455
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "pass": 3,
+      "visibility": "visible",
+      "p95": 16.80000000000109,
+      "median": 16.69999999999891,
+      "max": 16.80000000000109
+    }
+  ],
+  "limitation": "初始載量、同一Windows電腦Chromium；RAF幀間隔不是CPU執行耗時；手機視口非真機效能。"
+}

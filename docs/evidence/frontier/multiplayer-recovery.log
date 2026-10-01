@@ -1,0 +1,19 @@
+
+   ___      _                                    ___   _ _____
+  / __\___ | |_   _ ___  ___ _   _ ___   __   __/ _ \ / |___  |
+ / /  / _ \| | | | / __|/ _ \ | | / __|  \ \ / / | | || |  / /
+/ /__| (_) | | |_| \__ \  __/ |_| \__ \   \ V /| |_| || | / /
+\____/\___/|_|\__, |___/\___|\__,_|___/    \_/  \___(_)_|/_/
+              |___/
+
+             · Multiplayer Framework for Node.js ·
+
+💖 Consider becoming a Sponsor on GitHub → https://github.com/sponsors/endel
+🌟 Give us a star on GitHub → https://github.com/colyseus/colyseus
+☁️  Deploy and scale your project on Colyseus Cloud → https://cloud.colyseus.io
+
+Village Siege server listening on http://localhost:26568
+[Colyseus reconnection]: ⏳ will retry in 1.0 seconds...
+[Colyseus reconnection]: 🔄 Re-establishing sessionId 'lzjLT_A1vv73MpYVh2Nxag' with roomId 'hnhx89M3y'... (attempt 1 of 5)
+[Colyseus reconnection]: ✅ reconnection successful!
+{"result":"PASS","roomCode":"6LFBWK","matchId":"match-c1e80956d991633a671f9e0c36905aa1","matchRoomId":"hnhx89M3y","socketDrops":1,"socketReconnects":1,"tickBeforeDrop":1,"recoverySnapshotTick":10,"finalServerTick":11,"checks":{"realSocketDrop":true,"reconnectLifecycle":["recovering","resumed"],"recoveryEpoch":1,"recoveryHelloCursor":2,"fullSnapshotRecovery":"snapshot","orderedPendingReplay":[0,1,2],"recoveredCommandResults":3,"immutablePreDropResultTicks":[1,1],"newlyAcceptedResultTick":11,"authoritativeTickContinued":10,"recoveryPhaseNetFoodSpend":50,"recoveryPhaseMaximumExpectedFoodSpend":50,"duplicateResourceSpend":false}}

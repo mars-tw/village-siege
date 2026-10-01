@@ -4203,13 +4203,14 @@ function clampBuildingOrigin(point: GridPoint, type: BuildingType, state: MatchS
 }
 
 function buildingSpawnPoint(building: BuildingEntityState, state: MatchState): GridPoint | null {
+  const cardinalOffsets = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
   const cells = getEntityFootprintCells(building);
   const footprint = new Set(cells.map(pointKey));
   const occupied = new Set(state.entities.flatMap((entity) => getEntityFootprintCells(entity)).map(pointKey));
   const candidates: GridPoint[] = [];
   const seen = new Set<string>();
   for (const cell of cells) {
-    for (const offset of [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }]) {
+    for (const offset of cardinalOffsets) {
       const candidate = { x: cell.x + offset.x, y: cell.y + offset.y };
       const key = pointKey(candidate);
       if (seen.has(key) || footprint.has(key)) continue;
@@ -4217,7 +4218,28 @@ function buildingSpawnPoint(building: BuildingEntityState, state: MatchState): G
       if (isPointInBounds(candidate, state) && isMapCellWalkable(state, candidate) && !occupied.has(key)) candidates.push(candidate);
     }
   }
-  return candidates[0] ?? null;
+  if (candidates.length === 0) return null;
+  const blocked = new Set(getPathBlockedCells(state).map(pointKey));
+  // A free perimeter cell may still be a sealed one- or multi-cell pocket.
+  // Search only within the producer's small perimeter ring until an actual
+  // cardinal exit is found. Units are transient traffic, not static walls.
+  const hasExit = (start: GridPoint): boolean => {
+    const queue = [start];
+    const visited = new Set([pointKey(start)]);
+    for (let head = 0; head < queue.length; head += 1) {
+      const point = queue[head]!;
+      for (const offset of cardinalOffsets) {
+        const next = { x: point.x + offset.x, y: point.y + offset.y };
+        const key = pointKey(next);
+        if (!isPointInBounds(next, state) || blocked.has(key) || visited.has(key)) continue;
+        if (!seen.has(key)) return true;
+        visited.add(key);
+        queue.push(next);
+      }
+    }
+    return false;
+  };
+  return candidates.find(hasExit) ?? null;
 }
 
 function samePoint(left: GridPoint, right: GridPoint): boolean {

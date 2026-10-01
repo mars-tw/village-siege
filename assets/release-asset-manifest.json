@@ -5,54 +5,317 @@
   "runtimeBundleBudgetBytes": 20971520,
   "perRuntimeFileBudgetBytes": 2097152,
   "assets": [
-    { "file": "apps/client/public/assets/original/monsters/ashwing/portrait.png", "sha256": "5104bf34e68fe9648a2dd9c9817e7c007726ec8865ecb63151538e1f7d0bc222", "bytes": 362592, "runtime": false },
-    { "file": "apps/client/public/assets/original/monsters/ashwing/sprites/action-sheet-source.png", "sha256": "1444b5de89c84a3d56f88a45d9d8813e181e9caafa55f84bda4d457377a2f2d1", "bytes": 2102315, "runtime": false },
-    { "file": "apps/client/public/assets/original/monsters/ashwing/sprites/action-sheet.png", "sha256": "675a9d9dff38d654dbfc0b070599caac7adf5c2ef56cf422ebce659fe6b032bb", "bytes": 1150374, "runtime": true },
-    { "file": "apps/client/public/assets/original/monsters/miremaw/portrait.png", "sha256": "9cbdb06ef1d36e2fd469977116dec4c7948ea2706d8c814e6d5ff7fb99cf3e11", "bytes": 323081, "runtime": false },
-    { "file": "apps/client/public/assets/original/monsters/miremaw/sprites/action-sheet-source.png", "sha256": "c1e94212e2deaa0eb824d50655581abb5d158260068ddab2e8b461f58b44f8d4", "bytes": 2500951, "runtime": false },
-    { "file": "apps/client/public/assets/original/monsters/miremaw/sprites/action-sheet.png", "sha256": "01adda2d53c06e35178b571fb12c2f21e3c13fa1c4d263445bf8c063ed784dae", "bytes": 1633429, "runtime": true },
-    { "file": "apps/client/public/assets/original/monsters/rootback/portrait.png", "sha256": "ef981f8fecbc2b1426af0954e3ec74a0eb932fef97652a924fa375005c9386ba", "bytes": 621657, "runtime": false },
-    { "file": "apps/client/public/assets/original/monsters/rootback/sprites/action-sheet-source.png", "sha256": "081dd3fa5c1536ebac8b67c26db44b01e63a8bb8dc84fdba14f641fe805be8f3", "bytes": 2404861, "runtime": false },
-    { "file": "apps/client/public/assets/original/monsters/rootback/sprites/action-sheet.png", "sha256": "00d0974f2f06c42168410f679e59c34cf68bc21bbe7117ac2f16040bc56a37d5", "bytes": 1585564, "runtime": true },
-    { "file": "apps/client/public/assets/original/source/combat-lineup-approved-alpha.png", "sha256": "ffe954c82f1798f2080ec0cc3c359e8feb62389b9f32219d31f245d9f46ef799", "bytes": 1729891, "runtime": false },
-    { "file": "apps/client/public/assets/original/source/combat-lineup-approved.png", "sha256": "a851ba3ac430f1ecb4eaf1611602f000946b380d4ee02729c1a9eb78eed9dc37", "bytes": 3006167, "runtime": false },
-    { "file": "apps/client/public/assets/original/source/monster-lineup-approved-alpha.png", "sha256": "83fc5fd1fe5dc6c25215d4edf8a9e929fcf3e181c210863855d362713357a12c", "bytes": 1189294, "runtime": false },
-    { "file": "apps/client/public/assets/original/source/monster-lineup-approved.png", "sha256": "852e2b5285beae1f08efda91ed26515d79cfe08546812023e306a4dcd0dc2ef2", "bytes": 1821549, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/archer/portrait.png", "sha256": "b47df12a7289720351e7d4f0d7e9ccf53b3dbe19da538039252ea37fa80a6315", "bytes": 188138, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/archer/sprites/action-sheet-source.png", "sha256": "b6aaa683e0a61eabfeaa458e514d449dd507f101b4966017028dd5d2e068b9a3", "bytes": 2027490, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/archer/sprites/facings/e.png", "sha256": "488bbb308b1f5a3deeebbb6d96c9c77b5b7f4df439236fd917617ba33afc9074", "bytes": 208100, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/archer/sprites/facings/ne.png", "sha256": "84233238c88f77a987516df57f6f1d1599faef4850f0f33347e4655e97492bd9", "bytes": 212944, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/archer/sprites/facings/nw.png", "sha256": "19425221fc1d9be1251f06a374e9912b512c773754e2ebabdea8492d9f24f6e9", "bytes": 209654, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/archer/sprites/facings/se.png", "sha256": "145871d9890b2e98cacdb3051025d11f164e47b4b4508842e8e858bd9a99f578", "bytes": 221504, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/archer/sprites/facings/sw.png", "sha256": "5503fcfa0f8a299a393b8b718e6ce82d915e348b0fdfc133b0653da68492808b", "bytes": 216658, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/archer/sprites/facings/w.png", "sha256": "abb6db8cf74eed4c823108f6048c2d3a214f0aa0ccb1d2ed3ef98b11bbe85bfe", "bytes": 209272, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/boarRider/portrait.png", "sha256": "7048e0792c906ebe19fc9a6cf03d064fcda84bfeb7670317a8f4a125c841dcd0", "bytes": 274738, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/boarRider/sprites/action-sheet-source.png", "sha256": "6d09093b1d361edc0374ee219ef09ed1ee80cee268b12106282c328d45a9373c", "bytes": 2191752, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/boarRider/sprites/action-sheet.png", "sha256": "e070f202aed9b331045800b1dad5637b3ff6605432ab33a54c32f88822698f14", "bytes": 1303179, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/heavyCrossbowman/portrait.png", "sha256": "bd7c845abdf3a87d6224a3a5bd786a1a8b036d8e1aa98a9fbe121fc8852f8e41", "bytes": 291545, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/heavyCrossbowman/sprites/action-sheet-source.png", "sha256": "8b1beb61d746d344275454a640cbe0712c8bc7621649ad4d81751ff1361f6e60", "bytes": 2142710, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/heavyCrossbowman/sprites/action-sheet.png", "sha256": "78bb6b4ccabb7d567877fb48ddeb0d8ffb71dc63538aff21e4e13a71d8c3877a", "bytes": 1230141, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/mage/portrait.png", "sha256": "7f0d71b94fcdfd4000825b9f2cac40b179b3e887c85e77e9373713de0c1fd0ec", "bytes": 238298, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/mage/sprites/action-sheet-source.png", "sha256": "7393b2ffab1bb4e25c08acea4dcf1bd3411d1149884bd70227a25cf62258ab9f", "bytes": 2185210, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/mage/sprites/action-sheet.png", "sha256": "587034c8bf62146bcd79c0045f4622ad45ea487a93f92bf60c8d2f2108f73491", "bytes": 1324180, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/musketeer/portrait.png", "sha256": "e104cc8e49518d0f2cf97e07a9a3a6616428fcd94350d44391ee6b88da79f3ba", "bytes": 225224, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/musketeer/sprites/action-sheet-source.png", "sha256": "91c070084b45603ce9c59e5fcf4009c8a79466788786b6fffcf410d81236da61", "bytes": 2063186, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/musketeer/sprites/action-sheet.png", "sha256": "3480875aa8c5dff3c8a258d2ccd8f5729556c10919750bf37d6b8e9bcb009ce9", "bytes": 1140694, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/portrait.png", "sha256": "d45c4f415c96cda1e4c2138529d883c4d96e87c45576102807c8c886c46f2ec5", "bytes": 244240, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/action-sheet-source.png", "sha256": "79e8bf1a601cacdc4f371e162c8def460dc55ab94dbb824d7e44aefabcb6732d", "bytes": 2168568, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/e.png", "sha256": "e4107c01ee756052cafc95a2469dfa6705c6805523ad076b638edf73ebc7fd3e", "bytes": 257027, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/ne.png", "sha256": "01957321416d44b2e384843cc29393b34814beb0ef503327dcab9944ff4f7e5b", "bytes": 253607, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/nw.png", "sha256": "ce11e16ec737fc6db0963cf6f6f66dfbcfc8eabc3f005afac1cccd3ae8c392e5", "bytes": 274171, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/se.png", "sha256": "3c798bc19d3011c6c2859bced0847e15e6cbdd9e88644d13de0f939254cb7df9", "bytes": 284869, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/sw.png", "sha256": "20cfa542ede6ad3110a7e8378110116e16c2cbabad8128180c8bcbc61e482f10", "bytes": 252293, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/w.png", "sha256": "53a62107be34c364f72f400f2d9e9a85bb19e007cbc63262d14605fb9ac15f22", "bytes": 261286, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/warrior/portrait.png", "sha256": "2011a5900bf9876fb824916f71ed51e9ddf3d6996b2e7d4c337b48d4e61d1d6e", "bytes": 230297, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/action-sheet-source.png", "sha256": "31261888a82ff93888d18b15065581759fe9a4528f8ee6dfa3f7540368421ccc", "bytes": 2207015, "runtime": false },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/e.png", "sha256": "2e8ec0dfba7ba2e7c25db64f5473223762db6a1d17785d7b780d3f3d7df2165e", "bytes": 211458, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/ne.png", "sha256": "9c228f8861b9f55213f8899712156e825d06d729116060a1e25495b9534ee65d", "bytes": 223668, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/nw.png", "sha256": "3ad79d9021a5c5a6f97863368dcbe3f1481a2a4214d453d4ee11645b55f4fe00", "bytes": 224308, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/se.png", "sha256": "b1fda8a7e55fc8ca9ed257310d1cc23ddd258bb47d05f3af627f552b4f94d735", "bytes": 226867, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/sw.png", "sha256": "8daa14f1a3b23705d56752628fbd7600b6874fa4250a155659c304e353442676", "bytes": 233205, "runtime": true },
-    { "file": "apps/client/public/assets/original/units/warrior/sprites/facings/w.png", "sha256": "e882467e1aee8598f7c3916f2ffaa9e380b6564708420a70751403b720376439", "bytes": 213502, "runtime": true }
+    {
+      "file": "apps/client/public/assets/original/monsters/ashwing/portrait.png",
+      "sha256": "5104bf34e68fe9648a2dd9c9817e7c007726ec8865ecb63151538e1f7d0bc222",
+      "bytes": 362592,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/ashwing/sprites/action-sheet-source.png",
+      "sha256": "1444b5de89c84a3d56f88a45d9d8813e181e9caafa55f84bda4d457377a2f2d1",
+      "bytes": 2102315,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/ashwing/sprites/action-sheet.png",
+      "sha256": "675a9d9dff38d654dbfc0b070599caac7adf5c2ef56cf422ebce659fe6b032bb",
+      "bytes": 1150374,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/miremaw/portrait.png",
+      "sha256": "9cbdb06ef1d36e2fd469977116dec4c7948ea2706d8c814e6d5ff7fb99cf3e11",
+      "bytes": 323081,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/miremaw/sprites/action-sheet-source.png",
+      "sha256": "c1e94212e2deaa0eb824d50655581abb5d158260068ddab2e8b461f58b44f8d4",
+      "bytes": 2500951,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/miremaw/sprites/action-sheet.png",
+      "sha256": "01adda2d53c06e35178b571fb12c2f21e3c13fa1c4d263445bf8c063ed784dae",
+      "bytes": 1633429,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/rootback/portrait.png",
+      "sha256": "ef981f8fecbc2b1426af0954e3ec74a0eb932fef97652a924fa375005c9386ba",
+      "bytes": 621657,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/rootback/sprites/action-sheet-source.png",
+      "sha256": "081dd3fa5c1536ebac8b67c26db44b01e63a8bb8dc84fdba14f641fe805be8f3",
+      "bytes": 2404861,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/monsters/rootback/sprites/action-sheet.png",
+      "sha256": "00d0974f2f06c42168410f679e59c34cf68bc21bbe7117ac2f16040bc56a37d5",
+      "bytes": 1585564,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/source/combat-lineup-approved-alpha.png",
+      "sha256": "ffe954c82f1798f2080ec0cc3c359e8feb62389b9f32219d31f245d9f46ef799",
+      "bytes": 1729891,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/source/combat-lineup-approved.png",
+      "sha256": "a851ba3ac430f1ecb4eaf1611602f000946b380d4ee02729c1a9eb78eed9dc37",
+      "bytes": 3006167,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/source/monster-lineup-approved-alpha.png",
+      "sha256": "83fc5fd1fe5dc6c25215d4edf8a9e929fcf3e181c210863855d362713357a12c",
+      "bytes": 1189294,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/source/monster-lineup-approved.png",
+      "sha256": "852e2b5285beae1f08efda91ed26515d79cfe08546812023e306a4dcd0dc2ef2",
+      "bytes": 1821549,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/portrait.png",
+      "sha256": "b47df12a7289720351e7d4f0d7e9ccf53b3dbe19da538039252ea37fa80a6315",
+      "bytes": 188138,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/sprites/action-sheet-source.png",
+      "sha256": "b6aaa683e0a61eabfeaa458e514d449dd507f101b4966017028dd5d2e068b9a3",
+      "bytes": 2027490,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/sprites/facings/e.png",
+      "sha256": "488bbb308b1f5a3deeebbb6d96c9c77b5b7f4df439236fd917617ba33afc9074",
+      "bytes": 208100,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/sprites/facings/ne.png",
+      "sha256": "84233238c88f77a987516df57f6f1d1599faef4850f0f33347e4655e97492bd9",
+      "bytes": 212944,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/sprites/facings/nw.png",
+      "sha256": "19425221fc1d9be1251f06a374e9912b512c773754e2ebabdea8492d9f24f6e9",
+      "bytes": 209654,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/sprites/facings/se.png",
+      "sha256": "145871d9890b2e98cacdb3051025d11f164e47b4b4508842e8e858bd9a99f578",
+      "bytes": 221504,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/sprites/facings/sw.png",
+      "sha256": "5503fcfa0f8a299a393b8b718e6ce82d915e348b0fdfc133b0653da68492808b",
+      "bytes": 216658,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/archer/sprites/facings/w.png",
+      "sha256": "abb6db8cf74eed4c823108f6048c2d3a214f0aa0ccb1d2ed3ef98b11bbe85bfe",
+      "bytes": 209272,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/boarRider/portrait.png",
+      "sha256": "7048e0792c906ebe19fc9a6cf03d064fcda84bfeb7670317a8f4a125c841dcd0",
+      "bytes": 274738,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/boarRider/sprites/action-sheet-source.png",
+      "sha256": "6d09093b1d361edc0374ee219ef09ed1ee80cee268b12106282c328d45a9373c",
+      "bytes": 2191752,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/boarRider/sprites/action-sheet.png",
+      "sha256": "e070f202aed9b331045800b1dad5637b3ff6605432ab33a54c32f88822698f14",
+      "bytes": 1303179,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/heavyCrossbowman/portrait.png",
+      "sha256": "bd7c845abdf3a87d6224a3a5bd786a1a8b036d8e1aa98a9fbe121fc8852f8e41",
+      "bytes": 291545,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/heavyCrossbowman/sprites/action-sheet-source.png",
+      "sha256": "8b1beb61d746d344275454a640cbe0712c8bc7621649ad4d81751ff1361f6e60",
+      "bytes": 2142710,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/heavyCrossbowman/sprites/action-sheet.png",
+      "sha256": "78bb6b4ccabb7d567877fb48ddeb0d8ffb71dc63538aff21e4e13a71d8c3877a",
+      "bytes": 1230141,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/mage/portrait.png",
+      "sha256": "7f0d71b94fcdfd4000825b9f2cac40b179b3e887c85e77e9373713de0c1fd0ec",
+      "bytes": 238298,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/mage/sprites/action-sheet-source.png",
+      "sha256": "7393b2ffab1bb4e25c08acea4dcf1bd3411d1149884bd70227a25cf62258ab9f",
+      "bytes": 2185210,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/mage/sprites/action-sheet.png",
+      "sha256": "587034c8bf62146bcd79c0045f4622ad45ea487a93f92bf60c8d2f2108f73491",
+      "bytes": 1324180,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/musketeer/portrait.png",
+      "sha256": "e104cc8e49518d0f2cf97e07a9a3a6616428fcd94350d44391ee6b88da79f3ba",
+      "bytes": 225224,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/musketeer/sprites/action-sheet-source.png",
+      "sha256": "91c070084b45603ce9c59e5fcf4009c8a79466788786b6fffcf410d81236da61",
+      "bytes": 2063186,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/musketeer/sprites/action-sheet.png",
+      "sha256": "3480875aa8c5dff3c8a258d2ccd8f5729556c10919750bf37d6b8e9bcb009ce9",
+      "bytes": 1140694,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/portrait.png",
+      "sha256": "d45c4f415c96cda1e4c2138529d883c4d96e87c45576102807c8c886c46f2ec5",
+      "bytes": 244240,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/sprites/action-sheet-source.png",
+      "sha256": "79e8bf1a601cacdc4f371e162c8def460dc55ab94dbb824d7e44aefabcb6732d",
+      "bytes": 2168568,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/e.png",
+      "sha256": "e4107c01ee756052cafc95a2469dfa6705c6805523ad076b638edf73ebc7fd3e",
+      "bytes": 257027,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/ne.png",
+      "sha256": "01957321416d44b2e384843cc29393b34814beb0ef503327dcab9944ff4f7e5b",
+      "bytes": 253607,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/nw.png",
+      "sha256": "ce11e16ec737fc6db0963cf6f6f66dfbcfc8eabc3f005afac1cccd3ae8c392e5",
+      "bytes": 274171,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/se.png",
+      "sha256": "3c798bc19d3011c6c2859bced0847e15e6cbdd9e88644d13de0f939254cb7df9",
+      "bytes": 284869,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/sw.png",
+      "sha256": "20cfa542ede6ad3110a7e8378110116e16c2cbabad8128180c8bcbc61e482f10",
+      "bytes": 252293,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/w.png",
+      "sha256": "53a62107be34c364f72f400f2d9e9a85bb19e007cbc63262d14605fb9ac15f22",
+      "bytes": 261286,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/portrait.png",
+      "sha256": "2011a5900bf9876fb824916f71ed51e9ddf3d6996b2e7d4c337b48d4e61d1d6e",
+      "bytes": 230297,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/sprites/action-sheet-source.png",
+      "sha256": "31261888a82ff93888d18b15065581759fe9a4528f8ee6dfa3f7540368421ccc",
+      "bytes": 2207015,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/sprites/facings/e.png",
+      "sha256": "2e8ec0dfba7ba2e7c25db64f5473223762db6a1d17785d7b780d3f3d7df2165e",
+      "bytes": 211458,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/sprites/facings/ne.png",
+      "sha256": "9c228f8861b9f55213f8899712156e825d06d729116060a1e25495b9534ee65d",
+      "bytes": 223668,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/sprites/facings/nw.png",
+      "sha256": "3ad79d9021a5c5a6f97863368dcbe3f1481a2a4214d453d4ee11645b55f4fe00",
+      "bytes": 224308,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/sprites/facings/se.png",
+      "sha256": "b1fda8a7e55fc8ca9ed257310d1cc23ddd258bb47d05f3af627f552b4f94d735",
+      "bytes": 226867,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/sprites/facings/sw.png",
+      "sha256": "8daa14f1a3b23705d56752628fbd7600b6874fa4250a155659c304e353442676",
+      "bytes": 233205,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/units/warrior/sprites/facings/w.png",
+      "sha256": "e882467e1aee8598f7c3916f2ffaa9e380b6564708420a70751403b720376439",
+      "bytes": 213502,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/buildings-source.png",
+      "sha256": "05d0df6ee0bcb8ece5ea2a2b7b41a4d61d08f624d76a51aba83c441f38e8937a",
+      "bytes": 1771464,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/buildings.png",
+      "sha256": "89bbe72d4f50cffaaa559996d5cf82612cdaa8dc95fc5ac40d6ce5e3059d739e",
+      "bytes": 2085918,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/cover.webp",
+      "sha256": "dbcb54eea32c127ce0243efbefba8b800682b2afa344132a944fa991930987b3",
+      "bytes": 455970,
+      "runtime": true
+    }
   ]
 }

@@ -1,0 +1,9 @@
+{
+ "date":"2026-09-30",
+ "runner":"Playwright CLI / Chromium",
+ "settling":"wait viewport host geometry plus two animation frames",
+ "checks":["all menu buttons >=44 CSS pixels","inside viewport","no pairwise button overlap","no SVG DOM"],
+ "viewports":[[1920,1080],[1440,900],[1366,600],[1280,640],[1024,768],[768,1024],[844,390],[667,375],[568,320],[390,844],[390,667]],
+ "failures":[],
+ "limitation":"Browser viewports and separate touch emulation are not physical device or App Store validation."
+}

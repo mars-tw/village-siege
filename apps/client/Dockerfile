@@ -21,6 +21,7 @@ COPY packages/shared/tsconfig.build.json packages/shared/tsconfig.build.json
 COPY packages/shared/src packages/shared/src
 COPY apps/client/tsconfig.json apps/client/tsconfig.json
 COPY apps/client/vite.config.ts apps/client/vite.config.ts
+COPY apps/client/build apps/client/build
 COPY apps/client/index.html apps/client/index.html
 COPY apps/client/src apps/client/src
 COPY apps/client/public apps/client/public

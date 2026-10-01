@@ -1,0 +1,164 @@
+
+> village-siege@0.21.0 verify
+> npm run typecheck && npm test && npm run test:ops && npm run validate:directional-art && npm run build
+
+
+> village-siege@0.21.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @village-siege/client@0.21.0 typecheck
+> tsc -p tsconfig.json
+
+
+> @village-siege/server@0.21.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @village-siege/shared@0.21.0 typecheck
+> tsc -p tsconfig.json
+
+
+> village-siege@0.21.0 test
+> npm run test --workspaces --if-present
+
+
+> @village-siege/client@0.21.0 test
+> vitest run --no-file-parallelism test
+
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/apps/client
+
+
+ Test Files  15 passed (15)
+      Tests  97 passed (97)
+   Start at  18:50:32
+   Duration  4.02s (transform 446ms, setup 0ms, import 1.06s, tests 1.34s, environment 1ms)
+
+
+> @village-siege/server@0.21.0 test
+> vitest run --no-file-parallelism test
+
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/apps/server
+
+
+ Test Files  11 passed (11)
+      Tests  86 passed (86)
+   Start at  18:50:36
+   Duration  5.67s (transform 348ms, setup 0ms, import 1.22s, tests 3.13s, environment 1ms)
+
+
+> @village-siege/shared@0.21.0 test
+> vitest run --no-file-parallelism
+
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/packages/shared
+
+
+ Test Files  12 passed (12)
+      Tests  237 passed (237)
+   Start at  18:50:42
+   Duration  26.08s (transform 399ms, setup 0ms, import 983ms, tests 23.62s, environment 1ms)
+
+
+> village-siege@0.21.0 test:ops
+> node --test deploy/test/*.test.mjs
+
+✔ PWA manifest and icon URLs remain under a GitHub Pages base (3.3223ms)
+✔ worker precaches only base-scoped files and never interrupts active games (28.3561ms)
+✔ offline-ready stays false when the complete download is absent (0.9439ms)
+✔ failed download removes its partial cache while preserving a working old version (0.9276ms)
+✔ mixed deployment bytes fail pinned integrity and cannot replace a working cache (0.9838ms)
+✔ offline navigation uses the shell paired with its precached code (1.7294ms)
+✔ online refresh cannot overwrite a running worker's shell with newer code (0.6777ms)
+✔ live runtime config is fetched without caching and disables multiplayer offline (1.1419ms)
+✔ API, multiplayer, non-GET, foreign and sibling-app requests bypass caching (0.5778ms)
+✔ cache cleanup affects only older versions of this exact app scope (0.8003ms)
+✔ prunes stale or build-only PNGs with a release-manifest allowlist (0.4386ms)
+✔ normalizes only an exact HTTPS origin (0.6967ms)
+✔ disables multiplayer when no runtime endpoint is configured (0.4606ms)
+✔ emits a frozen browser assignment for the validated endpoint (0.0962ms)
+✔ requires an exact HTTPS Pages endpoint only when multiplayer is enabled (0.1419ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 104.2498
+
+> village-siege@0.21.0 validate:directional-art
+> node scripts/validate-directional-action-sheets.mjs --cell-width 96 --cell-height 112 --edge-padding 1 --reject-cross-sheet-reuse apps/client/public/assets/original/units/warrior/sprites/facings/e.png apps/client/public/assets/original/units/warrior/sprites/facings/ne.png apps/client/public/assets/original/units/warrior/sprites/facings/nw.png apps/client/public/assets/original/units/warrior/sprites/facings/w.png apps/client/public/assets/original/units/warrior/sprites/facings/sw.png apps/client/public/assets/original/units/warrior/sprites/facings/se.png apps/client/public/assets/original/units/archer/sprites/facings/e.png apps/client/public/assets/original/units/archer/sprites/facings/ne.png apps/client/public/assets/original/units/archer/sprites/facings/nw.png apps/client/public/assets/original/units/archer/sprites/facings/w.png apps/client/public/assets/original/units/archer/sprites/facings/sw.png apps/client/public/assets/original/units/archer/sprites/facings/se.png && node scripts/validate-directional-action-sheets.mjs --cell-width 112 --cell-height 112 --edge-padding 1 --reject-cross-sheet-reuse apps/client/public/assets/original/units/shieldBearer/sprites/facings/e.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/ne.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/nw.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/w.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/sw.png apps/client/public/assets/original/units/shieldBearer/sprites/facings/se.png
+
+apps/client/public/assets/original/units/warrior/sprites/facings/e.png: 384x672; transparent=74.3%; partial=11.6%; frames=24
+  r1c1:23,4-72,87 | r1c2:23,4-72,87 | r1c3:23,4-72,87 | r1c4:23,4-72,87 | r2c1:11,4-84,87 | r2c2:11,4-85,87 | r2c3:10,4-86,87 | r2c4:10,4-86,87 | r3c1:16,4-79,87 | r3c2:4,22-91,87 | r3c3:4,21-91,87 | r3c4:21,4-75,87 | r4c1:16,4-79,87 | r4c2:19,4-76,87 | r4c3:18,4-78,87 | r4c4:22,4-73,87 | r5c1:4,5-91,87 | r5c2:4,18-91,87 | r5c3:4,43-91,87 | r5c4:4,55-91,87 | r6c1:20,4-75,87 | r6c2:4,9-91,87 | r6c3:4,34-91,87 | r6c4:21,4-75,87
+apps/client/public/assets/original/units/warrior/sprites/facings/ne.png: 384x672; transparent=73.0%; partial=13.2%; frames=24
+  r1c1:17,4-79,87 | r1c2:17,4-78,87 | r1c3:17,4-78,87 | r1c4:16,4-79,87 | r2c1:8,4-88,87 | r2c2:11,4-85,87 | r2c3:11,4-84,87 | r2c4:21,4-75,87 | r3c1:16,4-80,87 | r3c2:4,11-91,87 | r3c3:4,17-91,87 | r3c4:21,4-74,87 | r4c1:18,4-78,87 | r4c2:18,4-78,87 | r4c3:21,4-74,87 | r4c4:15,4-81,87 | r5c1:10,4-86,87 | r5c2:4,17-91,87 | r5c3:4,41-91,87 | r5c4:4,56-91,87 | r6c1:19,4-77,87 | r6c2:4,7-91,87 | r6c3:4,6-91,87 | r6c4:10,4-85,87
+apps/client/public/assets/original/units/warrior/sprites/facings/nw.png: 384x672; transparent=72.3%; partial=12.8%; frames=24
+  r1c1:14,4-82,87 | r1c2:14,4-81,87 | r1c3:14,4-81,87 | r1c4:14,4-81,87 | r2c1:8,4-88,87 | r2c2:9,4-87,87 | r2c3:12,4-84,87 | r2c4:19,4-77,87 | r3c1:17,4-79,87 | r3c2:4,16-91,87 | r3c3:11,4-84,87 | r3c4:18,4-77,87 | r4c1:13,4-82,87 | r4c2:16,4-79,87 | r4c3:17,4-78,87 | r4c4:11,4-85,87 | r5c1:11,4-85,87 | r5c2:4,17-91,87 | r5c3:4,36-91,87 | r5c4:4,57-91,87 | r6c1:21,4-75,87 | r6c2:4,4-91,87 | r6c3:4,9-91,87 | r6c4:11,4-85,87
+apps/client/public/assets/original/units/warrior/sprites/facings/w.png: 384x672; transparent=73.8%; partial=12.0%; frames=24
+  r1c1:24,4-71,87 | r1c2:24,4-71,87 | r1c3:24,4-72,87 | r1c4:24,4-72,87 | r2c1:14,4-82,87 | r2c2:12,4-83,87 | r2c3:15,4-81,87 | r2c4:19,4-76,87 | r3c1:9,4-86,87 | r3c2:18,4-78,87 | r3c3:4,25-91,87 | r3c4:14,4-81,87 | r4c1:20,4-76,87 | r4c2:23,4-72,87 | r4c3:16,4-80,87 | r4c4:23,4-73,87 | r5c1:10,4-85,87 | r5c2:7,4-88,87 | r5c3:4,52-91,87 | r5c4:4,53-91,87 | r6c1:19,4-76,87 | r6c2:17,4-78,87 | r6c3:4,5-91,87 | r6c4:10,4-86,87
+apps/client/public/assets/original/units/warrior/sprites/facings/sw.png: 384x672; transparent=71.6%; partial=12.4%; frames=24
+  r1c1:12,4-83,87 | r1c2:12,4-84,87 | r1c3:12,4-84,87 | r1c4:14,4-81,87 | r2c1:7,4-88,87 | r2c2:19,4-76,87 | r2c3:18,4-78,87 | r2c4:20,4-76,87 | r3c1:14,4-82,87 | r3c2:5,4-90,87 | r3c3:4,24-91,87 | r3c4:7,4-89,87 | r4c1:15,4-81,87 | r4c2:18,4-77,87 | r4c3:13,4-83,87 | r4c4:11,4-85,87 | r5c1:4,10-91,87 | r5c2:4,18-91,87 | r5c3:4,52-91,87 | r5c4:4,59-91,87 | r6c1:11,4-85,87 | r6c2:4,14-91,87 | r6c3:4,18-91,87 | r6c4:17,4-79,87
+apps/client/public/assets/original/units/warrior/sprites/facings/se.png: 384x672; transparent=72.5%; partial=12.3%; frames=24
+  r1c1:20,4-76,87 | r1c2:23,4-72,87 | r1c3:9,4-87,87 | r1c4:22,4-74,87 | r2c1:16,4-80,87 | r2c2:18,4-78,87 | r2c3:20,4-76,87 | r2c4:17,4-79,87 | r3c1:15,4-80,87 | r3c2:4,8-91,87 | r3c3:4,23-91,87 | r3c4:16,4-80,87 | r4c1:12,4-84,87 | r4c2:19,4-76,87 | r4c3:17,4-78,87 | r4c4:15,4-81,87 | r5c1:8,4-88,87 | r5c2:4,20-91,87 | r5c3:4,39-91,87 | r5c4:4,52-91,87 | r6c1:20,4-76,87 | r6c2:6,4-89,87 | r6c3:4,10-91,87 | r6c4:12,4-83,87
+apps/client/public/assets/original/units/archer/sprites/facings/e.png: 384x672; transparent=75.5%; partial=10.8%; frames=24
+  r1c1:28,4-67,87 | r1c2:28,4-68,87 | r1c3:30,4-65,87 | r1c4:28,4-68,87 | r2c1:16,4-79,87 | r2c2:15,4-80,87 | r2c3:20,4-75,87 | r2c4:19,4-77,87 | r3c1:8,4-87,87 | r3c2:13,4-83,87 | r3c3:4,12-91,87 | r3c4:19,4-76,87 | r4c1:18,4-77,87 | r4c2:19,4-76,87 | r4c3:18,4-77,87 | r4c4:19,4-77,87 | r5c1:4,6-91,87 | r5c2:10,4-86,87 | r5c3:4,52-91,87 | r5c4:4,61-91,87 | r6c1:20,4-75,87 | r6c2:15,4-81,87 | r6c3:4,6-91,87 | r6c4:5,7-91,87
+apps/client/public/assets/original/units/archer/sprites/facings/ne.png: 384x672; transparent=74.6%; partial=13.7%; frames=24
+  r1c1:25,4-71,87 | r1c2:24,4-71,87 | r1c3:24,4-71,87 | r1c4:25,4-71,87 | r2c1:19,4-76,87 | r2c2:19,4-77,87 | r2c3:21,4-74,87 | r2c4:20,4-75,87 | r3c1:23,4-73,87 | r3c2:20,4-76,87 | r3c3:7,4-89,87 | r3c4:18,4-78,87 | r4c1:18,4-77,87 | r4c2:19,4-77,87 | r4c3:14,4-82,87 | r4c4:21,4-74,87 | r5c1:10,4-85,87 | r5c2:4,9-91,87 | r5c3:4,36-91,87 | r5c4:4,50-91,87 | r6c1:20,4-76,87 | r6c2:18,4-78,87 | r6c3:4,6-91,87 | r6c4:21,4-74,87
+apps/client/public/assets/original/units/archer/sprites/facings/nw.png: 384x672; transparent=75.2%; partial=11.1%; frames=24
+  r1c1:22,4-74,87 | r1c2:19,4-76,87 | r1c3:21,4-74,87 | r1c4:25,4-70,87 | r2c1:20,4-76,87 | r2c2:17,4-79,87 | r2c3:15,4-81,87 | r2c4:16,4-80,87 | r3c1:22,4-74,87 | r3c2:20,4-75,87 | r3c3:16,4-79,87 | r3c4:20,4-76,87 | r4c1:17,4-79,87 | r4c2:22,4-74,87 | r4c3:15,4-81,87 | r4c4:22,4-74,87 | r5c1:16,4-80,87 | r5c2:15,4-81,87 | r5c3:4,34-91,87 | r5c4:4,52-91,87 | r6c1:19,4-77,87 | r6c2:20,4-76,87 | r6c3:15,4-81,87 | r6c4:20,4-75,87
+apps/client/public/assets/original/units/archer/sprites/facings/w.png: 384x672; transparent=75.0%; partial=11.1%; frames=24
+  r1c1:28,4-68,87 | r1c2:28,4-68,87 | r1c3:23,4-73,87 | r1c4:27,4-69,87 | r2c1:18,4-78,87 | r2c2:15,4-80,87 | r2c3:15,4-81,87 | r2c4:14,4-81,87 | r3c1:15,4-81,87 | r3c2:10,4-86,87 | r3c3:14,4-82,87 | r3c4:22,4-73,87 | r4c1:21,4-75,87 | r4c2:22,4-73,87 | r4c3:17,4-78,87 | r4c4:21,4-75,87 | r5c1:11,4-85,87 | r5c2:4,9-91,87 | r5c3:4,55-91,87 | r5c4:4,57-91,87 | r6c1:21,4-74,87 | r6c2:4,19-89,87 | r6c3:22,4-73,87 | r6c4:21,4-75,87
+apps/client/public/assets/original/units/archer/sprites/facings/sw.png: 384x672; transparent=74.1%; partial=10.4%; frames=24
+  r1c1:25,4-71,87 | r1c2:21,4-74,87 | r1c3:20,4-75,87 | r1c4:24,4-72,87 | r2c1:18,4-78,87 | r2c2:16,4-80,87 | r2c3:15,4-80,87 | r2c4:17,4-79,87 | r3c1:16,4-80,87 | r3c2:20,4-76,87 | r3c3:4,7-91,87 | r3c4:23,4-72,87 | r4c1:24,4-71,87 | r4c2:19,4-76,87 | r4c3:17,4-78,87 | r4c4:19,4-76,87 | r5c1:9,4-86,87 | r5c2:4,14-91,87 | r5c3:4,46-91,87 | r5c4:4,54-91,87 | r6c1:21,4-74,87 | r6c2:18,4-78,87 | r6c3:9,4-87,87 | r6c4:23,4-72,87
+apps/client/public/assets/original/units/archer/sprites/facings/se.png: 384x672; transparent=73.5%; partial=11.0%; frames=24
+  r1c1:16,4-80,87 | r1c2:16,4-79,87 | r1c3:19,4-76,87 | r1c4:20,4-75,87 | r2c1:8,4-88,87 | r2c2:10,4-86,87 | r2c3:6,4-89,87 | r2c4:7,4-89,87 | r3c1:19,4-77,87 | r3c2:17,4-78,87 | r3c3:4,16-91,87 | r3c4:10,4-86,87 | r4c1:18,4-78,87 | r4c2:12,4-83,87 | r4c3:13,4-83,87 | r4c4:13,4-82,87 | r5c1:17,4-78,87 | r5c2:4,22-91,87 | r5c3:4,54-91,87 | r5c4:4,47-91,87 | r6c1:18,4-77,87 | r6c2:15,4-80,87 | r6c3:4,21-91,87 | r6c4:6,4-89,87
+Directional action-sheet validation passed for 12 sheet(s).
+apps/client/public/assets/original/units/shieldBearer/sprites/facings/e.png: 448x672; transparent=74.3%; partial=9.1%; frames=24
+  r1c1:36,4-76,87 | r1c2:36,4-76,87 | r1c3:37,4-75,86 | r1c4:36,4-76,86 | r2c1:25,4-86,86 | r2c2:29,4-82,87 | r2c3:29,4-83,87 | r2c4:28,4-84,87 | r3c1:14,4-97,87 | r3c2:7,4-105,86 | r3c3:4,16-107,86 | r3c4:25,4-87,87 | r4c1:26,4-86,86 | r4c2:25,4-87,87 | r4c3:20,4-91,87 | r4c4:25,4-86,87 | r5c1:7,4-105,87 | r5c2:4,44-107,87 | r5c3:4,50-107,87 | r5c4:5,58-107,87 | r6c1:25,4-86,87 | r6c2:25,4-86,87 | r6c3:21,4-90,87 | r6c4:23,4-88,87
+apps/client/public/assets/original/units/shieldBearer/sprites/facings/ne.png: 448x672; transparent=74.7%; partial=10.2%; frames=24
+  r1c1:30,4-82,87 | r1c2:29,4-82,87 | r1c3:31,4-81,87 | r1c4:31,4-80,87 | r2c1:22,4-89,87 | r2c2:24,4-87,87 | r2c3:28,4-84,87 | r2c4:26,4-86,87 | r3c1:11,4-101,87 | r3c2:10,4-102,87 | r3c3:4,30-107,87 | r3c4:19,4-93,87 | r4c1:26,4-86,87 | r4c2:24,4-88,87 | r4c3:20,4-91,87 | r4c4:22,4-90,87 | r5c1:8,4-103,87 | r5c2:4,23-107,87 | r5c3:4,54-107,87 | r5c4:4,62-107,87 | r6c1:27,4-85,87 | r6c2:13,4-98,87 | r6c3:15,4-96,87 | r6c4:31,4-81,87
+apps/client/public/assets/original/units/shieldBearer/sprites/facings/nw.png: 448x672; transparent=72.1%; partial=9.3%; frames=24
+  r1c1:30,4-82,87 | r1c2:31,4-81,87 | r1c3:31,4-80,87 | r1c4:33,4-78,87 | r2c1:26,4-86,87 | r2c2:26,4-85,87 | r2c3:26,4-85,87 | r2c4:28,4-84,87 | r3c1:18,4-94,87 | r3c2:16,4-95,87 | r3c3:7,4-104,87 | r3c4:4,9-107,87 | r4c1:16,4-95,87 | r4c2:18,4-94,87 | r4c3:20,4-92,87 | r4c4:17,4-94,87 | r5c1:16,4-95,87 | r5c2:18,4-94,87 | r5c3:9,4-102,87 | r5c4:4,49-107,87 | r6c1:12,4-100,87 | r6c2:16,4-96,87 | r6c3:12,4-100,87 | r6c4:13,4-98,87
+apps/client/public/assets/original/units/shieldBearer/sprites/facings/w.png: 448x672; transparent=73.4%; partial=9.2%; frames=24
+  r1c1:34,4-78,87 | r1c2:33,4-78,87 | r1c3:33,4-79,87 | r1c4:31,4-81,87 | r2c1:23,4-88,87 | r2c2:23,4-88,87 | r2c3:22,4-89,87 | r2c4:23,4-89,87 | r3c1:16,4-96,87 | r3c2:12,4-100,87 | r3c3:4,18-107,87 | r3c4:18,4-94,87 | r4c1:13,4-99,87 | r4c2:22,4-90,87 | r4c3:28,4-84,87 | r4c4:26,4-85,87 | r5c1:16,4-96,87 | r5c2:7,4-104,87 | r5c3:4,23-107,87 | r5c4:4,58-107,87 | r6c1:20,4-91,87 | r6c2:9,4-103,86 | r6c3:13,4-98,87 | r6c4:19,4-93,87
+apps/client/public/assets/original/units/shieldBearer/sprites/facings/sw.png: 448x672; transparent=74.4%; partial=8.0%; frames=24
+  r1c1:29,4-82,87 | r1c2:29,4-83,87 | r1c3:28,4-84,87 | r1c4:29,4-83,87 | r2c1:26,4-86,87 | r2c2:25,4-86,87 | r2c3:23,4-88,87 | r2c4:26,4-86,87 | r3c1:15,4-96,87 | r3c2:11,4-100,87 | r3c3:6,4-105,87 | r3c4:23,4-88,87 | r4c1:31,4-81,87 | r4c2:26,4-86,87 | r4c3:22,4-90,87 | r4c4:26,4-86,87 | r5c1:17,4-94,87 | r5c2:4,19-107,87 | r5c3:4,39-107,87 | r5c4:4,51-107,87 | r6c1:9,4-103,87 | r6c2:26,4-85,87 | r6c3:28,4-83,87 | r6c4:29,4-83,87
+apps/client/public/assets/original/units/shieldBearer/sprites/facings/se.png: 448x672; transparent=70.8%; partial=9.1%; frames=24
+  r1c1:31,4-80,86 | r1c2:32,4-80,87 | r1c3:32,4-79,86 | r1c4:32,4-80,87 | r2c1:29,4-82,86 | r2c2:26,4-86,87 | r2c3:25,4-87,87 | r2c4:24,4-87,87 | r3c1:23,4-89,87 | r3c2:4,5-107,87 | r3c3:4,16-107,87 | r3c4:25,4-86,87 | r4c1:22,4-89,87 | r4c2:22,5-90,87 | r4c3:12,4-100,87 | r4c4:17,4-94,87 | r5c1:4,9-107,87 | r5c2:4,44-107,87 | r5c3:4,59-107,87 | r5c4:4,60-107,87 | r6c1:17,4-95,86 | r6c2:16,4-96,87 | r6c3:17,4-94,87 | r6c4:16,4-96,87
+Directional action-sheet validation passed for 6 sheet(s).
+
+> village-siege@0.21.0 build
+> npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && npm run build --workspace @village-siege/client
+
+
+> @village-siege/shared@0.21.0 build
+> tsc -p tsconfig.build.json
+
+
+> @village-siege/server@0.21.0 build
+> tsc -p tsconfig.json
+
+
+> @village-siege/client@0.21.0 build
+> tsc -p tsconfig.json && vite build
+
+vite v8.1.5 building client environment for production...
+[2K
+transforming...✓ 87 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     1.92 kB │ gzip:   0.87 kB
+dist/assets/index-vn0wMtwu.css     34.50 kB │ gzip:   8.00 kB
+dist/assets/index-6Kf-aVlA.js   2,043.05 kB │ gzip: 549.57 kB
+
+✓ built in 632ms
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+PWA: prepared 37 runtime files for offline play.

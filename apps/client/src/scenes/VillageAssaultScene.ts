@@ -28,6 +28,7 @@ import {
   UNITS,
   validateCommand,
   type AiPersonality,
+  type AiDifficulty,
   type BuildingEntityState,
   type BuildingType,
   type CombatStance,
@@ -74,6 +75,8 @@ import {
 } from "../game/aiTacticalSignals";
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
+import { constructionPreviewOccupiedCells } from "../game/constructionPreview";
+import { productionProgressLabel } from "../game/productionProgress";
 import {
   createFrameAnimatedCombatActor,
   requireFrameAnimatedManifest,
@@ -113,7 +116,10 @@ import {
   type TutorialProgress,
 } from "../game/tutorialProgress";
 import { createVictoryPresentation } from "../game/victoryPresentation";
+import { createTacticalMinimap, type TacticalMinimapView } from "../game/tacticalMinimap";
 import {
+  FRONTIER_BUILDING_PATH,
+  FRONTIER_BUILDING_TEXTURE,
   buildingDisplayName,
   createBuildingView,
   createResourceView,
@@ -149,6 +155,8 @@ import type { ConnectionState, MatchFrame, MultiplayerClient } from "../network/
 interface VillageAssaultSceneData {
   readonly villageId?: VillageId;
   readonly aiPersonality?: AiPersonality;
+  readonly aiDifficulty?: AiDifficulty;
+  readonly seed?: number;
   readonly returnScene?: string;
   readonly tutorial?: boolean;
   readonly multiplayerClient?: MultiplayerClient;
@@ -259,6 +267,8 @@ const ACTION_PANEL_HEIGHT = 154;
 export class VillageAssaultScene extends Phaser.Scene {
   private villageId: VillageId = "pinehold";
   private aiPersonality: AiPersonality = "balanced";
+  private aiDifficulty: AiDifficulty = "standard";
+  private battleSeed = 20260719;
   private returnScene = "VillageSelectScene";
   private runtime!: VillageAssaultRuntime;
   private onlineSource?: OnlineAssaultMatchSource;
@@ -273,6 +283,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private mapView?: BattleMapView;
   private settlementOverlay?: SettlementOverlay;
   private fogOverlay?: Phaser.GameObjects.Graphics;
+  private tacticalMinimap?: TacticalMinimapView;
   private readonly unitViews = new Map<string, UnitView>();
   private readonly monsterViews = new Map<string, MonsterView>();
   private readonly entityViews = new Map<string, AssaultEntityView>();
@@ -337,6 +348,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   init(data: VillageAssaultSceneData): void {
     this.villageId = data.villageId ?? "pinehold";
     this.aiPersonality = data.aiPersonality ?? "balanced";
+    this.aiDifficulty = data.aiDifficulty ?? "standard";
+    this.battleSeed = data.seed ?? crypto.getRandomValues(new Uint32Array(1))[0]!;
     this.returnScene = data.returnScene ?? "VillageSelectScene";
     this.tutorialEnabled = data.tutorial ?? false;
     this.multiplayerClient = data.multiplayerClient;
@@ -397,6 +410,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       ...ANIMATED_MONSTER_FRAME_ASSETS,
     ].flatMap((asset) => frameAssetFiles(asset)).filter((asset) => !this.textures.exists(asset.textureKey));
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
+    if (!this.textures.exists(FRONTIER_BUILDING_TEXTURE)) this.load.image(FRONTIER_BUILDING_TEXTURE, FRONTIER_BUILDING_PATH);
     for (const asset of assets) this.load.image(asset.textureKey, asset.path);
   }
 
@@ -424,8 +438,8 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.runtime = createVillageAssaultRuntime({
         playerVillageId: this.villageId,
         aiPersonality: this.aiPersonality,
-        aiDifficulty: this.tutorialEnabled ? "novice" : "standard",
-        seed: 20260719,
+        aiDifficulty: this.tutorialEnabled ? "novice" : this.aiDifficulty,
+        seed: this.battleSeed,
       });
     }
     const initialSnapshot = this.currentView();
@@ -442,6 +456,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.uiCamera = this.cameras.add(0, 0, this.scale.gameSize.width, this.scale.gameSize.height, false, "assault-ui");
     this.uiCamera.ignore([this.mapView.container, this.settlementOverlay.container, this.fogOverlay]);
     this.createInterface();
+    this.tacticalMinimap = createTacticalMinimap(this, this.cameras.main, VILLAGE_ASSAULT_ORIGIN, (point) => this.centerCameraOn(point));
+    this.cameras.main.ignore(this.tacticalMinimap.container);
     if (this.tutorialEnabled) {
       this.tutorialProgress = createTutorialProgress(initialSnapshot);
       const firstStep = currentTutorialStep(this.tutorialProgress);
@@ -478,6 +494,7 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     this.updateCamera(delta);
+    this.tacticalMinimap?.update(_time, this.currentView());
     for (const actor of this.retiringActors) actor.update(delta);
     if (this.onlineSource) {
       this.updateUnitAnimations(Math.min(delta, 250));
@@ -1460,10 +1477,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     } else if (this.buildingPlacement) {
       this.hoverGrid = this.pointerGrid(pointer);
       const cells = getFootprintCells(this.hoverGrid, getBuildingFootprint(this.buildingPlacement, this.buildingOrientation));
-      const visibleIds = new Set(this.runtime.view.visibleEntityIds);
-      const occupied = new Set(this.runtime.state.entities
-        .filter((entity) => visibleIds.has(entity.id))
-        .flatMap((entity) => entity.kind === "unit" ? [] : getEntityFootprintCells(entity))
+      const builders = new Set(this.selectedUnits().filter(unit => unit.typeId === "villager").map(unit => unit.id));
+      const occupied = new Set(constructionPreviewOccupiedCells(this.runtime.view.entities, builders)
         .map((cell) => `${cell.x},${cell.y}`));
       const validCells = cells.map((cell) => (
         isSettlementBuildable(cell, this.runtime.state.map.layoutId)
@@ -1748,9 +1763,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private onlineCanBuildAt(type: BuildingType, origin: GridPoint, orientation: StructureOrientation): boolean {
     const snapshot = this.currentView();
     const visible = new Set(snapshot.visibleTileIndices);
-    const occupied = new Set(snapshot.entities
-      .filter((entity) => entity.kind !== "unit")
-      .flatMap((entity) => publicEntityFootprintCells(entity))
+    const builders = new Set(this.onlineSelectedUnits().filter(unit => unit.typeId === "villager").map(unit => unit.id));
+    const occupied = new Set(constructionPreviewOccupiedCells(snapshot.entities, builders)
       .map((cell) => `${cell.x},${cell.y}`));
     const cells = getFootprintCells(origin, getBuildingFootprint(type, orientation));
     return cells.every((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < snapshot.map.width && cell.y < snapshot.map.height
@@ -1812,9 +1826,9 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.resultLiveRegion.setAttribute("aria-atomic", "true");
     (this.game.canvas.parentElement ?? document.body).append(this.resultLiveRegion);
     const topPanel = this.add.graphics();
-    topPanel.fillStyle(0x0b1311, 0.94).fillRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT);
-    topPanel.fillStyle(0x25483c, 0.98).fillRect(6, 6, UI_WIDTH - 12, 68);
-    topPanel.lineStyle(3, 0xe0b866, 0.92).strokeRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT);
+    topPanel.fillStyle(0x172c27, 0.96).fillRoundedRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT, 6);
+    topPanel.fillStyle(0x263f35, 0.9).fillRoundedRect(5, 5, UI_WIDTH - 10, TOP_PANEL_HEIGHT - 10, 4);
+    topPanel.lineStyle(1.5, 0xb99b67, 0.7).strokeRoundedRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT, 6);
     this.resourceText = this.add.text(24, 15, "", {
       color: "#f0ebcf",
       fontFamily: "Consolas, monospace",
@@ -1839,12 +1853,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.topRoot = this.add.container(0, 0, [topPanel, this.resourceText, this.objectiveText, this.noticeText]).setScrollFactor(0).setDepth(100_000);
 
     const actionPanel = this.add.graphics();
-    actionPanel.fillStyle(0x0a100e, 0.96).fillRect(0, 0, UI_WIDTH, ACTION_PANEL_HEIGHT);
-    actionPanel.fillStyle(0x172d28, 0.98).fillRect(7, 7, UI_WIDTH - 14, ACTION_PANEL_HEIGHT - 14);
-    actionPanel.lineStyle(3, 0xd2c383, 0.9).strokeRect(0, 0, UI_WIDTH, ACTION_PANEL_HEIGHT);
+    actionPanel.fillStyle(0x172c27, 0.97).fillRoundedRect(0, 0, UI_WIDTH, ACTION_PANEL_HEIGHT, 6);
+    actionPanel.lineStyle(1.5, 0xb99b67, 0.7).strokeRoundedRect(0, 0, UI_WIDTH, ACTION_PANEL_HEIGHT, 6);
     this.selectionText = this.add.text(22, 10, "未選取｜點我方工匠或建築", {
       color: "#f0ebcf",
-      fontFamily: 'Georgia, "Noto Serif TC", serif',
+      fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
       fontSize: "20px",
       fontStyle: "bold",
     }).setResolution(2);
@@ -1917,7 +1930,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.noticeText?.setText(this.compactUi || this.ended ? "" : this.paused ? "戰局暫停" : this.notice);
     const selected = this.selectedEntities();
     const selectionLabel = this.selectionLabel(selected);
-    this.selectionText?.setFontSize(this.compactUi ? 26 : 20)
+    this.selectionText?.setFontSize(this.compactUi ? 21 : 18)
       .setText(this.ended
         ? victoryPresentation.selectionText
         : this.compactUi && performance.now() <= this.noticeUntil
@@ -1961,7 +1974,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (performance.now() > this.noticeUntil) this.notice = connectionLabel;
     this.noticeText?.setText(this.compactUi || this.ended ? "" : this.notice);
     const selected = snapshot.entities.filter((entity) => this.selectedIds.has(entity.id));
-    this.selectionText?.setFontSize(this.compactUi ? 26 : 20).setText(this.ended
+    this.selectionText?.setFontSize(this.compactUi ? 21 : 18).setText(this.ended
       ? victory.selectionText
       : this.compactUi && performance.now() <= this.noticeUntil ? this.compactNotice(this.notice) : this.onlineSelectionLabel(selected));
     this.currentActions = this.onlineActionsForSelection(selected);
@@ -2388,11 +2401,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     const entries: ActionSpec[] = producer.productionQueue.slice(page * 4, page * 4 + 4).map((job, localIndex) => {
       const queueIndex = page * 4 + localIndex;
       const name = this.productionJobName(job);
-      const progress = queueIndex === 0 ? Math.floor((1 - job.remainingTicks / Math.max(1, job.totalTicks)) * 100) : 0;
+      const progress = queueIndex === 0 ? productionProgressLabel(job) : "等待中";
       return {
         glyph: job.kind === "train" ? "兵" : "研",
-        label: queueIndex === 0 ? `${queueIndex + 1}.${name} ${progress}%` : `${queueIndex + 1}.${name} 等待`,
-        accessibleLabel: `生產佇列第${queueIndex + 1}項，${name}，${queueIndex === 0 ? `完成${progress}%` : "等待中"}；選取以取消`,
+        label: `${queueIndex + 1}.${name} ${progress}`,
+        accessibleLabel: `生產佇列第${queueIndex + 1}項，${name}，${progress}${progress === "等候出營" ? "；移開出口部隊或採完阻擋通道的資源" : ""}；選取以取消`,
         run: () => {
           this.productionUiMode = { kind: "confirm", producerId: producer.id, jobId: { ...job.jobId }, page };
           this.refreshInterface(true);
@@ -3253,7 +3266,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       const candidate = createVillageAssaultRuntime({
         playerVillageId: this.villageId,
         aiPersonality: this.aiPersonality,
-        aiDifficulty: this.tutorialEnabled ? "novice" : "standard",
+        aiDifficulty: this.tutorialEnabled ? "novice" : this.aiDifficulty,
       });
       const outcome: unknown = await Promise.resolve(kind === "save"
         ? candidate.importSaveJson(json)
@@ -3293,7 +3306,10 @@ export class VillageAssaultScene extends Phaser.Scene {
     const importedPlayer = this.runtime.state.players.find((player) => player.id === VILLAGE_ASSAULT_PLAYER_ID);
     const importedAi = this.runtime.state.aiControllers.find((controller) => controller.playerId === VILLAGE_ASSAULT_AI_ID);
     if (importedPlayer) this.villageId = importedPlayer.villageId;
-    if (importedAi) this.aiPersonality = importedAi.personality;
+    if (importedAi) {
+      this.aiPersonality = importedAi.personality;
+      this.aiDifficulty = importedAi.difficulty;
+    }
 
     const nextLayoutId = this.runtime.state.map.layoutId;
     if (nextLayoutId && nextLayoutId !== previousLayoutId) {
@@ -3950,7 +3966,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.uiCamera?.setViewport(0, 0, width, height).setZoom(1).setScroll(0, 0);
     const compact = profile.landscape && (profile.mobile || profile.height <= 520);
     this.compactUi = compact;
-    this.uiScale = Math.min(1, availableWidth / UI_WIDTH);
+    this.uiScale = Math.min(profile.width > 1100 ? 0.82 : 1, availableWidth / UI_WIDTH);
     const uiX = safeLeft + (availableWidth - UI_WIDTH * this.uiScale) / 2 + 12;
     const topY = safeTop + 10;
     const actionY = height - safeBottom - 10 - ACTION_PANEL_HEIGHT * this.uiScale;
@@ -3972,6 +3988,15 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     worldCamera.setZoom(worldZoom).centerOn(focusX, focusY);
     this.orientationBlocked = profile.mobile && !profile.landscape;
+    if (this.tacticalMinimap) {
+      const minimapScale = Math.min(1, Math.max(0.8, this.uiScale));
+      this.tacticalMinimap.layout(
+        width - safeRight - 16 - this.tacticalMinimap.width * minimapScale,
+        topY + TOP_PANEL_HEIGHT * this.uiScale + 12,
+        minimapScale,
+        profile.width >= 900 && profile.height >= 500 && !this.orientationBlocked,
+      );
+    }
     if (this.orientationBlocked) this.pointerGesture.reset();
     for (const button of this.actionButtons) button.setSuspended(this.orientationBlocked);
     this.rotateBlocker?.setSize(width * 2, height * 2).setDisplaySize(width * 2, height * 2);
@@ -4067,6 +4092,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.scene.restart({
       villageId: this.villageId,
       aiPersonality: this.aiPersonality,
+      aiDifficulty: this.aiDifficulty,
       returnScene: this.returnScene,
       tutorial: this.tutorialEnabled,
     });
@@ -4203,9 +4229,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.mapView?.destroy();
     this.settlementOverlay?.destroy();
     this.fogOverlay?.destroy();
+    this.tacticalMinimap?.destroy();
     this.mapView = undefined;
     this.settlementOverlay = undefined;
     this.fogOverlay = undefined;
+    this.tacticalMinimap = undefined;
   }
 }
 

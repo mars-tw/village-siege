@@ -60,12 +60,12 @@ export interface BattleMapView {
 type TileGlyph = "G" | "M" | "S" | "W" | "R" | "T";
 
 const TERRAIN: Readonly<Record<BattleTerrain, TerrainDefinition>> = {
-  grass: { kind: "grass", walkable: true, moveCost: 1, cover: 0, fillColor: 0x71805a, edgeColor: 0x4d5d42 },
-  mud: { kind: "mud", walkable: true, moveCost: 1.55, cover: 0.05, fillColor: 0x765d43, edgeColor: 0x513f31 },
-  stoneRoad: { kind: "stoneRoad", walkable: true, moveCost: 0.82, cover: 0, fillColor: 0x8c8978, edgeColor: 0x5b5b52 },
-  shallowWater: { kind: "shallowWater", walkable: false, moveCost: Number.POSITIVE_INFINITY, cover: 0, fillColor: 0x4f8589, edgeColor: 0x315b62 },
-  rock: { kind: "rock", walkable: false, moveCost: Number.POSITIVE_INFINITY, cover: 0.8, fillColor: 0x59645f, edgeColor: 0x343d3a },
-  thicket: { kind: "thicket", walkable: true, moveCost: 1.8, cover: 0.45, fillColor: 0x4f684b, edgeColor: 0x334634 }
+  grass: { kind: "grass", walkable: true, moveCost: 1, cover: 0, fillColor: 0x849463, edgeColor: 0x576646 },
+  mud: { kind: "mud", walkable: true, moveCost: 1.55, cover: 0.05, fillColor: 0x98774f, edgeColor: 0x695137 },
+  stoneRoad: { kind: "stoneRoad", walkable: true, moveCost: 0.82, cover: 0, fillColor: 0xada084, edgeColor: 0x716b57 },
+  shallowWater: { kind: "shallowWater", walkable: false, moveCost: Number.POSITIVE_INFINITY, cover: 0, fillColor: 0x447d87, edgeColor: 0x2b5260 },
+  rock: { kind: "rock", walkable: false, moveCost: Number.POSITIVE_INFINITY, cover: 0.8, fillColor: 0x777b6d, edgeColor: 0x494d43 },
+  thicket: { kind: "thicket", walkable: true, moveCost: 1.8, cover: 0.45, fillColor: 0x56734c, edgeColor: 0x394e37 }
 };
 
 const GLYPH_TERRAIN: Readonly<Record<TileGlyph, BattleTerrain>> = {
@@ -228,10 +228,14 @@ export function getSuggestedSpawns(): SuggestedSpawns {
 }
 
 export function drawBattleMap(scene: Phaser.Scene, origin: ScreenPoint, layoutId: VillageAssaultLayoutId = "pinehold"): BattleMapView {
+  const rim = scene.add.graphics();
   const terrain = scene.add.graphics();
   const props = scene.add.graphics();
   const objectives = scene.add.graphics();
-  const container = scene.add.container(origin.x, origin.y, [terrain, props, objectives]);
+  const container = scene.add.container(origin.x, origin.y, [rim, terrain, props, objectives]);
+  const boundary = mapBoundary();
+  fillPolygon(rim, boundary.map((point) => ({ x: point.x, y: point.y + 24 })), 0x202b27, 0.55);
+  fillPolygon(rim, boundary.map((point) => ({ x: point.x, y: point.y + 14 })), 0x5b5643, 1);
   drawContinuousGround(terrain, layoutId);
   drawNaturalProps(props, layoutId);
   const campZones: ObjectiveZone[] = getVillageAssaultLayout(layoutId).neutralCamps.map((camp) => ({
@@ -257,11 +261,10 @@ export function drawBattleMap(scene: Phaser.Scene, origin: ScreenPoint, layoutId
 function drawContinuousGround(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
   const boundary = mapBoundary();
   const palette = layoutId === "riverstead"
-    ? { base: 0x637d5a, light: 0x76906a, dark: 0x526d55, soil: 0x6f644d }
+    ? { base: 0x78915f, light: 0x9baa71, dark: 0x567353, soil: 0x938466 }
     : layoutId === "highcrag"
-      ? { base: 0x6d735d, light: 0x85846b, dark: 0x545b50, soil: 0x786752 }
-      : { base: 0x6f8255, light: 0x82915d, dark: 0x657a50, soil: 0x806847 };
-  fillPolygon(graphics, boundary.map((point) => ({ x: point.x, y: point.y + 18 })), 0x1f2923, 0.72);
+      ? { base: 0x85846c, light: 0xa9a081, dark: 0x676d58, soil: 0x9a8262 }
+      : { base: 0x829462, light: 0xa6ad71, dark: 0x667e51, soil: 0x9a8057 };
   fillPolygon(graphics, boundary, palette.base, 1);
 
   drawBlob(graphics, [
@@ -286,10 +289,10 @@ function drawContinuousGround(graphics: Phaser.GameObjects.Graphics, layoutId: V
     grid(7.9, 7.8), grid(7.5, 10.1), grid(7.75, 12.4), grid(7.35, 14.6), grid(7.55, 17)
   ];
   const channelColors = layoutId === "highcrag"
-    ? [0x403f39, 0x5d6058, 0x74766b] as const
+    ? [0x595440, 0x797a65, 0x96977d] as const
     : layoutId === "riverstead"
-      ? [0x384c45, 0x356f77, 0x5a9da0] as const
-      : [0x4d533c, 0x3d7278, 0x568f91] as const;
+      ? [0x64724e, 0x315f70, 0x548e98] as const
+      : [0x747852, 0x386979, 0x568b92] as const;
   const channelScale = layoutId === "riverstead" ? 1.18 : layoutId === "highcrag" ? 0.82 : 1;
   drawOrganicRibbon(graphics, river, [70, 62, 72, 61, 69, 64, 75, 62, 72].map((width) => width * channelScale), channelColors[0], 1);
   drawOrganicRibbon(graphics, river, [54, 48, 56, 47, 53, 49, 58, 48, 55].map((width) => width * channelScale), channelColors[1], 1);
@@ -303,17 +306,19 @@ function drawContinuousGround(graphics: Phaser.GameObjects.Graphics, layoutId: V
     grid(-1.1, 10.15), grid(1.5, 9.9), grid(4.1, 10.18), grid(6.3, 9.98),
     grid(9.4, 10.2), grid(12.1, 9.92), grid(14.9, 10.14), grid(18.3, 9.94)
   ];
-  drawOrganicRibbon(graphics, northRoad, [54, 47, 51, 45, 50, 46, 52, 48], 0x5b503c, 0.82);
-  drawOrganicRibbon(graphics, northRoad, [39, 34, 37, 32, 36, 33, 38, 34], 0x918c78, 0.97);
-  drawOrganicRibbon(graphics, southRoad, [58, 49, 55, 47, 54, 48, 56, 50], 0x594733, 0.9);
-  drawOrganicRibbon(graphics, southRoad, [43, 36, 40, 34, 39, 35, 42, 36], 0x806143, 0.98);
+  drawOrganicRibbon(graphics, northRoad, [54, 47, 51, 45, 50, 46, 52, 48], 0x776b4d, 0.68);
+  drawOrganicRibbon(graphics, northRoad, [39, 34, 37, 32, 36, 33, 38, 34], 0xada084, 0.97);
+  drawOrganicRibbon(graphics, southRoad, [58, 49, 55, 47, 54, 48, 56, 50], 0x715739, 0.78);
+  drawOrganicRibbon(graphics, southRoad, [43, 36, 40, 34, 39, 35, 42, 36], 0x98774f, 0.98);
 
+  drawAuthoritativeTerrainPatches(graphics, layoutId);
+  // Material marks must be painted after the authoritative regions, or the solid
+  // cell fills erase them and the map falls back to a flat board-game appearance.
   if (layoutId !== "highcrag") drawRiverDetails(graphics, river);
   drawRoadDetails(graphics, northRoad, true);
   drawRoadDetails(graphics, southRoad, false);
-  drawAuthoritativeTerrainPatches(graphics, layoutId);
   scatterMeadowDetails(graphics, layoutId);
-  graphics.lineStyle(3, 0x344434, 0.7);
+  graphics.lineStyle(2, 0x545d3e, 0.55);
   strokePolygon(graphics, boundary);
 }
 
@@ -325,11 +330,11 @@ function drawContinuousGround(graphics: Phaser.GameObjects.Graphics, layoutId: V
 function drawAuthoritativeTerrainPatches(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
   const rows = getVillageAssaultLayout(layoutId).terrainRows;
   const colors: Readonly<Record<Exclude<TileGlyph, "G">, number>> = {
-    M: 0x806143,
-    S: layoutId === "highcrag" ? 0x8b8979 : 0x918c78,
-    W: 0x4f8589,
-    R: layoutId === "highcrag" ? 0x565b56 : 0x59645f,
-    T: 0x4f684b,
+    M: TERRAIN.mud.fillColor,
+    S: layoutId === "highcrag" ? 0xaca48b : TERRAIN.stoneRoad.fillColor,
+    W: TERRAIN.shallowWater.fillColor,
+    R: layoutId === "highcrag" ? 0x7f806d : TERRAIN.rock.fillColor,
+    T: TERRAIN.thicket.fillColor,
   };
   const alphas: Readonly<Record<Exclude<TileGlyph, "G">, number>> = { M: 0.9, S: 0.96, W: 0.98, R: 0.98, T: 0.72 };
   const drawOrder: readonly Exclude<TileGlyph, "G">[] = ["W", "R", "T", "M", "S"];
@@ -348,9 +353,37 @@ function drawAuthoritativeTerrainPatches(graphics: Phaser.GameObjects.Graphics, 
       }
     }
   }
+  drawTerrainMaterialDetails(graphics, rows);
 }
 
-function mapBoundary(): ScreenPoint[] {
+/** Small, seeded marks give regions a painted surface while retaining exact collision cells. */
+function drawTerrainMaterialDetails(graphics: Phaser.GameObjects.Graphics, rows: readonly string[]): void {
+  for (let y = 0; y < rows.length; y += 1) {
+    for (let x = 0; x < rows[y]!.length; x += 1) {
+      const glyph = rows[y]![x] as TileGlyph;
+      if (glyph === "G") continue;
+      const center = grid(x, y);
+      const seed = detailSeed(x, y);
+      if (glyph === "W") {
+        graphics.fillStyle(0x74a4a7, 0.14).fillEllipse(center.x - 7, center.y - 3, 44, 14);
+        graphics.lineStyle(1, 0xb1c8b8, 0.35)
+          .lineBetween(center.x - 20, center.y + seed % 7 - 3, center.x + 11, center.y + seed % 7 - 1);
+      } else if (glyph === "S") {
+        graphics.fillStyle(seed % 2 ? 0xd6c7a2 : 0x786d55, 0.22)
+          .fillEllipse(center.x + seed % 18 - 9, center.y - 2, 29 + seed % 13, 10);
+        graphics.lineStyle(1, 0x6f6853, 0.27).lineBetween(center.x - 13, center.y + 4, center.x + 4, center.y + 10);
+      } else if (glyph === "M") {
+        graphics.fillStyle(0x5b472f, 0.13).fillEllipse(center.x - 5, center.y + 2, 32 + seed % 19, 9);
+        graphics.lineStyle(1, 0xd1b17b, 0.28).lineBetween(center.x - 19, center.y - 3, center.x + 15, center.y + 3);
+      } else {
+        graphics.fillStyle(glyph === "R" ? 0xb3b094 : 0x9ba46a, 0.16)
+          .fillEllipse(center.x + seed % 17 - 8, center.y - 2, 35 + seed % 15, 12);
+      }
+    }
+  }
+}
+
+function mapCorners(): ScreenPoint[] {
   const north = grid(0, 0);
   const east = grid(BATTLE_MAP_WIDTH - 1, 0);
   const south = grid(BATTLE_MAP_WIDTH - 1, BATTLE_MAP_HEIGHT - 1);
@@ -361,6 +394,25 @@ function mapBoundary(): ScreenPoint[] {
     { x: south.x, y: south.y + HALF_TILE_HEIGHT },
     { x: west.x - HALF_TILE_WIDTH, y: west.y }
   ];
+}
+
+function mapBoundary(): ScreenPoint[] {
+  const corners = mapCorners();
+  const edge: ScreenPoint[] = [];
+  for (let index = 0; index < corners.length; index += 1) {
+    const left = corners[index]!;
+    const right = corners[(index + 1) % corners.length]!;
+    const dx = right.x - left.x;
+    const dy = right.y - left.y;
+    const length = Math.hypot(dx, dy);
+    edge.push(left);
+    for (let step = 1; step < 12; step += 1) {
+      const t = step / 12;
+      const outset = 3 + detailSeed(index, step) % 8;
+      edge.push({ x: left.x + dx * t + dy / length * outset, y: left.y + dy * t - dx / length * outset });
+    }
+  }
+  return edge;
 }
 
 function grid(x: number, y: number): ScreenPoint {
@@ -382,7 +434,41 @@ function strokePolygon(graphics: Phaser.GameObjects.Graphics, points: readonly S
 }
 
 function drawBlob(graphics: Phaser.GameObjects.Graphics, points: readonly ScreenPoint[], color: number, alpha: number): void {
-  fillPolygon(graphics, points, color, alpha);
+  fillPolygon(graphics, clipLandscapePolygon(points), color, alpha);
+}
+
+/** Clip once while painting; no renderer-specific masks or per-frame filter passes. */
+function clipLandscapePolygon(points: readonly ScreenPoint[]): ScreenPoint[] {
+  let output = [...points];
+  const corners = mapCorners();
+  for (let edge = 0; edge < corners.length && output.length > 0; edge += 1) {
+    const start = corners[edge]!;
+    const end = corners[(edge + 1) % corners.length]!;
+    const cross = (point: ScreenPoint): number => (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x);
+    const input = output;
+    output = [];
+    let previous = input[input.length - 1]!;
+    let previousSide = cross(previous);
+    for (const current of input) {
+      const currentSide = cross(current);
+      if ((currentSide >= 0) !== (previousSide >= 0)) {
+        const fraction = previousSide / (previousSide - currentSide);
+        output.push({ x: previous.x + (current.x - previous.x) * fraction, y: previous.y + (current.y - previous.y) * fraction });
+      }
+      if (currentSide >= 0) output.push(current);
+      previous = current;
+      previousSide = currentSide;
+    }
+  }
+  return output;
+}
+
+function insideLandscape(point: ScreenPoint): boolean {
+  const corners = mapCorners();
+  return corners.every((start, index) => {
+    const end = corners[(index + 1) % corners.length]!;
+    return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) >= 0;
+  });
 }
 
 function drawOrganicRibbon(
@@ -408,12 +494,13 @@ function drawOrganicRibbon(
     left.push({ x: center.x + normalX * halfWidth, y: center.y + normalY * halfWidth });
     right.unshift({ x: center.x - normalX * halfWidth, y: center.y - normalY * halfWidth });
   }
-  fillPolygon(graphics, [...left, ...right], color, alpha);
+  fillPolygon(graphics, clipLandscapePolygon([...left, ...right]), color, alpha);
 }
 
 function drawRiverDetails(graphics: Phaser.GameObjects.Graphics, river: readonly ScreenPoint[]): void {
   for (let index = 0; index < 15; index += 1) {
     const center = samplePolyline(river, (index + 0.45) / 15);
+    if (!insideLandscape(center)) continue;
     const drift = detailSeed(index, 71) % 31 - 15;
     const length = 18 + detailSeed(index, 83) % 29;
     graphics.lineStyle(2, index % 3 === 0 ? 0x9bc0b7 : 0x75aaa5, 0.38)
@@ -424,6 +511,7 @@ function drawRiverDetails(graphics: Phaser.GameObjects.Graphics, river: readonly
 function drawRoadDetails(graphics: Phaser.GameObjects.Graphics, road: readonly ScreenPoint[], stone: boolean): void {
   for (let index = 0; index < 22; index += 1) {
     const center = samplePolyline(road, (index + 0.35) / 22);
+    if (!insideLandscape(center)) continue;
     const seed = detailSeed(index, stone ? 137 : 173);
     const driftX = seed % 25 - 12;
     const driftY = Math.floor(seed / 25) % 13 - 6;
@@ -438,16 +526,22 @@ function drawRoadDetails(graphics: Phaser.GameObjects.Graphics, road: readonly S
 }
 
 function scatterMeadowDetails(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
-  for (let index = 0; index < 72; index += 1) {
+  for (let index = 0; index < 190; index += 1) {
     const seed = detailSeed(index, 211);
     const x = (seed % 1700) / 100;
     const y = (Math.floor(seed / 1700) % 1500) / 100;
     const tile = getBattleTile({ x, y }, layoutId);
     if (!tile || tile.kind !== "grass") continue;
     const center = grid(x, y);
-    graphics.lineStyle(1, index % 4 === 0 ? 0xb0b67a : 0x4e6846, 0.54)
+    graphics.fillStyle(index % 3 === 0 ? 0xc0ba7d : 0x496943, 0.07)
+      .fillEllipse(center.x, center.y + 1, 30 + seed % 38, 9 + seed % 10);
+    graphics.lineStyle(1, index % 4 === 0 ? 0xc7c28a : 0x546c42, 0.48)
       .lineBetween(center.x, center.y + 2, center.x - 2, center.y - 4)
       .lineBetween(center.x, center.y + 2, center.x + 3, center.y - 3);
+    if (index % 7 === 0) {
+      graphics.fillStyle(0xe2c487, 0.8).fillCircle(center.x + 5, center.y - 2, 1.5);
+      graphics.fillStyle(0xf0e2b9, 0.65).fillCircle(center.x - 4, center.y + 1, 1);
+    }
   }
 }
 
@@ -497,19 +591,21 @@ function drawRockCluster(graphics: Phaser.GameObjects.Graphics, x: number, y: nu
 }
 
 function drawRock(graphics: Phaser.GameObjects.Graphics, x: number, y: number, scale: number, lean: number): void {
-  graphics.fillStyle(0x394340).beginPath()
+  graphics.fillStyle(0x555b4f).beginPath()
     .moveTo(x - 18 * scale, y + 4)
     .lineTo(x + (-11 + lean) * scale, y - 24 * scale)
     .lineTo(x + 5 * scale, y - 31 * scale)
     .lineTo(x + 21 * scale, y - 8 * scale)
     .lineTo(x + 17 * scale, y + 6)
     .closePath().fillPath();
-  graphics.fillStyle(0x707a73).beginPath()
+  graphics.fillStyle(0x969783).beginPath()
     .moveTo(x + (-10 + lean) * scale, y - 22 * scale)
     .lineTo(x + 5 * scale, y - 29 * scale)
     .lineTo(x + 15 * scale, y - 11 * scale)
     .lineTo(x - 2 * scale, y - 7 * scale)
     .closePath().fillPath();
+  graphics.lineStyle(1, 0xc0b994, 0.65).lineBetween(x + (-9 + lean) * scale, y - 22 * scale, x + 5 * scale, y - 28 * scale);
+  graphics.fillStyle(0x77844b, 0.65).fillEllipse(x - 7 * scale, y + 3, 15 * scale, 5 * scale);
 }
 
 function drawThicketCluster(graphics: Phaser.GameObjects.Graphics, x: number, y: number, point: GridPoint, size: number): void {
@@ -520,12 +616,16 @@ function drawThicketCluster(graphics: Phaser.GameObjects.Graphics, x: number, y:
     const offsetY = seed % 13 - 6;
     const height = 32 + seed % 18;
     graphics.lineStyle(3, 0x493a2d, 0.9).lineBetween(x + offsetX, y + offsetY + 4, x + offsetX, y + offsetY - height * 0.55);
-    graphics.fillStyle(index % 2 === 0 ? 0x304a35 : 0x3f5b3d)
-      .fillTriangle(x + offsetX, y + offsetY - height, x + offsetX - 17, y + offsetY - 8, x + offsetX + 17, y + offsetY - 8);
-    graphics.fillStyle(0x58734a, 0.9)
-      .fillTriangle(x + offsetX + 3, y + offsetY - height * 0.82, x + offsetX - 11, y + offsetY - 14, x + offsetX + 19, y + offsetY - 14);
+    graphics.fillStyle(index % 2 === 0 ? 0x375637 : 0x466440)
+      .fillEllipse(x + offsetX, y + offsetY - height * 0.6, 37, height * 0.72)
+      .fillEllipse(x + offsetX - 10, y + offsetY - height * 0.38, 25, height * 0.51)
+      .fillEllipse(x + offsetX + 11, y + offsetY - height * 0.4, 23, height * 0.48);
+    graphics.fillStyle(0x809154, 0.65)
+      .fillEllipse(x + offsetX - 5, y + offsetY - height * 0.71, 22, height * 0.28)
+      .fillEllipse(x + offsetX + 9, y + offsetY - height * 0.48, 14, 11);
+    graphics.fillStyle(0xa5a766, 0.5).fillEllipse(x + offsetX - 8, y + offsetY - height * 0.72, 9, 5);
   }
-  graphics.fillStyle(0x425f43).fillCircle(x - size * 8, y - 3, 10).fillCircle(x + size * 9, y - 2, 9);
+  graphics.fillStyle(0x5f7947).fillEllipse(x - size * 8, y - 3, 23, 15).fillEllipse(x + size * 9, y - 2, 21, 14);
 }
 
 function drawObjective(graphics: Phaser.GameObjects.Graphics, zone: ObjectiveZone): void {

@@ -95,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.18.0");
+    expect(RULES_VERSION).toBe("village-siege/0.18.1");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -1392,6 +1392,86 @@ describe("deterministic shared simulation", () => {
     expect(trained?.kind).toBe("unit");
     expect(trained && isVillageAssaultWalkableCell(trained.position)).toBe(true);
     expect(trained?.position).not.toEqual({ x: 8, y: 12 });
+  });
+
+  it("skips a free but cardinally sealed producer exit without cutting through open diagonal corners", () => {
+    const initial = createInitialState({ seed: 262, matchId: "sealed-training-exit" });
+    initial.entities = initial.entities.filter((entity) => entity.kind === "building" && entity.typeId === "townCenter");
+    const town = initial.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1")!;
+    town.position = { x: 5, y: 5 };
+    for (const [index, point] of [{ x: 5, y: 3 }, { x: 4, y: 4 }, { x: 6, y: 4 }].entries()) {
+      addCompletedBuilding(initial, town.ownerId, "house", `sealed-exit-wall-${index}`, point);
+    }
+    const queued = applyCommand(initial, envelope(initial, 0, { type: "train", producerId: town.id, unitType: "villager", count: 1 }));
+    expect(queued.validation).toEqual({ ok: true });
+    const completed = stepSimulation(queued.state, [], UNITS.villager.trainTicks);
+    const trained = completed.state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === town.ownerId)!;
+    expect(trained.position).toEqual({ x: 4, y: 5 });
+    expect(trained.position).not.toEqual({ x: 5, y: 4 });
+    const moved = applyCommand(completed.state, envelope(completed.state, 1, { type: "move", entityIds: [trained.id], target: { x: 3, y: 5 } }));
+    expect(moved.validation).toEqual({ ok: true });
+    expect(stepSimulation(moved.state, [], 20).state.entities.find((entity) => entity.id === trained.id)?.position).toEqual({ x: 3, y: 5 });
+  });
+
+  it("holds a paid completed barracks job in a sealed multi-cell pocket and resumes only after normal harvesting opens its exit", () => {
+    const initial = createInitialState({ seed: 263, matchId: "fortified-training-pocket", map: { id: "villageAssault", width: 18, height: 16 } });
+    initial.entities = initial.entities.filter((entity) => entity.kind !== "monster");
+    for (const entity of initial.entities) if (entity.kind === "unit") {
+      entity.order = { type: "idle" };
+      entity.stance = "holdGround";
+    }
+    const barracks = initial.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "barracks")!;
+    const wood = initial.entities.find((entity): entity is ResourceEntityState => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x === 5 && entity.position.y === 7)!;
+    // A late-game forest with one harvest left still blocks movement until depleted.
+    wood.amount = 6;
+    wood.hitPoints = 6;
+    const harvester = initial.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1" && entity.position.x === 5 && entity.position.y === 8)!;
+    const before = initial.players.find((player) => player.id === barracks.ownerId)!.resources;
+    const queued = applyCommand(initial, envelope(initial, 0, { type: "train", producerId: barracks.id, unitType: "warrior", count: 1 }));
+    expect(queued.validation).toEqual({ ok: true });
+    expect(queued.state.players.find((player) => player.id === barracks.ownerId)!.resources).toEqual({
+      food: before.food - UNITS.warrior.cost.food,
+      wood: before.wood - UNITS.warrior.cost.wood,
+      stone: before.stone - UNITS.warrior.cost.stone,
+    });
+    const held = stepSimulation(queued.state, [], UNITS.warrior.trainTicks + 20);
+    expect(held.events.filter((event) => event.type === "entitySpawned" && event.entity.typeId === "warrior")).toHaveLength(0);
+    expect(held.state.entities.find((entity) => entity.id === barracks.id)).toMatchObject({ productionQueue: [{ kind: "train", remainingTicks: 0 }] });
+    expect(held.state.players.find((player) => player.id === barracks.ownerId)!.population.used).toBe(4);
+    const gathering = applyCommand(held.state, envelope(held.state, 1, { type: "gather", entityIds: [harvester.id], targetId: wood.id }));
+    expect(gathering.validation).toEqual({ ok: true });
+    const released = stepSimulation(gathering.state, [], 30);
+    expect(released.events).toContainEqual({ type: "resourceDepleted", resourceId: wood.id, resourceKind: "wood", renewable: false, renewAtTick: null });
+    const born = released.events.filter((event) => event.type === "entitySpawned" && event.entity.typeId === "warrior");
+    expect(born).toHaveLength(1);
+    expect(born[0]!.type === "entitySpawned" && born[0]!.entity.position).toEqual({ x: 5, y: 6 });
+    expect(released.state.entities.find((entity) => entity.id === barracks.id)).toMatchObject({ productionQueue: [] });
+    const trained = released.state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.typeId === "warrior" && entity.ownerId === barracks.ownerId)!;
+    const holding = applyCommand(released.state, envelope(released.state, 2, { type: "setStance", entityIds: [trained.id], stance: "holdGround" }));
+    expect(holding.validation).toEqual({ ok: true });
+    const moved = applyCommand(holding.state, envelope(holding.state, 3, { type: "move", entityIds: [trained.id], target: { x: 5, y: 7 } }));
+    expect(moved.validation).toEqual({ ok: true });
+    expect(stepSimulation(moved.state, [], 30).state.entities.find((entity) => entity.id === trained.id)?.position).toEqual({ x: 5, y: 7 });
+  });
+
+  it("chooses the same connected training exit and unit ID after entity storage order is reversed", () => {
+    const initial = createInitialState({ seed: 264, matchId: "stable-training-exit" });
+    initial.entities = initial.entities.filter((entity) => entity.kind === "building" && entity.typeId === "townCenter");
+    const town = initial.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1")!;
+    town.position = { x: 5, y: 5 };
+    for (const [index, point] of [{ x: 5, y: 3 }, { x: 4, y: 4 }, { x: 6, y: 4 }].entries()) {
+      addCompletedBuilding(initial, town.ownerId, "house", `stable-exit-wall-${index}`, point);
+    }
+    const reverse = cloneMatchState(initial);
+    reverse.entities.reverse();
+    const run = (state: MatchState) => {
+      const queued = applyCommand(state, envelope(state, 0, { type: "train", producerId: town.id, unitType: "villager", count: 1 }));
+      return stepSimulation(queued.state, [], UNITS.villager.trainTicks);
+    };
+    const forward = run(initial);
+    const backward = run(reverse);
+    expect(forward.events.filter((event) => event.type === "entitySpawned")).toEqual(backward.events.filter((event) => event.type === "entitySpawned"));
+    expect(forward.state.entities.filter((entity) => entity.kind === "unit")).toEqual(backward.state.entities.filter((entity) => entity.kind === "unit"));
   });
 
   it("runs the deterministic gather, build, population, and training loop end to end", () => {

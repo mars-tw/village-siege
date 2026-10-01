@@ -71,7 +71,7 @@ function validateAssetsAndAttribution() {
     assert(allowedLicenses.has(row.license.trim()), `Attribution line ${row.line} has unsupported license '${row.license.trim()}'`);
   }
 
-  const actualPngs = walkFiles(assetRoot).filter((file) => extname(file).toLowerCase() === ".png").map(fromRepo);
+  const actualPngs = walkFiles(assetRoot).filter((file) => [".png", ".webp"].includes(extname(file).toLowerCase())).map(fromRepo);
   const declared = new Map();
   for (const entry of manifest.assets) {
     assert(entry && typeof entry === "object", "Asset manifest entry must be an object");
@@ -79,7 +79,8 @@ function validateAssetsAndAttribution() {
     assert(!declared.has(entry.file), `Duplicate asset manifest entry: ${entry.file}`);
     assert(/^[a-f0-9]{64}$/.test(entry.sha256), `Invalid SHA-256 for ${entry.file}`);
     assert(Number.isSafeInteger(entry.bytes) && entry.bytes > 0, `Invalid byte count for ${entry.file}`);
-    const expectedRuntime = /\/sprites\/(?:action-sheet|facings\/[^/]+)\.png$/.test(entry.file);
+    const expectedRuntime = /\/sprites\/(?:action-sheet|facings\/[^/]+)\.png$/.test(entry.file)
+      || /\/frontier\/(?:buildings\.png|cover\.webp)$/.test(entry.file);
     assert(entry.runtime === expectedRuntime, `Incorrect runtime classification for ${entry.file}`);
     declared.set(entry.file, entry);
   }
@@ -216,7 +217,10 @@ function validateRuntimeDirectory(directory, manifest) {
     const bytes = statSync(file).size;
     assert(bytes <= manifest.perRuntimeFileBudgetBytes, `Runtime file exceeds ${manifest.perRuntimeFileBudgetBytes} bytes: ${toPosix(relative(absoluteDirectory, file))}`);
   }
-  const runtimePngs = files.filter((file) => extname(file).toLowerCase() === ".png");
+  const runtimePngs = files.filter((file) => file.startsWith(join(absoluteDirectory, "assets", "original"))
+    && [".png", ".webp"].includes(extname(file).toLowerCase()));
+  // Install icons are intentionally outside game art and validated by the PWA
+  // build against the web manifest, while game artwork retains the hash gate.
   for (const file of runtimePngs) {
     const pathWithinRuntime = toPosix(relative(absoluteDirectory, file));
     const entry = expected.get(pathWithinRuntime);

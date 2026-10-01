@@ -4,8 +4,10 @@ dist/
 coverage/
 .playwright-cli/
 *.log
+!docs/evidence/**/*.log
 .env
 .env.*
 !.env.example
 .DS_Store
 Thumbs.db
+.audit-tmp/
