@@ -1,0 +1,62 @@
+{
+  "testId": "r25-touch-after",
+  "session": "r25-touch-after",
+  "version": "1.1.0",
+  "url": "http://127.0.0.1:5174/",
+  "startedAt": "2026-10-01T18:39:22.1539757+08:00",
+  "primaryViewport": {"width": 844, "height": 390, "maxTouchPoints": 1, "coarsePointer": true},
+  "match": {"settlement": "riverstead", "difficulty": "standard", "aiPersonality": "balanced", "mode": "siege"},
+  "normalPlay": {
+    "minimumReached": true,
+    "autosaveProgressBeforeFirstReloadSeconds": 364,
+    "note": "Dialog pauses and manual reload time were excluded from the minimum normal-play claim."
+  },
+  "steps": [
+    {"t": "00:00", "action": "開啟 1.1.0，確認 844×390、maxTouchPoints=1、coarse pointer=true。"},
+    {"t": "00:28", "action": "選河谷鎮、攻城戰、標準、均衡 AI，開始戰役。"},
+    {"t": "00:51", "action": "量測 9 個主要控制：底列 61×64、科技 101×48、工匠分工 96×48，全部在 viewport 內。"},
+    {"t": "01:02", "action": "原生 click 開啟工匠分工；844×390 每頁 2 名。"},
+    {"t": "01:16", "action": "原生 click 指派工匠 1 採糧。"},
+    {"t": "01:31", "action": "翻到第 2 頁，原生 click 指派工匠 3 採石。"},
+    {"t": "01:54", "action": "回第 1 頁，原生 click 指派工匠 2 伐木。"},
+    {"t": "01:36-01:43", "action": "dialog 開啟期間兩張截圖 SHA-256 相同；關閉後 5 秒截圖不同，確認 opened/closed 暫停與恢復。"},
+    {"t": "02:15", "action": "發現舊版 native proxy+Phaser pointer-up 雙派送：建造直接跳兵營、返回無效。三分鐘回報 root。"},
+    {"t": "03:48", "action": "用科技面板的缺前置捷徑建木作營，完成兵營＋木作營。"},
+    {"t": "04:57", "action": "科技面板顯示約 45 秒完成，原生 click 升級城寨期。"},
+    {"t": "05:25", "action": "城寨期完成；選兵營後原生 click 訓練 1 名戰士，佇列 0/5→1/5。"},
+    {"t": "07:34", "action": "系統→鏡頭視角→關閉音效，控制文字切成『開啟音效』。"},
+    {"t": "08:00+", "action": "達到至少 8 分鐘正常遊戲時間；對局仍進行中。"},
+    {"t": "mid-fix", "action": "先用正常 UI 匯出自己的 save，manual reload 套用雙派送修正，再由 UI 匯入同一存檔延續。"},
+    {"t": "mid-fix", "action": "修正後原生 click：全選工匠一次、建造停在建築表、返回一次、訓練一次只產生佇列 1/5。"},
+    {"t": "responsive", "action": "568×320：工匠分工每頁 1 名，所有按鈕 44px 且在 viewport 內。"},
+    {"t": "responsive", "action": "667×375：工匠分工每頁 2 名；科技 dialog 631×363，所有按鈕 44px 且在 viewport 內。"},
+    {"t": "responsive", "action": "375×667 直向時 canvas controls display:none 並顯示旋轉提示；回 667×375 後 61px／48px 控制恢復。"},
+    {"t": "restore-fix", "action": "匯入 tick3692 舊存檔後 latest=3692、previous=10078；離開→Continue 後 latest 正常前進，previous 保留。"}
+  ],
+  "responsive": {
+    "568x320": {"workersPerPage": 1, "minimumButtonHeight": 44, "overflow": false},
+    "667x375": {"workersPerPage": 2, "minimumButtonHeight": 44, "workerDialogOverflow": false, "progressionDialogOverflow": false},
+    "375x667": {"orientationGuardVisible": true, "nativeCanvasControlsHidden": true},
+    "rotationRestore": {"viewport": "667x375", "controlsRestored": true}
+  },
+  "restoreVerification": {
+    "imported": {"tick": 3692, "matchId": "village-assault-local", "seed": 3449494368, "resources": {"food": 575, "wood": 25, "stone": 840}},
+    "immediateIndexedDb": {"latestTick": 3692, "previousTick": 10078},
+    "continuedExport": {"tick": 4396, "resources": {"food": 718, "wood": 25, "stone": 970}, "tier": "stronghold", "completedTechnologyIds": [], "ownBuildingQueueCounts": [0, 0, 0]},
+    "continuedIndexedDb": {"latestTick": 4331, "previousTick": 10078}
+  },
+  "pageErrors": 0,
+  "remainingIssue": null,
+  "finalMenuFreezeVerification": "docs/evidence/r25/touch-final-menu-matrix.json",
+  "artifacts": {
+    "screenshot844x390": "docs/evidence/r25/touch-after.png",
+    "screenshot568x320": "docs/evidence/r25/touch-after-568x320.png",
+    "screenshot667x375": "docs/evidence/r25/touch-after-667x375.png",
+    "portraitGuard": "docs/evidence/r25/touch-after-portrait-rotate.png",
+    "save": ".audit-tmp/r25/touch-after-full.vssave",
+    "replay": ".audit-tmp/r25/touch-after-full.vsreplay",
+    "journal": ".audit-tmp/r25/touch-after-full.vsjournal",
+    "video": ".audit-tmp/r25/touch-after-full.webm",
+    "trace": ".audit-tmp/r25/touch-after-full.trace"
+  }
+}

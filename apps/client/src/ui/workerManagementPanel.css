@@ -1,0 +1,67 @@
+.worker-management-dialog {
+  box-sizing: border-box;
+  width: min(940px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  border: 2px solid #b99b67;
+  border-radius: 8px;
+  background: #1c342b;
+  color: #f0ebcf;
+  padding: 16px;
+  font: 15px "Segoe UI", "Noto Sans TC", sans-serif;
+  box-shadow: 0 12px 60px #08130ce0;
+}
+.worker-management-dialog.positioned[open] {
+  position: fixed;
+  inset: var(--worker-panel-top) auto auto var(--worker-panel-left);
+  margin: 0;
+  max-width: calc(100vw - var(--worker-panel-left) - 6px);
+  max-height: calc(100dvh - var(--worker-panel-top) - 6px);
+}
+.worker-management-dialog[open] { display: flex; flex-direction: column; gap: 10px; }
+.worker-management-dialog::backdrop { background: #071712b5; }
+.worker-management-dialog header,
+.worker-management-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
+.worker-management-dialog h2 { margin: 0; color: #edcf8a; font: 700 25px Georgia, "Noto Serif TC", serif; }
+.worker-management-dialog button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid #927d55;
+  border-radius: 4px;
+  background: #2b4a3c;
+  color: #f2eacf;
+  padding: 6px 10px;
+  font: 700 14px "Segoe UI", "Noto Sans TC", sans-serif;
+  cursor: pointer;
+}
+.worker-management-dialog button:disabled { opacity: .6; cursor: default; }
+.worker-management-dialog button:focus-visible { outline: 3px solid #ffd984; outline-offset: 2px; }
+.worker-management-summary { margin: 0; color: #d8cfa9; flex-shrink: 0; }
+.worker-management-feedback { color: #ffd2a2; font-size: 13px; flex-shrink: 0; }
+.worker-management-rows { display: grid; grid-template-columns: 1fr; gap: 8px; overflow: auto; min-height: 0; }
+.worker-management-row { display: grid; grid-template-columns: minmax(160px, .8fr) minmax(400px, 1.7fr); gap: 10px; align-items: center; border: 1px solid #53614a; border-radius: 5px; background: #243e31; padding: 9px; }
+.worker-management-row.selected { border-color: #e4c777; box-shadow: inset 0 0 0 1px #e4c777; }
+.worker-management-identity h3 { margin: 0 0 3px; color: #f4ddb0; font-size: 17px; }
+.worker-management-identity p { margin: 0; color: #d9e9bc; font-size: 13px; }
+.worker-management-actions { display: grid; grid-template-columns: repeat(4, minmax(70px, 1fr)); gap: 6px; }
+.worker-management-actions button[aria-pressed="true"] { background: #ad8f53; color: #14251d; }
+.worker-management-dialog footer span { min-width: 54px; text-align: center; }
+.worker-management-empty { margin: 12px 0; text-align: center; color: #d8cfa9; }
+
+@media (max-height: 520px), (max-width: 844px) {
+  .worker-management-dialog { padding: 8px; gap: 6px; max-height: calc(100dvh - 12px); }
+  .worker-management-dialog h2 { font-size: 20px; }
+  .worker-management-row { grid-template-columns: minmax(135px, .7fr) minmax(360px, 1.8fr); padding: 6px; gap: 6px; }
+  .worker-management-identity h3 { font-size: 15px; }
+  .worker-management-identity p { font-size: 12px; }
+}
+
+@media (max-height: 320px), (max-width: 568px) {
+  .worker-management-dialog { width: calc(100vw - 8px); max-height: calc(100dvh - 8px); padding: 4px; }
+  .worker-management-dialog header { min-height: 44px; }
+  .worker-management-dialog h2 { font-size: 18px; }
+  .worker-management-summary { font-size: 12px; }
+  .worker-management-row { grid-template-columns: 1fr; gap: 4px; padding: 4px; }
+  .worker-management-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .worker-management-actions button { padding: 3px; font-size: 12px; }
+  .worker-management-dialog footer { min-height: 44px; }
+}

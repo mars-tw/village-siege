@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "role": "R25 AI 體驗員：新玩家／桌機",
+  "url": "https://mars-tw.github.io/village-siege/play.html?v=1.0.0",
+  "viewport": { "width": 1280, "height": 720 },
+  "session": "r25-newcomer",
+  "wallClock": {
+    "startedAt": "2026-10-01T17:51:46+08:00",
+    "endedAt": "2026-10-01T18:06:34+08:00",
+    "elapsedSeconds": 888,
+    "battleReportedSeconds": 581
+  },
+  "constraints": {
+    "uiOnlyCommands": true,
+    "sourceReadBeforeOutcome": false,
+    "runtimeStateWrites": false,
+    "resourceInjection": false,
+    "aiDisabled": false,
+    "paidCheckpointImported": false
+  },
+  "steps": [
+    { "at": "17:51:46", "action": "開啟公開 1.0.0，設定 1280×720", "result": "顯示戰前選單" },
+    { "at": "17:52:16", "action": "點擊操作指南", "result": "讀取發展、出兵、桌機／觸控指令與四條勝途" },
+    { "at": "17:52:35", "action": "點擊七目標教學", "result": "進入預設松林堡／均衡 AI／標準難度" },
+    { "at": "17:53:02", "action": "開啟科技與時代", "result": "得知城寨期需邊軍兵營、木作營與 500/300/100" },
+    { "at": "17:53:40", "action": "全選工匠後點糧食堆", "result": "教學標記採集卸貨完成" },
+    { "at": "17:54:18", "action": "從科技卡選邊軍兵營並放置", "result": "第一點被單位／資源占用，改點後開始建造" },
+    { "at": "17:55:54", "action": "從科技卡選木作營並放置", "result": "第一點在河道／岩地，改點後完成建造" },
+    { "at": "17:57:32", "action": "研讀經濟／軍備頁後開始升級城寨期", "result": "約 45 秒完成" },
+    { "at": "17:59:08", "action": "將疊革戰具加入研究佇列", "result": "波次攻入，兵營在研究完成前被摧毀" },
+    { "at": "18:00:20", "action": "嘗試點選兵營並找造兵指令", "result": "建築已不在場；無任何軍事單位" },
+    { "at": "18:01:35", "action": "重開軍備科技頁", "result": "疊革戰具回到前置未完成；兵營已被摧毀" },
+    { "at": "18:03:28", "action": "在全部工匠陣亡後點主城", "result": "人口 0/10，主城可訓練新工匠" },
+    { "at": "18:04:20", "action": "連續訓練三名工匠", "result": "人口回到 3/10，主城生命 864/1272" },
+    { "at": "18:05:15", "action": "全選工匠、按 B 開建造表，放置邊軍兵營", "result": "建造開始" },
+    { "at": "18:06:34", "action": "戰局終止", "result": "戰敗：戰力已被殲滅；戰局時間 581 秒" },
+    { "at": "18:06:34", "action": "點擊下載重播", "result": "保存完整 .vsreplay 於 .audit-tmp/r25" }
+  ],
+  "outcome": {
+    "kind": "defeat",
+    "reason": "elimination",
+    "message": "戰敗｜戰力已被殲滅",
+    "tutorialProgress": "3/7",
+    "subjectiveFunScoreOutOf10": 5
+  },
+  "artifacts": {
+    "beforeScreenshot": "docs/evidence/r25/newcomer-before.png",
+    "replay": ".audit-tmp/r25/newcomer-baseline-defeat-full.vsreplay",
+    "replaySha256": "E1B1174211D9790E07959579BBD6CBD5258D6409A8583B6C634C6E6D36A7B25A"
+  }
+}

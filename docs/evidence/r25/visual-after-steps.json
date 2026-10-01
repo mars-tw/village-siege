@@ -1,0 +1,145 @@
+{
+  "appVersion": "1.1.0",
+  "rulesVersion": "village-siege/0.20.0",
+  "method": "Fresh normal real UI play, no issue/step/grants/AI edits. Mid-pass Root-authorized own UI export/manual reload/own UI import verifies gesture fix; never a supplied checkpoint.",
+  "startedAt": "2026-10-01T10:40:31.942Z",
+  "observedAt": "2026-10-01T11:06:27.766Z",
+  "wallElapsedMs": 1555824,
+  "ownSave": {
+    "tick": 13806,
+    "normalSeconds": 1380.6,
+    "phase": "playing",
+    "tier": "stronghold",
+    "completed": [
+      "surveyedFoundations"
+    ],
+    "ownUnits": [
+      "villager",
+      "villager",
+      "villager",
+      "villager",
+      "villager",
+      "villager",
+      "villager",
+      "warrior",
+      "warrior"
+    ]
+  },
+  "feedback": {
+    "text": "方繩基準法研究完成",
+    "visible": false
+  },
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "rootScroll": {
+    "top": 20,
+    "height": 788
+  },
+  "steps": [
+    {
+      "at": "2026-10-01T10:40:31.942Z",
+      "elapsedMs": 0,
+      "action": "Manual fresh default balanced/standard campaign",
+      "app": "邊境篇 v1.1.0",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      }
+    },
+    {
+      "at": "2026-10-01T10:42:26.849Z",
+      "elapsedMs": 114907,
+      "action": "Actual DOM roles select all workers and gather wood; native +lumbercamp placement preview",
+      "gather": "工匠前往採集林木",
+      "status": "已選工匠，點空地建造木作營"
+    },
+    {
+      "at": "2026-10-01T10:43:11.931Z",
+      "elapsedMs": 159989,
+      "action": "Click green605,550 then Town Center637,405 to manage without changing worker job",
+      "construction": "開始建造 木作營",
+      "controls": [
+        "工 工匠 糧50",
+        "鎖 升城寨 缺前置",
+        "研 研究 0/1",
+        "· 空欄",
+        "列 佇列 0/5",
+        "⚑ 設集結",
+        "⋯ 系統"
+      ],
+      "status": "開始建造 木作營"
+    },
+    {
+      "at": "2026-10-01T10:44:55.299Z",
+      "elapsedMs": 263357,
+      "action": "Actual TC trains two paid workers; native barracks placement preview873,529",
+      "status": "已選工匠，點空地建造邊軍兵營"
+    },
+    {
+      "at": "2026-10-01T10:52:21.356Z",
+      "elapsedMs": 709414,
+      "action": "Manual reload to new gesture fix; normal UI re-import of this same owner save, authorized by Root",
+      "ownSaveTick": 5920
+    },
+    {
+      "at": "2026-10-01T10:53:19.138Z",
+      "elapsedMs": 767196,
+      "action": "Fixed native DOM single Train worker click; actual P pauses for exact fee/sequence proof via own UI exports",
+      "notice": "拓荒工匠 已加入訓練佇列",
+      "controls": [
+        "訓練拓荒工匠",
+        "升級聚落至城寨期，需要糧食500、木材300、石材100",
+        "開啟研究選單，已完成0項，共1項",
+        "空欄",
+        "村鎮議事堂生產佇列，共1項",
+        "設定村鎮議事堂集結點",
+        "系統"
+      ]
+    },
+    {
+      "at": "2026-10-01T11:00:29.179Z",
+      "elapsedMs": 1197237,
+      "action": "After fixed proxy, real world selects barracks and role clicks queue two warriors; native Stronghold upgrade accepted",
+      "before": [
+        "劍 戰士 糧65/木30",
+        "盾 盾牌手 糧75/木45/石20",
+        "研 研究 0/1",
+        "· 空欄",
+        "列 佇列 0/5",
+        "⚑ 設集結",
+        "⋯ 系統"
+      ],
+      "status": "開始升級聚落"
+    },
+    {
+      "at": "2026-10-01T11:01:55.473Z",
+      "elapsedMs": 1283531,
+      "action": "Actual Army selection, right-click march then camera drag to river",
+      "status": "移動 2 個單位",
+      "controls": [
+        "攻擊移動",
+        "巡邏",
+        "目前橫列，切換為楔形",
+        "目前主動站姿，切換為守備",
+        "邊境戰士技能碎甲擊已就緒",
+        "停止",
+        "系統"
+      ]
+    },
+    {
+      "at": "2026-10-01T11:03:16.144Z",
+      "elapsedMs": 1364202,
+      "action": "Real native Start foundations research after normal Stronghold completion",
+      "before": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n城寨期 · 糧 1916　木 5788　石 365\n\n疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n約 36 秒完成\n\n✓ 邊軍兵營\n開始研究\n方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n約 40 秒完成\n\n✓ 村鎮議事堂\n開始研究\n逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先完成獠騎圈\n\n+ 獠騎圈\n建造獠騎圈\n上一頁\n1 / 1\n下一頁",
+      "status": "科技已加入研究佇列"
+    },
+    {
+      "at": "2026-10-01T11:06:27.754Z",
+      "elapsedMs": 1555812,
+      "action": "Read actual native completed technology card",
+      "completion": "方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n研究完成\n\n✓ 村鎮議事堂\n已完成"
+    }
+  ]
+}

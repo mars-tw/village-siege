@@ -106,4 +106,18 @@ describe("private browser autosaves", () => {
     await expect(store.read()).resolves.toMatchObject({ ok: false });
     await expect(store.save(archive(80))).resolves.toMatchObject({ ok: false });
   });
+
+  it("can intentionally restore an older valid checkpoint while preserving the newer one and normal stale-write protection", async () => {
+    const memory = memoryAdapter();
+    const store = createAutoSaveStore(memory.adapter);
+    await store.save(archive(150, 1200));
+    const before = structuredClone(memory.slots());
+    expect((await store.save("corrupt", { restore: true })).ok).toBe(false);
+    expect(memory.slots()).toEqual(before);
+    expect((await store.save(archive(150, 500), { restore: true })).ok).toBe(true);
+    expect(await store.read()).toMatchObject({ ok: true, latest: { seed: 150, tick: 5 }, previous: { seed: 150, tick: 12 } });
+    expect((await store.save(archive(150, 600))).ok).toBe(true);
+    expect((await store.save(archive(150, 400))).ok).toBe(false);
+    expect(await store.read()).toMatchObject({ ok: true, latest: { tick: 6 }, previous: { tick: 12 } });
+  });
 });

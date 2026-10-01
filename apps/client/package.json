@@ -1,6 +1,6 @@
 {
   "name": "@village-siege/client",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@colyseus/sdk": "0.17.43",
-    "@village-siege/shared": "1.0.0",
+    "@village-siege/shared": "1.1.0",
     "phaser": "4.2.1"
   },
   "devDependencies": {

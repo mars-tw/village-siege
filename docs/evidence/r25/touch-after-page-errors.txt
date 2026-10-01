@@ -1,0 +1,8 @@
+R25 touch-after Playwright console error check
+Session: r25-touch-after
+URL: http://127.0.0.1:5174/
+Result: Total messages 3; Errors 0; Warnings 0; error-level messages returned 0.
+
+UI-level warning observed and resolved during the run:
+- Before the explicit manual-restore fix, importing an older valid save displayed「無法自動存檔，請從系統手動匯出存檔」because a newer IndexedDB checkpoint rejected the restored timeline.
+- After the fix and manual reload, the same UI import displayed「存檔已匯入」; IndexedDB latest became tick 3692 and the former tick 10078 latest was preserved as previous.

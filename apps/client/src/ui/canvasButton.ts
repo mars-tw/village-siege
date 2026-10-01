@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { COMMAND_ICON_TEXTURE, commandIcon, registerCommandIcons } from "../game/commandIcons";
+import { VILLAGE_WORKER_ANIMATION_MANIFEST } from "../game/villageWorkerAnimation";
 
 export interface CanvasButtonOptions {
   readonly width: number;
@@ -45,6 +47,7 @@ export function createCanvasButton(
     fontSize: options.compact ? "27px" : "36px",
     fontStyle: "bold",
   }).setOrigin(0.5);
+  const icon = registerCommandIcons(scene) ? scene.add.image(0, options.compact ? -17 : -13, COMMAND_ICON_TEXTURE, "food").setDisplaySize(options.compact ? 40 : 48, options.compact ? 40 : 48).setVisible(false) : undefined;
   const label = scene.add.text(0, options.compact ? 19 : 27, options.label, {
     color: "#f0ebcf",
     fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
@@ -56,7 +59,7 @@ export function createCanvasButton(
     .setName(`${options.name}:hit-zone`)
     .setScrollFactor(0)
     .setInteractive({ useHandCursor: true });
-  container.add([background, glyph, label, hitZone]);
+  container.add([background, glyph, ...(icon ? [icon] : []), label, hitZone]);
   container.setSize(options.width, options.height);
   const accessibilityButton = document.createElement("button");
   accessibilityButton.type = "button";
@@ -74,6 +77,45 @@ export function createCanvasButton(
   let pressedPointerId: number | null = null;
   let suspended = false;
   let destroyed = false;
+
+  const updateIcon = (nextGlyph: string, nextLabel: string): void => {
+    const frame = commandIcon(nextGlyph, nextLabel);
+    const workerKey = VILLAGE_WORKER_ANIMATION_MANIFEST.directionalTextureKeys?.se ?? VILLAGE_WORKER_ANIMATION_MANIFEST.textureKey;
+    const worker = /工匠/.test(nextLabel) && scene.textures.exists(workerKey);
+    if (icon) {
+      icon.setVisible(worker || frame !== null);
+      if (worker) {
+        const texture = scene.textures.get(workerKey);
+        if (!texture.has("worker-command-portrait")) texture.add("worker-command-portrait", 0, 16, 8, 64, 64);
+        icon.setTexture(workerKey, "worker-command-portrait");
+      } else if (frame) icon.setTexture(COMMAND_ICON_TEXTURE, frame);
+      icon.setDisplaySize(options.compact ? 40 : 48, options.compact ? 40 : 48);
+    }
+    glyph.setVisible(!icon || (!worker && frame === null));
+  };
+  updateIcon(options.glyph, options.label);
+
+  // The native control occupies the painted button, so pointer, touch,
+  // keyboard and screen-reader actions all activate the same command once.
+  const syncProxy = (): void => {
+    if (destroyed || !container.scene || !container.visible || suspended) return;
+    const bounds = hitZone.getBounds();
+    let ignored = container.cameraFilter;
+    for (let parent = container.parentContainer; parent; parent = parent.parentContainer) ignored |= parent.cameraFilter;
+    const camera = [...scene.cameras.cameras].reverse().find(candidate => !(ignored & candidate.id));
+    if (!camera) return;
+    const first = camera.matrixCombined.transformPoint(bounds.x, bounds.y);
+    const last = camera.matrixCombined.transformPoint(bounds.right, bounds.bottom);
+    const canvas = scene.game.canvas.getBoundingClientRect();
+    const host = accessibilityButton.parentElement!.getBoundingClientRect();
+    const scaleX = canvas.width / scene.scale.gameSize.width, scaleY = canvas.height / scene.scale.gameSize.height;
+    Object.assign(accessibilityButton.style, {
+      left: `${canvas.left - host.left + Math.min(first.x, last.x) * scaleX}px`,
+      top: `${canvas.top - host.top + Math.min(first.y, last.y) * scaleY}px`,
+      width: `${Math.abs(last.x - first.x) * scaleX}px`, height: `${Math.abs(last.y - first.y) * scaleY}px`,
+    });
+  };
+  scene.events.on(Phaser.Scenes.Events.POST_UPDATE, syncProxy);
 
   const draw = (): void => {
     if (destroyed || !container.scene || !background.scene || !glyph.scene || !label.scene) return;
@@ -98,6 +140,7 @@ export function createCanvasButton(
         .strokeRect(-options.width / 2 + 2, -options.height / 2 + 2, options.width - 9, options.height - 11);
     }
     glyph.setColor(Phaser.Display.Color.IntegerToColor(foreground).rgba);
+    icon?.setAlpha(interactive ? 1 : 0.45);
     label.setColor(Phaser.Display.Color.IntegerToColor(foreground).rgba);
     container.setAlpha(interactive ? 1 : 0.62);
   };
@@ -126,7 +169,9 @@ export function createCanvasButton(
     pressed = false;
     pressedPointerId = null;
     draw();
-    if (shouldPress) onPress(pointer);
+    // DOM controls share these bounds. Their native click owns the gesture;
+    // Phaser may observe the same pointer-up, but must not execute it twice.
+    if (shouldPress && pointer.event?.target !== accessibilityButton) onPress(pointer);
   });
   hitZone.on("pointerupoutside", () => {
     pressed = false;
@@ -175,6 +220,7 @@ export function createCanvasButton(
     setLabel(nextGlyph: string, nextLabel: string, nextAccessibleLabel?: string): void {
       if (destroyed) return;
       glyph.setText(nextGlyph);
+      updateIcon(nextGlyph, nextLabel);
       label.setText(nextLabel);
       // Keep the unit/building name and its cost or queue status legible on
       // phones, instead of shrinking the entire label into one tiny line.
@@ -182,6 +228,7 @@ export function createCanvasButton(
         label.setText(nextLabel.replace(" ", "\n"));
       }
       glyph.setY(options.compact ? (label.text.includes("\n") ? -26 : -17) : -13);
+      icon?.setY(glyph.y);
       // Costs and long queue names stay inside the button instead of wrapping
       // onto the hint strip; its accessible label retains the complete text.
       label.setScale(Math.min(1, (options.width - 16) / Math.max(1, label.width)));
@@ -212,7 +259,7 @@ export function createCanvasButton(
     },
     focus(): boolean {
       if (destroyed || accessibilityButton.hidden || accessibilityButton.disabled) return false;
-      accessibilityButton.focus();
+      accessibilityButton.focus({ preventScroll: true });
       return true;
     },
     destroy(): void {
@@ -221,6 +268,7 @@ export function createCanvasButton(
       // the control dead first so that blur cannot redraw destroyed Phaser
       // Text/Graphics objects during scene shutdown or restart.
       destroyed = true;
+      scene.events.off(Phaser.Scenes.Events.POST_UPDATE, syncProxy);
       accessibilityButton.remove();
       container.destroy(true);
     },

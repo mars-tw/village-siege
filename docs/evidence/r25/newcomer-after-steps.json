@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "build": "1.1.0-local",
+  "role": "R25 AI 體驗員：新玩家／桌機",
+  "url": "http://127.0.0.1:5174/",
+  "viewport": { "width": 1280, "height": 720 },
+  "session": "r25-newcomer-after",
+  "constraints": {
+    "uiOnlyCommands": true,
+    "runtimeIssueOrStep": false,
+    "stateGrant": false,
+    "checkpointImported": false
+  },
+  "continuousPlay": {
+    "startedAt": "2026-10-01T18:39:30+08:00",
+    "reachedEightMinutesAt": "2026-10-01T18:47:30+08:00",
+    "manualReloadAfter": "2026-10-01T18:49:04+08:00"
+  },
+  "steps": [
+    { "at": "18:39:04", "action": "開啟本機 1.1.0 戰前選單", "result": "預設攻城戰，選單在 1280×720 內完整顯示" },
+    { "at": "18:39:19", "action": "切換領土爭奪再切回攻城戰", "result": "按鈕 pressed、描述與 readout 同步" },
+    { "at": "18:39:30", "action": "開始預設攻城戰", "result": "進入戰場，勝利提示為敵城尚未倾覆" },
+    { "at": "18:39:53", "action": "開啟工匠分工", "result": "列出三名工匠與獨立指派按鈕" },
+    { "at": "18:40:02", "action": "指派工匠 1 採糧", "result": "只有工匠 1 改指令" },
+    { "at": "18:40:12", "action": "指派工匠 2 伐木", "result": "只有工匠 2 改指令" },
+    { "at": "18:40:24", "action": "指派工匠 3 採石", "result": "只有工匠 3 改指令" },
+    { "at": "18:41:00", "action": "在主城旁綠色 footprint 放置邊軍兵營", "result": "第一次接受，開始建造" },
+    { "at": "18:41:10", "action": "左點已完工主城", "result": "底部顯示主城管理；施工工匠仍留在兵營旁" },
+    { "at": "18:43:13", "action": "在修正前對訓練戰士做一次 role click", "result": "異常：佇列 0/5 直接變 2/5，已回報" },
+    { "at": "18:43:31", "action": "再開工匠分工", "result": "顯示糧 12/12、木 12/12、石 4/12 的個別攜帶量" },
+    { "at": "18:44:20", "action": "選工匠 2 放置木作營", "result": "綠色 footprint 一次接受" },
+    { "at": "18:45:09", "action": "升級城寨期", "result": "顯示成本、時間與完工通知" },
+    { "at": "18:47:06", "action": "遭遇後續攻勢", "result": "顯示大型敵軍來襲訊息；戰後通知戰士與主城失守" },
+    { "at": "18:49:04", "action": "關閉舊頁面並同名 session 重開修正版", "result": "進入 1.1.0 戰前選單" },
+    { "at": "18:50:51", "action": "訓練戰士單次 role click", "result": "佇列 0/5 → 1/5，修正 PASS" },
+    { "at": "18:51:35", "action": "從 0/5 點擊訓練戰士第一次", "result": "佇列 1/5" },
+    { "at": "18:51:45", "action": "再點第二次", "result": "佇列 2/5，兩次點擊才產生兩項" },
+    { "at": "18:53:56", "action": "正常 UI 匯出當前存檔", "result": "儲存 .audit-tmp/r25/newcomer-after-current.vssave" },
+    { "at": "18:54:13", "action": "手動 reload no-HMR 頁面", "result": "回到戰前選單，可見繼續戰役" },
+    { "at": "18:54:59", "action": "經 UI 匯入自己剛匯出的存檔", "result": "恢復人口 6/10、兵營、戰士與敵軍攻勢進度" },
+    { "at": "18:56:15", "action": "讀取戰前模式按鈕可見幾何", "result": "攻城戰 226.39×44 CSS px；領土爭奪 226.41×44 CSS px" }
+  ],
+  "ratings": {
+    "funBefore": 5,
+    "funAfter": 7,
+    "clarityBefore": 4,
+    "clarityAfter": 8,
+    "combatReadabilityBefore": 5,
+    "combatReadabilityAfter": 7
+  },
+  "privateArtifacts": {
+    "save": ".audit-tmp/r25/newcomer-after-current.vssave",
+    "sizeBytes": 21962
+  }
+}

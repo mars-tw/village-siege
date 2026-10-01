@@ -283,18 +283,61 @@ export function drawBattleMap(scene: Phaser.Scene, origin: ScreenPoint, layoutId
   };
 }
 
-function materialPatterns(scene: Phaser.Scene, context: CanvasRenderingContext2D): readonly (CanvasPattern | null)[] {
+interface MaterialSurface { readonly detail: CanvasPattern | null; readonly broad: CanvasPattern | null }
+
+function materialPatterns(scene: Phaser.Scene, context: CanvasRenderingContext2D): readonly MaterialSurface[] {
   if (!scene.textures.exists(FRONTIER_MATERIALS_TEXTURE)) return [];
   const source = scene.textures.get(FRONTIER_MATERIALS_TEXTURE).getSourceImage() as HTMLImageElement;
   const width = Math.floor(source.width / 2);
   const height = Math.floor(source.height / 2);
   return [0, 1, 2, 3].map((index) => {
+    // Reflect the original PNG at its own edges, making the repeat continuous.
+    // Different sampling scales/orientations keep authored clumps from forming
+    // the same checkerboard throughout the whole meadow or water surface.
     const tile = document.createElement("canvas");
-    tile.width = Math.floor(width * 0.6);
-    tile.height = Math.floor(height * 0.6);
-    tile.getContext("2d")!.drawImage(source, index % 2 * width, Math.floor(index / 2) * height, width, height, 0, 0, tile.width, tile.height);
-    return context.createPattern(tile, "repeat");
+    tile.width = width * 2;
+    tile.height = height * 2;
+    const tileContext = tile.getContext("2d")!;
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+      tileContext.save();
+      tileContext.translate(x ? width * 2 : 0, y ? height * 2 : 0);
+      tileContext.scale(x ? -1 : 1, y ? -1 : 1);
+      tileContext.drawImage(source, index % 2 * width, Math.floor(index / 2) * height, width, height, 0, 0, width, height);
+      tileContext.restore();
+    }
+    const detail = context.createPattern(tile, "repeat"), broad = context.createPattern(tile, "repeat");
+    const scale = [0.32, 0.48, 0.46, 0.65][index]!;
+    detail?.setTransform(new DOMMatrix().translate(index * 67, index * 31).rotate(index === 3 ? -8 : 11).scale(scale));
+    broad?.setTransform(new DOMMatrix().translate(173 + index * 83, -91 - index * 47).rotate(29 + index * 13).scale(1.03));
+    return { detail, broad };
   });
+}
+
+function fillMaterial(context: CanvasRenderingContext2D, surface: MaterialSurface | undefined, fallback: string, width: number, height: number): void {
+  context.fillStyle = surface?.detail ?? fallback;
+  context.fillRect(0, 0, width, height);
+  if (surface?.broad) {
+    context.save();
+    context.globalAlpha *= 0.17;
+    context.fillStyle = surface.broad;
+    context.fillRect(0, 0, width, height);
+    context.restore();
+  }
+}
+
+export interface TerrainBoundaryEdge { readonly point: GridPoint; readonly edge: "ne" | "se" | "sw" | "nw" }
+
+/** Only exterior edges: shoreline weathering must never paint an internal grid. */
+export function terrainBoundaryEdges(rows: readonly string[], glyph: string): readonly TerrainBoundaryEdge[] {
+  const result: TerrainBoundaryEdge[] = [];
+  for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y]!.length; x++) {
+    if (rows[y]![x] !== glyph) continue;
+    if (rows[y - 1]?.[x] !== glyph) result.push({ point: { x, y }, edge: "ne" });
+    if (rows[y]?.[x + 1] !== glyph) result.push({ point: { x, y }, edge: "se" });
+    if (rows[y + 1]?.[x] !== glyph) result.push({ point: { x, y }, edge: "sw" });
+    if (rows[y]?.[x - 1] !== glyph) result.push({ point: { x, y }, edge: "nw" });
+  }
+  return result;
 }
 
 /** A baked raster surface follows the authoritative grid; it is never a scene illustration. */
@@ -304,8 +347,7 @@ function paintLandscape(scene: Phaser.Scene, origin: ScreenPoint, layoutId: Vill
   canvas.height = VILLAGE_ASSAULT_BOUNDS.height;
   const context = canvas.getContext("2d")!;
   const patterns = materialPatterns(scene, context);
-  context.fillStyle = patterns[0] ?? "#88954e";
-  context.fillRect(0, 0, canvas.width, canvas.height);
+  fillMaterial(context, patterns[0], "#88954e", canvas.width, canvas.height);
   // Diffuse light and vegetation variation merge into continuous meadow. There
   // are no hard polygon patches or a raised miniature-board boundary.
   for (let index = 0; index < 22; index += 1) {
@@ -334,15 +376,52 @@ function paintLandscape(scene: Phaser.Scene, origin: ScreenPoint, layoutId: Vill
   const region = (glyph: string, material: number, fallback: string, alpha = 1, shadow = "rgba(71,72,37,0.2)"): void => {
     context.save();
     context.globalAlpha = alpha;
-    context.fillStyle = patterns[material] ?? fallback;
+    context.fillStyle = patterns[material]?.detail ?? fallback;
     context.shadowColor = shadow;
     context.shadowBlur = glyph === "W" ? 18 : 10;
     context.fill(regions[glyph]!);
+    context.shadowBlur = 0;
+    context.clip(regions[glyph]!);
+    fillMaterial(context, patterns[material], fallback, canvas.width, canvas.height);
     context.restore();
   };
   region("T", 0, "#657b41", 0.3);
   region("R", 2, "#9d9578", 0.78);
+
+  const shoreline = new Path2D();
+  for (const boundary of terrainBoundaryEdges(rows, "W")) {
+    const center = gridToWorld(boundary.point, origin);
+    const vertices = [
+      { x: center.x, y: center.y - HALF_TILE_HEIGHT },
+      { x: center.x + HALF_TILE_WIDTH, y: center.y },
+      { x: center.x, y: center.y + HALF_TILE_HEIGHT },
+      { x: center.x - HALF_TILE_WIDTH, y: center.y },
+    ];
+    const index = ["ne", "se", "sw", "nw"].indexOf(boundary.edge), a = vertices[index]!, b = vertices[(index + 1) % 4]!;
+    const drift = (detailSeed(boundary.point.x, boundary.point.y + index) % 5 - 2) * 0.55;
+    shoreline.moveTo(a.x, a.y);
+    shoreline.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 + drift, b.x, b.y);
+  }
+  // A wet earth margin lies beneath the exact water mask. Its soft contact
+  // gradient breaks the cutout edge without moving any strategic water cell.
+  context.save();
+  context.strokeStyle = "rgba(132,120,76,0.43)";
+  context.lineWidth = 20;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.shadowBlur = 12;
+  context.shadowColor = "rgba(104,103,58,0.38)";
+  context.stroke(shoreline);
+  context.restore();
   region("W", 3, "#548d91", 1, "rgba(166,151,97,0.65)");
+  context.save();
+  context.clip(regions.W!);
+  context.strokeStyle = "rgba(191,216,180,0.36)";
+  context.lineWidth = 5;
+  context.shadowBlur = 5;
+  context.shadowColor = "rgba(173,207,175,0.24)";
+  context.stroke(shoreline);
+  context.restore();
   region("M", 1, "#ad885c", 0.95, "rgba(180,162,102,0.45)");
   // The full legal movement corridor stays three or four cells wide, while
   // its visible route is a narrow, worn dirt path through grass.
@@ -373,7 +452,7 @@ function paintLandscape(scene: Phaser.Scene, origin: ScreenPoint, layoutId: Vill
   }
   context.save();
   context.clip(regions.S!);
-  context.strokeStyle = patterns[1] ?? "#ad885c";
+  context.strokeStyle = patterns[1]?.detail ?? "#ad885c";
   context.lineCap = "round";
   context.lineJoin = "round";
   context.shadowColor = "rgba(141,117,74,0.24)";
@@ -397,27 +476,28 @@ function paintLandscape(scene: Phaser.Scene, origin: ScreenPoint, layoutId: Vill
   }
   context.restore();
   context.save();
-  context.fillStyle = patterns[2] ?? "#c5af82";
+  context.fillStyle = patterns[2]?.detail ?? "#c5af82";
   context.globalAlpha = 0.68;
   context.shadowColor = "rgba(137,113,71,0.35)";
   context.shadowBlur = 7;
   context.fill(bridges);
   context.restore();
 
-  // Light weathering is placed within each material's exact playable region.
-  // Texture detail survives because it is painted after the terrain masks.
-  for (let y = 0; y < rows.length; y += 1) for (let x = 0; x < rows[y]!.length; x += 1) {
-    const glyph = rows[y]![x];
-    if (glyph !== "W") continue;
-    const center = gridToWorld({ x, y }, origin);
-    const seed = detailSeed(x, y);
+  // Irregular continuous current streaks replace one identical mark per grid
+  // tile. They stay clipped to water, including around legal crossing gaps.
+  context.save();
+  context.clip(regions.W!);
+  for (let index = 0; index < 70; index++) {
+    const seed = detailSeed(index, 761), x = seed % canvas.width, y = Math.floor(seed / 157) % canvas.height;
+    const length = 28 + seed % 80;
     context.beginPath();
-    context.moveTo(center.x - 18, center.y - 4 + seed % 5);
-    context.lineTo(center.x + 17, center.y + 3 + seed % 5);
-    context.strokeStyle = "rgba(209,233,213,0.19)";
-    context.lineWidth = 1.5;
+    context.moveTo(x, y);
+    context.bezierCurveTo(x + length * 0.35, y - 5, x + length * 0.6, y + 8, x + length, y + length * 0.22);
+    context.strokeStyle = "rgba(209,233,213,0.15)";
+    context.lineWidth = 1.1;
     context.stroke();
   }
+  context.restore();
   return canvas;
 }
 

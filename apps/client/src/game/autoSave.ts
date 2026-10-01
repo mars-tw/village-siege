@@ -14,6 +14,7 @@ export interface AutoSaveAdapter {
   commit(slots: AutoSaveSlots): Promise<void>;
 }
 export type AutoSaveResult = { readonly ok: true; readonly entry: AutoSaveEntry } | { readonly ok: false; readonly message: string };
+export interface AutoSaveWriteOptions { readonly restore?: boolean }
 export type AutoSaveReadResult = ({ readonly ok: true; readonly warning?: string } & AutoSaveSlots) | { readonly ok: false; readonly message: string };
 
 /** Storage errors stay outside gameplay; callers can present the returned status. */
@@ -33,7 +34,7 @@ export function createAutoSaveStore(adapter: AutoSaveAdapter, now: () => number 
   };
   const failure = (message: string) => ({ ok: false as const, message });
   return {
-    async save(saveJson: string): Promise<AutoSaveResult> {
+    async save(saveJson: string, options: AutoSaveWriteOptions = {}): Promise<AutoSaveResult> {
       let entry: AutoSaveEntry;
       try { entry = entryFromJson(saveJson, now()); }
       catch { return failure("自動存檔未完成：戰局資料驗證失敗。請手動匯出存檔。"); }
@@ -46,8 +47,10 @@ export function createAutoSaveStore(adapter: AutoSaveAdapter, now: () => number 
           try { previous = validateStored(stored.previous); } catch { /* A damaged backup must not block the current match. */ }
           if (!latest) { latest = previous; previous = null; }
           const sameMatch = latest?.matchId === entry.matchId && latest.seed === entry.seed;
-          if (sameMatch && latest && latest.tick > entry.tick) return failure("已保留較新的自動存檔。");
-          await adapter.commit({ latest: entry, previous: latest && !sameMatch ? latest : previous });
+          if (sameMatch && latest && latest.tick > entry.tick && !options.restore) return failure("已保留較新的自動存檔。");
+          // Explicit archive restore starts a new continuation, while the
+          // previous newer checkpoint remains recoverable as the backup.
+          await adapter.commit({ latest: entry, previous: latest && (!sameMatch || options.restore) ? latest : previous });
           return { ok: true, entry };
         } catch { return failure("瀏覽器無法儲存戰局。遊戲可繼續，請從系統手動匯出存檔。"); }
       });
@@ -128,5 +131,5 @@ function store() {
   }
   return browserStore;
 }
-export const saveAutoSave = (saveJson: string): Promise<AutoSaveResult> => store().save(saveJson);
+export const saveAutoSave = (saveJson: string, options?: AutoSaveWriteOptions): Promise<AutoSaveResult> => store().save(saveJson, options);
 export const readAutoSave = (): Promise<AutoSaveReadResult> => store().read();

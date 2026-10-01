@@ -39,6 +39,11 @@ The 0.22 character and landscape generators did not expose their model slug. No 
 
 `scripts/extract-combat-portraits.mjs` uses the repository-pinned `sharp` 0.35.5 (Apache-2.0) as a local build-time crop and pixel-inspection tool; older asset metadata may record the 0.32.6 version used for that historical extraction. The prepared alpha master was produced with the installed imagegen skill helper at `$CODEX_HOME/skills/.system/imagegen/scripts/remove_chroma_key.py`. Neither tool nor its dependencies are bundled into the browser runtime. Exact crops, hashes, alpha statistics, cleanup counts, and tool versions are recorded in `apps/client/public/assets/original/asset-metadata.json`.
 
+| Asset or presentation source | Kind | Author / source | License | Provenance note |
+|---|---|---|---|---|
+| `apps/client/public/assets/original/frontier/command-icons-source.png` | Original sixteen-command source atlas | Village Siege contributors / OpenAI built-in image_gen | MIT | Original R25 generation; returned model slug unavailable, not asserted; source SHA-256 and processing in command-icons.metadata.json |
+| `apps/client/public/assets/original/frontier/command-icons.png` | Runtime hand-painted command atlas | Village Siege contributors / OpenAI built-in image_gen | MIT | Original 4 by 4 atlas, downsampled to 128px cells and palette encoded by scripts/prepare-command-icons.mjs; no commercial game artwork imported |
+
 ## Adding assets
 
 Every future shipped asset must add one row before merge with its exact repository path, creator/source URL, license identifier, and modification notes. Allowed third-party licenses are MIT, BSD-2-Clause, BSD-3-Clause, ISC, CC0-1.0, CC-BY-4.0, and Apache-2.0; CC-BY-4.0 material must include the creator, title, source, license link, and changes. Unknown provenance is release-blocking.

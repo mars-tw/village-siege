@@ -1,0 +1,70 @@
+{
+  "testId": "r25-touch-before",
+  "session": "r25-touch",
+  "url": "https://mars-tw.github.io/village-siege/play.html?v=1.0.0",
+  "startedAt": "2026-10-01T17:52:16.5700747+08:00",
+  "battleLoadedAtApprox": "2026-10-01T17:52:59+08:00",
+  "evidenceExportedAt": "2026-10-01T18:03:00.751+08:00",
+  "battleWallClockApproxSeconds": 602,
+  "viewport": {
+    "width": 844,
+    "height": 390,
+    "browser": "Chromium (Chrome channel)",
+    "mobileEmulation": true,
+    "maxTouchPoints": 1,
+    "coarsePointer": true
+  },
+  "match": {
+    "settlement": "riverstead",
+    "difficulty": "standard",
+    "aiPersonality": "balanced",
+    "result": "in-progress-after-minimum-duration",
+    "visibleEndState": "城寨期；8/10 人口；方繩基準法已加入佇列"
+  },
+  "constraints": {
+    "uiOnly": true,
+    "touchCommands": true,
+    "stateWrites": false,
+    "aiDisabled": false,
+    "resourcesAdded": false,
+    "checkpointImported": false,
+    "canonicalEnemyStateReadDuringPlay": false
+  },
+  "steps": [
+    {"t": "00:00", "action": "開啟公開 1.0.0 頁面，以 --mobile 啟動 Chromium 並調整為 844×390。"},
+    {"t": "00:24", "action": "確認 navigator.maxTouchPoints=1、coarse pointer=true，開始 trace、recording 與 video。"},
+    {"t": "00:33", "action": "觸控選擇河谷鎮；保留標準難度與均衡 AI。"},
+    {"t": "00:43", "action": "觸控開始戰役。"},
+    {"t": "01:04", "action": "素材載入在 94% 顯示慢速警告後自行完成。"},
+    {"t": "01:54", "action": "語意按鈕 click 嘗試點『全選工匠』，因 proxy 在 viewport 外而逾時；未對遊戲狀態產生命令。"},
+    {"t": "02:06", "action": "改用 page.touchscreen.tap 點可見的『全選工匠』。"},
+    {"t": "02:24", "action": "將 3 名工匠全派採糧，觸控議事堂。"},
+    {"t": "02:32", "action": "排入 2 名拓荒工匠。"},
+    {"t": "02:50", "action": "打開議事堂研究；只看到需要城寨期的方繩基準法，返回。"},
+    {"t": "03:37", "action": "三分鐘節點：資源增長、5/10 人口，尚未出現可辨識的威脅。"},
+    {"t": "04:15", "action": "全選 5 名工匠，進入建造選單。"},
+    {"t": "04:32", "action": "選擇木作營並在主城東南方觸控放置。"},
+    {"t": "05:24", "action": "選擇邊軍兵營並在河道西側觸控放置。"},
+    {"t": "05:57", "action": "兵營完成，排入 3 名邊境戰士。"},
+    {"t": "06:21", "action": "全選工匠改採木。"},
+    {"t": "07:05", "action": "畫面狀態顯示『敵軍正在撤離』；戰場上沒有醒目的來襲方向、交戰摘要或單位損失提示。"},
+    {"t": "07:23", "action": "嘗試點空地清除選取，再點『全選軍隊』；觸控空地被解讀為工匠移動，選取未清除。"},
+    {"t": "07:47", "action": "再次嘗試點霧區與議事堂切換選取；工匠仍攔截觸控，無法穩定選取軍隊。"},
+    {"t": "08:44", "action": "先把工匠移離議事堂，終於可觸控選到議事堂；城寨期條件已滿。"},
+    {"t": "08:56", "action": "開始升級城寨期。"},
+    {"t": "09:47", "action": "城寨期完成。"},
+    {"t": "10:06", "action": "打開研究，排入方繩基準法。"},
+    {"t": "10:18", "action": "進入系統→存檔重播。"},
+    {"t": "10:40", "action": "依序以真實 UI 匯出 .vssave、.vsreplay、.vsjournal。"}
+  ],
+  "artifacts": {
+    "screenshot": "docs/evidence/r25/touch-before.png",
+    "save": ".audit-tmp/r25/touch-full.vssave",
+    "replay": ".audit-tmp/r25/touch-full.vsreplay",
+    "journal": ".audit-tmp/r25/touch-full.vsjournal",
+    "video": ".audit-tmp/r25/touch-full.webm",
+    "trace": ".audit-tmp/r25/touch-full.trace",
+    "network": ".audit-tmp/r25/touch-full.network",
+    "browserState": ".audit-tmp/r25/touch-browser-state.json"
+  }
+}

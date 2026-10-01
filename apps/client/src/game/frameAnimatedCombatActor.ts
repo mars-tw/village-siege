@@ -15,6 +15,7 @@ import type {
   FrameAnimatedCombatActorManifest,
   FrameAnimatedCombatActorManifestTable,
 } from "./sixRowAnimationManifest";
+import { unitVisualProfile } from "./unitVisualProfile";
 
 export { createSixRowManifest, FRAME_ANIMATED_ACTION_ROWS } from "./sixRowAnimationManifest";
 export type {
@@ -174,8 +175,11 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
       : ANCHOR_CONTRACT[options.id];
     const shadowWidth = manifest.shadowWidth ?? contract.shadowWidth;
     const shadowHeight = manifest.shadowHeight ?? contract.shadowHeight;
+    const presentation = unitVisualProfile(options.id);
     this.shadow = scene.add.ellipse(0, 2, shadowWidth * 1.2, shadowHeight * 1.15, 0x10241e, 0.38);
     this.aura = scene.add.ellipse(0, -7, shadowWidth * 1.25, shadowHeight * 1.2, this.palette.highlight, 0.08);
+    this.shadow.setScale(presentation.artMultiplier);
+    this.aura.setScale(presentation.artMultiplier);
     this.image = scene.add.image(
       0,
       0,
@@ -187,11 +191,14 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
         (manifest.anchorX ?? contract.anchorX) / manifest.frameWidth,
         (manifest.anchorY ?? contract.anchorY) / manifest.frameHeight,
       )
-      .setScale(manifest.artScale ?? 1);
+      .setScale((manifest.artScale ?? 1) * presentation.artMultiplier);
 
     this.container = scene.add.container(options.x, options.y, [this.shadow, this.aura, this.image]);
     if (manifest.teamPennant) {
       this.pennant = scene.add.graphics();
+      // Team identity remains legible after shrinking human art; do not tint
+      // authored faces/clothes or let their only allegiance mark vanish.
+      this.pennant.setScale(Math.max(0.8, presentation.artMultiplier));
       this.container.add(this.pennant);
       this.renderPennant();
     }

@@ -2,7 +2,7 @@
 
 這份指南寫給第一次接觸 Village Siege 的玩家與開發者。只想玩單機時，不需要帳號、API 金鑰或多人伺服器。
 
-只想直接遊玩，請開啟 **[GitHub Pages 1.0.0 公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.0.0)**；想研究、修改或回報問題可前往 **[GitHub 原始碼](https://github.com/mars-tw/village-siege)**。後面的本機安裝步驟主要提供給開發者。
+只想直接遊玩，請開啟 **[GitHub Pages 1.1.0 公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.1.0)**；想研究、修改或回報問題可前往 **[GitHub 原始碼](https://github.com/mars-tw/village-siege)**。後面的本機安裝步驟主要提供給開發者。
 
 目前公開網站提供完整單機與離線 PWA。Android／iOS 簽署原生 App、長期公開 WSS 多人服務與劇情戰役尚未交付；多人功能只供本機開發與自架測試，不是官方公開服務。
 
@@ -53,6 +53,10 @@ npm run dev:client
 > 不要直接雙擊 `apps/client/index.html`；遊戲需要透過 Vite 啟動，才能正確載入模組與素材。
 
 ## 二、第一場戰役怎麼玩
+
+1.1 戰前可選「攻城戰」或「領土爭奪」。攻城戰沒有中域與拓界標倒數，須摧毀敵方核心或殲滅；領土爭奪保留四條勝途，新手教學固定使用此模式。舊戰局按自己的勝利條件續玩。
+
+戰場的「工匠分工」可逐人安排採糧、伐木、採石，不必把全部工匠改成同一件工作。點已完工的友方建築會開啟管理，保留施工工匠原工作；要送材料可用「卸糧／卸木／卸石」，電腦也可右點卸貨建築。音效可從「系統 → 鏡頭視角」開關。
 
 第一次建議選擇：
 

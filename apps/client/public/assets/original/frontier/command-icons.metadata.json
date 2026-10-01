@@ -1,0 +1,27 @@
+{
+  "creator": "Village Siege contributors / OpenAI built-in image_gen",
+  "license": "MIT",
+  "tool": "image_gen.imagegen",
+  "returnedModelSlug": null,
+  "modelNote": "The built-in result did not expose a model slug; project preference is gpt-image-2, which is not asserted as observed.",
+  "grid": {
+    "columns": 4,
+    "rows": 4,
+    "runtimeCellPixels": 128
+  },
+  "assets": [
+    {
+      "file": "apps/client/public/assets/original/frontier/command-icons-source.png",
+      "sha256": "baf5d9c53f7951829bfff5fcb1f4a1a42f8877ad5b69fd65821478e48786e838",
+      "bytes": 2891091,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/command-icons.png",
+      "sha256": "ddd98a1a8b9a8c8b7a75f034822c8ef726d81f4f99a7227ea80114d0931a51a3",
+      "bytes": 200864,
+      "runtime": true
+    }
+  ],
+  "processing": "Original atlas downsampled and PNG palette encoded by repository-pinned sharp; no artwork copied from a commercial game."
+}

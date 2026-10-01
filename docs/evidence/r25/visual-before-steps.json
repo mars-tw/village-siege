@@ -1,0 +1,250 @@
+{
+  "appVersion": "1.0.0",
+  "rulesVersion": "village-siege/0.20.0",
+  "method": "Public production app. Only real pointer and keyboard proxy UI; no runtime access, issue/step/seed/resources/AI edits/imports. Post-play read-only automatic save metadata establishes normal simulated time.",
+  "url": "https://mars-tw.github.io/village-siege/play.html?v=1.0.0",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "session": "r25-visual",
+  "startedAt": "2026-10-01T09:54:10.198Z",
+  "observedAt": "2026-10-01T10:09:35.808Z",
+  "wallElapsedMs": 925610,
+  "lastAutomaticSave": {
+    "tick": 7764,
+    "normalSimulationSeconds": 776.4,
+    "phase": "playing",
+    "rulesVersion": "village-siege/0.20.0",
+    "ownUnits": [
+      {
+        "type": "villager",
+        "id": "unit-5"
+      },
+      {
+        "type": "villager",
+        "id": "unit-7"
+      },
+      {
+        "type": "shieldBearer",
+        "id": "unit-108"
+      }
+    ],
+    "ownBuildings": [
+      {
+        "type": "townCenter",
+        "complete": true
+      },
+      {
+        "type": "barracks",
+        "complete": true
+      }
+    ],
+    "tier": "frontier"
+  },
+  "steps": [
+    {
+      "at": "2026-10-01T09:54:10.198Z",
+      "elapsedMs": 0,
+      "action": "Started campaign by real menu button",
+      "screen": {
+        "width": 1366,
+        "height": 768
+      },
+      "status": ""
+    },
+    {
+      "at": "2026-10-01T09:55:02.595Z",
+      "elapsedMs": 52397,
+      "action": "stone gather",
+      "selectedControls": [
+        "⚒ 全選工匠",
+        "⚔ 全選軍隊",
+        "⌖ 回主城",
+        "Ⅱ 暫停",
+        "− 縮小",
+        "+ 放大",
+        "⋯ 系統"
+      ],
+      "status": ""
+    },
+    {
+      "at": "2026-10-01T09:55:02.909Z",
+      "elapsedMs": 52711,
+      "action": "food gather",
+      "selectedControls": [
+        "⚒ 全選工匠",
+        "⚔ 全選軍隊",
+        "⌖ 回主城",
+        "Ⅱ 暫停",
+        "− 縮小",
+        "+ 放大",
+        "⋯ 系統"
+      ],
+      "status": ""
+    },
+    {
+      "at": "2026-10-01T09:55:03.224Z",
+      "elapsedMs": 53026,
+      "action": "wood gather",
+      "selectedControls": [
+        "⚒ 全選工匠",
+        "⚔ 全選軍隊",
+        "⌖ 回主城",
+        "Ⅱ 暫停",
+        "− 縮小",
+        "+ 放大",
+        "⋯ 系統"
+      ],
+      "status": ""
+    },
+    {
+      "at": "2026-10-01T09:55:03.586Z",
+      "elapsedMs": 53388,
+      "action": "Native era prerequisite +lumbercamp, real ground placement606,410",
+      "status": "建造位置被單位或資源占用",
+      "controls": [
+        "點地圖放置",
+        "轉向 南東",
+        "北東軸",
+        "返回建築表",
+        "縮小",
+        "放大",
+        "系統"
+      ]
+    },
+    {
+      "at": "2026-10-01T09:55:22.032Z",
+      "elapsedMs": 71834,
+      "action": "Retry visible empty lumbercamp placement511,422",
+      "status": "建造位置被單位或資源占用",
+      "controls": [
+        "點地圖放置",
+        "轉向 南東",
+        "北東軸",
+        "返回建築表",
+        "縮小",
+        "放大",
+        "系統"
+      ]
+    },
+    {
+      "at": "2026-10-01T09:55:59.254Z",
+      "elapsedMs": 109056,
+      "action": "Place lumbercamp on visible ground570,550",
+      "status": "建造位置被單位或資源占用",
+      "controls": [
+        "點地圖放置",
+        "轉向 南東",
+        "北東軸",
+        "返回建築表",
+        "縮小",
+        "放大",
+        "系統"
+      ]
+    },
+    {
+      "at": "2026-10-01T09:56:39.011Z",
+      "elapsedMs": 148813,
+      "action": "Place lumbercamp far clear ground922,390",
+      "status": "開始建造 木作營",
+      "controls": [
+        "目前沒有可到達的糧食堆",
+        "派所選工匠採集最近的林木",
+        "派所選工匠採集最近的石礦",
+        "建造",
+        "續建／修復",
+        "停止",
+        "系統"
+      ]
+    },
+    {
+      "at": "2026-10-01T09:57:09.352Z",
+      "elapsedMs": 179154,
+      "action": "Select visible stone worker420,440; actual keyboard Gather stone if available",
+      "selection": [
+        "糧 採糧",
+        "木 伐木",
+        "石 採石",
+        "⌂ 建造",
+        "修 續建／修復",
+        "■ 停止",
+        "⋯ 系統"
+      ],
+      "status": "工匠前往採集石礦"
+    },
+    {
+      "at": "2026-10-01T09:58:10.251Z",
+      "elapsedMs": 240053,
+      "action": "Native era +barracks prerequisite, inspect camera after select builder",
+      "status": "已選工匠，點空地建造邊軍兵營"
+    },
+    {
+      "at": "2026-10-01T09:58:56.475Z",
+      "elapsedMs": 286277,
+      "action": "Place barracks clear ground600,520",
+      "status": "開始建造 邊軍兵營"
+    },
+    {
+      "at": "2026-10-01T10:01:06.699Z",
+      "elapsedMs": 416501,
+      "action": "Actual Continue construction keyboard control",
+      "status": "繼續施工 邊軍兵營",
+      "controls": [
+        "派工匠繼續施工邊軍兵營，保留目前進度",
+        "施工 0%",
+        "全選工匠",
+        "置中工地",
+        "縮小",
+        "放大",
+        "系統"
+      ]
+    },
+    {
+      "at": "2026-10-01T10:04:23.022Z",
+      "elapsedMs": 612824,
+      "action": "Three army units queued; age blocked by incomplete lumbercamp despite full art; actual continuation shortcut",
+      "era": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 575　木 823　石 1721\n\n城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成木作營\n\n✓ 邊軍兵營\n+ 木作營\n完成前置建築\n工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期\n上一頁\n1 / 1\n下一頁",
+      "controls": [
+        "✓ 點地圖放置",
+        "↻ 轉向 南東",
+        "軸 北東軸",
+        "← 返回建築表",
+        "− 縮小",
+        "+ 放大",
+        "⋯ 系統"
+      ],
+      "status": "已選工匠，點空地建造木作營"
+    },
+    {
+      "at": "2026-10-01T10:08:03.782Z",
+      "elapsedMs": 833584,
+      "action": "Actual Escape deselect, Army selection, right-click march1100,440; pan toward river",
+      "labels": [
+        "⚒ 全選工匠",
+        "⚔ 全選軍隊",
+        "⌖ 回主城",
+        "Ⅱ 繼續",
+        "− 縮小",
+        "+ 放大",
+        "⋯ 系統"
+      ],
+      "status": "戰局暫停"
+    },
+    {
+      "at": "2026-10-01T10:08:42.477Z",
+      "elapsedMs": 872279,
+      "action": "Actual P resumes unexpected pause, canvas Army button466,700 and march1100,440",
+      "status": "移動 3 個單位",
+      "controls": [
+        "攻擊移動",
+        "巡邏",
+        "目前橫列，切換為楔形",
+        "目前主動站姿，切換為守備",
+        "邊境戰士技能碎甲擊已就緒",
+        "停止",
+        "系統"
+      ]
+    }
+  ]
+}

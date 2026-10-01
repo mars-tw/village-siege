@@ -1,0 +1,312 @@
+{
+  "appVersion": "1.1.0",
+  "rulesVersion": "village-siege/0.20.0",
+  "status": "VERIFIED",
+  "thresholdP95Ms": 18,
+  "serial": true,
+  "contextNote": "Single owned Chromium browser at a time. All previous playtest contexts closed and Root full verification complete before measurements. Desktop own legally earned UI save import, 1280x720; phone fresh true-touch UI gather/build, 844x390. This is frame interval sampling on Windows, not physical-phone performance or a full load/stress test.",
+  "measurements": [
+    {
+      "device": "desktop",
+      "result": {
+        "appVersion": "1.1.0",
+        "rulesVersion": "village-siege/0.20.0",
+        "measuredAt": "2026-10-01T11:29:51.748Z",
+        "method": "Three consecutive five-second requestAnimationFrame samples; one owned browser at a time after all playtest contexts and full verification stopped. Active normal game updates, no step/canonical/resource/AI changes. Desktop uses its own normally earned UI-exported save through normal UI import; phone starts and develops by real UI.",
+        "url": "http://127.0.0.1:5174/",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "devicePixelRatio": 1,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+        "touchPoints": 256,
+        "warmup": {
+          "durationMs": 2000,
+          "start": {
+            "tick": 13835,
+            "phase": "playing",
+            "paused": false,
+            "orientationBlocked": false,
+            "publicEntities": 14,
+            "ownUnits": 9,
+            "ownBuildings": 3
+          },
+          "end": {
+            "tick": 13855,
+            "phase": "playing",
+            "paused": false,
+            "orientationBlocked": false,
+            "publicEntities": 14,
+            "ownUnits": 9,
+            "ownBuildings": 3
+          }
+        },
+        "before": {
+          "tick": 13855,
+          "phase": "playing",
+          "paused": false,
+          "orientationBlocked": false,
+          "publicEntities": 14,
+          "ownUnits": 9,
+          "ownBuildings": 3
+        },
+        "after": {
+          "tick": 14006,
+          "phase": "playing",
+          "paused": false,
+          "orientationBlocked": false,
+          "publicEntities": 14,
+          "ownUnits": 9,
+          "ownBuildings": 3
+        },
+        "runs": [
+          {
+            "run": 1,
+            "frames": 301,
+            "meanMs": 16.666445182724253,
+            "p50Ms": 16.69999999999891,
+            "p95Ms": 16.799999999999272,
+            "p99Ms": 16.80000000000109,
+            "maxMs": 16.899999999999636,
+            "begin": {
+              "tick": 13855,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 14,
+              "ownUnits": 9,
+              "ownBuildings": 3
+            },
+            "end": {
+              "tick": 13906,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 14,
+              "ownUnits": 9,
+              "ownBuildings": 3
+            }
+          },
+          {
+            "run": 2,
+            "frames": 300,
+            "meanMs": 16.666666666666668,
+            "p50Ms": 16.69999999999891,
+            "p95Ms": 16.799999999999272,
+            "p99Ms": 16.80000000000109,
+            "maxMs": 16.900000000001455,
+            "begin": {
+              "tick": 13906,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 14,
+              "ownUnits": 9,
+              "ownBuildings": 3
+            },
+            "end": {
+              "tick": 13956,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 14,
+              "ownUnits": 9,
+              "ownBuildings": 3
+            }
+          },
+          {
+            "run": 3,
+            "frames": 301,
+            "meanMs": 16.666445182724246,
+            "p50Ms": 16.700000000000728,
+            "p95Ms": 16.799999999999272,
+            "p99Ms": 16.900000000001455,
+            "maxMs": 16.900000000001455,
+            "begin": {
+              "tick": 13956,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 14,
+              "ownUnits": 9,
+              "ownBuildings": 3
+            },
+            "end": {
+              "tick": 14006,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 14,
+              "ownUnits": 9,
+              "ownBuildings": 3
+            }
+          }
+        ],
+        "medianP95Ms": 16.799999999999272,
+        "medianMeanMs": 16.666445182724253,
+        "targetP95Ms": 18,
+        "status": "VERIFIED",
+        "note": "Chromium mobile emulation measures this Windows host, not a physical phone."
+      }
+    },
+    {
+      "device": "phone",
+      "result": {
+        "appVersion": "1.1.0",
+        "rulesVersion": "village-siege/0.20.0",
+        "measuredAt": "2026-10-01T11:31:50.717Z",
+        "method": "Three consecutive five-second requestAnimationFrame samples; one owned browser at a time after all playtest contexts and full verification stopped. Active normal game updates, no step/canonical/resource/AI changes. Desktop uses its own normally earned UI-exported save through normal UI import; phone starts and develops by real UI.",
+        "url": "http://127.0.0.1:5174/",
+        "viewport": {
+          "width": 844,
+          "height": 390
+        },
+        "devicePixelRatio": 3,
+        "userAgent": "Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.8059.12 Mobile Safari/537.36",
+        "touchPoints": 1,
+        "warmup": {
+          "durationMs": 2000,
+          "start": {
+            "tick": 665,
+            "phase": "playing",
+            "paused": false,
+            "orientationBlocked": false,
+            "publicEntities": 8,
+            "ownUnits": 3,
+            "ownBuildings": 2
+          },
+          "end": {
+            "tick": 685,
+            "phase": "playing",
+            "paused": false,
+            "orientationBlocked": false,
+            "publicEntities": 8,
+            "ownUnits": 3,
+            "ownBuildings": 2
+          }
+        },
+        "before": {
+          "tick": 685,
+          "phase": "playing",
+          "paused": false,
+          "orientationBlocked": false,
+          "publicEntities": 8,
+          "ownUnits": 3,
+          "ownBuildings": 2
+        },
+        "after": {
+          "tick": 836,
+          "phase": "playing",
+          "paused": false,
+          "orientationBlocked": false,
+          "publicEntities": 8,
+          "ownUnits": 3,
+          "ownBuildings": 2
+        },
+        "runs": [
+          {
+            "run": 1,
+            "frames": 300,
+            "meanMs": 16.66700000000002,
+            "p50Ms": 16.69999999999709,
+            "p95Ms": 16.80000000000291,
+            "p99Ms": 16.80000000000291,
+            "maxMs": 16.89999999999418,
+            "begin": {
+              "tick": 685,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 8,
+              "ownUnits": 3,
+              "ownBuildings": 2
+            },
+            "end": {
+              "tick": 735,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 8,
+              "ownUnits": 3,
+              "ownBuildings": 2
+            }
+          },
+          {
+            "run": 2,
+            "frames": 300,
+            "meanMs": 16.666666666666668,
+            "p50Ms": 16.69999999999709,
+            "p95Ms": 16.80000000000291,
+            "p99Ms": 16.80000000000291,
+            "maxMs": 16.89999999999418,
+            "begin": {
+              "tick": 735,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 8,
+              "ownUnits": 3,
+              "ownBuildings": 2
+            },
+            "end": {
+              "tick": 785,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 8,
+              "ownUnits": 3,
+              "ownBuildings": 2
+            }
+          },
+          {
+            "run": 3,
+            "frames": 301,
+            "meanMs": 16.666445182724225,
+            "p50Ms": 16.69999999999709,
+            "p95Ms": 16.80000000000291,
+            "p99Ms": 16.80000000000291,
+            "maxMs": 16.89999999999418,
+            "begin": {
+              "tick": 785,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 8,
+              "ownUnits": 3,
+              "ownBuildings": 2
+            },
+            "end": {
+              "tick": 836,
+              "phase": "playing",
+              "paused": false,
+              "orientationBlocked": false,
+              "publicEntities": 8,
+              "ownUnits": 3,
+              "ownBuildings": 2
+            }
+          }
+        ],
+        "medianP95Ms": 16.80000000000291,
+        "medianMeanMs": 16.666666666666668,
+        "targetP95Ms": 18,
+        "status": "VERIFIED",
+        "note": "Chromium mobile emulation measures this Windows host, not a physical phone."
+      }
+    }
+  ],
+  "phoneActualPreparation": {
+    "gather": "工匠前往採集林木",
+    "status": "開始建造 木作營",
+    "touch": 1,
+    "controls": [
+      "糧 採糧",
+      "木 伐木",
+      "石 採石",
+      "⌂ 建造",
+      "⇩ 卸糧",
+      "■ 停止",
+      "⋯ 系統"
+    ]
+  }
+}

@@ -90,6 +90,23 @@ describe("dedicated worker frame renderer", () => {
     expect([actor.container.x, actor.container.y, image.x, image.y]).toEqual([110, 220, 0, 0]);
   });
 
+  it("shrinks only civilian artwork and its ground marks, preserving world and interaction dimensions", () => {
+    const fixture = sceneFixture();
+    const actor = new VillageWorkerActor(fixture.scene as never, { x: 110, y: 220 });
+    expect(fixture.images[0]!.scaleX).toBe(0.5);
+    expect(fixture.images[0]!.scaleY).toBe(0.5);
+    expect([actor.container.x, actor.container.y, actor.container.scaleX, actor.container.scaleY])
+      .toEqual([110, 220, 1, 1]);
+    expect([actor.container.width, actor.container.height]).toEqual([96, 112]);
+    expect(VILLAGE_WORKER_ANIMATION_MANIFEST.artScale).toBe(1);
+    expect(actor.container.children.slice(0, 2).every(node => node.scaleX === 0.5)).toBe(true);
+    expect(fixture.graphics[0]!.scaleX).toBe(0.8);
+    actor.setPosition(180, 260).setFacing("nw").play("walk").update(126);
+    expect([actor.container.x, actor.container.y, fixture.images[0]!.x, fixture.images[0]!.y]).toEqual([180, 260, 0, 0]);
+    expect(fixture.images[0]!.scaleX).toBe(0.5);
+    expect(actor.snapshot.frame).toBe(1);
+  });
+
   it("keeps work frames advancing through repeated online action snapshots", () => {
     const fixture = sceneFixture();
     const actor = new VillageWorkerActor(fixture.scene as never, { x: 0, y: 0 });

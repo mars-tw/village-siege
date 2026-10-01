@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { BUILDING_LABELS } from "./buildingNames";
+import { BUILDING_OPAQUE_TOP } from "./buildingArtBounds";
 export { buildingDisplayName } from "./buildingNames";
 
 const RESOURCE_LABELS: Readonly<Record<ResourceKind, string>> = { food: "糧食堆", wood: "林木", stone: "石礦" };
@@ -99,7 +100,7 @@ export function createBuildingView(
     padding: { x: 4, y: 2 },
   }).setOrigin(0.5).setResolution(2).setVisible(false);
   if (painted) {
-    const top = painted.y - painted.displayHeight * painted.originY;
+    const top = painted.y - painted.displayHeight * (painted.originY - (BUILDING_OPAQUE_TOP[entity.typeId] ?? 0));
     healthBack.setY(top - 8);
     health.setY(top - 8);
     progress.setY(top - 22);
@@ -180,7 +181,7 @@ export function createStaleBuildingView(
     backgroundColor: "#101917b8",
     padding: { x: 4, y: 2 },
   }).setOrigin(0.5).setResolution(2).setVisible(false);
-  if (painted) age.setY(painted.y - painted.displayHeight * painted.originY - 8);
+  if (painted) age.setY(painted.y - painted.displayHeight * (painted.originY - (BUILDING_OPAQUE_TOP[sighting.typeId] ?? 0)) - 8);
   const container = scene.add.container(0, 0, [shadow, ...(painted ? [painted] : []), art, label, age])
     .setName(`assault-stale-building:${sighting.entityId}`)
     .setAlpha(0.52).setSize(footprintWidth(sighting.typeId), painted ? painted.displayHeight + 24 : 120).setInteractive();

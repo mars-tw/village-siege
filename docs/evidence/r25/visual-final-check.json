@@ -1,0 +1,52 @@
+{
+  "appVersion": "1.1.0",
+  "townControls": [
+    "工 工匠 糧50",
+    "鎖 升工藝 缺前置",
+    "✓ 研究 1/1",
+    "· 空欄",
+    "列 佇列 0/5",
+    "⚑ 設集結",
+    "⋯ 系統"
+  ],
+  "rootScrollTop": 0,
+  "rootScrollHeight": 768,
+  "rootClientHeight": 768,
+  "canvasY": 0,
+  "liveRegions": [
+    {
+      "role": "status",
+      "y": 0,
+      "h": 1,
+      "w": 1
+    },
+    {
+      "role": "alert",
+      "y": 0,
+      "h": 1,
+      "w": 1
+    }
+  ],
+  "workerControls": [
+    "派所選工匠採集最近的糧食堆",
+    "目前沒有可到達的林木",
+    "派所選工匠採集最近的石礦",
+    "建造",
+    "續建／修復",
+    "停止",
+    "系統"
+  ],
+  "status": "VERIFIED",
+  "method": "Manual reload after source freeze; normal UI import of this same owner save. Actual Town Center select, native era panel open/close, actual worker body select. Three final PNG screenshots visually inspected; no source edits or performance measurement.",
+  "observedScreenshots": [
+    "visual-final-01-base.png",
+    "visual-final-02-town.png",
+    "visual-final-03-worker.png"
+  ],
+  "visualChecks": [
+    "Worker command icon depicts real worker upper body",
+    "Building health bar follows opaque roof instead of full transparent PNG bounds",
+    "Worker body select and health/selection highlights remain legible",
+    "Live regions 1px at top0, rootScrollTop0/canvasY0 after native controls"
+  ]
+}

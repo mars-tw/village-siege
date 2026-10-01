@@ -15,7 +15,7 @@ export function shouldPruneRuntimePng(relative, approvedRuntimePngs) {
 }
 /** Runtime art is the current frontier set; previous-generation masters stay build-only. */
 export function isRuntimeOriginalAssetPath(file) {
-  return /\/frontier\/(?:buildings\.png|cover\.webp|landscape\/(?:materials|nature)\.png)$/.test(file)
+  return /\/frontier\/(?:buildings\.png|command-icons\.png|cover\.webp|landscape\/(?:materials|nature)\.png)$/.test(file)
     || /\/frontier\/characters\/(?:villager|warrior|archer|shieldBearer)\/facings\/(?:e|ne|nw|w|sw|se)\.png$/.test(file)
     || /\/frontier\/characters\/(?:mage|musketeer|boarRider|heavyCrossbowman)\/action-sheet\.png$/.test(file)
     || /\/frontier\/monsters\/(?:miremaw|ashwing|rootback)\/action-sheet\.png$/.test(file);

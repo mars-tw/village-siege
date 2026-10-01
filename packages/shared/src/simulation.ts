@@ -1152,6 +1152,12 @@ export function getNavigationBlockedMapCells(state: MatchState): readonly GridPo
   return state.entities.flatMap((entity) => doesEntityBlockMovement(entity) ? getEntityFootprintCells(entity) : []);
 }
 
+/** Read-only preview uses the exact command checks, including moving units and builder reachability. */
+export function previewBuildCommand(state: MatchState, playerId: PlayerId, command: Extract<GameCommand, { type: "build" }>): boolean {
+  const player = state.players.find(candidate => candidate.id === playerId);
+  return Boolean(player && validateGameCommand(state, player, command).ok);
+}
+
 export function isBuildLocationAvailable(state: MatchState, buildingType: BuildingType, origin: GridPoint, orientation: StructureOrientation = "ne"): boolean {
   const terrainBlocked = state.map.id === VILLAGE_ASSAULT_MAP_ID ? getVillageAssaultBuildBlockedCells(state.map.layoutId) : [];
   const occupied = getOccupiedMapCells(state);

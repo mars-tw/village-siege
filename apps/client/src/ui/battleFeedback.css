@@ -1,0 +1,5 @@
+.battle-feedback{position:absolute;z-index:14;top:94px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);padding:10px 16px;border:1px solid #c7a66a;border-radius:4px;background:#243e31ee;color:#fff0cb;font:700 14px "Segoe UI","Noto Sans TC",sans-serif;pointer-events:none;box-shadow:0 3px 14px #08140b80;text-align:center}
+.battle-feedback[hidden]{display:none}
+.battle-feedback-warning{border-color:#dc9676;background:#6c3026ed;color:#fff2d8}
+.orientation-blocked .battle-feedback{display:none}
+@media(max-height:520px){.battle-feedback{top:68px;max-width:calc(100% - 24px);padding:7px 12px;font-size:12px}}

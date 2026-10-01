@@ -1,0 +1,56 @@
+{
+  "testId": "r25-touch-final-menu-freeze",
+  "session": "r25-touch-final-menu",
+  "url": "http://127.0.0.1:5174/",
+  "autosave": {
+    "createdThroughUi": true,
+    "village": "riverstead",
+    "continueLabelAtFirstExit": "繼續上次未完成戰役，進度 25 秒",
+    "continueLabelAtFinalExit": "繼續上次未完成戰役，進度 123 秒"
+  },
+  "matrix": [
+    {
+      "viewport": "844x390",
+      "visibleButtons": 18,
+      "minimumButtonHeight": 44,
+      "allInsideViewport": true,
+      "allCenterPointsHitOwnButton": true,
+      "windowScrollY": 0,
+      "gameRootScrollTop": 0,
+      "bodyScrollHeight": 390,
+      "screenshot": "docs/evidence/r25/touch-final-menu-844x390.png"
+    },
+    {
+      "viewport": "667x375",
+      "visibleButtons": 18,
+      "minimumButtonHeight": 44,
+      "allInsideViewport": true,
+      "allCenterPointsHitOwnButton": true,
+      "windowScrollY": 0,
+      "gameRootScrollTop": 0,
+      "bodyScrollHeight": 375,
+      "continueNativeClick": "passed",
+      "continuedBattle": {"canvas": {"x": 0, "y": 0, "width": 666, "height": 375}, "gameRootScrollTop": 0, "gameRootScrollLeft": 0, "windowScrollY": 0},
+      "screenshot": "docs/evidence/r25/touch-final-menu-667x375.png",
+      "continuedScreenshot": "docs/evidence/r25/touch-final-menu-667-continue.png"
+    },
+    {
+      "viewport": "568x320",
+      "visibleButtons": 18,
+      "minimumButtonHeight": 44,
+      "allInsideViewport": true,
+      "allCenterPointsHitOwnButton": true,
+      "windowScrollY": 0,
+      "gameRootScrollTop": 0,
+      "bodyScrollHeight": 320,
+      "screenshot": "docs/evidence/r25/touch-final-menu-568x320.png"
+    }
+  ],
+  "nativePointerRegression": {
+    "workerAssignment": "One native click on 指派工匠 1採糧 produced one success status and selected only that worker.",
+    "productionCost": "One native click on 訓練拓荒工匠 changed town-center queue from 0/5 to 1/5; no duplicate job was created.",
+    "focusScroll": "After native Continue at 667x375, canvas.y=0 and #game-root.scrollTop=0."
+  },
+  "pageErrors": 0,
+  "blockingIssues": []
+}
