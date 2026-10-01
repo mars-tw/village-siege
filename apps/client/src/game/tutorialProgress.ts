@@ -25,13 +25,13 @@ export const TUTORIAL_STEPS: readonly TutorialStepDefinition[] = [
     id: "tier",
     title: "把聚落升為城寨期",
     shortTitle: "升級城寨",
-    hint: "選取主城並點「升級城寨」；若資源不足，先讓工匠持續採集。",
+    hint: "先完成兵營與木作營，累積糧500、木300、石100；點「科技與時代」升級城寨。可點缺少的建築直接開始建造。",
   },
   {
     id: "research",
     title: "完成任一項科技研究",
     shortTitle: "研究科技",
-    hint: "選取主城、兵營或資源建築，開啟研究頁並選擇一項已解鎖科技。",
+    hint: "點「科技與時代」，選經濟或軍備科技；先完成卡片列出的建築與前置，再點「開始研究」。",
   },
   {
     id: "fog",

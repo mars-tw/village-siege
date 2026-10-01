@@ -18,11 +18,12 @@ import {
   createMatchSaveFile,
   createInitialState,
   getAiObservation,
+  migrateMatchSaveToCurrentRules,
+  migrateMatchReplayResultToCurrentRules,
   parseMatchReplayFile,
   parseMatchSaveFile,
   projectDomainEventsForPlayer,
   reduceAi,
-  replayMatchReplay,
   serializeMatchCommandJournalFile,
   serializeMatchReplayFile,
   serializeMatchSaveFile,
@@ -196,7 +197,7 @@ export class VillageAssaultRuntime {
 
   /** Transactional restore: parsing and validation finish before runtime mutation. */
   importSaveJson(serialized: string): void {
-    const save = parseMatchSaveFile(serialized);
+    const save = migrateMatchSaveToCurrentRules(parseMatchSaveFile(serialized));
     this.restoreRuntime(save.snapshot.state, save.runtime);
     this.replayBaseSave = save;
     this.commandJournal = createMatchCommandJournalFile(this.matchState);
@@ -205,7 +206,7 @@ export class VillageAssaultRuntime {
   /** Transactional verified replay reconstruction. */
   importReplayJson(serialized: string): void {
     const replay = parseMatchReplayFile(serialized);
-    const reconstructed = replayMatchReplay(replay);
+    const reconstructed = migrateMatchReplayResultToCurrentRules(replay);
     this.restoreRuntime(reconstructed.state, reconstructed.runtime);
     // Import verifies the complete historical chain. Continuing play starts a
     // fresh checkpoint at the reconstructed final state so the imported file

@@ -1,0 +1,28 @@
+.progression-trigger{position:absolute;z-index:15;min-width:96px;min-height:48px;border:1px solid #b99b67;border-radius:5px;background:#233f35;color:#f0ebcf;font:700 15px "Segoe UI","Noto Sans TC",sans-serif;padding:8px 12px;cursor:pointer;box-shadow:0 3px 12px #08171370}
+.unit-selection-box{position:absolute;z-index:14;pointer-events:none;border:2px solid #edd48b;background:#e8c77c25;display:none;box-sizing:border-box}
+.progression-trigger:focus-visible,.progression-dialog button:focus-visible{outline:3px solid #ffd984;outline-offset:2px}
+.progression-dialog{box-sizing:border-box;width:min(920px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border:2px solid #b99b67;border-radius:8px;background:#1c342b;color:#f0ebcf;padding:16px;font:15px "Segoe UI","Noto Sans TC",sans-serif;box-shadow:0 12px 60px #08130ce0}
+.progression-dialog[open]{display:flex;flex-direction:column;gap:10px}
+.progression-dialog::backdrop{background:#071712b5}
+.progression-dialog header,.progression-dialog footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+.progression-dialog h2{font:700 25px Georgia,"Noto Serif TC",serif;margin:0;color:#edcf8a}
+.progression-dialog nav{display:flex;gap:6px;flex-shrink:0}
+.progression-dialog button{min-height:44px;border:1px solid #927d55;border-radius:4px;background:#2b4a3c;color:#f2eacf;padding:6px 12px;font:700 14px "Segoe UI","Noto Sans TC",sans-serif;cursor:pointer}
+.progression-dialog button:disabled{opacity:.65;cursor:default}
+.progression-dialog nav button{flex:1}
+.progression-dialog nav button[aria-pressed=true]{background:#ad8f53;color:#14251d}
+.progression-summary{margin:0;color:#d8cfa9;flex-shrink:0}
+.progression-feedback{font-size:13px;color:#ffd2a2;flex-shrink:0}
+.progression-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;overflow:auto;min-height:0}
+.progression-card{border:1px solid #53614a;border-radius:5px;background:#243e31;padding:12px;display:flex;flex-direction:column;gap:8px}
+.progression-card h3{margin:0;font-size:18px;color:#f4ddb0}
+.progression-card p{margin:0;font-size:14px;line-height:1.4}
+.progression-cost{color:#dec082}
+.progression-status{color:#d9e9bc;min-height:20px}
+.progression-needs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.progression-needs button{font-size:13px;padding:5px 8px}
+.progression-needs .complete{color:#abcaa1;background:transparent;border-color:#4a664d}
+.progression-start{margin-top:auto;background:#3b6246!important}
+@media(max-height:520px){.progression-dialog{padding:8px;gap:6px!important;max-height:calc(100dvh - 12px)}.progression-dialog h2{font-size:20px}.progression-dialog header button{min-height:44px}.progression-dialog nav button{padding:4px 8px}.progression-card{padding:6px;gap:2px}.progression-card h3{font-size:16px}.progression-card p{font-size:12px;line-height:1.2}.progression-status{min-height:16px}.progression-card p:first-of-type{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.progression-needs button{font-size:11px;padding:3px 6px}.progression-summary{font-size:12px}.progression-dialog footer{gap:6px}.progression-dialog footer button{padding:4px 8px}}
+@media(max-height:360px){.progression-dialog{padding:6px}.progression-dialog header{padding-right:200px}.progression-dialog footer{position:absolute;top:6px;right:76px}.progression-dialog footer button{font-size:12px;padding:3px 6px}.progression-dialog h2{font-size:18px}.progression-dialog header button{position:absolute;right:6px;top:6px}.progression-cards{grid-template-columns:1fr}.progression-card{max-width:100%}.progression-card p:first-of-type{white-space:normal}}
+@media(max-width:450px){.progression-cards{grid-template-columns:1fr}.progression-dialog h2{font-size:21px}}

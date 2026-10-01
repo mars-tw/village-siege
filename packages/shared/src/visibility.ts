@@ -94,7 +94,9 @@ export function updateVisibilityState(state: MatchState): void {
         maxHitPoints: building.maxHitPoints,
         stateRevision: building.stateRevision,
         orientation: building.orientation,
-        gateOpen: building.typeId === "surveyGate" ? building.gateOpen : undefined,
+        ...(state.rulesVersion === "village-siege/0.19.0"
+          ? { gateOpen: building.typeId === "surveyGate" ? building.gateOpen : undefined }
+          : building.typeId === "surveyGate" ? { gateOpen: building.gateOpen } : {}),
         complete: building.complete,
         constructionRemainingTicks: building.constructionRemainingTicks,
         healthBand: getStructureHealthBand(building),

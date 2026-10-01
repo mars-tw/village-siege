@@ -1,0 +1,4329 @@
+{
+  "status": "VERIFIED",
+  "basic": {
+    "device": "desktop mouse and keyboard",
+    "method": "Started by real menu buttons. Normal accepted build/train/gather commands and fixed simulation steps set up economy. All settlement advancement and research begins through actual pointer/key/touch controls. No canonical mutation, resource grant, AI disabling or victory override.",
+    "checks": [
+      {
+        "label": "starting town advancement and research reachability",
+        "tick": 1,
+        "phase": "playing",
+        "wallet": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "tier": "frontier",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "先點工匠，再點木材、糧食或石礦開始採集",
+        "actions": [
+          {
+            "label": "工匠 糧50",
+            "accessibleLabel": "訓練拓荒工匠",
+            "enabled": true
+          },
+          {
+            "label": "升城寨 缺前置",
+            "accessibleLabel": "尚不能升級至城寨期，需要先完成邊軍兵營、木作營",
+            "enabled": false
+          },
+          {
+            "label": "研究 0/1",
+            "accessibleLabel": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "accessibleLabel": "村鎮議事堂生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "accessibleLabel": "設定村鎮議事堂集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": []
+      },
+      {
+        "label": "starting town research tier lock",
+        "tick": 1,
+        "phase": "playing",
+        "wallet": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "tier": "frontier",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "先點工匠，再點木材、糧食或石礦開始採集",
+        "actions": [
+          {
+            "label": "基準法 缺城寨",
+            "accessibleLabel": "方繩基準法需要城寨期",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": []
+      },
+      {
+        "label": "tier lock explanation by pointer",
+        "tick": 1,
+        "phase": "playing",
+        "wallet": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "tier": "frontier",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "方繩基準法需要城寨期",
+        "actions": [
+          {
+            "label": "基準法 缺城寨",
+            "accessibleLabel": "方繩基準法需要城寨期",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": []
+      },
+      {
+        "label": "stronghold upgrade available after legal prerequisites and economy",
+        "tick": 1895,
+        "phase": "playing",
+        "wallet": {
+          "food": 890,
+          "wood": 2476,
+          "stone": 453
+        },
+        "tier": "frontier",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "builder returns to stone",
+        "actions": [
+          {
+            "label": "工匠 糧50",
+            "accessibleLabel": "訓練拓荒工匠",
+            "enabled": true
+          },
+          {
+            "label": "升城寨 糧500/木300/石100",
+            "accessibleLabel": "升級聚落至城寨期，需要糧食500、木材300、石材100",
+            "enabled": true
+          },
+          {
+            "label": "研究 0/1",
+            "accessibleLabel": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "accessibleLabel": "村鎮議事堂生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "accessibleLabel": "設定村鎮議事堂集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": [
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-5"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-6"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "train",
+              "producerId": "building-1",
+              "unitType": "villager",
+              "count": 5
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 170,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-18",
+                "unit-19"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-20",
+                "unit-21",
+                "unit-23"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "lumberCamp",
+              "origin": {
+                "x": 7,
+                "y": 8
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 526,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 1023,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "barracks",
+              "origin": {
+                "x": 7,
+                "y": 13
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 530,
+              "wood": 958,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 530,
+              "wood": 808,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1443,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            },
+            "walletAfter": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            }
+          }
+        ]
+      },
+      {
+        "label": "actual pointer starts stronghold advancement",
+        "tick": 1895,
+        "phase": "playing",
+        "wallet": {
+          "food": 390,
+          "wood": 2176,
+          "stone": 353
+        },
+        "tier": "frontier",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "聚落升級開始｜目標 城寨期",
+        "actions": [
+          {
+            "label": "工匠 糧50",
+            "accessibleLabel": "訓練拓荒工匠",
+            "enabled": false
+          },
+          {
+            "label": "城寨期 0%",
+            "accessibleLabel": "聚落正在升級至城寨期，已完成百分之0",
+            "enabled": false
+          },
+          {
+            "label": "研究 0/1",
+            "accessibleLabel": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "accessibleLabel": "村鎮議事堂生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "accessibleLabel": "設定村鎮議事堂集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": [
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-5"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-6"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "train",
+              "producerId": "building-1",
+              "unitType": "villager",
+              "count": 5
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 170,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-18",
+                "unit-19"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-20",
+                "unit-21",
+                "unit-23"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "lumberCamp",
+              "origin": {
+                "x": 7,
+                "y": 8
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 526,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 1023,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "barracks",
+              "origin": {
+                "x": 7,
+                "y": 13
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 530,
+              "wood": 958,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 530,
+              "wood": 808,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1443,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            },
+            "walletAfter": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1895,
+            "command": {
+              "type": "advanceSettlement",
+              "producerId": "building-1",
+              "targetTier": "stronghold"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 890,
+              "wood": 2476,
+              "stone": 453
+            },
+            "walletAfter": {
+              "food": 390,
+              "wood": 2176,
+              "stone": 353
+            }
+          }
+        ]
+      },
+      {
+        "label": "stronghold advancement completed",
+        "tick": 2345,
+        "phase": "playing",
+        "wallet": {
+          "food": 642,
+          "wood": 3100,
+          "stone": 437
+        },
+        "tier": "stronghold",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "城門銅鐘響徹村道｜聚落邁入城寨期",
+        "actions": [
+          {
+            "label": "工匠 糧50",
+            "accessibleLabel": "訓練拓荒工匠",
+            "enabled": true
+          },
+          {
+            "label": "升工藝 缺前置",
+            "accessibleLabel": "尚不能升級至工藝期，需要先完成射箭庭、獠騎圈",
+            "enabled": false
+          },
+          {
+            "label": "研究 0/1",
+            "accessibleLabel": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "accessibleLabel": "村鎮議事堂生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "accessibleLabel": "設定村鎮議事堂集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": [
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-5"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-6"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "train",
+              "producerId": "building-1",
+              "unitType": "villager",
+              "count": 5
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 170,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-18",
+                "unit-19"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-20",
+                "unit-21",
+                "unit-23"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "lumberCamp",
+              "origin": {
+                "x": 7,
+                "y": 8
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 526,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 1023,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "barracks",
+              "origin": {
+                "x": 7,
+                "y": 13
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 530,
+              "wood": 958,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 530,
+              "wood": 808,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1443,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            },
+            "walletAfter": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1895,
+            "command": {
+              "type": "advanceSettlement",
+              "producerId": "building-1",
+              "targetTier": "stronghold"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 890,
+              "wood": 2476,
+              "stone": 453
+            },
+            "walletAfter": {
+              "food": 390,
+              "wood": 2176,
+              "stone": 353
+            }
+          }
+        ]
+      },
+      {
+        "label": "town research affordable or explanatory resource gate",
+        "tick": 2345,
+        "phase": "playing",
+        "wallet": {
+          "food": 642,
+          "wood": 3100,
+          "stone": 437
+        },
+        "tier": "stronghold",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "城門銅鐘響徹村道｜聚落邁入城寨期",
+        "actions": [
+          {
+            "label": "基準法 可研究",
+            "accessibleLabel": "研究方繩基準法，需要糧食180、木材240、石材140",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": [
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-5"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-6"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "train",
+              "producerId": "building-1",
+              "unitType": "villager",
+              "count": 5
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 170,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-18",
+                "unit-19"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-20",
+                "unit-21",
+                "unit-23"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "lumberCamp",
+              "origin": {
+                "x": 7,
+                "y": 8
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 526,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 1023,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "barracks",
+              "origin": {
+                "x": 7,
+                "y": 13
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 530,
+              "wood": 958,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 530,
+              "wood": 808,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1443,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            },
+            "walletAfter": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1895,
+            "command": {
+              "type": "advanceSettlement",
+              "producerId": "building-1",
+              "targetTier": "stronghold"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 890,
+              "wood": 2476,
+              "stone": 453
+            },
+            "walletAfter": {
+              "food": 390,
+              "wood": 2176,
+              "stone": 353
+            }
+          }
+        ]
+      },
+      {
+        "label": "town technology actual pointer or keyboard submit",
+        "tick": 2345,
+        "phase": "playing",
+        "wallet": {
+          "food": 462,
+          "wood": 2860,
+          "stone": 297
+        },
+        "tier": "stronghold",
+        "completed": [],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "方繩基準法已加入生產佇列",
+        "actions": [
+          {
+            "label": "基準法 0%",
+            "accessibleLabel": "方繩基準法研究進度百分之0",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": [
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-5"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-6"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "train",
+              "producerId": "building-1",
+              "unitType": "villager",
+              "count": 5
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 170,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-18",
+                "unit-19"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-20",
+                "unit-21",
+                "unit-23"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "lumberCamp",
+              "origin": {
+                "x": 7,
+                "y": 8
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 526,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 1023,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "barracks",
+              "origin": {
+                "x": 7,
+                "y": 13
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 530,
+              "wood": 958,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 530,
+              "wood": 808,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1443,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            },
+            "walletAfter": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1895,
+            "command": {
+              "type": "advanceSettlement",
+              "producerId": "building-1",
+              "targetTier": "stronghold"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 890,
+              "wood": 2476,
+              "stone": 453
+            },
+            "walletAfter": {
+              "food": 390,
+              "wood": 2176,
+              "stone": 353
+            }
+          },
+          {
+            "tick": 2345,
+            "command": {
+              "type": "research",
+              "producerId": "building-1",
+              "technologyId": "surveyedFoundations"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 642,
+              "wood": 3100,
+              "stone": 437
+            },
+            "walletAfter": {
+              "food": 462,
+              "wood": 2860,
+              "stone": 297
+            }
+          }
+        ]
+      },
+      {
+        "label": "town research completed feedback",
+        "tick": 2745,
+        "phase": "playing",
+        "wallet": {
+          "food": 564,
+          "wood": 3724,
+          "stone": 381
+        },
+        "tier": "stronghold",
+        "completed": [
+          "surveyedFoundations"
+        ],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "方繩基準法研究完成",
+        "actions": [
+          {
+            "label": "基準法 已完成",
+            "accessibleLabel": "方繩基準法已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": [
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-5"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-6"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "train",
+              "producerId": "building-1",
+              "unitType": "villager",
+              "count": 5
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 170,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-18",
+                "unit-19"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-20",
+                "unit-21",
+                "unit-23"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "lumberCamp",
+              "origin": {
+                "x": 7,
+                "y": 8
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 526,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 1023,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "barracks",
+              "origin": {
+                "x": 7,
+                "y": 13
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 530,
+              "wood": 958,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 530,
+              "wood": 808,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1443,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            },
+            "walletAfter": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1895,
+            "command": {
+              "type": "advanceSettlement",
+              "producerId": "building-1",
+              "targetTier": "stronghold"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 890,
+              "wood": 2476,
+              "stone": 453
+            },
+            "walletAfter": {
+              "food": 390,
+              "wood": 2176,
+              "stone": 353
+            }
+          },
+          {
+            "tick": 2345,
+            "command": {
+              "type": "research",
+              "producerId": "building-1",
+              "technologyId": "surveyedFoundations"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 642,
+              "wood": 3100,
+              "stone": 437
+            },
+            "walletAfter": {
+              "food": 462,
+              "wood": 2860,
+              "stone": 297
+            }
+          }
+        ]
+      },
+      {
+        "label": "completed technology explanatory pointer",
+        "tick": 2745,
+        "phase": "playing",
+        "wallet": {
+          "food": 564,
+          "wood": 3724,
+          "stone": 381
+        },
+        "tier": "stronghold",
+        "completed": [
+          "surveyedFoundations"
+        ],
+        "selected": [
+          "building-1"
+        ],
+        "notice": "方繩基準法已完成",
+        "actions": [
+          {
+            "label": "基準法 已完成",
+            "accessibleLabel": "方繩基準法已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "commands": [
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-5"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-6"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 3,
+            "command": {
+              "type": "train",
+              "producerId": "building-1",
+              "unitType": "villager",
+              "count": 5
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 420,
+              "wood": 420,
+              "stone": 260
+            },
+            "walletAfter": {
+              "food": 170,
+              "wood": 420,
+              "stone": 260
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-18",
+                "unit-19"
+              ],
+              "targetId": "resource-2"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-20",
+                "unit-21",
+                "unit-23"
+              ],
+              "targetId": "resource-3"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 663,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "lumberCamp",
+              "origin": {
+                "x": 7,
+                "y": 8
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 350,
+              "wood": 636,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 350,
+              "wood": 526,
+              "stone": 404
+            }
+          },
+          {
+            "tick": 1023,
+            "command": {
+              "type": "build",
+              "builderIds": [
+                "unit-7"
+              ],
+              "buildingType": "barracks",
+              "origin": {
+                "x": 7,
+                "y": 13
+              }
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 530,
+              "wood": 958,
+              "stone": 404
+            },
+            "walletAfter": {
+              "food": 530,
+              "wood": 808,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1443,
+            "command": {
+              "type": "gather",
+              "entityIds": [
+                "unit-7"
+              ],
+              "targetId": "resource-4"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            },
+            "walletAfter": {
+              "food": 662,
+              "wood": 1588,
+              "stone": 369
+            }
+          },
+          {
+            "tick": 1895,
+            "command": {
+              "type": "advanceSettlement",
+              "producerId": "building-1",
+              "targetTier": "stronghold"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 890,
+              "wood": 2476,
+              "stone": 453
+            },
+            "walletAfter": {
+              "food": 390,
+              "wood": 2176,
+              "stone": 353
+            }
+          },
+          {
+            "tick": 2345,
+            "command": {
+              "type": "research",
+              "producerId": "building-1",
+              "technologyId": "surveyedFoundations"
+            },
+            "accepted": true,
+            "walletBefore": {
+              "food": 642,
+              "wood": 3100,
+              "stone": 437
+            },
+            "walletAfter": {
+              "food": 462,
+              "wood": 2860,
+              "stone": 297
+            }
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "setup": {
+      "tick": 1893,
+      "wallet": {
+        "food": 890,
+        "wood": 2476,
+        "stone": 453
+      },
+      "buildings": [
+        {
+          "id": "building-1",
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "id": "building-24",
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "id": "building-26",
+          "type": "barracks",
+          "complete": true
+        }
+      ],
+      "workers": 8
+    },
+    "status": "VERIFIED",
+    "commands": [
+      {
+        "tick": 3,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-5"
+          ],
+          "targetId": "resource-2"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 3,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-6"
+          ],
+          "targetId": "resource-3"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 3,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 3,
+        "command": {
+          "type": "train",
+          "producerId": "building-1",
+          "unitType": "villager",
+          "count": 5
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 170,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 663,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-18",
+            "unit-19"
+          ],
+          "targetId": "resource-2"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        }
+      },
+      {
+        "tick": 663,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-20",
+            "unit-21",
+            "unit-23"
+          ],
+          "targetId": "resource-3"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        }
+      },
+      {
+        "tick": 663,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "lumberCamp",
+          "origin": {
+            "x": 7,
+            "y": 8
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 350,
+          "wood": 526,
+          "stone": 404
+        }
+      },
+      {
+        "tick": 1023,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "barracks",
+          "origin": {
+            "x": 7,
+            "y": 13
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 530,
+          "wood": 958,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 530,
+          "wood": 808,
+          "stone": 369
+        }
+      },
+      {
+        "tick": 1443,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 662,
+          "wood": 1588,
+          "stone": 369
+        },
+        "walletAfter": {
+          "food": 662,
+          "wood": 1588,
+          "stone": 369
+        }
+      },
+      {
+        "tick": 1895,
+        "command": {
+          "type": "advanceSettlement",
+          "producerId": "building-1",
+          "targetTier": "stronghold"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 890,
+          "wood": 2476,
+          "stone": 453
+        },
+        "walletAfter": {
+          "food": 390,
+          "wood": 2176,
+          "stone": 353
+        }
+      },
+      {
+        "tick": 2345,
+        "command": {
+          "type": "research",
+          "producerId": "building-1",
+          "technologyId": "surveyedFoundations"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 642,
+          "wood": 3100,
+          "stone": 437
+        },
+        "walletAfter": {
+          "food": 462,
+          "wood": 2860,
+          "stone": 297
+        }
+      }
+    ]
+  },
+  "all": {
+    "device": "desktop pointer",
+    "method": "Continuation of the normal UI scenario. All later technology starts and the artificer advancement use real pointer/touch; ordinary paid building/economy commands and fixed game updates prepare each producer. No canonical writes, AI controls, grants, forced victory.",
+    "checks": [
+      {
+        "label": "hearthlandAlmanac producer selection and research reachability",
+        "tick": 3671,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1200,
+          "wood": 4835,
+          "stone": 451
+        },
+        "completed": [
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "研究 0/1",
+            "access": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "糧秣所生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "置中",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "builder returns to paid economy"
+      },
+      {
+        "label": "hearthlandAlmanac available",
+        "tick": 3671,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1200,
+          "wood": 4835,
+          "stone": 451
+        },
+        "completed": [
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "節候錄 可研究",
+            "access": "研究爐原節候錄，需要糧食220、木材80",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "builder returns to paid economy"
+      },
+      {
+        "label": "hearthlandAlmanac actual pointer starts research",
+        "tick": 3671,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 980,
+          "wood": 4755,
+          "stone": 451
+        },
+        "completed": [
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "節候錄 0%",
+            "access": "爐原節候錄研究進度百分之0",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "爐原節候錄已加入生產佇列"
+      },
+      {
+        "label": "hearthlandAlmanac completed",
+        "tick": 3951,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1064,
+          "wood": 5115,
+          "stone": 607
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "節候錄 已完成",
+            "access": "爐原節候錄已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "爐原節候錄研究完成"
+      },
+      {
+        "label": "resinboundKits producer selection and research reachability",
+        "tick": 3952,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1064,
+          "wood": 5115,
+          "stone": 607
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "研究 0/1",
+            "access": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "木作營生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "置中",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "爐原節候錄研究完成"
+      },
+      {
+        "label": "resinboundKits available",
+        "tick": 3952,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1064,
+          "wood": 5115,
+          "stone": 607
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "固柄術 可研究",
+            "access": "研究樹脂固柄術，需要木材240、石材80",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "爐原節候錄研究完成"
+      },
+      {
+        "label": "resinboundKits actual pointer starts research",
+        "tick": 3952,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1064,
+          "wood": 4875,
+          "stone": 527
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "固柄術 0%",
+            "access": "樹脂固柄術研究進度百分之0",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "樹脂固柄術已加入生產佇列"
+      },
+      {
+        "label": "resinboundKits completed",
+        "tick": 4253,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1376,
+          "wood": 4875,
+          "stone": 707
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "固柄術 已完成",
+            "access": "樹脂固柄術已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "樹脂固柄術研究完成"
+      },
+      {
+        "label": "layeredHarness producer selection and research reachability",
+        "tick": 4254,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1376,
+          "wood": 4875,
+          "stone": 707
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "戰士 糧65/木30",
+            "access": "訓練邊境戰士",
+            "enabled": true
+          },
+          {
+            "label": "盾牌手 糧75/木45/石20",
+            "access": "訓練持盾槍衛",
+            "enabled": true
+          },
+          {
+            "label": "研究 0/1",
+            "access": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "邊軍兵營生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "access": "設定邊軍兵營集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "樹脂固柄術研究完成"
+      },
+      {
+        "label": "layeredHarness available",
+        "tick": 4254,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1376,
+          "wood": 4875,
+          "stone": 707
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "疊革具 可研究",
+            "access": "研究疊革戰具，需要糧食250、木材120、石材80",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "樹脂固柄術研究完成"
+      },
+      {
+        "label": "layeredHarness actual pointer starts research",
+        "tick": 4254,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1126,
+          "wood": 4755,
+          "stone": 627
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "疊革具 0%",
+            "access": "疊革戰具研究進度百分之0",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "疊革戰具已加入生產佇列"
+      },
+      {
+        "label": "layeredHarness completed",
+        "tick": 4614,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1221,
+          "wood": 4755,
+          "stone": 843
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "疊革具 已完成",
+            "access": "疊革戰具已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "疊革戰具研究完成"
+      },
+      {
+        "label": "windspurRigging producer selection and research reachability",
+        "tick": 4615,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1233,
+          "wood": 4755,
+          "stone": 843
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "野豬騎士 糧115/木35/石20",
+            "access": "訓練野豬騎士",
+            "enabled": true
+          },
+          {
+            "label": "研究 0/1",
+            "access": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "獠騎圈生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "access": "設定獠騎圈集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "疊革戰具研究完成"
+      },
+      {
+        "label": "windspurRigging available",
+        "tick": 4615,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1233,
+          "wood": 4755,
+          "stone": 843
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "逐風索 可研究",
+            "access": "研究逐風鞍索，需要糧食240、木材150、石材40",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "疊革戰具研究完成"
+      },
+      {
+        "label": "windspurRigging actual pointer starts research",
+        "tick": 4615,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 993,
+          "wood": 4605,
+          "stone": 803
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations"
+        ],
+        "actions": [
+          {
+            "label": "逐風索 0%",
+            "access": "逐風鞍索研究進度百分之0",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "逐風鞍索已加入生產佇列"
+      },
+      {
+        "label": "windspurRigging completed",
+        "tick": 4956,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 1293,
+          "wood": 4605,
+          "stone": 1007
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging"
+        ],
+        "actions": [
+          {
+            "label": "逐風索 已完成",
+            "access": "逐風鞍索已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "逐風鞍索研究完成"
+      },
+      {
+        "label": "actual pointer starts artificer advancement",
+        "tick": 4957,
+        "tier": "stronghold",
+        "phase": "playing",
+        "wallet": {
+          "food": 543,
+          "wood": 4105,
+          "stone": 707
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging"
+        ],
+        "actions": [
+          {
+            "label": "工匠 糧50",
+            "access": "訓練拓荒工匠",
+            "enabled": false
+          },
+          {
+            "label": "工藝期 0%",
+            "access": "聚落正在升級至工藝期，已完成百分之0",
+            "enabled": false
+          },
+          {
+            "label": "研究 1/1",
+            "access": "開啟研究選單，已完成1項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "村鎮議事堂生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "access": "設定村鎮議事堂集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "聚落升級開始｜目標 工藝期"
+      },
+      {
+        "label": "artificer advancement completes",
+        "tick": 5557,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 902,
+          "wood": 4105,
+          "stone": 1067
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging"
+        ],
+        "actions": [
+          {
+            "label": "工匠 糧50",
+            "access": "訓練拓荒工匠",
+            "enabled": true
+          },
+          {
+            "label": "聚落已完備",
+            "access": "聚落已達最高階段工藝期",
+            "enabled": false
+          },
+          {
+            "label": "研究 1/1",
+            "access": "開啟研究選單，已完成1項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "村鎮議事堂生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "access": "設定村鎮議事堂集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "爐火與齒輪照亮工坊｜聚落邁入工藝期"
+      },
+      {
+        "label": "starfireBores producer selection and research reachability",
+        "tick": 6555,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1630,
+          "wood": 3680,
+          "stone": 1058
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging"
+        ],
+        "actions": [
+          {
+            "label": "火槍兵 糧60/木70/石35",
+            "access": "訓練黑火銃兵",
+            "enabled": true
+          },
+          {
+            "label": "研究 0/1",
+            "access": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "火器坊生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "access": "設定火器坊集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "builder returns to paid economy"
+      },
+      {
+        "label": "starfireBores available",
+        "tick": 6555,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1630,
+          "wood": 3680,
+          "stone": 1058
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging"
+        ],
+        "actions": [
+          {
+            "label": "星火鑽 可研究",
+            "access": "研究星火膛鑽，需要糧食300、木材220、石材180",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "builder returns to paid economy"
+      },
+      {
+        "label": "starfireBores actual pointer starts research",
+        "tick": 6555,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1330,
+          "wood": 3460,
+          "stone": 878
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging"
+        ],
+        "actions": [
+          {
+            "label": "星火鑽 0%",
+            "access": "星火膛鑽研究進度百分之0",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "星火膛鑽已加入生產佇列"
+      },
+      {
+        "label": "starfireBores completed",
+        "tick": 6975,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1594,
+          "wood": 3460,
+          "stone": 1058
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging",
+          "starfireBores"
+        ],
+        "actions": [
+          {
+            "label": "星火鑽 已完成",
+            "access": "星火膛鑽已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "星火膛鑽研究完成"
+      },
+      {
+        "label": "torsionCradles producer selection and research reachability",
+        "tick": 6976,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1594,
+          "wood": 3460,
+          "stone": 1058
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging",
+          "starfireBores"
+        ],
+        "actions": [
+          {
+            "label": "重弩攻手 糧50/木110/石50",
+            "access": "訓練重弩攻城手",
+            "enabled": false
+          },
+          {
+            "label": "研究 0/1",
+            "access": "開啟研究選單，已完成0項，共1項",
+            "enabled": true
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "空欄",
+            "enabled": false
+          },
+          {
+            "label": "佇列 0/5",
+            "access": "攻城棚生產佇列，共0項",
+            "enabled": true
+          },
+          {
+            "label": "設集結",
+            "access": "設定攻城棚集結點",
+            "enabled": true
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "星火膛鑽研究完成"
+      },
+      {
+        "label": "torsionCradles available",
+        "tick": 6976,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1594,
+          "wood": 3460,
+          "stone": 1058
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging",
+          "starfireBores"
+        ],
+        "actions": [
+          {
+            "label": "絞索架 可研究",
+            "access": "研究絞索衝架，需要糧食200、木材300、石材220",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "星火膛鑽研究完成"
+      },
+      {
+        "label": "torsionCradles actual pointer starts research",
+        "tick": 6976,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1394,
+          "wood": 3160,
+          "stone": 838
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging",
+          "starfireBores"
+        ],
+        "actions": [
+          {
+            "label": "絞索架 0%",
+            "access": "絞索衝架研究進度百分之0",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "絞索衝架已加入生產佇列"
+      },
+      {
+        "label": "torsionCradles completed",
+        "tick": 7427,
+        "tier": "artificer",
+        "phase": "playing",
+        "wallet": {
+          "food": 1622,
+          "wood": 3160,
+          "stone": 1042
+        },
+        "completed": [
+          "hearthlandAlmanac",
+          "resinboundKits",
+          "layeredHarness",
+          "surveyedFoundations",
+          "windspurRigging",
+          "starfireBores",
+          "torsionCradles"
+        ],
+        "actions": [
+          {
+            "label": "絞索架 已完成",
+            "access": "絞索衝架已完成",
+            "enabled": true
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "無研究",
+            "enabled": false
+          },
+          {
+            "label": "返回指令",
+            "enabled": true
+          },
+          {
+            "label": "研究 1/1",
+            "enabled": false
+          },
+          {
+            "label": "系統",
+            "enabled": true
+          }
+        ],
+        "notice": "絞索衝架研究完成"
+      }
+    ],
+    "producers": [
+      {
+        "id": "building-30",
+        "type": "farmstead",
+        "position": {
+          "x": 2,
+          "y": 9
+        },
+        "complete": true
+      },
+      {
+        "id": "building-32",
+        "type": "archeryRange",
+        "position": {
+          "x": 7,
+          "y": 16
+        },
+        "complete": true
+      },
+      {
+        "id": "building-33",
+        "type": "beastStable",
+        "position": {
+          "x": 3,
+          "y": 16
+        },
+        "complete": true
+      },
+      {
+        "id": "building-34",
+        "type": "gunWorkshop",
+        "position": {
+          "x": 7,
+          "y": 5
+        },
+        "complete": true
+      },
+      {
+        "id": "building-35",
+        "type": "siegeWorkshop",
+        "position": {
+          "x": 7,
+          "y": 19
+        },
+        "complete": true
+      }
+    ],
+    "errors": [],
+    "status": "VERIFIED",
+    "commands": [
+      {
+        "tick": 3,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-5"
+          ],
+          "targetId": "resource-2"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 3,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-6"
+          ],
+          "targetId": "resource-3"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 3,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 3,
+        "command": {
+          "type": "train",
+          "producerId": "building-1",
+          "unitType": "villager",
+          "count": 5
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 420,
+          "wood": 420,
+          "stone": 260
+        },
+        "walletAfter": {
+          "food": 170,
+          "wood": 420,
+          "stone": 260
+        }
+      },
+      {
+        "tick": 663,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-18",
+            "unit-19"
+          ],
+          "targetId": "resource-2"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        }
+      },
+      {
+        "tick": 663,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-20",
+            "unit-21",
+            "unit-23"
+          ],
+          "targetId": "resource-3"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        }
+      },
+      {
+        "tick": 663,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "lumberCamp",
+          "origin": {
+            "x": 7,
+            "y": 8
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 350,
+          "wood": 636,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 350,
+          "wood": 526,
+          "stone": 404
+        }
+      },
+      {
+        "tick": 1023,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "barracks",
+          "origin": {
+            "x": 7,
+            "y": 13
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 530,
+          "wood": 958,
+          "stone": 404
+        },
+        "walletAfter": {
+          "food": 530,
+          "wood": 808,
+          "stone": 369
+        }
+      },
+      {
+        "tick": 1443,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 662,
+          "wood": 1588,
+          "stone": 369
+        },
+        "walletAfter": {
+          "food": 662,
+          "wood": 1588,
+          "stone": 369
+        }
+      },
+      {
+        "tick": 1895,
+        "command": {
+          "type": "advanceSettlement",
+          "producerId": "building-1",
+          "targetTier": "stronghold"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 890,
+          "wood": 2476,
+          "stone": 453
+        },
+        "walletAfter": {
+          "food": 390,
+          "wood": 2176,
+          "stone": 353
+        }
+      },
+      {
+        "tick": 2345,
+        "command": {
+          "type": "research",
+          "producerId": "building-1",
+          "technologyId": "surveyedFoundations"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 642,
+          "wood": 3100,
+          "stone": 437
+        },
+        "walletAfter": {
+          "food": 462,
+          "wood": 2860,
+          "stone": 297
+        }
+      },
+      {
+        "tick": 2747,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-6",
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 564,
+          "wood": 3736,
+          "stone": 381
+        },
+        "walletAfter": {
+          "food": 564,
+          "wood": 3736,
+          "stone": 381
+        }
+      },
+      {
+        "tick": 2747,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "farmstead",
+          "origin": {
+            "x": 2,
+            "y": 9
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 564,
+          "wood": 3736,
+          "stone": 381
+        },
+        "walletAfter": {
+          "food": 564,
+          "wood": 3651,
+          "stone": 361
+        }
+      },
+      {
+        "tick": 3000,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 672,
+          "wood": 4095,
+          "stone": 397
+        },
+        "walletAfter": {
+          "food": 672,
+          "wood": 4095,
+          "stone": 397
+        }
+      },
+      {
+        "tick": 3000,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "archeryRange",
+          "origin": {
+            "x": 7,
+            "y": 16
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 672,
+          "wood": 4095,
+          "stone": 397
+        },
+        "walletAfter": {
+          "food": 672,
+          "wood": 3935,
+          "stone": 352
+        }
+      },
+      {
+        "tick": 3342,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 924,
+          "wood": 4487,
+          "stone": 424
+        },
+        "walletAfter": {
+          "food": 924,
+          "wood": 4487,
+          "stone": 424
+        }
+      },
+      {
+        "tick": 3342,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "beastStable",
+          "origin": {
+            "x": 3,
+            "y": 16
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 924,
+          "wood": 4487,
+          "stone": 424
+        },
+        "walletAfter": {
+          "food": 924,
+          "wood": 4307,
+          "stone": 379
+        }
+      },
+      {
+        "tick": 3669,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1200,
+          "wood": 4835,
+          "stone": 451
+        },
+        "walletAfter": {
+          "food": 1200,
+          "wood": 4835,
+          "stone": 451
+        }
+      },
+      {
+        "tick": 3671,
+        "command": {
+          "type": "research",
+          "producerId": "building-30",
+          "technologyId": "hearthlandAlmanac"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1200,
+          "wood": 4835,
+          "stone": 451
+        },
+        "walletAfter": {
+          "food": 980,
+          "wood": 4755,
+          "stone": 451
+        }
+      },
+      {
+        "tick": 3952,
+        "command": {
+          "type": "research",
+          "producerId": "building-24",
+          "technologyId": "resinboundKits"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1064,
+          "wood": 5115,
+          "stone": 607
+        },
+        "walletAfter": {
+          "food": 1064,
+          "wood": 4875,
+          "stone": 527
+        }
+      },
+      {
+        "tick": 4254,
+        "command": {
+          "type": "research",
+          "producerId": "building-26",
+          "technologyId": "layeredHarness"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1376,
+          "wood": 4875,
+          "stone": 707
+        },
+        "walletAfter": {
+          "food": 1126,
+          "wood": 4755,
+          "stone": 627
+        }
+      },
+      {
+        "tick": 4615,
+        "command": {
+          "type": "research",
+          "producerId": "building-33",
+          "technologyId": "windspurRigging"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1233,
+          "wood": 4755,
+          "stone": 843
+        },
+        "walletAfter": {
+          "food": 993,
+          "wood": 4605,
+          "stone": 803
+        }
+      },
+      {
+        "tick": 4957,
+        "command": {
+          "type": "advanceSettlement",
+          "producerId": "building-1",
+          "targetTier": "artificer"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1293,
+          "wood": 4605,
+          "stone": 1007
+        },
+        "walletAfter": {
+          "food": 543,
+          "wood": 4105,
+          "stone": 707
+        }
+      },
+      {
+        "tick": 5557,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "gunWorkshop",
+          "origin": {
+            "x": 7,
+            "y": 5
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 902,
+          "wood": 4105,
+          "stone": 1067
+        },
+        "walletAfter": {
+          "food": 902,
+          "wood": 3920,
+          "stone": 982
+        }
+      },
+      {
+        "tick": 6024,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1270,
+          "wood": 3920,
+          "stone": 1090
+        },
+        "walletAfter": {
+          "food": 1270,
+          "wood": 3920,
+          "stone": 1090
+        }
+      },
+      {
+        "tick": 6024,
+        "command": {
+          "type": "build",
+          "builderIds": [
+            "unit-7"
+          ],
+          "buildingType": "siegeWorkshop",
+          "origin": {
+            "x": 7,
+            "y": 19
+          }
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1270,
+          "wood": 3920,
+          "stone": 1090
+        },
+        "walletAfter": {
+          "food": 1270,
+          "wood": 3680,
+          "stone": 950
+        }
+      },
+      {
+        "tick": 6553,
+        "command": {
+          "type": "gather",
+          "entityIds": [
+            "unit-7"
+          ],
+          "targetId": "resource-4"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1630,
+          "wood": 3680,
+          "stone": 1058
+        },
+        "walletAfter": {
+          "food": 1630,
+          "wood": 3680,
+          "stone": 1058
+        }
+      },
+      {
+        "tick": 6555,
+        "command": {
+          "type": "research",
+          "producerId": "building-34",
+          "technologyId": "starfireBores"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1630,
+          "wood": 3680,
+          "stone": 1058
+        },
+        "walletAfter": {
+          "food": 1330,
+          "wood": 3460,
+          "stone": 878
+        }
+      },
+      {
+        "tick": 6976,
+        "command": {
+          "type": "research",
+          "producerId": "building-35",
+          "technologyId": "torsionCradles"
+        },
+        "accepted": true,
+        "walletBefore": {
+          "food": 1594,
+          "wood": 3460,
+          "stone": 1058
+        },
+        "walletAfter": {
+          "food": 1394,
+          "wood": 3160,
+          "stone": 838
+        }
+      }
+    ]
+  },
+  "captureMetadata": {
+    "rulesVersion": "village-siege/0.19.0",
+    "menuVersionObserved": "0.22.1",
+    "sourceStage": "Stock fixes present; before final 0.20.0 and 1.0.0 source freeze",
+    "origin": "http://127.0.0.1:5174",
+    "hmrEnabled": false,
+    "opponent": "guardian",
+    "difficulty": "novice",
+    "finalReleaseAcceptance": false
+  }
+}

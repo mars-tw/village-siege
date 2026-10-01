@@ -3,6 +3,7 @@ import { getDeviceViewportProfile } from "../game/deviceViewport";
 import { toggleGameFullscreen } from "../game/gameFullscreen";
 import { publicAssetUrl } from "../game/publicAssetUrl";
 import { multiplayerAvailability } from "../network/multiplayerAvailability";
+import { readAutoSave, type AutoSaveEntry } from "../game/autoSave";
 import type { AiDifficulty } from "@village-siege/shared";
 import "../frontier-menu.css";
 export type VillageId = "pinehold" | "riverstead" | "highcrag";
@@ -29,6 +30,7 @@ export class VillageSelectScene extends Phaser.Scene {
  private villageId: VillageId = "pinehold";
  private aiPersonality: AiPersonality = "balanced";
  private aiDifficulty: AiDifficulty = "standard";
+ private autoSaveNotice = "";
  constructor(){super({key:"VillageSelectScene"});}
  create():void {
   this.cameras.main.setBackgroundColor("#172b29");
@@ -39,7 +41,7 @@ export class VillageSelectScene extends Phaser.Scene {
   root.style.setProperty("--frontier-atlas",`url("${publicAssetUrl("assets/original/frontier/buildings.png")}")`);
   root.innerHTML=`
    <div class="frontier-landscape" aria-hidden="true"></div>
-   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v${import.meta.env.VITE_APP_VERSION ?? "0.22.1"}</span></span></header>
+   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v${import.meta.env.VITE_APP_VERSION ?? "1.0.0"}</span></span></header>
    <div class="frontier-content">
     <div class="frontier-intro"><p class="frontier-eyebrow">一座村莊，一場攻防。</p><h1>把邊境，<br>變成你的堡壘。</h1><p class="frontier-description">開拓、築城、帶兵出征。<br>從松林深處，打開通往河谷的道路。</p></div>
     <section class="frontier-settings">
@@ -53,7 +55,7 @@ export class VillageSelectScene extends Phaser.Scene {
    </div>
    <aside class="frontier-world-note" aria-label="戰役概要"><span>THE FRONTIER</span><h2>河谷的晨光</h2><p>三座聚落 · 七種兵種 · 四條勝途</p><div class="world-note-rule"></div><small>發展經濟，突破城防，或守住中域。</small></aside>
    <div class="frontier-bottom"><span>原創等角即時戰略</span><output class="frontier-readout" aria-live="polite"></output><span class="frontier-device-note">滑鼠鍵盤／觸控操作</span></div>
-   <dialog class="frontier-guide"><div class="guide-heading"><h2>把第一座村莊守好</h2><button type="button" data-close-guide aria-label="關閉操作指南">×</button></div><div class="guide-body"><p><strong>先發展：</strong>點選工匠，再點林木、糧食或石礦。選取主城可訓練更多工匠。</p><p><strong>再出兵：</strong>建造兵營並訓練士兵。升級聚落後，開放弓箭、騎兵與攻城兵器。</p><p><strong>電腦：</strong>點選或框選單位，右鍵移動／攻擊；WASD 移動鏡頭，滾輪縮放，B 建造，P 暫停。</p><p><strong>手機／平板：</strong>戰場採橫向。點選單位後點目標，拖曳移動鏡頭，用縮放按鈕拉近、拉遠；底部指令可選工匠、全軍、建造與系統。</p><p><strong>贏得戰役：</strong>摧毀敵方議事堂、殲滅敵軍、持守拓界銅標，或取得中域控制。</p></div><button type="button" class="guide-play" data-guide-tutorial>用七個目標學會操作 →</button></dialog>`;
+   <dialog class="frontier-guide"><div class="guide-heading"><h2>把第一座村莊守好</h2><button type="button" data-close-guide aria-label="關閉操作指南">×</button></div><div class="guide-body"><p><strong>先發展：</strong>點選工匠，再點林木、糧食或石礦。選取主城可訓練更多工匠。</p><p><strong>再出兵：</strong>建造兵營並訓練士兵。點「科技與時代」查看建築與材料前置，升級後開放弓箭、騎兵與攻城兵器。</p><p><strong>電腦：</strong>點選單位，按住 Shift 拖曳框選，右鍵移動／攻擊；WASD 或拖曳移動鏡頭，滾輪縮放，B 建造，P 暫停。</p><p><strong>手機／平板：</strong>戰場採橫向。點選單位後點目標，拖曳移動鏡頭，用縮放按鈕拉近、拉遠；底部指令可選工匠、全軍、建造與系統。</p><p><strong>贏得戰役：</strong>摧毀敵方議事堂、殲滅敵軍、持守拓界銅標，或取得中域控制。</p></div><button type="button" class="guide-play" data-guide-tutorial>用七個目標學會操作 →</button></dialog>`;
   host.append(root);this.root=root;
   root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach(b=>b.addEventListener("click",()=>{this.villageId=b.dataset.village as VillageId;this.syncSelection();}));
   root.querySelectorAll<HTMLButtonElement>("[data-ai]").forEach(b=>b.addEventListener("click",()=>{this.aiPersonality=b.dataset.ai as AiPersonality;this.syncSelection();}));
@@ -65,12 +67,32 @@ export class VillageSelectScene extends Phaser.Scene {
   const guide=root.querySelector<HTMLDialogElement>("dialog")!;
   root.querySelector("[data-guide]")?.addEventListener("click",()=>guide.showModal());
   root.querySelector("[data-close-guide]")?.addEventListener("click",()=>guide.close());
+  this.autoSaveNotice="";
   this.syncSelection();this.events.once("shutdown",this.destroySelector,this);this.events.once("destroy",this.destroySelector,this);
+  void this.loadContinueBattle(root);
   window.dispatchEvent(new Event("village-siege-ready"));
  }
  private startBattle(tutorial:boolean):void {
   const p=getDeviceViewportProfile(); if(p.mobile&&!this.scale.isFullscreen)toggleGameFullscreen(this);
   this.scene.start("VillageAssaultScene",{villageId:tutorial?"pinehold":this.villageId,aiPersonality:tutorial?"balanced":this.aiPersonality,aiDifficulty:tutorial?"novice":this.aiDifficulty,returnScene:"VillageSelectScene",tutorial});
+ }
+ private async loadContinueBattle(root:HTMLElement):Promise<void> {
+  const result=await readAutoSave();
+  if(this.root!==root||!this.sys.isActive())return;
+  if(!result.ok){this.autoSaveNotice="自動存檔不可用";this.syncSelection();root.querySelector(".frontier-readout")?.setAttribute("title",result.message);return;}
+  const entry=result.latest;
+  this.autoSaveNotice=entry&&!entry.finished?"有未完戰役可繼續":"自動存檔可用";
+  this.syncSelection();
+  if(result.warning)root.querySelector(".frontier-readout")?.setAttribute("title",result.warning);
+  if(!entry||entry.finished)return;
+  const button=document.createElement("button");button.type="button";button.dataset.continue="";
+  button.textContent="繼續戰役 ↗";button.setAttribute("aria-label",`繼續上次未完成戰役，進度 ${Math.floor(entry.tick/10)} 秒`);
+  button.addEventListener("click",()=>this.continueBattle(entry));
+  root.querySelector(".frontier-secondary")?.prepend(button);
+ }
+ private continueBattle(entry:AutoSaveEntry):void {
+  const p=getDeviceViewportProfile();if(p.mobile&&!this.scale.isFullscreen)toggleGameFullscreen(this);
+  this.scene.start("VillageAssaultScene",{villageId:this.villageId,aiPersonality:this.aiPersonality,aiDifficulty:this.aiDifficulty,returnScene:"VillageSelectScene",tutorial:false,continueSaveJson:entry.saveJson});
  }
  private syncSelection():void {
   if(!this.root)return;
@@ -79,7 +101,7 @@ export class VillageSelectScene extends Phaser.Scene {
   const v=VILLAGES.find(v=>v.id===this.villageId)!;const p=AI_PROFILES.find(p=>p.id===this.aiPersonality)!;const d=DIFFICULTIES.find(d=>d.id===this.aiDifficulty)!;
   this.root.querySelector("[data-village-detail]")!.textContent=v.detail;
   this.root.querySelector("[data-rival-detail]")!.textContent=`${p.detail}。${d.detail}`;
-  this.root.querySelector(".frontier-readout")!.textContent=`${v.name} ／ ${p.name} ／ ${d.name}`;
+  this.root.querySelector(".frontier-readout")!.textContent=`${v.name} ／ ${p.name} ／ ${d.name}${this.autoSaveNotice?` ／ ${this.autoSaveNotice}`:""}`;
  }
  private destroySelector():void {this.root?.querySelector<HTMLDialogElement>("dialog")?.close();this.root?.remove();(this.game.canvas.parentElement??document.body).classList.remove("selection-active");this.root=undefined;}
 }

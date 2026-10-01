@@ -1,0 +1,822 @@
+{
+  "status": "VERIFIED",
+  "appVersion": "1.0.0",
+  "rulesVersion": "village-siege/0.20.0",
+  "method": "Real desktop pointer and Chromium mobile emulation touchscreen after UI import of legitimate standard/balanced paid checkpoint. Five self/ground/direction casts, then normal moves clear occupied north lane before two entity-target casts. No canonical/resource/AI/victory writes. File chooser was handled via CLI upload.",
+  "devices": [
+    {
+      "errors": [],
+      "setupNote": "Initial caster path was occupied. Normal move commands cleared allied blockers; then both unit-target casts succeeded. Raw failed setup outputs remain private.",
+      "checkpoint": {
+        "tick": 8399,
+        "ai": "balanced",
+        "difficulty": "standard",
+        "tier": "artificer",
+        "units": [
+          {
+            "id": "unit-126",
+            "type": "boarRider",
+            "pos": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          {
+            "id": "unit-166",
+            "type": "archer",
+            "pos": {
+              "x": 10,
+              "y": 7
+            }
+          },
+          {
+            "id": "unit-189",
+            "type": "warrior",
+            "pos": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          {
+            "id": "unit-206",
+            "type": "archer",
+            "pos": {
+              "x": 10,
+              "y": 9
+            }
+          },
+          {
+            "id": "unit-207",
+            "type": "warrior",
+            "pos": {
+              "x": 10,
+              "y": 12
+            }
+          },
+          {
+            "id": "unit-208",
+            "type": "archer",
+            "pos": {
+              "x": 9,
+              "y": 12
+            }
+          },
+          {
+            "id": "unit-209",
+            "type": "shieldBearer",
+            "pos": {
+              "x": 9,
+              "y": 11
+            }
+          },
+          {
+            "id": "unit-216",
+            "type": "mage",
+            "pos": {
+              "x": 10,
+              "y": 13
+            }
+          },
+          {
+            "id": "unit-228",
+            "type": "archer",
+            "pos": {
+              "x": 11,
+              "y": 11
+            }
+          },
+          {
+            "id": "unit-229",
+            "type": "musketeer",
+            "pos": {
+              "x": 10,
+              "y": 15
+            }
+          },
+          {
+            "id": "unit-231",
+            "type": "archer",
+            "pos": {
+              "x": 10,
+              "y": 16
+            }
+          },
+          {
+            "id": "unit-238",
+            "type": "heavyCrossbowman",
+            "pos": {
+              "x": 10,
+              "y": 17
+            }
+          },
+          {
+            "id": "unit-37",
+            "type": "shieldBearer",
+            "pos": {
+              "x": 10,
+              "y": 18
+            }
+          },
+          {
+            "id": "unit-90",
+            "type": "archer",
+            "pos": {
+              "x": 12,
+              "y": 19
+            }
+          }
+        ]
+      },
+      "status": "VERIFIED",
+      "neutralDirectClick": {
+        "tick": 12013,
+        "command": {
+          "type": "attack",
+          "entityIds": [
+            "unit-208"
+          ],
+          "targetId": "monster-15"
+        },
+        "accepted": true
+      },
+      "device": "phone touch 844x390",
+      "checks": [
+        {
+          "type": "shieldBearer",
+          "id": "shieldWall",
+          "targeting": "self",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 421.4999857118344,
+                "y": 160.1708380083243
+              },
+              "selected": [
+                "unit-209"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8400,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-209",
+              "abilityId": "shieldWall",
+              "target": {
+                "kind": "self"
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "archer",
+          "id": "pinningVolley",
+          "targeting": "ground",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 421.49999190337286,
+                "y": 160.17083284258842
+              },
+              "selected": [
+                "unit-166"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8427,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-166",
+              "abilityId": "pinningVolley",
+              "target": {
+                "kind": "ground",
+                "point": {
+                  "x": 10,
+                  "y": 8
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "mage",
+          "id": "emberSigil",
+          "targeting": "ground",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 421.49998777568055,
+                "y": 160.17083490888277
+              },
+              "selected": [
+                "unit-216"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8454,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-216",
+              "abilityId": "emberSigil",
+              "target": {
+                "kind": "ground",
+                "point": {
+                  "x": 10,
+                  "y": 14
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "boarRider",
+          "id": "tuskCharge",
+          "targeting": "direction",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 421.4999898395267,
+                "y": 160.1708338757356
+              },
+              "selected": [
+                "unit-126"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8481,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-126",
+              "abilityId": "tuskCharge",
+              "target": {
+                "kind": "direction",
+                "vector": {
+                  "x": 0,
+                  "y": 1
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "heavyCrossbowman",
+          "id": "breachingBolt",
+          "targeting": "direction",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 421.4999898395267,
+                "y": 160.17083077629408
+              },
+              "selected": [
+                "unit-238"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8508,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-238",
+              "abilityId": "breachingBolt",
+              "target": {
+                "kind": "direction",
+                "vector": {
+                  "x": 0,
+                  "y": 1
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "musketeer",
+          "id": "aimedShot",
+          "targeting": "unit",
+          "staging": {
+            "targetId": "monster-15",
+            "target": {
+              "x": 9,
+              "y": 3
+            },
+            "actual": {
+              "x": 9,
+              "y": 3
+            }
+          },
+          "selections": [
+            {
+              "p": {
+                "x": 421.4999857118344,
+                "y": 160.1708297431469
+              },
+              "selected": [
+                "unit-229"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 11850,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-229",
+              "abilityId": "aimedShot",
+              "target": {
+                "kind": "entity",
+                "entityId": "monster-15"
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "warrior",
+          "id": "armorSunder",
+          "targeting": "unit",
+          "staging": {
+            "targetId": "monster-15",
+            "target": {
+              "x": 12,
+              "y": 3
+            },
+            "actual": {
+              "x": 12,
+              "y": 3
+            }
+          },
+          "selections": [
+            {
+              "p": {
+                "x": 421.49997952029605,
+                "y": 160.17083490888277
+              },
+              "selected": [
+                "unit-229"
+              ]
+            },
+            {
+              "p": {
+                "x": 421.49997952029605,
+                "y": 147.495835373799
+              },
+              "selected": [
+                "unit-229"
+              ]
+            },
+            {
+              "p": {
+                "x": 429.9399673623779,
+                "y": 147.495835373799
+              },
+              "selected": [
+                "unit-229"
+              ]
+            },
+            {
+              "p": {
+                "x": 413.0599916782142,
+                "y": 147.495835373799
+              },
+              "selected": [
+                "unit-207"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 11985,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-207",
+              "abilityId": "armorSunder",
+              "target": {
+                "kind": "entity",
+                "entityId": "monster-15"
+              }
+            },
+            "accepted": true
+          }
+        }
+      ]
+    },
+    {
+      "errors": [],
+      "setupNote": "Initial caster path was occupied. Normal move commands cleared allied blockers; then both unit-target casts succeeded. Raw failed setup outputs remain private.",
+      "checkpoint": {
+        "tick": 8396,
+        "ai": "balanced",
+        "difficulty": "standard",
+        "tier": "artificer",
+        "units": [
+          {
+            "id": "unit-126",
+            "type": "boarRider",
+            "pos": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          {
+            "id": "unit-166",
+            "type": "archer",
+            "pos": {
+              "x": 10,
+              "y": 7
+            }
+          },
+          {
+            "id": "unit-189",
+            "type": "warrior",
+            "pos": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          {
+            "id": "unit-206",
+            "type": "archer",
+            "pos": {
+              "x": 10,
+              "y": 9
+            }
+          },
+          {
+            "id": "unit-207",
+            "type": "warrior",
+            "pos": {
+              "x": 10,
+              "y": 12
+            }
+          },
+          {
+            "id": "unit-208",
+            "type": "archer",
+            "pos": {
+              "x": 9,
+              "y": 12
+            }
+          },
+          {
+            "id": "unit-209",
+            "type": "shieldBearer",
+            "pos": {
+              "x": 9,
+              "y": 11
+            }
+          },
+          {
+            "id": "unit-216",
+            "type": "mage",
+            "pos": {
+              "x": 10,
+              "y": 13
+            }
+          },
+          {
+            "id": "unit-228",
+            "type": "archer",
+            "pos": {
+              "x": 11,
+              "y": 11
+            }
+          },
+          {
+            "id": "unit-229",
+            "type": "musketeer",
+            "pos": {
+              "x": 10,
+              "y": 15
+            }
+          },
+          {
+            "id": "unit-231",
+            "type": "archer",
+            "pos": {
+              "x": 10,
+              "y": 16
+            }
+          },
+          {
+            "id": "unit-238",
+            "type": "heavyCrossbowman",
+            "pos": {
+              "x": 10,
+              "y": 17
+            }
+          },
+          {
+            "id": "unit-37",
+            "type": "shieldBearer",
+            "pos": {
+              "x": 10,
+              "y": 18
+            }
+          },
+          {
+            "id": "unit-90",
+            "type": "archer",
+            "pos": {
+              "x": 12,
+              "y": 19
+            }
+          }
+        ]
+      },
+      "status": "VERIFIED",
+      "neutralDirectClick": {
+        "tick": 11773,
+        "command": {
+          "type": "attack",
+          "entityIds": [
+            "unit-208"
+          ],
+          "targetId": "monster-15"
+        },
+        "accepted": true
+      },
+      "device": "desktop pointer 1280x720",
+      "checks": [
+        {
+          "type": "shieldBearer",
+          "id": "shieldWall",
+          "targeting": "self",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 640.0000038146973,
+                "y": 330.13332879543304
+              },
+              "selected": [
+                "unit-209"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8397,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-209",
+              "abilityId": "shieldWall",
+              "target": {
+                "kind": "self"
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "archer",
+          "id": "pinningVolley",
+          "targeting": "ground",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 640.000020980835,
+                "y": 330.13332974910736
+              },
+              "selected": [
+                "unit-166"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8423,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-166",
+              "abilityId": "pinningVolley",
+              "target": {
+                "kind": "ground",
+                "point": {
+                  "x": 10,
+                  "y": 8
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "mage",
+          "id": "emberSigil",
+          "targeting": "ground",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 639.9999942779541,
+                "y": 330.1333431005478
+              },
+              "selected": [
+                "unit-216"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8449,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-216",
+              "abilityId": "emberSigil",
+              "target": {
+                "kind": "ground",
+                "point": {
+                  "x": 10,
+                  "y": 14
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "boarRider",
+          "id": "tuskCharge",
+          "targeting": "direction",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 640,
+                "y": 330.1333249807358
+              },
+              "selected": [
+                "unit-126"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8475,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-126",
+              "abilityId": "tuskCharge",
+              "target": {
+                "kind": "direction",
+                "vector": {
+                  "x": 0,
+                  "y": 1
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "heavyCrossbowman",
+          "id": "breachingBolt",
+          "targeting": "direction",
+          "staging": null,
+          "selections": [
+            {
+              "p": {
+                "x": 640.0000019073486,
+                "y": 330.133331656456
+              },
+              "selected": [
+                "unit-238"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 8501,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-238",
+              "abilityId": "breachingBolt",
+              "target": {
+                "kind": "direction",
+                "vector": {
+                  "x": 0,
+                  "y": 1
+                }
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "musketeer",
+          "id": "aimedShot",
+          "targeting": "unit",
+          "staging": {
+            "targetId": "monster-15",
+            "target": {
+              "x": 9,
+              "y": 3
+            },
+            "actual": {
+              "x": 9,
+              "y": 3
+            }
+          },
+          "selections": [
+            {
+              "p": {
+                "x": 640.0000190734863,
+                "y": 330.1333326101303
+              },
+              "selected": [
+                "unit-229"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 11613,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-229",
+              "abilityId": "aimedShot",
+              "target": {
+                "kind": "entity",
+                "entityId": "monster-15"
+              }
+            },
+            "accepted": true
+          }
+        },
+        {
+          "type": "warrior",
+          "id": "armorSunder",
+          "targeting": "unit",
+          "staging": {
+            "targetId": "monster-15",
+            "target": {
+              "x": 12,
+              "y": 3
+            },
+            "actual": {
+              "x": 12,
+              "y": 3
+            }
+          },
+          "selections": [
+            {
+              "p": {
+                "x": 640.0000171661377,
+                "y": 330.13333547115326
+              },
+              "selected": [
+                "unit-229"
+              ]
+            },
+            {
+              "p": {
+                "x": 640.0000171661377,
+                "y": 304.53333485126495
+              },
+              "selected": [
+                "unit-229"
+              ]
+            },
+            {
+              "p": {
+                "x": 657.0666842460632,
+                "y": 304.53333485126495
+              },
+              "selected": [
+                "unit-229"
+              ]
+            },
+            {
+              "p": {
+                "x": 622.9333500862122,
+                "y": 304.53333485126495
+              },
+              "selected": [
+                "unit-207"
+              ]
+            }
+          ],
+          "cast": {
+            "tick": 11746,
+            "command": {
+              "type": "castAbility",
+              "casterId": "unit-207",
+              "abilityId": "armorSunder",
+              "target": {
+                "kind": "entity",
+                "entityId": "monster-15"
+              }
+            },
+            "accepted": true
+          }
+        }
+      ]
+    }
+  ]
+}

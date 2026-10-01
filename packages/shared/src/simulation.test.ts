@@ -95,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.19.0");
+    expect(RULES_VERSION).toBe("village-siege/0.20.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -135,8 +135,8 @@ describe("deterministic shared simulation", () => {
     expect(BUILDINGS.farmstead.dropOffResources).toEqual(["food"]);
     expect(RESOURCE_NODES).toEqual({
       food: { kind: "food", maxAmount: 360, renewAfterTicks: 300 },
-      wood: { kind: "wood", maxAmount: 1_000, renewAfterTicks: null },
-      stone: { kind: "stone", maxAmount: 700, renewAfterTicks: null },
+      wood: { kind: "wood", maxAmount: 6_000, renewAfterTicks: null },
+      stone: { kind: "stone", maxAmount: 4_000, renewAfterTicks: null },
     });
   });
 
@@ -1240,6 +1240,21 @@ describe("deterministic shared simulation", () => {
       .filter((entity): entity is UnitEntityState => entity.kind === "unit")
       .map((unit) => `${unit.position.x},${unit.position.y}`);
     expect(new Set(positions).size).toBe(positions.length);
+  });
+
+  it("moves a single opening worker around idle allies without a two-cell oscillation", () => {
+    const base = createInitialState({ seed: 921, matchId: "opening-point-detour" });
+    const scout = base.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    const target = { x: 20, y: 8 };
+    const move = envelope(base, 0, { type: "move", entityIds: [scout.id], target });
+    const first = stepSimulation(base, [move], 200).state;
+    const second = stepSimulation(base, [move], 200).state;
+    const moved = first.entities.find((entity) => entity.id === scout.id)!;
+    expect(moved.position).toEqual(target);
+    expect(hashMatchState(second)).toBe(hashMatchState(first));
+    for (const ally of base.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && entity.id !== scout.id)) {
+      expect(first.entities.find((entity) => entity.id === ally.id)?.position).toEqual(ally.position);
+    }
   });
 
   it("continues an entity detour instead of reversing into an occupied shortcut", () => {

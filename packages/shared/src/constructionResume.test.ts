@@ -10,6 +10,7 @@ import {
   createMatchReplayFile,
   parseMatchReplayFile,
   parseMatchSaveFile,
+  migrateMatchSaveToCurrentRules,
   replayMatchReplay,
   serializeMatchReplayFile,
 } from "./persistence";
@@ -154,7 +155,7 @@ describe("resuming paid unfinished construction through the existing repair comm
   });
 
   it("imports a genuine pre-fix 0.22.0 unfinished save with its original hash and resumes construction", () => {
-    expect(RULES_VERSION).toBe("village-siege/0.19.0");
+    expect(legacyConstruction.save.rulesVersion).toBe("village-siege/0.19.0");
     expect(MATCH_PROTOCOL_VERSION).toBe("village-siege-network/4");
     expect(legacyConstruction.sourceCommit).toBe("933f9f1");
     const save = parseMatchSaveFile(JSON.stringify(legacyConstruction.save));
@@ -163,7 +164,9 @@ describe("resuming paid unfinished construction through the existing repair comm
     expect(legacyConstruction.originalRejectedCommand).toMatchObject({ sequence: 3, code: "INVALID_PAYLOAD", hash: "fbf4d7a8" });
     const targetId = legacyConstruction.abandonedBuildingId;
     const workerId = legacyConstruction.workerId;
-    let state = issue(save.snapshot.state, save.runtime.nextPlayerSequence, { type: "repair", entityIds: [workerId], targetId });
+    const migrated = migrateMatchSaveToCurrentRules(save);
+    expect(migrated.rulesVersion).toBe(RULES_VERSION);
+    let state = issue(migrated.snapshot.state, migrated.runtime.nextPlayerSequence, { type: "repair", entityIds: [workerId], targetId });
     state = stepSimulation(state, [], 500).state;
     expect(building(state, targetId)).toMatchObject({ complete: true, constructionRemainingTicks: 0 });
   });
@@ -180,7 +183,7 @@ describe("resuming paid unfinished construction through the existing repair comm
   });
 
   it("records and verifies a new continuation replay after resuming a pre-fix save", () => {
-    const save = parseMatchSaveFile(JSON.stringify(legacyConstruction.save));
+    const save = migrateMatchSaveToCurrentRules(parseMatchSaveFile(JSON.stringify(legacyConstruction.save)));
     let state = save.snapshot.state;
     let journal = createMatchCommandJournalFile(state);
     const resumed = appendJournalCommand(journal, state, envelope(state, save.runtime.nextPlayerSequence, { type: "repair", entityIds: [legacyConstruction.workerId], targetId: legacyConstruction.abandonedBuildingId }), "human");

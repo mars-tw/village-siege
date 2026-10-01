@@ -1,7 +1,7 @@
 import type { BuildingType, GridPoint, PlayableVillageId, ResourceKind, ResourceWallet, SettlementTier, StructureOrientation, TechnologyType, UnitType, VillageId } from "./protocol.js";
 import { COMBAT_UNITS, type CombatUnitId } from "./combat.js";
 
-export const RULES_VERSION = "village-siege/0.19.0";
+export const RULES_VERSION = "village-siege/0.20.0";
 export const TICKS_PER_SECOND = 10;
 export const TICK_MILLISECONDS = 100;
 export const MAX_VILLAGES = 5;
@@ -210,8 +210,11 @@ export interface ResourceNodeDefinition {
 
 export const RESOURCE_NODES: Readonly<Record<ResourceKind, ResourceNodeDefinition>> = {
   food: { kind: "food", maxAmount: 360, renewAfterTicks: 300 },
-  wood: { kind: "wood", maxAmount: 1_000, renewAfterTicks: null },
-  stone: { kind: "stone", maxAmount: 700, renewAfterTicks: null },
+  // A home must fund both settlement advances, the full research tree and a
+  // fighting force. These remain finite deposits: upgrades improve throughput,
+  // never the stock available to extract.
+  wood: { kind: "wood", maxAmount: 6_000, renewAfterTicks: null },
+  stone: { kind: "stone", maxAmount: 4_000, renewAfterTicks: null },
 };
 
 export function getVillage(id: VillageId): VillageDefinition | undefined {

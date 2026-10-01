@@ -1,4 +1,8 @@
 import Phaser from "phaser";
+import { BUILDING_LABELS } from "./buildingNames";
+export { buildingDisplayName } from "./buildingNames";
+
+const RESOURCE_LABELS: Readonly<Record<ResourceKind, string>> = { food: "糧食堆", wood: "林木", stone: "石礦" };
 import {
   BUILDINGS,
   type BuildingEntityState,
@@ -60,32 +64,7 @@ const PAINTED_BUILDING_ORDER = [
   "gunWorkshop", "beastStable", "siegeWorkshop", "copperLandmark",
 ] as const satisfies readonly BuildingType[];
 
-const BUILDING_LABELS: Readonly<Record<BuildingType, string>> = {
-  townCenter: "村鎮議事堂",
-  house: "拓荒家屋",
-  lumberCamp: "木作營",
-  farmstead: "糧秣所",
-  barracks: "邊軍兵營",
-  defenseTower: "守望塔",
-  archeryRange: "射箭庭",
-  mageSanctum: "星火院",
-  gunWorkshop: "火器坊",
-  beastStable: "獠騎圈",
-  siegeWorkshop: "攻城棚",
-  resinPalisade: "樹脂石籠牆",
-  surveyGate: "測界雙葉門",
-  copperLandmark: "拓界銅標",
-};
 
-const RESOURCE_LABELS: Readonly<Record<ResourceKind, string>> = {
-  food: "糧食堆",
-  wood: "林木",
-  stone: "石礦",
-};
-
-export function buildingDisplayName(type: BuildingType): string {
-  return BUILDING_LABELS[type];
-}
 
 export function resourceDisplayName(type: ResourceKind): string {
   return RESOURCE_LABELS[type];

@@ -1,0 +1,6450 @@
+{
+  "options": {
+    "playerVillageId": "pinehold",
+    "aiVillageId": "riverstead",
+    "aiPersonality": "balanced",
+    "aiDifficulty": "standard",
+    "seed": 230501,
+    "matchId": "full-progression-standard-ai"
+  },
+  "rulesVersion": "village-siege/0.20.0",
+  "method": "Public player commands and fixed steps under unmodified default victory policy and standard AI. VisibleSnapshot-only player decisions; no resource grants, canonical mutation or AI controls.",
+  "commands": [
+    {
+      "tick": 0,
+      "sequence": 1,
+      "label": "opening food",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 0,
+      "sequence": 2,
+      "label": "opening wood",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 0,
+      "sequence": 3,
+      "label": "opening stone",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 0,
+      "sequence": 4,
+      "label": "build lumberCamp",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "lumberCamp",
+        "origin": {
+          "x": 6,
+          "y": 9
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 310,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 302,
+      "sequence": 5,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 492,
+        "wood": 382,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 492,
+        "wood": 382,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 302,
+      "sequence": 6,
+      "label": "build farmstead",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "farmstead",
+        "origin": {
+          "x": 2,
+          "y": 9
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 492,
+        "wood": 382,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 492,
+        "wood": 297,
+        "stone": 240
+      }
+    },
+    {
+      "tick": 531,
+      "sequence": 7,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 528,
+        "wood": 429,
+        "stone": 240
+      },
+      "walletAfter": {
+        "food": 528,
+        "wood": 429,
+        "stone": 240
+      }
+    },
+    {
+      "tick": 531,
+      "sequence": 8,
+      "label": "build house",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "house",
+        "origin": {
+          "x": 6,
+          "y": 7
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 528,
+        "wood": 429,
+        "stone": 240
+      },
+      "walletAfter": {
+        "food": 528,
+        "wood": 349,
+        "stone": 240
+      }
+    },
+    {
+      "tick": 739,
+      "sequence": 9,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 600,
+        "wood": 469,
+        "stone": 240
+      },
+      "walletAfter": {
+        "food": 600,
+        "wood": 469,
+        "stone": 240
+      }
+    },
+    {
+      "tick": 739,
+      "sequence": 10,
+      "label": "train five economy workers",
+      "command": {
+        "type": "train",
+        "producerId": "building-1",
+        "unitType": "villager",
+        "count": 5
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 600,
+        "wood": 469,
+        "stone": 240
+      },
+      "walletAfter": {
+        "food": 350,
+        "wood": 469,
+        "stone": 240
+      }
+    },
+    {
+      "tick": 739,
+      "sequence": 11,
+      "label": "build barracks",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "barracks",
+        "origin": {
+          "x": 7,
+          "y": 13
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 350,
+        "wood": 469,
+        "stone": 240
+      },
+      "walletAfter": {
+        "food": 350,
+        "wood": 319,
+        "stone": 205
+      }
+    },
+    {
+      "tick": 860,
+      "sequence": 12,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-24"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 398,
+        "wood": 391,
+        "stone": 205
+      },
+      "walletAfter": {
+        "food": 398,
+        "wood": 391,
+        "stone": 205
+      }
+    },
+    {
+      "tick": 860,
+      "sequence": 13,
+      "label": "assign wood worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 398,
+        "wood": 391,
+        "stone": 205
+      },
+      "walletAfter": {
+        "food": 398,
+        "wood": 391,
+        "stone": 205
+      }
+    },
+    {
+      "tick": 860,
+      "sequence": 14,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 398,
+        "wood": 391,
+        "stone": 205
+      },
+      "walletAfter": {
+        "food": 398,
+        "wood": 391,
+        "stone": 205
+      }
+    },
+    {
+      "tick": 980,
+      "sequence": 15,
+      "label": "assign wood worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-26"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 434,
+        "wood": 446,
+        "stone": 217
+      },
+      "walletAfter": {
+        "food": 434,
+        "wood": 446,
+        "stone": 217
+      }
+    },
+    {
+      "tick": 980,
+      "sequence": 16,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 434,
+        "wood": 446,
+        "stone": 217
+      },
+      "walletAfter": {
+        "food": 434,
+        "wood": 446,
+        "stone": 217
+      }
+    },
+    {
+      "tick": 980,
+      "sequence": 17,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 434,
+        "wood": 446,
+        "stone": 217
+      },
+      "walletAfter": {
+        "food": 434,
+        "wood": 446,
+        "stone": 217
+      }
+    },
+    {
+      "tick": 1082,
+      "sequence": 18,
+      "label": "assign wood worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 530,
+        "wood": 500,
+        "stone": 217
+      },
+      "walletAfter": {
+        "food": 530,
+        "wood": 500,
+        "stone": 217
+      }
+    },
+    {
+      "tick": 1082,
+      "sequence": 19,
+      "label": "barracks defensive rally",
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-23",
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 530,
+        "wood": 500,
+        "stone": 217
+      },
+      "walletAfter": {
+        "food": 530,
+        "wood": 500,
+        "stone": 217
+      }
+    },
+    {
+      "tick": 1100,
+      "sequence": 20,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-27"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 530,
+        "wood": 512,
+        "stone": 229
+      },
+      "walletAfter": {
+        "food": 530,
+        "wood": 512,
+        "stone": 229
+      }
+    },
+    {
+      "tick": 1100,
+      "sequence": 21,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 530,
+        "wood": 512,
+        "stone": 229
+      },
+      "walletAfter": {
+        "food": 530,
+        "wood": 512,
+        "stone": 229
+      }
+    },
+    {
+      "tick": 1100,
+      "sequence": 22,
+      "label": "assign wood worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 530,
+        "wood": 512,
+        "stone": 229
+      },
+      "walletAfter": {
+        "food": 530,
+        "wood": 512,
+        "stone": 229
+      }
+    },
+    {
+      "tick": 1100,
+      "sequence": 23,
+      "label": "train defensive warrior",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 530,
+        "wood": 512,
+        "stone": 229
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 482,
+        "stone": 229
+      }
+    },
+    {
+      "tick": 1120,
+      "sequence": 24,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 494,
+        "stone": 229
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 494,
+        "stone": 229
+      }
+    },
+    {
+      "tick": 1140,
+      "sequence": 25,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 518,
+        "stone": 229
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 518,
+        "stone": 229
+      }
+    },
+    {
+      "tick": 1160,
+      "sequence": 26,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 542,
+        "stone": 241
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 542,
+        "stone": 241
+      }
+    },
+    {
+      "tick": 1180,
+      "sequence": 27,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 566,
+        "stone": 241
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 566,
+        "stone": 241
+      }
+    },
+    {
+      "tick": 1200,
+      "sequence": 28,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 602,
+        "stone": 253
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 602,
+        "stone": 253
+      }
+    },
+    {
+      "tick": 1220,
+      "sequence": 29,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 638,
+        "stone": 265
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 638,
+        "stone": 265
+      }
+    },
+    {
+      "tick": 1220,
+      "sequence": 30,
+      "label": "assign wood worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 465,
+        "wood": 638,
+        "stone": 265
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 638,
+        "stone": 265
+      }
+    },
+    {
+      "tick": 1220,
+      "sequence": 31,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 638,
+        "stone": 265
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 638,
+        "stone": 265
+      }
+    },
+    {
+      "tick": 1240,
+      "sequence": 32,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 674,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 674,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1240,
+      "sequence": 33,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 674,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 674,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1260,
+      "sequence": 34,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1260,
+      "sequence": 35,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1260,
+      "sequence": 36,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-30"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1260,
+      "sequence": 37,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-30"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1260,
+      "sequence": 38,
+      "label": "train defensive warrior",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 465,
+        "wood": 710,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 680,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1280,
+      "sequence": 39,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 716,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 716,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1280,
+      "sequence": 40,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 716,
+        "stone": 281
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 716,
+        "stone": 281
+      }
+    },
+    {
+      "tick": 1300,
+      "sequence": 41,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 752,
+        "stone": 293
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 752,
+        "stone": 293
+      }
+    },
+    {
+      "tick": 1300,
+      "sequence": 42,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 752,
+        "stone": 293
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 752,
+        "stone": 293
+      }
+    },
+    {
+      "tick": 1320,
+      "sequence": 43,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 788,
+        "stone": 293
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 788,
+        "stone": 293
+      }
+    },
+    {
+      "tick": 1320,
+      "sequence": 44,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 788,
+        "stone": 293
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 788,
+        "stone": 293
+      }
+    },
+    {
+      "tick": 1339,
+      "sequence": 45,
+      "label": "build house",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "house",
+        "origin": {
+          "x": 6,
+          "y": 5
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 400,
+        "wood": 812,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 732,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1340,
+      "sequence": 46,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 744,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 744,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1340,
+      "sequence": 47,
+      "label": "assign wood worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-31"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 400,
+        "wood": 744,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 744,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1340,
+      "sequence": 48,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 744,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 744,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1360,
+      "sequence": 49,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 780,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 780,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1360,
+      "sequence": 50,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": false,
+      "rejectCode": "INVALID_PAYLOAD",
+      "walletBefore": {
+        "food": 400,
+        "wood": 780,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 780,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1380,
+      "sequence": 51,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-29"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 400,
+        "wood": 816,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 816,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1380,
+      "sequence": 52,
+      "label": "assign food worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 400,
+        "wood": 816,
+        "stone": 305
+      },
+      "walletAfter": {
+        "food": 400,
+        "wood": 816,
+        "stone": 305
+      }
+    },
+    {
+      "tick": 1420,
+      "sequence": 53,
+      "label": "train defensive shieldBearer",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "shieldBearer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 412,
+        "wood": 870,
+        "stone": 317
+      },
+      "walletAfter": {
+        "food": 337,
+        "wood": 825,
+        "stone": 297
+      }
+    },
+    {
+      "tick": 1560,
+      "sequence": 54,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-30",
+          "unit-34"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 517,
+        "wood": 1041,
+        "stone": 333
+      },
+      "walletAfter": {
+        "food": 517,
+        "wood": 1041,
+        "stone": 333
+      }
+    },
+    {
+      "tick": 1560,
+      "sequence": 55,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-30",
+          "unit-34"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 517,
+        "wood": 1041,
+        "stone": 333
+      },
+      "walletAfter": {
+        "food": 517,
+        "wood": 1041,
+        "stone": 333
+      }
+    },
+    {
+      "tick": 1573,
+      "sequence": 56,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 529,
+        "wood": 1065,
+        "stone": 333
+      },
+      "walletAfter": {
+        "food": 529,
+        "wood": 1065,
+        "stone": 333
+      }
+    },
+    {
+      "tick": 1573,
+      "sequence": 57,
+      "label": "advance to stronghold",
+      "command": {
+        "type": "advanceSettlement",
+        "producerId": "building-1",
+        "targetTier": "stronghold"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 529,
+        "wood": 1065,
+        "stone": 333
+      },
+      "walletAfter": {
+        "food": 29,
+        "wood": 765,
+        "stone": 233
+      }
+    },
+    {
+      "tick": 1640,
+      "sequence": 58,
+      "label": "train defensive shieldBearer",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "shieldBearer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 125,
+        "wood": 880,
+        "stone": 245
+      },
+      "walletAfter": {
+        "food": 50,
+        "wood": 835,
+        "stone": 225
+      }
+    },
+    {
+      "tick": 1860,
+      "sequence": 59,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 103,
+        "wood": 1183,
+        "stone": 333
+      },
+      "walletAfter": {
+        "food": 103,
+        "wood": 1183,
+        "stone": 333
+      }
+    },
+    {
+      "tick": 1860,
+      "sequence": 60,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 103,
+        "wood": 1183,
+        "stone": 333
+      },
+      "walletAfter": {
+        "food": 103,
+        "wood": 1183,
+        "stone": 333
+      }
+    },
+    {
+      "tick": 2023,
+      "sequence": 61,
+      "label": "build defenseTower",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "defenseTower",
+        "origin": {
+          "x": 10,
+          "y": 10
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 175,
+        "wood": 1435,
+        "stone": 429
+      },
+      "walletAfter": {
+        "food": 175,
+        "wood": 1345,
+        "stone": 304
+      }
+    },
+    {
+      "tick": 2160,
+      "sequence": 62,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 427,
+        "wood": 1573,
+        "stone": 328
+      },
+      "walletAfter": {
+        "food": 427,
+        "wood": 1573,
+        "stone": 328
+      }
+    },
+    {
+      "tick": 2160,
+      "sequence": 63,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 427,
+        "wood": 1573,
+        "stone": 328
+      },
+      "walletAfter": {
+        "food": 427,
+        "wood": 1573,
+        "stone": 328
+      }
+    },
+    {
+      "tick": 2460,
+      "sequence": 64,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 388
+      },
+      "walletAfter": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 388
+      }
+    },
+    {
+      "tick": 2460,
+      "sequence": 65,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 388
+      },
+      "walletAfter": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 388
+      }
+    },
+    {
+      "tick": 2470,
+      "sequence": 66,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 400
+      },
+      "walletAfter": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 400
+      }
+    },
+    {
+      "tick": 2470,
+      "sequence": 67,
+      "label": "build defenseTower",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "defenseTower",
+        "origin": {
+          "x": 10,
+          "y": 14
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 400
+      },
+      "walletAfter": {
+        "food": 470,
+        "wood": 1963,
+        "stone": 275
+      }
+    },
+    {
+      "tick": 2760,
+      "sequence": 68,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2443,
+        "stone": 323
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2443,
+        "stone": 323
+      }
+    },
+    {
+      "tick": 2760,
+      "sequence": 69,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2443,
+        "stone": 323
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2443,
+        "stone": 323
+      }
+    },
+    {
+      "tick": 2863,
+      "sequence": 70,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2599,
+        "stone": 347
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2599,
+        "stone": 347
+      }
+    },
+    {
+      "tick": 2863,
+      "sequence": 71,
+      "label": "build archeryRange",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "archeryRange",
+        "origin": {
+          "x": 7,
+          "y": 16
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2599,
+        "stone": 347
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2439,
+        "stone": 302
+      }
+    },
+    {
+      "tick": 2880,
+      "sequence": 72,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "targetId": "unit-25"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2475,
+        "stone": 314
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2475,
+        "stone": 314
+      }
+    },
+    {
+      "tick": 2880,
+      "sequence": 73,
+      "label": "shield defenders against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-35",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2475,
+        "stone": 314
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2475,
+        "stone": 314
+      }
+    },
+    {
+      "tick": 2900,
+      "sequence": 74,
+      "label": "shield defenders against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-37",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2499,
+        "stone": 314
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2499,
+        "stone": 314
+      }
+    },
+    {
+      "tick": 2980,
+      "sequence": 75,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "targetId": "unit-41"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 830,
+        "wood": 2631,
+        "stone": 326
+      },
+      "walletAfter": {
+        "food": 830,
+        "wood": 2631,
+        "stone": 326
+      }
+    },
+    {
+      "tick": 3000,
+      "sequence": 76,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "targetId": "unit-28"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 866,
+        "wood": 2667,
+        "stone": 338
+      },
+      "walletAfter": {
+        "food": 866,
+        "wood": 2667,
+        "stone": 338
+      }
+    },
+    {
+      "tick": 3080,
+      "sequence": 77,
+      "label": "shield defenders against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-35",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1010,
+        "wood": 2787,
+        "stone": 350
+      },
+      "walletAfter": {
+        "food": 1010,
+        "wood": 2787,
+        "stone": 350
+      }
+    },
+    {
+      "tick": 3100,
+      "sequence": 78,
+      "label": "shield defenders against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-37",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1046,
+        "wood": 2823,
+        "stone": 350
+      },
+      "walletAfter": {
+        "food": 1046,
+        "wood": 2823,
+        "stone": 350
+      }
+    },
+    {
+      "tick": 3120,
+      "sequence": 79,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1082,
+        "wood": 2859,
+        "stone": 362
+      },
+      "walletAfter": {
+        "food": 1082,
+        "wood": 2859,
+        "stone": 362
+      }
+    },
+    {
+      "tick": 3120,
+      "sequence": 80,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-30",
+          "unit-34",
+          "unit-35",
+          "unit-37"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1082,
+        "wood": 2859,
+        "stone": 362
+      },
+      "walletAfter": {
+        "food": 1082,
+        "wood": 2859,
+        "stone": 362
+      }
+    },
+    {
+      "tick": 3159,
+      "sequence": 81,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1154,
+        "wood": 2907,
+        "stone": 362
+      },
+      "walletAfter": {
+        "food": 1154,
+        "wood": 2907,
+        "stone": 362
+      }
+    },
+    {
+      "tick": 3159,
+      "sequence": 82,
+      "label": "archeryRange defensive rally",
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-42",
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1154,
+        "wood": 2907,
+        "stone": 362
+      },
+      "walletAfter": {
+        "food": 1154,
+        "wood": 2907,
+        "stone": 362
+      }
+    },
+    {
+      "tick": 3159,
+      "sequence": 83,
+      "label": "build beastStable",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "beastStable",
+        "origin": {
+          "x": 3,
+          "y": 16
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1154,
+        "wood": 2907,
+        "stone": 362
+      },
+      "walletAfter": {
+        "food": 1154,
+        "wood": 2727,
+        "stone": 317
+      }
+    },
+    {
+      "tick": 3160,
+      "sequence": 84,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1154,
+        "wood": 2739,
+        "stone": 317
+      },
+      "walletAfter": {
+        "food": 1109,
+        "wood": 2684,
+        "stone": 317
+      }
+    },
+    {
+      "tick": 3180,
+      "sequence": 85,
+      "label": "train defensive warrior",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1145,
+        "wood": 2720,
+        "stone": 329
+      },
+      "walletAfter": {
+        "food": 1080,
+        "wood": 2690,
+        "stone": 329
+      }
+    },
+    {
+      "tick": 3340,
+      "sequence": 86,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1080,
+        "wood": 2942,
+        "stone": 353
+      },
+      "walletAfter": {
+        "food": 1035,
+        "wood": 2887,
+        "stone": 353
+      }
+    },
+    {
+      "tick": 3420,
+      "sequence": 87,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-34",
+          "unit-35",
+          "unit-37",
+          "unit-89",
+          "unit-90"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1035,
+        "wood": 3019,
+        "stone": 377
+      },
+      "walletAfter": {
+        "food": 1035,
+        "wood": 3019,
+        "stone": 377
+      }
+    },
+    {
+      "tick": 3420,
+      "sequence": 88,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-34",
+          "unit-35",
+          "unit-37",
+          "unit-89",
+          "unit-90"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1035,
+        "wood": 3019,
+        "stone": 377
+      },
+      "walletAfter": {
+        "food": 1035,
+        "wood": 3019,
+        "stone": 377
+      }
+    },
+    {
+      "tick": 3514,
+      "sequence": 89,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1107,
+        "wood": 3163,
+        "stone": 389
+      },
+      "walletAfter": {
+        "food": 1107,
+        "wood": 3163,
+        "stone": 389
+      }
+    },
+    {
+      "tick": 3514,
+      "sequence": 90,
+      "label": "beastStable defensive rally",
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-86",
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1107,
+        "wood": 3163,
+        "stone": 389
+      },
+      "walletAfter": {
+        "food": 1107,
+        "wood": 3163,
+        "stone": 389
+      }
+    },
+    {
+      "tick": 3514,
+      "sequence": 91,
+      "label": "build house",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "house",
+        "origin": {
+          "x": 5,
+          "y": 18
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1107,
+        "wood": 3163,
+        "stone": 389
+      },
+      "walletAfter": {
+        "food": 1107,
+        "wood": 3083,
+        "stone": 389
+      }
+    },
+    {
+      "tick": 3520,
+      "sequence": 92,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1143,
+        "wood": 3095,
+        "stone": 401
+      },
+      "walletAfter": {
+        "food": 1098,
+        "wood": 3040,
+        "stone": 401
+      }
+    },
+    {
+      "tick": 3520,
+      "sequence": 93,
+      "label": "train defensive boarRider",
+      "command": {
+        "type": "train",
+        "producerId": "building-86",
+        "unitType": "boarRider",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1098,
+        "wood": 3040,
+        "stone": 401
+      },
+      "walletAfter": {
+        "food": 983,
+        "wood": 3005,
+        "stone": 381
+      }
+    },
+    {
+      "tick": 3700,
+      "sequence": 94,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-34",
+          "unit-35",
+          "unit-37",
+          "unit-89",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "targetId": "unit-87"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1235,
+        "wood": 3293,
+        "stone": 417
+      },
+      "walletAfter": {
+        "food": 1235,
+        "wood": 3293,
+        "stone": 417
+      }
+    },
+    {
+      "tick": 3700,
+      "sequence": 95,
+      "label": "shield defenders against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-35",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1235,
+        "wood": 3293,
+        "stone": 417
+      },
+      "walletAfter": {
+        "food": 1235,
+        "wood": 3293,
+        "stone": 417
+      }
+    },
+    {
+      "tick": 3700,
+      "sequence": 96,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1235,
+        "wood": 3293,
+        "stone": 417
+      },
+      "walletAfter": {
+        "food": 1190,
+        "wood": 3238,
+        "stone": 417
+      }
+    },
+    {
+      "tick": 3703,
+      "sequence": 97,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1190,
+        "wood": 3238,
+        "stone": 417
+      },
+      "walletAfter": {
+        "food": 1190,
+        "wood": 3238,
+        "stone": 417
+      }
+    },
+    {
+      "tick": 3703,
+      "sequence": 98,
+      "label": "research hearthlandAlmanac",
+      "command": {
+        "type": "research",
+        "producerId": "building-20",
+        "technologyId": "hearthlandAlmanac"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1190,
+        "wood": 3238,
+        "stone": 417
+      },
+      "walletAfter": {
+        "food": 970,
+        "wood": 3158,
+        "stone": 417
+      }
+    },
+    {
+      "tick": 3720,
+      "sequence": 99,
+      "label": "shield defenders against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-37",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 970,
+        "wood": 3194,
+        "stone": 417
+      },
+      "walletAfter": {
+        "food": 970,
+        "wood": 3194,
+        "stone": 417
+      }
+    },
+    {
+      "tick": 3760,
+      "sequence": 100,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-34",
+          "unit-35",
+          "unit-37",
+          "unit-89",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "targetId": "unit-33"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 970,
+        "wood": 3254,
+        "stone": 429
+      },
+      "walletAfter": {
+        "food": 970,
+        "wood": 3254,
+        "stone": 429
+      }
+    },
+    {
+      "tick": 3780,
+      "sequence": 101,
+      "label": "train defensive warrior",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 970,
+        "wood": 3290,
+        "stone": 441
+      },
+      "walletAfter": {
+        "food": 905,
+        "wood": 3260,
+        "stone": 441
+      }
+    },
+    {
+      "tick": 3840,
+      "sequence": 102,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-126",
+          "unit-35",
+          "unit-37",
+          "unit-89",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "targetId": "unit-91"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 905,
+        "wood": 3356,
+        "stone": 465
+      },
+      "walletAfter": {
+        "food": 905,
+        "wood": 3356,
+        "stone": 465
+      }
+    },
+    {
+      "tick": 3860,
+      "sequence": 103,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-126",
+          "unit-37",
+          "unit-89",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "targetId": "unit-94"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 905,
+        "wood": 3380,
+        "stone": 489
+      },
+      "walletAfter": {
+        "food": 905,
+        "wood": 3380,
+        "stone": 489
+      }
+    },
+    {
+      "tick": 3880,
+      "sequence": 104,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 905,
+        "wood": 3404,
+        "stone": 489
+      },
+      "walletAfter": {
+        "food": 860,
+        "wood": 3349,
+        "stone": 489
+      }
+    },
+    {
+      "tick": 3900,
+      "sequence": 105,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-37",
+          "unit-89",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "targetId": "unit-28"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 860,
+        "wood": 3385,
+        "stone": 501
+      },
+      "walletAfter": {
+        "food": 860,
+        "wood": 3385,
+        "stone": 501
+      }
+    },
+    {
+      "tick": 3940,
+      "sequence": 106,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "targetId": "unit-68"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 860,
+        "wood": 3445,
+        "stone": 525
+      },
+      "walletAfter": {
+        "food": 860,
+        "wood": 3445,
+        "stone": 525
+      }
+    },
+    {
+      "tick": 3940,
+      "sequence": 107,
+      "label": "shield defenders against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-37",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 860,
+        "wood": 3445,
+        "stone": 525
+      },
+      "walletAfter": {
+        "food": 860,
+        "wood": 3445,
+        "stone": 525
+      }
+    },
+    {
+      "tick": 3940,
+      "sequence": 108,
+      "label": "train defensive warrior",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 860,
+        "wood": 3445,
+        "stone": 525
+      },
+      "walletAfter": {
+        "food": 795,
+        "wood": 3415,
+        "stone": 525
+      }
+    },
+    {
+      "tick": 3980,
+      "sequence": 109,
+      "label": "defend home from visible AI army",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "targetId": "unit-41"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 831,
+        "wood": 3475,
+        "stone": 537
+      },
+      "walletAfter": {
+        "food": 831,
+        "wood": 3475,
+        "stone": 537
+      }
+    },
+    {
+      "tick": 3983,
+      "sequence": 110,
+      "label": "research resinboundKits",
+      "command": {
+        "type": "research",
+        "producerId": "building-18",
+        "technologyId": "resinboundKits"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 831,
+        "wood": 3475,
+        "stone": 537
+      },
+      "walletAfter": {
+        "food": 831,
+        "wood": 3235,
+        "stone": 457
+      }
+    },
+    {
+      "tick": 4020,
+      "sequence": 111,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 903,
+        "wood": 3295,
+        "stone": 481
+      },
+      "walletAfter": {
+        "food": 903,
+        "wood": 3295,
+        "stone": 481
+      }
+    },
+    {
+      "tick": 4020,
+      "sequence": 112,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 903,
+        "wood": 3295,
+        "stone": 481
+      },
+      "walletAfter": {
+        "food": 903,
+        "wood": 3295,
+        "stone": 481
+      }
+    },
+    {
+      "tick": 4060,
+      "sequence": 113,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 975,
+        "wood": 3367,
+        "stone": 505
+      },
+      "walletAfter": {
+        "food": 930,
+        "wood": 3312,
+        "stone": 505
+      }
+    },
+    {
+      "tick": 4100,
+      "sequence": 114,
+      "label": "train defensive shieldBearer",
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "shieldBearer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1002,
+        "wood": 3372,
+        "stone": 529
+      },
+      "walletAfter": {
+        "food": 927,
+        "wood": 3327,
+        "stone": 509
+      }
+    },
+    {
+      "tick": 4283,
+      "sequence": 115,
+      "label": "research layeredHarness",
+      "command": {
+        "type": "research",
+        "producerId": "building-23",
+        "technologyId": "layeredHarness"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1035,
+        "wood": 3615,
+        "stone": 605
+      },
+      "walletAfter": {
+        "food": 785,
+        "wood": 3495,
+        "stone": 525
+      }
+    },
+    {
+      "tick": 4320,
+      "sequence": 116,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 785,
+        "wood": 3555,
+        "stone": 549
+      },
+      "walletAfter": {
+        "food": 785,
+        "wood": 3555,
+        "stone": 549
+      }
+    },
+    {
+      "tick": 4320,
+      "sequence": 117,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 785,
+        "wood": 3555,
+        "stone": 549
+      },
+      "walletAfter": {
+        "food": 785,
+        "wood": 3555,
+        "stone": 549
+      }
+    },
+    {
+      "tick": 4620,
+      "sequence": 118,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1109,
+        "wood": 3925,
+        "stone": 693
+      },
+      "walletAfter": {
+        "food": 1109,
+        "wood": 3925,
+        "stone": 693
+      }
+    },
+    {
+      "tick": 4620,
+      "sequence": 119,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1109,
+        "wood": 3925,
+        "stone": 693
+      },
+      "walletAfter": {
+        "food": 1109,
+        "wood": 3925,
+        "stone": 693
+      }
+    },
+    {
+      "tick": 4680,
+      "sequence": 120,
+      "label": "research surveyedFoundations",
+      "command": {
+        "type": "research",
+        "producerId": "building-1",
+        "technologyId": "surveyedFoundations"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1145,
+        "wood": 3925,
+        "stone": 741
+      },
+      "walletAfter": {
+        "food": 965,
+        "wood": 3685,
+        "stone": 601
+      }
+    },
+    {
+      "tick": 4920,
+      "sequence": 121,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 965,
+        "wood": 3685,
+        "stone": 721
+      },
+      "walletAfter": {
+        "food": 965,
+        "wood": 3685,
+        "stone": 721
+      }
+    },
+    {
+      "tick": 4920,
+      "sequence": 122,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 965,
+        "wood": 3685,
+        "stone": 721
+      },
+      "walletAfter": {
+        "food": 965,
+        "wood": 3685,
+        "stone": 721
+      }
+    },
+    {
+      "tick": 5080,
+      "sequence": 123,
+      "label": "research windspurRigging",
+      "command": {
+        "type": "research",
+        "producerId": "building-86",
+        "technologyId": "windspurRigging"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1217,
+        "wood": 3685,
+        "stone": 793
+      },
+      "walletAfter": {
+        "food": 977,
+        "wood": 3535,
+        "stone": 753
+      }
+    },
+    {
+      "tick": 5220,
+      "sequence": 124,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1085,
+        "wood": 3535,
+        "stone": 825
+      },
+      "walletAfter": {
+        "food": 1085,
+        "wood": 3535,
+        "stone": 825
+      }
+    },
+    {
+      "tick": 5220,
+      "sequence": 125,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1085,
+        "wood": 3535,
+        "stone": 825
+      },
+      "walletAfter": {
+        "food": 1085,
+        "wood": 3535,
+        "stone": 825
+      }
+    },
+    {
+      "tick": 5420,
+      "sequence": 126,
+      "label": "advance to artificer",
+      "command": {
+        "type": "advanceSettlement",
+        "producerId": "building-1",
+        "targetTier": "artificer"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1085,
+        "wood": 3535,
+        "stone": 945
+      },
+      "walletAfter": {
+        "food": 335,
+        "wood": 3035,
+        "stone": 645
+      }
+    },
+    {
+      "tick": 5520,
+      "sequence": 127,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 515,
+        "wood": 3035,
+        "stone": 693
+      },
+      "walletAfter": {
+        "food": 515,
+        "wood": 3035,
+        "stone": 693
+      }
+    },
+    {
+      "tick": 5520,
+      "sequence": 128,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 515,
+        "wood": 3035,
+        "stone": 693
+      },
+      "walletAfter": {
+        "food": 515,
+        "wood": 3035,
+        "stone": 693
+      }
+    },
+    {
+      "tick": 5820,
+      "sequence": 129,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 695,
+        "wood": 3035,
+        "stone": 861
+      },
+      "walletAfter": {
+        "food": 695,
+        "wood": 3035,
+        "stone": 861
+      }
+    },
+    {
+      "tick": 5820,
+      "sequence": 130,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 695,
+        "wood": 3035,
+        "stone": 861
+      },
+      "walletAfter": {
+        "food": 695,
+        "wood": 3035,
+        "stone": 861
+      }
+    },
+    {
+      "tick": 6020,
+      "sequence": 131,
+      "label": "build mageSanctum",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "mageSanctum",
+        "origin": {
+          "x": 3,
+          "y": 5
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 875,
+        "wood": 3035,
+        "stone": 957
+      },
+      "walletAfter": {
+        "food": 875,
+        "wood": 2905,
+        "stone": 827
+      }
+    },
+    {
+      "tick": 6120,
+      "sequence": 132,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1055,
+        "wood": 2905,
+        "stone": 851
+      },
+      "walletAfter": {
+        "food": 1055,
+        "wood": 2905,
+        "stone": 851
+      }
+    },
+    {
+      "tick": 6120,
+      "sequence": 133,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1055,
+        "wood": 2905,
+        "stone": 851
+      },
+      "walletAfter": {
+        "food": 1055,
+        "wood": 2905,
+        "stone": 851
+      }
+    },
+    {
+      "tick": 6420,
+      "sequence": 134,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1091,
+        "wood": 2905,
+        "stone": 911
+      },
+      "walletAfter": {
+        "food": 1091,
+        "wood": 2905,
+        "stone": 911
+      }
+    },
+    {
+      "tick": 6420,
+      "sequence": 135,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1091,
+        "wood": 2905,
+        "stone": 911
+      },
+      "walletAfter": {
+        "food": 1091,
+        "wood": 2905,
+        "stone": 911
+      }
+    },
+    {
+      "tick": 6506,
+      "sequence": 136,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1235,
+        "wood": 2905,
+        "stone": 923
+      },
+      "walletAfter": {
+        "food": 1235,
+        "wood": 2905,
+        "stone": 923
+      }
+    },
+    {
+      "tick": 6506,
+      "sequence": 137,
+      "label": "mageSanctum defensive rally",
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-213",
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1235,
+        "wood": 2905,
+        "stone": 923
+      },
+      "walletAfter": {
+        "food": 1235,
+        "wood": 2905,
+        "stone": 923
+      }
+    },
+    {
+      "tick": 6506,
+      "sequence": 138,
+      "label": "build gunWorkshop",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "gunWorkshop",
+        "origin": {
+          "x": 7,
+          "y": 5
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1235,
+        "wood": 2905,
+        "stone": 923
+      },
+      "walletAfter": {
+        "food": 1235,
+        "wood": 2720,
+        "stone": 838
+      }
+    },
+    {
+      "tick": 6520,
+      "sequence": 139,
+      "label": "train defensive mage",
+      "command": {
+        "type": "train",
+        "producerId": "building-213",
+        "unitType": "mage",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1271,
+        "wood": 2720,
+        "stone": 850
+      },
+      "walletAfter": {
+        "food": 1196,
+        "wood": 2690,
+        "stone": 790
+      }
+    },
+    {
+      "tick": 6720,
+      "sequence": 140,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 826
+      },
+      "walletAfter": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 826
+      }
+    },
+    {
+      "tick": 6720,
+      "sequence": 141,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-37",
+          "unit-90",
+          "unit-93",
+          "unit-95"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 826
+      },
+      "walletAfter": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 826
+      }
+    },
+    {
+      "tick": 6876,
+      "sequence": 142,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 862
+      },
+      "walletAfter": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 862
+      }
+    },
+    {
+      "tick": 6876,
+      "sequence": 143,
+      "label": "gunWorkshop defensive rally",
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-215",
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 862
+      },
+      "walletAfter": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 862
+      }
+    },
+    {
+      "tick": 6876,
+      "sequence": 144,
+      "label": "build siegeWorkshop",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "siegeWorkshop",
+        "origin": {
+          "x": 7,
+          "y": 19
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 862
+      },
+      "walletAfter": {
+        "food": 1340,
+        "wood": 2450,
+        "stone": 722
+      }
+    },
+    {
+      "tick": 6880,
+      "sequence": 145,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1340,
+        "wood": 2450,
+        "stone": 722
+      },
+      "walletAfter": {
+        "food": 1295,
+        "wood": 2395,
+        "stone": 722
+      }
+    },
+    {
+      "tick": 6880,
+      "sequence": 146,
+      "label": "train defensive musketeer",
+      "command": {
+        "type": "train",
+        "producerId": "building-215",
+        "unitType": "musketeer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1295,
+        "wood": 2395,
+        "stone": 722
+      },
+      "walletAfter": {
+        "food": 1235,
+        "wood": 2325,
+        "stone": 687
+      }
+    },
+    {
+      "tick": 7020,
+      "sequence": 147,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-37",
+          "unit-90"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1451,
+        "wood": 2325,
+        "stone": 711
+      },
+      "walletAfter": {
+        "food": 1451,
+        "wood": 2325,
+        "stone": 711
+      }
+    },
+    {
+      "tick": 7020,
+      "sequence": 148,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-37",
+          "unit-90"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1451,
+        "wood": 2325,
+        "stone": 711
+      },
+      "walletAfter": {
+        "food": 1451,
+        "wood": 2325,
+        "stone": 711
+      }
+    },
+    {
+      "tick": 7060,
+      "sequence": 149,
+      "label": "train defensive archer",
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1523,
+        "wood": 2325,
+        "stone": 723
+      },
+      "walletAfter": {
+        "food": 1478,
+        "wood": 2270,
+        "stone": 723
+      }
+    },
+    {
+      "tick": 7320,
+      "sequence": 150,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-37",
+          "unit-90"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1550,
+        "wood": 2270,
+        "stone": 783
+      },
+      "walletAfter": {
+        "food": 1550,
+        "wood": 2270,
+        "stone": 783
+      }
+    },
+    {
+      "tick": 7320,
+      "sequence": 151,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-37",
+          "unit-90"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1550,
+        "wood": 2270,
+        "stone": 783
+      },
+      "walletAfter": {
+        "food": 1550,
+        "wood": 2270,
+        "stone": 783
+      }
+    },
+    {
+      "tick": 7486,
+      "sequence": 152,
+      "label": "assign stone worker",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1730,
+        "wood": 2270,
+        "stone": 807
+      },
+      "walletAfter": {
+        "food": 1730,
+        "wood": 2270,
+        "stone": 807
+      }
+    },
+    {
+      "tick": 7486,
+      "sequence": 153,
+      "label": "siegeWorkshop defensive rally",
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-222",
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1730,
+        "wood": 2270,
+        "stone": 807
+      },
+      "walletAfter": {
+        "food": 1730,
+        "wood": 2270,
+        "stone": 807
+      }
+    },
+    {
+      "tick": 7486,
+      "sequence": 154,
+      "label": "research starfireBores",
+      "command": {
+        "type": "research",
+        "producerId": "building-215",
+        "technologyId": "starfireBores"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1730,
+        "wood": 2270,
+        "stone": 807
+      },
+      "walletAfter": {
+        "food": 1430,
+        "wood": 2050,
+        "stone": 627
+      }
+    },
+    {
+      "tick": 7500,
+      "sequence": 155,
+      "label": "train defensive heavyCrossbowman",
+      "command": {
+        "type": "train",
+        "producerId": "building-222",
+        "unitType": "heavyCrossbowman",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1466,
+        "wood": 2050,
+        "stone": 639
+      },
+      "walletAfter": {
+        "food": 1416,
+        "wood": 1940,
+        "stone": 589
+      }
+    },
+    {
+      "tick": 7620,
+      "sequence": 156,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-37",
+          "unit-90"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1560,
+        "wood": 1940,
+        "stone": 613
+      },
+      "walletAfter": {
+        "food": 1560,
+        "wood": 1940,
+        "stone": 613
+      }
+    },
+    {
+      "tick": 7620,
+      "sequence": 157,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-37",
+          "unit-90"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1560,
+        "wood": 1940,
+        "stone": 613
+      },
+      "walletAfter": {
+        "food": 1560,
+        "wood": 1940,
+        "stone": 613
+      }
+    },
+    {
+      "tick": 7906,
+      "sequence": 158,
+      "label": "research torsionCradles",
+      "command": {
+        "type": "research",
+        "producerId": "building-222",
+        "technologyId": "torsionCradles"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1596,
+        "wood": 1940,
+        "stone": 709
+      },
+      "walletAfter": {
+        "food": 1396,
+        "wood": 1640,
+        "stone": 489
+      }
+    },
+    {
+      "tick": 7920,
+      "sequence": 159,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-238",
+          "unit-37",
+          "unit-90"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1432,
+        "wood": 1640,
+        "stone": 501
+      },
+      "walletAfter": {
+        "food": 1432,
+        "wood": 1640,
+        "stone": 501
+      }
+    },
+    {
+      "tick": 7920,
+      "sequence": 160,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-238",
+          "unit-37",
+          "unit-90"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1432,
+        "wood": 1640,
+        "stone": 501
+      },
+      "walletAfter": {
+        "food": 1432,
+        "wood": 1640,
+        "stone": 501
+      }
+    },
+    {
+      "tick": 8220,
+      "sequence": 161,
+      "label": "return defenders outside control objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-238",
+          "unit-37",
+          "unit-90"
+        ],
+        "target": {
+          "x": 10,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1720,
+        "wood": 1640,
+        "stone": 657
+      },
+      "walletAfter": {
+        "food": 1720,
+        "wood": 1640,
+        "stone": 657
+      }
+    },
+    {
+      "tick": 8220,
+      "sequence": 162,
+      "label": "defenders hold ground",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-126",
+          "unit-166",
+          "unit-189",
+          "unit-206",
+          "unit-207",
+          "unit-208",
+          "unit-209",
+          "unit-216",
+          "unit-228",
+          "unit-229",
+          "unit-231",
+          "unit-238",
+          "unit-37",
+          "unit-90"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 1720,
+        "wood": 1640,
+        "stone": 657
+      },
+      "walletAfter": {
+        "food": 1720,
+        "wood": 1640,
+        "stone": 657
+      }
+    }
+  ],
+  "checkpoints": [
+    {
+      "label": "fund lumberCamp",
+      "tick": 0,
+      "simulatedSeconds": 0,
+      "wallet": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "population": {
+        "used": 3,
+        "capacity": 10
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "lumberCamp completes",
+      "tick": 302,
+      "simulatedSeconds": 30.2,
+      "wallet": {
+        "food": 492,
+        "wood": 382,
+        "stone": 260
+      },
+      "population": {
+        "used": 3,
+        "capacity": 10
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund farmstead",
+      "tick": 302,
+      "simulatedSeconds": 30.2,
+      "wallet": {
+        "food": 492,
+        "wood": 382,
+        "stone": 260
+      },
+      "population": {
+        "used": 3,
+        "capacity": 10
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "farmstead completes",
+      "tick": 531,
+      "simulatedSeconds": 53.1,
+      "wallet": {
+        "food": 528,
+        "wood": 429,
+        "stone": 240
+      },
+      "population": {
+        "used": 3,
+        "capacity": 10
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund house",
+      "tick": 531,
+      "simulatedSeconds": 53.1,
+      "wallet": {
+        "food": 528,
+        "wood": 429,
+        "stone": 240
+      },
+      "population": {
+        "used": 3,
+        "capacity": 10
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "house completes",
+      "tick": 739,
+      "simulatedSeconds": 73.9,
+      "wallet": {
+        "food": 600,
+        "wood": 469,
+        "stone": 240
+      },
+      "population": {
+        "used": 3,
+        "capacity": 18
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund barracks",
+      "tick": 739,
+      "simulatedSeconds": 73.9,
+      "wallet": {
+        "food": 350,
+        "wood": 469,
+        "stone": 240
+      },
+      "population": {
+        "used": 8,
+        "capacity": 18
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "barracks completes",
+      "tick": 1082,
+      "simulatedSeconds": 108.2,
+      "wallet": {
+        "food": 530,
+        "wood": 500,
+        "stone": 217
+      },
+      "population": {
+        "used": 8,
+        "capacity": 18
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "eight economy workers trained",
+      "tick": 1339,
+      "simulatedSeconds": 133.9,
+      "wallet": {
+        "food": 400,
+        "wood": 812,
+        "stone": 305
+      },
+      "population": {
+        "used": 10,
+        "capacity": 18
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund house",
+      "tick": 1339,
+      "simulatedSeconds": 133.9,
+      "wallet": {
+        "food": 400,
+        "wood": 812,
+        "stone": 305
+      },
+      "population": {
+        "used": 10,
+        "capacity": 18
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "house completes",
+      "tick": 1573,
+      "simulatedSeconds": 157.3,
+      "wallet": {
+        "food": 529,
+        "wood": 1065,
+        "stone": 333
+      },
+      "population": {
+        "used": 12,
+        "capacity": 26
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund stronghold",
+      "tick": 1573,
+      "simulatedSeconds": 157.3,
+      "wallet": {
+        "food": 529,
+        "wood": 1065,
+        "stone": 333
+      },
+      "population": {
+        "used": 12,
+        "capacity": 26
+      },
+      "tier": "frontier",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "stronghold reached",
+      "tick": 2023,
+      "simulatedSeconds": 202.3,
+      "wallet": {
+        "food": 175,
+        "wood": 1435,
+        "stone": 429
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund defenseTower",
+      "tick": 2023,
+      "simulatedSeconds": 202.3,
+      "wallet": {
+        "food": 175,
+        "wood": 1435,
+        "stone": 429
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "defenseTower completes",
+      "tick": 2470,
+      "simulatedSeconds": 247,
+      "wallet": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 400
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund defenseTower",
+      "tick": 2470,
+      "simulatedSeconds": 247,
+      "wallet": {
+        "food": 470,
+        "wood": 2053,
+        "stone": 400
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "defenseTower completes",
+      "tick": 2863,
+      "simulatedSeconds": 286.3,
+      "wallet": {
+        "food": 830,
+        "wood": 2599,
+        "stone": 347
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund archeryRange",
+      "tick": 2863,
+      "simulatedSeconds": 286.3,
+      "wallet": {
+        "food": 830,
+        "wood": 2599,
+        "stone": 347
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "archeryRange completes",
+      "tick": 3159,
+      "simulatedSeconds": 315.9,
+      "wallet": {
+        "food": 1154,
+        "wood": 2907,
+        "stone": 362
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund beastStable",
+      "tick": 3159,
+      "simulatedSeconds": 315.9,
+      "wallet": {
+        "food": 1154,
+        "wood": 2907,
+        "stone": 362
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "beastStable completes",
+      "tick": 3514,
+      "simulatedSeconds": 351.4,
+      "wallet": {
+        "food": 1107,
+        "wood": 3163,
+        "stone": 389
+      },
+      "population": {
+        "used": 16,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund house",
+      "tick": 3514,
+      "simulatedSeconds": 351.4,
+      "wallet": {
+        "food": 1107,
+        "wood": 3163,
+        "stone": 389
+      },
+      "population": {
+        "used": 16,
+        "capacity": 26
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "house completes",
+      "tick": 3703,
+      "simulatedSeconds": 370.3,
+      "wallet": {
+        "food": 1190,
+        "wood": 3238,
+        "stone": 417
+      },
+      "population": {
+        "used": 20,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "fund hearthlandAlmanac",
+      "tick": 3703,
+      "simulatedSeconds": 370.3,
+      "wallet": {
+        "food": 1190,
+        "wood": 3238,
+        "stone": 417
+      },
+      "population": {
+        "used": 20,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": []
+    },
+    {
+      "label": "hearthlandAlmanac researched",
+      "tick": 3983,
+      "simulatedSeconds": 398.3,
+      "wallet": {
+        "food": 831,
+        "wood": 3475,
+        "stone": 537
+      },
+      "population": {
+        "used": 19,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac"
+      ]
+    },
+    {
+      "label": "fund resinboundKits",
+      "tick": 3983,
+      "simulatedSeconds": 398.3,
+      "wallet": {
+        "food": 831,
+        "wood": 3475,
+        "stone": 537
+      },
+      "population": {
+        "used": 19,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac"
+      ]
+    },
+    {
+      "label": "resinboundKits researched",
+      "tick": 4283,
+      "simulatedSeconds": 428.3,
+      "wallet": {
+        "food": 1035,
+        "wood": 3615,
+        "stone": 605
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits"
+      ]
+    },
+    {
+      "label": "fund layeredHarness",
+      "tick": 4283,
+      "simulatedSeconds": 428.3,
+      "wallet": {
+        "food": 1035,
+        "wood": 3615,
+        "stone": 605
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits"
+      ]
+    },
+    {
+      "label": "layeredHarness researched",
+      "tick": 4680,
+      "simulatedSeconds": 468,
+      "wallet": {
+        "food": 1145,
+        "wood": 3925,
+        "stone": 741
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness"
+      ]
+    },
+    {
+      "label": "fund surveyedFoundations",
+      "tick": 4680,
+      "simulatedSeconds": 468,
+      "wallet": {
+        "food": 1145,
+        "wood": 3925,
+        "stone": 741
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness"
+      ]
+    },
+    {
+      "label": "surveyedFoundations researched",
+      "tick": 5080,
+      "simulatedSeconds": 508,
+      "wallet": {
+        "food": 1217,
+        "wood": 3685,
+        "stone": 793
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations"
+      ]
+    },
+    {
+      "label": "fund windspurRigging",
+      "tick": 5080,
+      "simulatedSeconds": 508,
+      "wallet": {
+        "food": 1217,
+        "wood": 3685,
+        "stone": 793
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations"
+      ]
+    },
+    {
+      "label": "windspurRigging researched",
+      "tick": 5420,
+      "simulatedSeconds": 542,
+      "wallet": {
+        "food": 1085,
+        "wood": 3535,
+        "stone": 945
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "fund artificer",
+      "tick": 5420,
+      "simulatedSeconds": 542,
+      "wallet": {
+        "food": 1085,
+        "wood": 3535,
+        "stone": 945
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "stronghold",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "artificer reached",
+      "tick": 6020,
+      "simulatedSeconds": 602,
+      "wallet": {
+        "food": 875,
+        "wood": 3035,
+        "stone": 957
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "fund mageSanctum",
+      "tick": 6020,
+      "simulatedSeconds": 602,
+      "wallet": {
+        "food": 875,
+        "wood": 3035,
+        "stone": 957
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "mageSanctum completes",
+      "tick": 6506,
+      "simulatedSeconds": 650.6,
+      "wallet": {
+        "food": 1235,
+        "wood": 2905,
+        "stone": 923
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "fund gunWorkshop",
+      "tick": 6506,
+      "simulatedSeconds": 650.6,
+      "wallet": {
+        "food": 1235,
+        "wood": 2905,
+        "stone": 923
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "gunWorkshop completes",
+      "tick": 6876,
+      "simulatedSeconds": 687.6,
+      "wallet": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 862
+      },
+      "population": {
+        "used": 23,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "fund siegeWorkshop",
+      "tick": 6876,
+      "simulatedSeconds": 687.6,
+      "wallet": {
+        "food": 1340,
+        "wood": 2690,
+        "stone": 862
+      },
+      "population": {
+        "used": 23,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "siegeWorkshop completes",
+      "tick": 7486,
+      "simulatedSeconds": 748.6,
+      "wallet": {
+        "food": 1730,
+        "wood": 2270,
+        "stone": 807
+      },
+      "population": {
+        "used": 26,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "fund starfireBores",
+      "tick": 7486,
+      "simulatedSeconds": 748.6,
+      "wallet": {
+        "food": 1730,
+        "wood": 2270,
+        "stone": 807
+      },
+      "population": {
+        "used": 26,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ]
+    },
+    {
+      "label": "starfireBores researched",
+      "tick": 7906,
+      "simulatedSeconds": 790.6,
+      "wallet": {
+        "food": 1596,
+        "wood": 1940,
+        "stone": 709
+      },
+      "population": {
+        "used": 29,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores"
+      ]
+    },
+    {
+      "label": "fund torsionCradles",
+      "tick": 7906,
+      "simulatedSeconds": 790.6,
+      "wallet": {
+        "food": 1596,
+        "wood": 1940,
+        "stone": 709
+      },
+      "population": {
+        "used": 29,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores"
+      ]
+    },
+    {
+      "label": "torsionCradles researched",
+      "tick": 8356,
+      "simulatedSeconds": 835.6,
+      "wallet": {
+        "food": 1720,
+        "wood": 1640,
+        "stone": 729
+      },
+      "population": {
+        "used": 29,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores",
+        "torsionCradles"
+      ]
+    },
+    {
+      "label": "all seven military unit types trained",
+      "tick": 8356,
+      "simulatedSeconds": 835.6,
+      "wallet": {
+        "food": 1720,
+        "wood": 1640,
+        "stone": 729
+      },
+      "population": {
+        "used": 29,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores",
+        "torsionCradles"
+      ]
+    },
+    {
+      "label": "full progression complete under normal standard AI",
+      "tick": 8356,
+      "simulatedSeconds": 835.6,
+      "wallet": {
+        "food": 1720,
+        "wood": 1640,
+        "stone": 729
+      },
+      "population": {
+        "used": 29,
+        "capacity": 34
+      },
+      "tier": "artificer",
+      "completedTechnologyIds": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores",
+        "torsionCradles"
+      ]
+    }
+  ],
+  "snapshots": [
+    {
+      "tick": 1000,
+      "phase": "playing",
+      "tier": "frontier",
+      "wallet": {
+        "food": 446,
+        "wood": 452,
+        "stone": 217
+      },
+      "population": {
+        "used": 8,
+        "capacity": 18
+      },
+      "army": 0,
+      "technologies": [],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 0
+        },
+        {
+          "team": "team-player",
+          "score": 0
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "gathering",
+          "at": {
+            "x": 3,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "constructing",
+          "at": {
+            "x": 7,
+            "y": 12
+          }
+        }
+      ]
+    },
+    {
+      "tick": 2000,
+      "phase": "playing",
+      "tier": "frontier",
+      "wallet": {
+        "food": 139,
+        "wood": 1411,
+        "stone": 405
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "army": 4,
+      "technologies": [],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 0
+        },
+        {
+          "team": "team-player",
+          "score": 0
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "gathering",
+          "at": {
+            "x": 7,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-27",
+          "activity": "hauling",
+          "at": {
+            "x": 3,
+            "y": 13
+          }
+        },
+        {
+          "id": "unit-29",
+          "activity": "gathering",
+          "at": {
+            "x": 2,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-31",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "gathering",
+          "at": {
+            "x": 4,
+            "y": 9
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "hauling",
+          "at": {
+            "x": 2,
+            "y": 13
+          }
+        }
+      ]
+    },
+    {
+      "tick": 3000,
+      "phase": "playing",
+      "tier": "stronghold",
+      "wallet": {
+        "food": 866,
+        "wood": 2667,
+        "stone": 338
+      },
+      "population": {
+        "used": 14,
+        "capacity": 26
+      },
+      "army": 4,
+      "technologies": [],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 98
+        },
+        {
+          "team": "team-player",
+          "score": 0
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "gathering",
+          "at": {
+            "x": 7,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-27",
+          "activity": "gathering",
+          "at": {
+            "x": 3,
+            "y": 12
+          }
+        },
+        {
+          "id": "unit-29",
+          "activity": "hauling",
+          "at": {
+            "x": 2,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-31",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 9
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "constructing",
+          "at": {
+            "x": 9,
+            "y": 16
+          }
+        }
+      ]
+    },
+    {
+      "tick": 4000,
+      "phase": "playing",
+      "tier": "stronghold",
+      "wallet": {
+        "food": 867,
+        "wood": 3271,
+        "stone": 481
+      },
+      "population": {
+        "used": 19,
+        "capacity": 34
+      },
+      "army": 7,
+      "technologies": [
+        "hearthlandAlmanac"
+      ],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 126
+        },
+        {
+          "team": "team-player",
+          "score": 143
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "gathering",
+          "at": {
+            "x": 7,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-27",
+          "activity": "gathering",
+          "at": {
+            "x": 3,
+            "y": 13
+          }
+        },
+        {
+          "id": "unit-29",
+          "activity": "hauling",
+          "at": {
+            "x": 2,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-31",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "gathering",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 9
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "gathering",
+          "at": {
+            "x": 2,
+            "y": 12
+          }
+        }
+      ]
+    },
+    {
+      "tick": 5000,
+      "phase": "playing",
+      "tier": "stronghold",
+      "wallet": {
+        "food": 1073,
+        "wood": 3685,
+        "stone": 769
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "army": 11,
+      "technologies": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness"
+      ],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 126
+        },
+        {
+          "team": "team-player",
+          "score": 240
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "idle",
+          "at": {
+            "x": 7,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-27",
+          "activity": "gathering",
+          "at": {
+            "x": 3,
+            "y": 13
+          }
+        },
+        {
+          "id": "unit-29",
+          "activity": "hauling",
+          "at": {
+            "x": 2,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-31",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 9
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "gathering",
+          "at": {
+            "x": 2,
+            "y": 12
+          }
+        }
+      ]
+    },
+    {
+      "tick": 6000,
+      "phase": "playing",
+      "tier": "stronghold",
+      "wallet": {
+        "food": 839,
+        "wood": 3035,
+        "stone": 945
+      },
+      "population": {
+        "used": 22,
+        "capacity": 34
+      },
+      "army": 11,
+      "technologies": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 126
+        },
+        {
+          "team": "team-player",
+          "score": 240
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "idle",
+          "at": {
+            "x": 7,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-27",
+          "activity": "hauling",
+          "at": {
+            "x": 3,
+            "y": 14
+          }
+        },
+        {
+          "id": "unit-29",
+          "activity": "hauling",
+          "at": {
+            "x": 2,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-31",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 9
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "gathering",
+          "at": {
+            "x": 4,
+            "y": 13
+          }
+        }
+      ]
+    },
+    {
+      "tick": 7000,
+      "phase": "playing",
+      "tier": "artificer",
+      "wallet": {
+        "food": 1415,
+        "wood": 2325,
+        "stone": 711
+      },
+      "population": {
+        "used": 25,
+        "capacity": 34
+      },
+      "army": 10,
+      "technologies": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging"
+      ],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 126
+        },
+        {
+          "team": "team-player",
+          "score": 240
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "idle",
+          "at": {
+            "x": 7,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-27",
+          "activity": "hauling",
+          "at": {
+            "x": 3,
+            "y": 14
+          }
+        },
+        {
+          "id": "unit-29",
+          "activity": "hauling",
+          "at": {
+            "x": 2,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-31",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 9
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "constructing",
+          "at": {
+            "x": 6,
+            "y": 13
+          }
+        }
+      ]
+    },
+    {
+      "tick": 8000,
+      "phase": "playing",
+      "tier": "artificer",
+      "wallet": {
+        "food": 1576,
+        "wood": 1640,
+        "stone": 537
+      },
+      "population": {
+        "used": 29,
+        "capacity": 34
+      },
+      "army": 14,
+      "technologies": [
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores"
+      ],
+      "control": [
+        {
+          "team": "team-ai",
+          "score": 126
+        },
+        {
+          "team": "team-player",
+          "score": 555
+        }
+      ],
+      "builders": [
+        {
+          "id": "unit-24",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-26",
+          "activity": "idle",
+          "at": {
+            "x": 7,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-27",
+          "activity": "gathering",
+          "at": {
+            "x": 4,
+            "y": 13
+          }
+        },
+        {
+          "id": "unit-29",
+          "activity": "hauling",
+          "at": {
+            "x": 2,
+            "y": 8
+          }
+        },
+        {
+          "id": "unit-31",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 11
+          }
+        },
+        {
+          "id": "unit-5",
+          "activity": "idle",
+          "at": {
+            "x": 6,
+            "y": 10
+          }
+        },
+        {
+          "id": "unit-6",
+          "activity": "hauling",
+          "at": {
+            "x": 4,
+            "y": 9
+          }
+        },
+        {
+          "id": "unit-7",
+          "activity": "hauling",
+          "at": {
+            "x": 3,
+            "y": 14
+          }
+        }
+      ]
+    }
+  ],
+  "eventCounts": {
+    "commandAccepted": 140,
+    "entitySpawned": 38,
+    "resourcesDeposited": 1170,
+    "entityUpdated": 13,
+    "resourceDepleted": 16,
+    "rallyPointChanged": 6,
+    "commandRejected": 22,
+    "resourceRenewed": 14,
+    "statusApplied": 57,
+    "statusExpired": 52,
+    "settlementAdvanced": 2,
+    "controlObjectiveChanged": 22,
+    "combatPhaseChanged": 570,
+    "projectileSpawned": 176,
+    "entityDamaged": 177,
+    "projectileImpacted": 178,
+    "victoryProgressChanged": 12,
+    "entityRemoved": 14,
+    "tacticalSignalRaised": 4,
+    "technologyResearched": 7
+  },
+  "deposits": {
+    "food": 5400,
+    "wood": 6000,
+    "stone": 2584
+  },
+  "expenditure": {
+    "food": 4100,
+    "wood": 4780,
+    "stone": 2115
+  },
+  "trainedTypes": [
+    "warrior",
+    "shieldBearer",
+    "archer",
+    "boarRider",
+    "mage",
+    "musketeer",
+    "heavyCrossbowman"
+  ],
+  "technologies": [
+    {
+      "technologyId": "hearthlandAlmanac",
+      "tick": 3983
+    },
+    {
+      "technologyId": "resinboundKits",
+      "tick": 4283
+    },
+    {
+      "technologyId": "layeredHarness",
+      "tick": 4680
+    },
+    {
+      "technologyId": "surveyedFoundations",
+      "tick": 5080
+    },
+    {
+      "technologyId": "windspurRigging",
+      "tick": 5420
+    },
+    {
+      "technologyId": "starfireBores",
+      "tick": 7906
+    },
+    {
+      "technologyId": "torsionCradles",
+      "tick": 8356
+    }
+  ],
+  "combatSamples": [
+    {
+      "tick": 2884,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-41",
+        "targetId": "unit-30",
+        "amount": 13,
+        "hitPoints": 137
+      }
+    },
+    {
+      "tick": 2885,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 216
+      }
+    },
+    {
+      "tick": 2896,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-41",
+        "targetId": "unit-30",
+        "amount": 13,
+        "hitPoints": 124
+      }
+    },
+    {
+      "tick": 2896,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 202
+      }
+    },
+    {
+      "tick": 2908,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 188
+      }
+    },
+    {
+      "tick": 2919,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 174
+      }
+    },
+    {
+      "tick": 2922,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-38",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 160
+      }
+    },
+    {
+      "tick": 2930,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 146
+      }
+    },
+    {
+      "tick": 2933,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-38",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 132
+      }
+    },
+    {
+      "tick": 2934,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-41",
+        "targetId": "unit-30",
+        "amount": 13,
+        "hitPoints": 111
+      }
+    },
+    {
+      "tick": 2942,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 118
+      }
+    },
+    {
+      "tick": 2945,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-38",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 104
+      }
+    },
+    {
+      "tick": 2953,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 90
+      }
+    },
+    {
+      "tick": 2954,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-25",
+        "targetId": "unit-7",
+        "amount": 14,
+        "hitPoints": 41
+      }
+    },
+    {
+      "tick": 2957,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-38",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 76
+      }
+    },
+    {
+      "tick": 2965,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 62
+      }
+    },
+    {
+      "tick": 2968,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-25",
+        "targetId": "unit-7",
+        "amount": 14,
+        "hitPoints": 27
+      }
+    },
+    {
+      "tick": 2969,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-34",
+        "targetId": "unit-25",
+        "amount": 20,
+        "hitPoints": 42
+      }
+    },
+    {
+      "tick": 2969,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-38",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 28
+      }
+    },
+    {
+      "tick": 2974,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-41",
+        "targetId": "unit-30",
+        "amount": 13,
+        "hitPoints": 98
+      }
+    },
+    {
+      "tick": 2977,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "building-40",
+        "targetId": "unit-25",
+        "amount": 14,
+        "hitPoints": 14
+      }
+    },
+    {
+      "tick": 2980,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-34",
+        "targetId": "unit-25",
+        "amount": 21,
+        "hitPoints": 0
+      }
+    },
+    {
+      "tick": 2999,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-41",
+        "targetId": "unit-30",
+        "amount": 13,
+        "hitPoints": 85
+      }
+    },
+    {
+      "tick": 3012,
+      "event": {
+        "type": "entityDamaged",
+        "sourceId": "unit-41",
+        "targetId": "unit-30",
+        "amount": 13,
+        "hitPoints": 72
+      }
+    }
+  ],
+  "aiAudit": {
+    "settlementTier": "stronghold",
+    "completedTechnologyIds": [
+      "resinboundKits",
+      "layeredHarness"
+    ],
+    "buildings": [
+      {
+        "type": "townCenter",
+        "complete": true
+      },
+      {
+        "type": "barracks",
+        "complete": true
+      },
+      {
+        "type": "lumberCamp",
+        "complete": true
+      },
+      {
+        "type": "house",
+        "complete": true
+      },
+      {
+        "type": "archeryRange",
+        "complete": true
+      },
+      {
+        "type": "beastStable",
+        "complete": true
+      }
+    ],
+    "militaryUnits": 5,
+    "authority": {
+      "decisions": 418,
+      "scoutsSent": 5,
+      "repairsOrdered": 0,
+      "retreatsOrdered": 3,
+      "wavesLaunched": 2,
+      "counterSwitches": 3
+    }
+  },
+  "openingResearchRejection": {
+    "code": "PREREQUISITE_NOT_MET",
+    "walletUnchanged": true
+  },
+  "result": {
+    "status": "VERIFIED",
+    "tick": 8356,
+    "simulatedSeconds": 835.6,
+    "tier": "artificer",
+    "technologies": [
+      "hearthlandAlmanac",
+      "resinboundKits",
+      "layeredHarness",
+      "surveyedFoundations",
+      "windspurRigging",
+      "starfireBores",
+      "torsionCradles"
+    ],
+    "trainedTypes": [
+      "warrior",
+      "shieldBearer",
+      "archer",
+      "boarRider",
+      "mage",
+      "musketeer",
+      "heavyCrossbowman"
+    ],
+    "saveHashMatches": true,
+    "finalHash": "1da82903",
+    "victory": {
+      "policy": {
+        "commandCenterConquest": {
+          "rebuildGraceTicks": 600
+        },
+        "elimination": true,
+        "landmark": {
+          "buildingType": "copperLandmark",
+          "requiredCount": 1,
+          "holdTicks": 900
+        },
+        "timedControl": {
+          "point": {
+            "x": 16,
+            "y": 12
+          },
+          "radius": 3,
+          "startsAtTick": 600,
+          "targetTicks": 1200
+        }
+      },
+      "teams": [
+        {
+          "teamId": "team-ai",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 126,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        },
+        {
+          "teamId": "team-player",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 641,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        }
+      ],
+      "control": {
+        "controllerTeamId": null,
+        "contested": false
+      },
+      "outcome": null,
+      "winningTeamIds": [],
+      "finishReason": null,
+      "triggeredReasons": [],
+      "finishedAtTick": null
+    },
+    "replayHashMatches": true
+  },
+  "wallMilliseconds": 23779
+}

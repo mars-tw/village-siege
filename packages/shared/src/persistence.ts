@@ -2,6 +2,8 @@ import {
   VILLAGE_ASSAULT_MAP_HEIGHT,
   VILLAGE_ASSAULT_MAP_ID,
   VILLAGE_ASSAULT_MAP_WIDTH,
+  getVillageAssaultLayout,
+  isVillageAssaultBuildableCell,
   isVillageAssaultLayoutId,
 } from "./battlefield.js";
 import {
@@ -25,7 +27,7 @@ import {
   VILLAGE_IDS,
 } from "./content.js";
 import { isCommandEnvelope, type AiAuthorityState, type CommandEnvelope, type DomainEvent } from "./protocol.js";
-import { applyCommand, cloneMatchState, hashMatchState, stepSimulation, toVisibleSnapshot, type MatchState } from "./simulation.js";
+import { applyCommand, cloneMatchState, getEntityFootprintCells, hashMatchState, stepSimulation, toVisibleSnapshot, type MatchState, type ResourceEntityState } from "./simulation.js";
 
 export const MATCH_PERSISTENCE_SCHEMA_VERSION = 1 as const;
 export const MATCH_PERSISTENCE_PROTOCOL_VERSION = "village-siege-persistence/1" as const;
@@ -39,6 +41,8 @@ export const MATCH_JOURNAL_MAX_OPERATIONS = 100_000;
 export const MATCH_PERSISTENCE_MAX_TICK = 10_000_000;
 const MATCH_PERSISTENCE_MAX_MAP_DIMENSION = 256;
 const MATCH_PERSISTENCE_MAX_MAP_TILES = 65_536;
+export const LEGACY_MATCH_RULES_VERSION = "village-siege/0.19.0" as const;
+const LEGACY_FINITE_RESOURCE_CAPACITY = { wood: 1_000, stone: 700 } as const;
 
 export type MatchPersistenceVisibility = "authoritative-private";
 export type MatchCommandSource = "human" | "ai";
@@ -85,7 +89,7 @@ export interface MatchStateSnapshot {
 interface MatchPersistenceHeader {
   readonly schemaVersion: typeof MATCH_PERSISTENCE_SCHEMA_VERSION;
   readonly protocolVersion: typeof MATCH_PERSISTENCE_PROTOCOL_VERSION;
-  readonly rulesVersion: typeof RULES_VERSION;
+  readonly rulesVersion: typeof RULES_VERSION | typeof LEGACY_MATCH_RULES_VERSION;
   readonly visibility: MatchPersistenceVisibility;
 }
 
@@ -368,7 +372,7 @@ export function appendJournalAdvance(
 
 export function replayMatchJournal(baseState: MatchState, journal: MatchCommandJournalFile): MatchJournalReplayResult {
   assertMatchCommandJournalFile(journal);
-  assertCurrentRulesState(baseState);
+  assertRecordedRulesState(baseState, journal.rulesVersion);
   if (baseState.matchId !== journal.matchId) fail("MATCH_MISMATCH", "Journal and base-state match IDs differ");
   if (baseState.tick !== journal.baseTick) fail("TICK_MISMATCH", "Journal base tick differs from the supplied state");
   if (hashMatchState(baseState) !== journal.baseHash) fail("HASH_MISMATCH", "Journal base hash differs from the supplied state");
@@ -406,7 +410,7 @@ export function replayMatchJournal(baseState: MatchState, journal: MatchCommandJ
   }
   if (state.tick !== journal.finalTick) fail("TICK_MISMATCH", "Journal final tick differs after replay");
   if (hashMatchState(state) !== journal.finalHash) fail("HASH_MISMATCH", "Journal final hash differs after replay");
-  assertCurrentRulesState(state);
+  assertRecordedRulesState(state, journal.rulesVersion);
   return { state, events };
 }
 
@@ -445,6 +449,71 @@ export function serializeMatchReplayFile(file: MatchReplayFile): string {
 
 export function parseMatchSaveFile(serialized: string): MatchSaveFile {
   return parseArtifact(serialized, MATCH_SAVE_MAX_BYTES, "save", assertMatchSaveFile);
+}
+
+/** Verify the recorded checkpoint before creating a distinct current-rules checkpoint. */
+export function migrateMatchSaveToCurrentRules(save: MatchSaveFile): MatchSaveFile {
+  assertMatchSaveFile(save);
+  if (save.rulesVersion === RULES_VERSION) return save;
+  const state = cloneMatchState(save.snapshot.state);
+  state.rulesVersion = RULES_VERSION;
+  for (const entity of state.entities) {
+    if (entity.kind !== "resource" || entity.typeId === "food") continue;
+    const capacity = Math.max(entity.maxHitPoints, RESOURCE_NODES[entity.typeId].maxAmount);
+    const mined = entity.maxHitPoints - entity.amount;
+    entity.maxHitPoints = capacity;
+    entity.amount = capacity - mined;
+    entity.hitPoints = entity.amount;
+    entity.stateRevision += 1;
+  }
+  restoreDepletedHomeResourceExtras(state);
+  return createMatchSaveFile(state, save.runtime);
+}
+
+/** A historical replay must finish exact verification before any rules migration. */
+export function migrateMatchReplayResultToCurrentRules(replay: MatchReplayFile): MatchReplayResult {
+  const result = replayMatchReplay(replay);
+  if (replay.rulesVersion === RULES_VERSION) return result;
+  const hash = hashMatchState(result.state);
+  const checkpoint: MatchSaveFile = {
+    kind: "match-save", schemaVersion: replay.schemaVersion, protocolVersion: replay.protocolVersion,
+    rulesVersion: replay.rulesVersion, visibility: replay.visibility,
+    snapshot: { tick: result.state.tick, hash, state: result.state }, runtime: result.runtime,
+    continuationHash: hashMatchContinuation(hash, result.runtime),
+  };
+  return { ...result, state: migrateMatchSaveToCurrentRules(checkpoint).snapshot.state };
+}
+
+function restoreDepletedHomeResourceExtras(state: MatchState): void {
+  if (state.players.length !== 2 || state.map.id !== VILLAGE_ASSAULT_MAP_ID || !isVillageAssaultLayoutId(state.map.layoutId)) return;
+  const layout = getVillageAssaultLayout(state.map.layoutId);
+  // Only the two authored home slots have known historical capacities and anchors.
+  for (const slot of layout.startSlots) {
+    for (const anchor of slot.resourceAnchors) {
+      if (anchor.resourceKind === "food") continue;
+      if (state.entities.some(entity => entity.kind === "resource" && entity.typeId === anchor.resourceKind
+          && entity.position.x === anchor.position.x && entity.position.y === anchor.position.y)) continue;
+      const amount = RESOURCE_NODES[anchor.resourceKind].maxAmount - LEGACY_FINITE_RESOURCE_CAPACITY[anchor.resourceKind];
+      if (amount <= 0) continue;
+      const occupied = new Set(state.entities.flatMap(getEntityFootprintCells).map(point => `${point.x},${point.y}`));
+      const positions = [];
+      for (let y = Math.max(0, anchor.position.y - 5); y <= Math.min(state.map.height - 1, anchor.position.y + 5); y += 1) {
+        for (let x = Math.max(0, anchor.position.x - 5); x <= Math.min(state.map.width - 1, anchor.position.x + 5); x += 1) {
+          const distance = Math.abs(x - anchor.position.x) + Math.abs(y - anchor.position.y);
+          if (distance <= 5 && isVillageAssaultBuildableCell({ x, y }, state.map.layoutId) && !occupied.has(`${x},${y}`)) positions.push({ x, y, distance });
+        }
+      }
+      positions.sort((left, right) => left.distance - right.distance || left.y - right.y || left.x - right.x);
+      const position = positions[0];
+      if (!position) continue; // Never move or overwrite a player's existing assets.
+      const resource: ResourceEntityState = {
+        id: `resource-${state.nextEntityNumber++}`, kind: "resource", typeId: anchor.resourceKind,
+        ownerId: null, position: { x: position.x, y: position.y }, amount, hitPoints: amount,
+        maxHitPoints: RESOURCE_NODES[anchor.resourceKind].maxAmount, renewAtTick: null, stateRevision: 0,
+      };
+      state.entities.push(resource);
+    }
+  }
 }
 
 export function parseMatchCommandJournalFile(serialized: string): MatchCommandJournalFile {
@@ -503,6 +572,7 @@ function assertMatchSaveFile(value: unknown): asserts value is MatchSaveFile {
   assertHash(snapshot.hash, "snapshot.hash");
   assertMatchState(snapshot.state);
   const state = snapshot.state as MatchState;
+  if (state.rulesVersion !== record.rulesVersion) fail("UNSUPPORTED_RULES_VERSION", "Save header and state rules versions differ");
   if (snapshot.tick !== state.tick) fail("TICK_MISMATCH", "Save snapshot tick differs from state");
   if (snapshot.hash !== hashMatchState(state)) fail("HASH_MISMATCH", "Save snapshot hash differs from state");
   assertRuntimeMetadata(record.runtime, state);
@@ -567,6 +637,7 @@ function assertMatchReplayFile(value: unknown): asserts value is MatchReplayFile
   assertHash(record.continuationHash, "replay.continuationHash");
   const save = record.save as MatchSaveFile;
   const journal = record.journal as MatchCommandJournalFile;
+  if (save.rulesVersion !== record.rulesVersion || journal.rulesVersion !== record.rulesVersion) fail("UNSUPPORTED_RULES_VERSION", "Replay, save and journal rules versions differ");
   if (save.snapshot.state.matchId !== journal.matchId) fail("MATCH_MISMATCH", "Replay save and journal match IDs differ");
   if (save.snapshot.tick !== journal.baseTick) fail("TICK_MISMATCH", "Replay journal base tick differs from save");
   if (save.snapshot.hash !== journal.baseHash) fail("HASH_MISMATCH", "Replay journal base hash differs from save");
@@ -599,7 +670,7 @@ function assertHeader(record: Record<string, unknown>): void {
   if (record.protocolVersion !== MATCH_PERSISTENCE_PROTOCOL_VERSION) {
     fail("UNSUPPORTED_PROTOCOL_VERSION", `Unsupported persistence protocol version: ${String(record.protocolVersion)}`);
   }
-  if (record.rulesVersion !== RULES_VERSION) {
+  if (record.rulesVersion !== RULES_VERSION && record.rulesVersion !== LEGACY_MATCH_RULES_VERSION) {
     fail("UNSUPPORTED_RULES_VERSION", `Unsupported rules version: ${String(record.rulesVersion)}`);
   }
   if (record.visibility !== "authoritative-private") {
@@ -661,7 +732,7 @@ function assertMatchState(value: unknown): asserts value is MatchState {
     "aiControllers", "entities", "projectiles", "visibilityByPlayer", "nextEntityNumber", "teamTownCenterLostAt",
     "winningTeamIds", "finishReason", "victory",
   ], "match state");
-  if (record.rulesVersion !== RULES_VERSION) fail("UNSUPPORTED_RULES_VERSION", `Unsupported state rules version: ${String(record.rulesVersion)}`);
+  if (record.rulesVersion !== RULES_VERSION && record.rulesVersion !== LEGACY_MATCH_RULES_VERSION) fail("UNSUPPORTED_RULES_VERSION", `Unsupported state rules version: ${String(record.rulesVersion)}`);
   assertNonEmptyString(record.matchId, "state.matchId");
   assertNonNegativeSafeInteger(record.seed, "state.seed");
   assertNonNegativeSafeInteger(record.randomState, "state.randomState");
@@ -1745,6 +1816,11 @@ function hasOwn(record: object, key: unknown): key is string {
 function assertCurrentRulesState(state: MatchState): void {
   assertMatchState(state);
   if (state.rulesVersion !== RULES_VERSION) fail("UNSUPPORTED_RULES_VERSION", `Unsupported state rules version: ${state.rulesVersion}`);
+}
+
+function assertRecordedRulesState(state: MatchState, rulesVersion: MatchPersistenceHeader["rulesVersion"]): void {
+  assertMatchState(state);
+  if (state.rulesVersion !== rulesVersion) fail("UNSUPPORTED_RULES_VERSION", "Recorded state and journal rules versions differ");
 }
 
 function assertRuntimeMetadata(value: unknown, state: MatchState): asserts value is MatchRuntimeSaveMetadata {

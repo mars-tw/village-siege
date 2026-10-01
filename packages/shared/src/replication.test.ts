@@ -105,10 +105,13 @@ describe("recipient-filtered replication", () => {
     state.tick += 1;
     updateVisibilityState(state);
     const next = toVisibleSnapshot(state, "player-1");
-    const serialized = JSON.stringify(createVisibleSnapshotDelta(base, next));
+    const delta = createVisibleSnapshotDelta(base, next);
+    const serialized = JSON.stringify(delta);
 
     expect(serialized).not.toContain(hidden.id);
-    expect(serialized).not.toContain(String(hidden.hitPoints));
+    expect(delta.entities.upserted).toEqual([]);
+    expect(delta.staleEnemySightings.upserted).toEqual([]);
+    expect(delta.changes).toEqual({});
   });
 
   it("strictly guards hello, command intent and frame identities", () => {

@@ -1,0 +1,118 @@
+[
+  {
+    "result": {
+      "appVersion": "1.0.0",
+      "rulesVersion": "village-siege/0.20.0",
+      "method": "Three consecutive 5-second requestAnimationFrame samples in active gameplay, same local Windows host. Phone is Chromium mobile emulation, not physical-device performance.",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "touchPoints": 256,
+      "devicePixelRatio": 1,
+      "device": "desktop",
+      "before": {
+        "tick": 12888,
+        "phase": "playing",
+        "paused": false,
+        "entities": 29
+      },
+      "after": {
+        "tick": 13039,
+        "phase": "playing",
+        "paused": false,
+        "entities": 29
+      },
+      "runs": [
+        {
+          "run": 1,
+          "frames": 300,
+          "meanMs": 16.666666666666668,
+          "p50Ms": 16.699999999982538,
+          "p95Ms": 16.800000000017462,
+          "p99Ms": 16.89999999999418,
+          "maxMs": 17
+        },
+        {
+          "run": 2,
+          "frames": 300,
+          "meanMs": 16.666666666666668,
+          "p50Ms": 16.699999999982538,
+          "p95Ms": 16.79999999998836,
+          "p99Ms": 16.89999999999418,
+          "maxMs": 17
+        },
+        {
+          "run": 3,
+          "frames": 301,
+          "meanMs": 16.66644518272427,
+          "p50Ms": 16.699999999982538,
+          "p95Ms": 16.800000000017462,
+          "p99Ms": 16.89999999999418,
+          "maxMs": 16.900000000023283
+        }
+      ],
+      "medianP95Ms": 16.800000000017462,
+      "medianMeanMs": 16.666666666666668
+    },
+    "device": "desktop"
+  },
+  {
+    "result": {
+      "appVersion": "1.0.0",
+      "rulesVersion": "village-siege/0.20.0",
+      "method": "Three consecutive 5-second requestAnimationFrame samples in active gameplay, same local Windows host. Phone is Chromium mobile emulation, not physical-device performance.",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "touchPoints": 1,
+      "devicePixelRatio": 3,
+      "device": "phone",
+      "before": {
+        "tick": 13361,
+        "phase": "playing",
+        "paused": false,
+        "entities": 28
+      },
+      "after": {
+        "tick": 13512,
+        "phase": "playing",
+        "paused": false,
+        "entities": 28
+      },
+      "runs": [
+        {
+          "run": 1,
+          "frames": 300,
+          "meanMs": 16.666666666666668,
+          "p50Ms": 16.699999999953434,
+          "p95Ms": 16.79999999998836,
+          "p99Ms": 16.79999999998836,
+          "maxMs": 17
+        },
+        {
+          "run": 2,
+          "frames": 300,
+          "meanMs": 16.666666666666668,
+          "p50Ms": 16.699999999953434,
+          "p95Ms": 16.79999999998836,
+          "p99Ms": 16.800000000046566,
+          "maxMs": 16.900000000023283
+        },
+        {
+          "run": 3,
+          "frames": 301,
+          "meanMs": 16.66644518272437,
+          "p50Ms": 16.699999999953434,
+          "p95Ms": 16.79999999998836,
+          "p99Ms": 16.800000000046566,
+          "maxMs": 16.800000000046566
+        }
+      ],
+      "medianP95Ms": 16.79999999998836,
+      "medianMeanMs": 16.666666666666668
+    },
+    "device": "phone"
+  }
+]

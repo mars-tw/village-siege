@@ -10,6 +10,20 @@ import { getFootprintCells } from "./spatial";
 const PERSONALITIES: readonly AiPersonality[] = ["aggressor", "guardian", "prosperer", "balanced", "raider"];
 
 describe("shared AI personalities", () => {
+  it("resumes an abandoned paid foundation with a legal worker order", () => {
+    const base = createInitialState({ seed: 922, matchId: "ai-abandoned-foundation" });
+    const worker = base.entities.find(entity => entity.kind === "unit" && entity.ownerId === "player-1")!;
+    const foundation = applyCommand(base, envelope(base, 0, { type: "build", builderIds: [worker.id], buildingType: "house", origin: { x: 10, y: 5 } }));
+    expect(foundation.validation).toEqual({ ok: true });
+    const site = foundation.state.entities.find(entity => entity.kind === "building" && entity.typeId === "house")!;
+    const abandoned = applyCommand(foundation.state, envelope(foundation.state, 1, { type: "stop", entityIds: [worker.id] })).state;
+    const resume = createAiController("balanced", "player-1", 922, "standard").decide(getAiObservation(abandoned, "player-1"), 5)[0]!;
+    expect(resume).toMatchObject({ type: "repair", targetId: site.id });
+    expect(validateCommand(abandoned, envelope(abandoned, 2, resume))).toEqual({ ok: true });
+    const completed = stepSimulation(abandoned, [envelope(abandoned, 2, resume)], 500).state;
+    expect(completed.entities.find(entity => entity.id === site.id)).toMatchObject({ complete: true });
+  });
+
   it("publishes the five fixed profile ids", () => {
     expect(Object.keys(AI_PROFILES).sort()).toEqual([...PERSONALITIES].sort());
     expect(new Set(PERSONALITIES.map((personality) => AI_PROFILES[personality].advanceAfterTick.stronghold)).size).toBe(5);

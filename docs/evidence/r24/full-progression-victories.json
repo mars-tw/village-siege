@@ -1,0 +1,2279 @@
+{
+  "rulesVersion": "village-siege/0.20.0",
+  "method": "Four branches of an earned save; public commands, VisibleSnapshot decisions, standard AI, default unchanged four-route victory policy.",
+  "routes": [
+    {
+      "route": "timedControl",
+      "startTick": 8356,
+      "startHash": "1da82903",
+      "commands": [
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "formation": "box",
+            "type": "setFormation"
+          },
+          "accepted": true,
+          "sequence": 163
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "stance": "holdGround",
+            "type": "setStance"
+          },
+          "accepted": true,
+          "sequence": 164
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "target": {
+              "x": 16,
+              "y": 12
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 165
+        }
+      ],
+      "result": {
+        "status": "VERIFIED",
+        "tick": 8941,
+        "elapsedSeconds": 58.5,
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 126
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 1200
+            }
+          ],
+          "control": {
+            "controllerTeamId": "team-player",
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "timedControl",
+          "triggeredReasons": [
+            "timedControl"
+          ],
+          "finishedAtTick": 8941
+        },
+        "replayHashMatches": true,
+        "finalHash": "535da733"
+      },
+      "evidence": "Recorded natural route commands independently reconstructed and hash-verified after host session restart."
+    },
+    {
+      "route": "landmark",
+      "startTick": 8356,
+      "startHash": "1da82903",
+      "commands": [
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "formation": "box",
+            "type": "setFormation"
+          },
+          "accepted": true,
+          "sequence": 163
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "stance": "holdGround",
+            "type": "setStance"
+          },
+          "accepted": true,
+          "sequence": 164
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "target": {
+              "x": 8,
+              "y": 12
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 165
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "builderIds": [
+              "unit-24"
+            ],
+            "buildingType": "copperLandmark",
+            "origin": {
+              "x": 9,
+              "y": 4
+            },
+            "type": "build"
+          },
+          "accepted": true,
+          "sequence": 166
+        }
+      ],
+      "result": {
+        "status": "VERIFIED",
+        "tick": 9839,
+        "elapsedSeconds": 148.3,
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 709
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 900,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 641
+            }
+          ],
+          "control": {
+            "controllerTeamId": null,
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "landmark",
+          "triggeredReasons": [
+            "landmark"
+          ],
+          "finishedAtTick": 9839
+        },
+        "replayHashMatches": true,
+        "finalHash": "ab0396f1"
+      },
+      "evidence": "Recorded natural route commands independently reconstructed and hash-verified after host session restart."
+    },
+    {
+      "route": "conquest",
+      "startTick": 8356,
+      "startHash": "1da82903",
+      "commands": [
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "formation": "box",
+            "type": "setFormation"
+          },
+          "accepted": true,
+          "sequence": 163
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "stance": "holdGround",
+            "type": "setStance"
+          },
+          "accepted": true,
+          "sequence": 164
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "type": "stop"
+          },
+          "accepted": true,
+          "sequence": 165
+        },
+        {
+          "tick": 8356,
+          "command": {
+            "entityIds": [
+              "unit-90"
+            ],
+            "target": {
+              "x": 12,
+              "y": 18
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 166
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-126"
+            ],
+            "target": {
+              "x": 2,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 167
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-166"
+            ],
+            "target": {
+              "x": 3,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 168
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-189"
+            ],
+            "target": {
+              "x": 4,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 169
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-206"
+            ],
+            "target": {
+              "x": 5,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 170
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-207"
+            ],
+            "target": {
+              "x": 7,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 171
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-208"
+            ],
+            "target": {
+              "x": 8,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 172
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-209"
+            ],
+            "target": {
+              "x": 9,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 173
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-216"
+            ],
+            "target": {
+              "x": 10,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 174
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-228"
+            ],
+            "target": {
+              "x": 11,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 175
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-229"
+            ],
+            "target": {
+              "x": 2,
+              "y": 6
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 176
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-231"
+            ],
+            "target": {
+              "x": 5,
+              "y": 6
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 177
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-238"
+            ],
+            "target": {
+              "x": 6,
+              "y": 6
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 178
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-37"
+            ],
+            "target": {
+              "x": 9,
+              "y": 6
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 179
+        },
+        {
+          "tick": 8383,
+          "command": {
+            "entityIds": [
+              "unit-90"
+            ],
+            "target": {
+              "x": 10,
+              "y": 6
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 180
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-126"
+            ],
+            "target": {
+              "x": 20,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 181
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-166"
+            ],
+            "target": {
+              "x": 21,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 182
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-189"
+            ],
+            "target": {
+              "x": 22,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 183
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-206"
+            ],
+            "target": {
+              "x": 23,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 184
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-208"
+            ],
+            "target": {
+              "x": 24,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 185
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-209"
+            ],
+            "target": {
+              "x": 25,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 186
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-229"
+            ],
+            "target": {
+              "x": 26,
+              "y": 7
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 187
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-231"
+            ],
+            "target": {
+              "x": 20,
+              "y": 8
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 188
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-238"
+            ],
+            "target": {
+              "x": 21,
+              "y": 8
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 189
+        },
+        {
+          "tick": 9476,
+          "command": {
+            "entityIds": [
+              "unit-37"
+            ],
+            "target": {
+              "x": 22,
+              "y": 8
+            },
+            "type": "move"
+          },
+          "accepted": true,
+          "sequence": 190
+        },
+        {
+          "tick": 9640,
+          "command": {
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37"
+            ],
+            "targetId": "building-8",
+            "type": "attack"
+          },
+          "accepted": true,
+          "sequence": 191
+        },
+        {
+          "tick": 9800,
+          "command": {
+            "entityIds": [
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37"
+            ],
+            "targetId": "unit-12",
+            "type": "attack"
+          },
+          "accepted": true,
+          "sequence": 192
+        },
+        {
+          "tick": 9820,
+          "command": {
+            "entityIds": [
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37"
+            ],
+            "targetId": "unit-13",
+            "type": "attack"
+          },
+          "accepted": true,
+          "sequence": 193
+        },
+        {
+          "tick": 9880,
+          "command": {
+            "entityIds": [
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-229",
+              "unit-231",
+              "unit-238"
+            ],
+            "targetId": "unit-14",
+            "type": "attack"
+          },
+          "accepted": true,
+          "sequence": 194
+        },
+        {
+          "tick": 9900,
+          "command": {
+            "entityIds": [
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-229",
+              "unit-231",
+              "unit-238"
+            ],
+            "targetId": "unit-212",
+            "type": "attack"
+          },
+          "accepted": true,
+          "sequence": 195
+        },
+        {
+          "tick": 9960,
+          "command": {
+            "entityIds": [
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-229",
+              "unit-231",
+              "unit-238"
+            ],
+            "targetId": "unit-251",
+            "type": "attack"
+          },
+          "accepted": true,
+          "sequence": 196
+        },
+        {
+          "tick": 10180,
+          "command": {
+            "entityIds": [
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-229",
+              "unit-231",
+              "unit-238"
+            ],
+            "target": {
+              "x": 26,
+              "y": 11
+            },
+            "type": "attackMove"
+          },
+          "accepted": true,
+          "sequence": 197
+        }
+      ],
+      "result": {
+        "status": "VERIFIED",
+        "tick": 10392,
+        "elapsedSeconds": 203.6,
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": 10392,
+              "eliminationReason": "conquest",
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 204
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 655
+            }
+          ],
+          "control": {
+            "controllerTeamId": null,
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "conquest",
+          "triggeredReasons": [
+            "conquest"
+          ],
+          "finishedAtTick": 10392
+        },
+        "replayHashMatches": true,
+        "finalHash": "dc62c5c3"
+      },
+      "evidence": "Recorded natural route commands independently reconstructed and hash-verified after host session restart."
+    },
+    {
+      "route": "elimination",
+      "startTick": 8356,
+      "startHash": "1da82903",
+      "commands": [
+        {
+          "tick": 8356,
+          "label": "compact army formation",
+          "command": {
+            "type": "setFormation",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "formation": "box"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8356,
+          "label": "hold chosen route without pursuit",
+          "command": {
+            "type": "setStance",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "stance": "holdGround"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8356,
+          "label": "add paid siege-army population space",
+          "command": {
+            "type": "build",
+            "builderIds": [
+              "unit-24"
+            ],
+            "buildingType": "house",
+            "origin": {
+              "x": 6,
+              "y": 15
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8360,
+          "label": "economy-funded elimination mage",
+          "command": {
+            "type": "train",
+            "producerId": "building-213",
+            "unitType": "mage",
+            "count": 1
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8360,
+          "label": "economy-funded elimination heavyCrossbowman",
+          "command": {
+            "type": "train",
+            "producerId": "building-222",
+            "unitType": "heavyCrossbowman",
+            "count": 1
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8620,
+          "label": "stage replacement north of control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-252"
+            ],
+            "target": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8640,
+          "label": "move paid replacement through north ford",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-252"
+            ],
+            "target": {
+              "x": 23,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8680,
+          "label": "stage replacement north of control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-253"
+            ],
+            "target": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "economy-funded elimination mage",
+          "command": {
+            "type": "train",
+            "producerId": "building-213",
+            "unitType": "mage",
+            "count": 1
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "economy-funded elimination heavyCrossbowman",
+          "command": {
+            "type": "train",
+            "producerId": "building-222",
+            "unitType": "heavyCrossbowman",
+            "count": 1
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "stop previous defensive pursuit",
+          "command": {
+            "type": "stop",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-252",
+              "unit-253",
+              "unit-37",
+              "unit-90"
+            ]
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-126"
+            ],
+            "target": {
+              "x": 2,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-166"
+            ],
+            "target": {
+              "x": 3,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-189"
+            ],
+            "target": {
+              "x": 4,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-206"
+            ],
+            "target": {
+              "x": 5,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-207"
+            ],
+            "target": {
+              "x": 7,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-208"
+            ],
+            "target": {
+              "x": 8,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-209"
+            ],
+            "target": {
+              "x": 9,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-216"
+            ],
+            "target": {
+              "x": 10,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-228"
+            ],
+            "target": {
+              "x": 11,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-229"
+            ],
+            "target": {
+              "x": 2,
+              "y": 6
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-231"
+            ],
+            "target": {
+              "x": 5,
+              "y": 6
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-238"
+            ],
+            "target": {
+              "x": 6,
+              "y": 6
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-37"
+            ],
+            "target": {
+              "x": 9,
+              "y": 6
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8700,
+          "label": "individual north staging waypoint",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-90"
+            ],
+            "target": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-126"
+            ],
+            "target": {
+              "x": 20,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-166"
+            ],
+            "target": {
+              "x": 21,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-189"
+            ],
+            "target": {
+              "x": 22,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-206"
+            ],
+            "target": {
+              "x": 23,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-207"
+            ],
+            "target": {
+              "x": 24,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-208"
+            ],
+            "target": {
+              "x": 25,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-209"
+            ],
+            "target": {
+              "x": 26,
+              "y": 7
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-216"
+            ],
+            "target": {
+              "x": 20,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-228"
+            ],
+            "target": {
+              "x": 21,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-229"
+            ],
+            "target": {
+              "x": 22,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-231"
+            ],
+            "target": {
+              "x": 23,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-238"
+            ],
+            "target": {
+              "x": 24,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-37"
+            ],
+            "target": {
+              "x": 25,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8847,
+          "label": "cross northern ford above control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-90"
+            ],
+            "target": {
+              "x": 26,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8960,
+          "label": "economy-funded elimination mage",
+          "command": {
+            "type": "train",
+            "producerId": "building-213",
+            "unitType": "mage",
+            "count": 1
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8960,
+          "label": "stage replacement north of control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-258"
+            ],
+            "target": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8980,
+          "label": "move paid replacement through north ford",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-258"
+            ],
+            "target": {
+              "x": 23,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 8980,
+          "label": "attack visible warrior",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-228",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "targetId": "unit-148"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9020,
+          "label": "stage replacement north of control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-276"
+            ],
+            "target": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9020,
+          "label": "attack visible shieldBearer",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "targetId": "unit-210"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9060,
+          "label": "protect the elimination front line",
+          "command": {
+            "type": "castAbility",
+            "casterId": "unit-209",
+            "abilityId": "shieldWall",
+            "target": {
+              "kind": "self"
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9060,
+          "label": "attack visible shieldBearer",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-207",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37",
+              "unit-90"
+            ],
+            "targetId": "unit-211"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9080,
+          "label": "economy-funded elimination heavyCrossbowman",
+          "command": {
+            "type": "train",
+            "producerId": "building-222",
+            "unitType": "heavyCrossbowman",
+            "count": 1
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9080,
+          "label": "protect the elimination front line",
+          "command": {
+            "type": "castAbility",
+            "casterId": "unit-37",
+            "abilityId": "shieldWall",
+            "target": {
+              "kind": "self"
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9100,
+          "label": "attack visible shieldBearer",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-216",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37"
+            ],
+            "targetId": "unit-212"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9120,
+          "label": "protect the elimination front line",
+          "command": {
+            "type": "castAbility",
+            "casterId": "unit-209",
+            "abilityId": "shieldWall",
+            "target": {
+              "kind": "self"
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9140,
+          "label": "attack visible archer",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37"
+            ],
+            "targetId": "unit-41"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9160,
+          "label": "attack visible villager",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37"
+            ],
+            "targetId": "unit-12"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9180,
+          "label": "attack visible boarRider",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-37"
+            ],
+            "targetId": "unit-329"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9220,
+          "label": "economy-funded elimination mage",
+          "command": {
+            "type": "train",
+            "producerId": "building-213",
+            "unitType": "mage",
+            "count": 1
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9220,
+          "label": "stage replacement north of control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-351"
+            ],
+            "target": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9240,
+          "label": "move paid replacement through north ford",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-276"
+            ],
+            "target": {
+              "x": 23,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9240,
+          "label": "move paid replacement through north ford",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-351"
+            ],
+            "target": {
+              "x": 23,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9240,
+          "label": "attack visible villager",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-37"
+            ],
+            "targetId": "unit-12"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9260,
+          "label": "attack visible villager",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-37"
+            ],
+            "targetId": "unit-13"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9280,
+          "label": "protect the elimination front line",
+          "command": {
+            "type": "castAbility",
+            "casterId": "unit-37",
+            "abilityId": "shieldWall",
+            "target": {
+              "kind": "self"
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9280,
+          "label": "attack visible villager",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-37"
+            ],
+            "targetId": "unit-14"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9300,
+          "label": "attack visible barracks",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-37"
+            ],
+            "targetId": "building-19"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9360,
+          "label": "attack visible lumberCamp",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-37"
+            ],
+            "targetId": "building-21"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9400,
+          "label": "stage replacement north of control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-423"
+            ],
+            "target": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9400,
+          "label": "attack visible beastStable",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-37"
+            ],
+            "targetId": "building-230"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9460,
+          "label": "attack visible house",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-276",
+              "unit-351",
+              "unit-37"
+            ],
+            "targetId": "building-36"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9480,
+          "label": "stage replacement north of control circle",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-460"
+            ],
+            "target": {
+              "x": 10,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9500,
+          "label": "move paid replacement through north ford",
+          "command": {
+            "type": "move",
+            "entityIds": [
+              "unit-460"
+            ],
+            "target": {
+              "x": 23,
+              "y": 8
+            }
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9500,
+          "label": "attack visible archeryRange",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-276",
+              "unit-351",
+              "unit-37"
+            ],
+            "targetId": "building-39"
+          },
+          "accepted": true,
+          "rejectCode": null
+        },
+        {
+          "tick": 9540,
+          "label": "attack visible townCenter",
+          "command": {
+            "type": "attack",
+            "entityIds": [
+              "unit-126",
+              "unit-166",
+              "unit-189",
+              "unit-206",
+              "unit-208",
+              "unit-209",
+              "unit-229",
+              "unit-231",
+              "unit-238",
+              "unit-258",
+              "unit-276",
+              "unit-351",
+              "unit-37"
+            ],
+            "targetId": "building-8"
+          },
+          "accepted": true,
+          "rejectCode": null
+        }
+      ],
+      "combatEvents": 267,
+      "result": {
+        "status": "VERIFIED",
+        "tick": 9601,
+        "elapsedSeconds": 124.5,
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": 9601,
+              "eliminationReason": "elimination",
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 126
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 667
+            }
+          ],
+          "control": {
+            "controllerTeamId": null,
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "elimination",
+          "triggeredReasons": [
+            "elimination"
+          ],
+          "finishedAtTick": 9601
+        },
+        "replayHashMatches": true,
+        "finalHash": "3fc454f6"
+      }
+    }
+  ]
+}

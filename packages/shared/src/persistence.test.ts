@@ -28,10 +28,35 @@ import {
   type MatchCommandJournalFile,
   type MatchRuntimeSaveMetadata,
 } from "./persistence";
-import { createInitialState, hashMatchState, type MatchState, type UnitEntityState } from "./simulation";
+import { createInitialState, hashMatchState, toVisibleSnapshot, type MatchState, type UnitEntityState } from "./simulation";
 import type { AiAuthorityState, CommandEnvelope, GameCommand } from "./protocol";
 
 describe("versioned authoritative-private persistence", () => {
+  it("preserves save and replay hashes on the exact tick a scout discovers a non-gate enemy building", () => {
+    const base = createPersistenceState(920);
+    const save = createMatchSaveFile(base, runtimeMetadata(base, 0));
+    let journal = createMatchCommandJournalFile(base);
+    const scout = firstUnit(base, "human");
+    let appended = appendJournalCommand(journal, base, envelope(base, "human", 0, {
+      type: "move", entityIds: [scout.id], target: { x: 20, y: 8 },
+    }), "human");
+    let state = appended.state;
+    journal = appended.journal;
+    const enemyTownVisible = () => toVisibleSnapshot(state, "human").entities.some(entity => entity.ownerId === "computer" && entity.kind === "building" && entity.typeId === "townCenter");
+    for (let tick = 0; tick < 250 && !enemyTownVisible(); tick += 1) {
+      appended = appendJournalAdvance(journal, state);
+      state = appended.state;
+      journal = appended.journal;
+    }
+    expect(enemyTownVisible()).toBe(true);
+    const saved = parseMatchSaveFile(serializeMatchSaveFile(createMatchSaveFile(state, runtimeMetadata(state, 1))));
+    expect(hashMatchState(saved.snapshot.state)).toBe(hashMatchState(state));
+    const replay = parseMatchReplayFile(serializeMatchReplayFile(createMatchReplayFile(save, journal, runtimeMetadata(state, 1), state)));
+    const reconstructed = replayMatchReplay(replay).state;
+    expect(hashMatchState(reconstructed)).toBe(hashMatchState(state));
+    expect(hashMatchState(createMatchSaveFile(reconstructed, runtimeMetadata(reconstructed, 1)).snapshot.state)).toBe(hashMatchState(state));
+  });
+
   it("round-trips a strict save with runtime continuation metadata", () => {
     const state = createPersistenceState(901);
     const file = createMatchSaveFile(state, runtimeMetadata(state, 0, 42.5));

@@ -1,0 +1,433 @@
+{
+  "errors": [],
+  "checks": [
+    {
+      "type": "warrior",
+      "producerId": "building-23",
+      "command": {
+        "tick": 9979,
+        "command": {
+          "type": "train",
+          "producerId": "building-23",
+          "unitType": "warrior",
+          "count": 1
+        },
+        "accepted": true,
+        "before": {
+          "food": 3052,
+          "wood": 1560,
+          "stone": 1521
+        },
+        "after": {
+          "food": 2987,
+          "wood": 1530,
+          "stone": 1521
+        }
+      }
+    },
+    {
+      "type": "shieldBearer",
+      "producerId": "building-23",
+      "command": {
+        "tick": 9981,
+        "command": {
+          "type": "train",
+          "producerId": "building-23",
+          "unitType": "shieldBearer",
+          "count": 1
+        },
+        "accepted": true,
+        "before": {
+          "food": 2987,
+          "wood": 1530,
+          "stone": 1533
+        },
+        "after": {
+          "food": 2912,
+          "wood": 1485,
+          "stone": 1513
+        }
+      }
+    },
+    {
+      "type": "archer",
+      "producerId": "building-42",
+      "command": {
+        "tick": 9982,
+        "command": {
+          "type": "train",
+          "producerId": "building-42",
+          "unitType": "archer",
+          "count": 1
+        },
+        "accepted": true,
+        "before": {
+          "food": 2912,
+          "wood": 1485,
+          "stone": 1513
+        },
+        "after": {
+          "food": 2867,
+          "wood": 1430,
+          "stone": 1513
+        }
+      }
+    },
+    {
+      "type": "mage",
+      "producerId": "building-213",
+      "command": {
+        "tick": 9983,
+        "command": {
+          "type": "train",
+          "producerId": "building-213",
+          "unitType": "mage",
+          "count": 1
+        },
+        "accepted": true,
+        "before": {
+          "food": 2867,
+          "wood": 1430,
+          "stone": 1513
+        },
+        "after": {
+          "food": 2792,
+          "wood": 1400,
+          "stone": 1453
+        }
+      }
+    },
+    {
+      "type": "musketeer",
+      "producerId": "building-215",
+      "command": {
+        "tick": 9984,
+        "command": {
+          "type": "train",
+          "producerId": "building-215",
+          "unitType": "musketeer",
+          "count": 1
+        },
+        "accepted": true,
+        "before": {
+          "food": 2792,
+          "wood": 1400,
+          "stone": 1453
+        },
+        "after": {
+          "food": 2732,
+          "wood": 1330,
+          "stone": 1418
+        }
+      }
+    },
+    {
+      "type": "boarRider",
+      "producerId": "building-86",
+      "command": {
+        "tick": 9985,
+        "command": {
+          "type": "train",
+          "producerId": "building-86",
+          "unitType": "boarRider",
+          "count": 1
+        },
+        "accepted": true,
+        "before": {
+          "food": 2732,
+          "wood": 1330,
+          "stone": 1418
+        },
+        "after": {
+          "food": 2617,
+          "wood": 1295,
+          "stone": 1398
+        }
+      }
+    },
+    {
+      "type": "heavyCrossbowman",
+      "producerId": "building-222",
+      "command": {
+        "tick": 9986,
+        "command": {
+          "type": "train",
+          "producerId": "building-222",
+          "unitType": "heavyCrossbowman",
+          "count": 1
+        },
+        "accepted": true,
+        "before": {
+          "food": 2617,
+          "wood": 1295,
+          "stone": 1398
+        },
+        "after": {
+          "food": 2567,
+          "wood": 1185,
+          "stone": 1348
+        }
+      }
+    }
+  ],
+  "device": "desktop pointer",
+  "method": "UI imported a verified normal standard-AI paid all-tech checkpoint. Normal paid house command prepares population capacity. Seven producer training actions use actual pointer/touch and all costs go through shared validation.",
+  "setup": {
+    "tick": 9978,
+    "pop": {
+      "used": 25,
+      "capacity": 42
+    },
+    "wallet": {
+      "food": 3052,
+      "wood": 1560,
+      "stone": 1521
+    }
+  },
+  "spawned": {
+    "tick": 10359,
+    "phase": "playing",
+    "units": [
+      {
+        "id": "unit-380",
+        "type": "warrior",
+        "pos": {
+          "x": 8,
+          "y": 12
+        },
+        "hp": 168
+      },
+      {
+        "id": "unit-381",
+        "type": "archer",
+        "pos": {
+          "x": 9,
+          "y": 13
+        },
+        "hp": 85
+      },
+      {
+        "id": "unit-382",
+        "type": "musketeer",
+        "pos": {
+          "x": 9,
+          "y": 10
+        },
+        "hp": 95
+      },
+      {
+        "id": "unit-383",
+        "type": "mage",
+        "pos": {
+          "x": 9,
+          "y": 8
+        },
+        "hp": 75
+      },
+      {
+        "id": "unit-384",
+        "type": "boarRider",
+        "pos": {
+          "x": 8,
+          "y": 11
+        },
+        "hp": 210
+      },
+      {
+        "id": "unit-385",
+        "type": "heavyCrossbowman",
+        "pos": {
+          "x": 9,
+          "y": 17
+        },
+        "hp": 115
+      },
+      {
+        "id": "unit-386",
+        "type": "shieldBearer",
+        "pos": {
+          "x": 7,
+          "y": 12
+        },
+        "hp": 257
+      }
+    ],
+    "wallet": {
+      "food": 2747,
+      "wood": 1185,
+      "stone": 1420
+    },
+    "pop": {
+      "used": 38,
+      "capacity": 42
+    }
+  },
+  "status": "VERIFIED",
+  "commands": [
+    {
+      "tick": 9717,
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "house",
+        "origin": {
+          "x": 3,
+          "y": 19
+        }
+      },
+      "accepted": true,
+      "before": {
+        "food": 2800,
+        "stone": 1473,
+        "wood": 1640
+      },
+      "after": {
+        "food": 2800,
+        "wood": 1560,
+        "stone": 1473
+      }
+    },
+    {
+      "tick": 9979,
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "before": {
+        "food": 3052,
+        "wood": 1560,
+        "stone": 1521
+      },
+      "after": {
+        "food": 2987,
+        "wood": 1530,
+        "stone": 1521
+      }
+    },
+    {
+      "tick": 9981,
+      "command": {
+        "type": "train",
+        "producerId": "building-23",
+        "unitType": "shieldBearer",
+        "count": 1
+      },
+      "accepted": true,
+      "before": {
+        "food": 2987,
+        "wood": 1530,
+        "stone": 1533
+      },
+      "after": {
+        "food": 2912,
+        "wood": 1485,
+        "stone": 1513
+      }
+    },
+    {
+      "tick": 9982,
+      "command": {
+        "type": "train",
+        "producerId": "building-42",
+        "unitType": "archer",
+        "count": 1
+      },
+      "accepted": true,
+      "before": {
+        "food": 2912,
+        "wood": 1485,
+        "stone": 1513
+      },
+      "after": {
+        "food": 2867,
+        "wood": 1430,
+        "stone": 1513
+      }
+    },
+    {
+      "tick": 9983,
+      "command": {
+        "type": "train",
+        "producerId": "building-213",
+        "unitType": "mage",
+        "count": 1
+      },
+      "accepted": true,
+      "before": {
+        "food": 2867,
+        "wood": 1430,
+        "stone": 1513
+      },
+      "after": {
+        "food": 2792,
+        "wood": 1400,
+        "stone": 1453
+      }
+    },
+    {
+      "tick": 9984,
+      "command": {
+        "type": "train",
+        "producerId": "building-215",
+        "unitType": "musketeer",
+        "count": 1
+      },
+      "accepted": true,
+      "before": {
+        "food": 2792,
+        "wood": 1400,
+        "stone": 1453
+      },
+      "after": {
+        "food": 2732,
+        "wood": 1330,
+        "stone": 1418
+      }
+    },
+    {
+      "tick": 9985,
+      "command": {
+        "type": "train",
+        "producerId": "building-86",
+        "unitType": "boarRider",
+        "count": 1
+      },
+      "accepted": true,
+      "before": {
+        "food": 2732,
+        "wood": 1330,
+        "stone": 1418
+      },
+      "after": {
+        "food": 2617,
+        "wood": 1295,
+        "stone": 1398
+      }
+    },
+    {
+      "tick": 9986,
+      "command": {
+        "type": "train",
+        "producerId": "building-222",
+        "unitType": "heavyCrossbowman",
+        "count": 1
+      },
+      "accepted": true,
+      "before": {
+        "food": 2617,
+        "wood": 1295,
+        "stone": 1398
+      },
+      "after": {
+        "food": 2567,
+        "wood": 1185,
+        "stone": 1348
+      }
+    }
+  ]
+}

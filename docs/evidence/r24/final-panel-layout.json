@@ -1,0 +1,2441 @@
+{
+  "appVersion": "邊境篇 v1.0.0",
+  "checks": [
+    {
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "ids": [
+        "stronghold",
+        "artificer",
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores",
+        "torsionCradles"
+      ],
+      "opened": {
+        "paused": true,
+        "input": false,
+        "tick": 1,
+        "open": true
+      },
+      "frozen": {
+        "paused": true,
+        "input": false,
+        "tick": 1,
+        "open": true
+      },
+      "closed": {
+        "paused": false,
+        "input": true,
+        "tick": 1,
+        "open": false
+      },
+      "resumed": {
+        "paused": false,
+        "input": true,
+        "tick": 3,
+        "open": false
+      },
+      "buttons": [
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 143.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 82.78125,
+          "h": 44,
+          "x": 211,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 69.78125,
+          "h": 44,
+          "x": 299.78125,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 465.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "w": 147.78125,
+          "h": 44,
+          "x": 658,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 147.78125,
+          "h": 44,
+          "x": 811.78125,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 465.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 532.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 532.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 143.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "w": 69.78125,
+          "h": 44,
+          "x": 211,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 465.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 69.78125,
+          "h": 44,
+          "x": 658,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 465.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 532.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 532.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 30,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 84,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 84,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 84,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 84,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 82.78125,
+          "h": 44,
+          "x": 211,
+          "y": 299.1875,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 351.1875,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "w": 96,
+          "h": 44,
+          "x": 658,
+          "y": 299.1875,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 351.1875,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 147.78125,
+          "h": 44,
+          "x": 211,
+          "y": 548.375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 592.375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 646,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 646,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 143.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 197.90625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "w": 147.78125,
+          "h": 44,
+          "x": 211,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "w": 82.78125,
+          "h": 44,
+          "x": 364.78125,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 465.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "w": 147.78125,
+          "h": 44,
+          "x": 658,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "w": 95.78125,
+          "h": 44,
+          "x": 811.78125,
+          "y": 413.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 465.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 532.09375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 532.09375,
+          "visible": true,
+          "hit": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "w": 844,
+        "h": 390
+      },
+      "ids": [
+        "stronghold",
+        "artificer",
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores",
+        "torsionCradles"
+      ],
+      "opened": {
+        "paused": true,
+        "input": false,
+        "tick": 3,
+        "open": true
+      },
+      "frozen": {
+        "paused": true,
+        "input": false,
+        "tick": 3,
+        "open": true
+      },
+      "closed": {
+        "paused": false,
+        "input": true,
+        "tick": 3,
+        "open": false
+      },
+      "resumed": {
+        "paused": false,
+        "input": true,
+        "tick": 5,
+        "open": false
+      },
+      "buttons": [
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 57.8125,
+          "h": 44,
+          "x": 109.8125,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 563.8125,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "w": 57.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 57.8125,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "w": 80,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "w": 68.8125,
+          "h": 44,
+          "x": 164.8125,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "w": 79.8125,
+          "h": 44,
+          "x": 563.8125,
+          "y": 224.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "visible": true,
+          "hit": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "ids": [
+        "stronghold",
+        "artificer",
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores",
+        "torsionCradles"
+      ],
+      "opened": {
+        "paused": true,
+        "input": false,
+        "tick": 6,
+        "open": true
+      },
+      "frozen": {
+        "paused": true,
+        "input": false,
+        "tick": 6,
+        "open": true
+      },
+      "closed": {
+        "paused": false,
+        "input": true,
+        "tick": 6,
+        "open": false
+      },
+      "resumed": {
+        "paused": false,
+        "input": true,
+        "tick": 8,
+        "open": false
+      },
+      "buttons": [
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 68.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 57.8125,
+          "h": 44,
+          "x": 107.8125,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 162.8125,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "w": 57.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 57.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 68.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "w": 80,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "w": 68.8125,
+          "h": 44,
+          "x": 162.8125,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "w": 79.8125,
+          "h": 44,
+          "x": 162.8125,
+          "y": 205.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "w": 502,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "visible": true,
+          "hit": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "w": 667,
+        "h": 375
+      },
+      "ids": [
+        "stronghold",
+        "artificer",
+        "hearthlandAlmanac",
+        "resinboundKits",
+        "layeredHarness",
+        "surveyedFoundations",
+        "windspurRigging",
+        "starfireBores",
+        "torsionCradles"
+      ],
+      "opened": {
+        "paused": true,
+        "input": false,
+        "tick": 9,
+        "open": true
+      },
+      "frozen": {
+        "paused": true,
+        "input": false,
+        "tick": 9,
+        "open": true
+      },
+      "closed": {
+        "paused": false,
+        "input": true,
+        "tick": 9,
+        "open": false
+      },
+      "resumed": {
+        "paused": false,
+        "input": true,
+        "tick": 11,
+        "open": false
+      },
+      "buttons": [
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 222.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 57.8125,
+          "h": 44,
+          "x": 109.8125,
+          "y": 222.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 345.5,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 475.3125,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "w": 57.8125,
+          "h": 44,
+          "x": 35,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 木作營",
+          "w": 57.8125,
+          "h": 44,
+          "x": 345.5,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "w": 80,
+          "h": 44,
+          "x": 345.5,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "關閉科技與時代",
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "時代",
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "經濟",
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "軍備",
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "工藝",
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "w": 68.8125,
+          "h": 44,
+          "x": 164.8125,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "w": 123.8125,
+          "h": 44,
+          "x": 345.5,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "w": 79.8125,
+          "h": 44,
+          "x": 475.3125,
+          "y": 218.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 264.78125,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "上一頁",
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        },
+        {
+          "label": "下一頁",
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "visible": true,
+          "hit": true
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "rulesVersion": "village-siege/0.20.0",
+  "status": "VERIFIED",
+  "final": {
+    "paused": false,
+    "input": true,
+    "tick": 311,
+    "open": false
+  },
+  "pauseRestoration": {
+    "before": {
+      "paused": true,
+      "tick": 573
+    },
+    "after": {
+      "paused": true,
+      "input": true,
+      "tick": 573,
+      "open": false
+    },
+    "pass": true
+  },
+  "harnessNote": "Canvas accessibility proxies are keyboard-only; first attempt used DOM pointer. P keyboard recovery passed."
+}

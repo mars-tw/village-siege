@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import legacyRuntimeSave from "../../../packages/shared/src/fixtures/runtime-legacy-0.22.1-save.json";
+import legacyRuntimeReplay from "../../../packages/shared/src/fixtures/runtime-legacy-0.22.1-replay.json";
 import {
   MatchPersistenceError,
+  RULES_VERSION,
   hashMatchState,
   parseMatchCommandJournalFile,
   parseMatchReplayFile,
@@ -227,6 +230,29 @@ describe("VillageAssaultRuntime authoritative AI", () => {
     expect(hashMatchState(restored.state)).toBe(hashMatchState(continued.state));
     expect(restoredSave.runtime).toEqual(expectedSave.runtime);
   }, 30_000);
+
+  it("imports genuine legacy save and replay into current checkpoints without losing owned progress", () => {
+    const originalSave = JSON.stringify(legacyRuntimeSave);
+    const originalReplay = JSON.stringify(legacyRuntimeReplay);
+    const loaded = createVillageAssaultRuntime(OPTIONS);
+    loaded.importSaveJson(originalSave);
+    expect(loaded.state.rulesVersion).toBe(RULES_VERSION);
+    expect(loaded.state.tick).toBe(1141);
+    expect(loaded.state.players).toEqual(legacyRuntimeSave.snapshot.state.players);
+    expect(loaded.state.entities.filter(entity => entity.kind !== "resource"))
+      .toEqual(legacyRuntimeSave.snapshot.state.entities.filter(entity => entity.kind !== "resource"));
+    const checkpoint = parseMatchSaveFile(loaded.exportSaveJson());
+    expect(checkpoint.rulesVersion).toBe(RULES_VERSION);
+    expect(checkpoint.runtime).toEqual(legacyRuntimeSave.runtime);
+    loaded.importReplayJson(originalReplay);
+    expect(loaded.state.rulesVersion).toBe(RULES_VERSION);
+    expect(loaded.state.tick).toBe(1939);
+    const continued = createVillageAssaultRuntime(OPTIONS);
+    continued.importReplayJson(loaded.exportReplayJson());
+    expect(continued.state).toEqual(loaded.state);
+    expect(JSON.stringify(legacyRuntimeSave)).toBe(originalSave);
+    expect(JSON.stringify(legacyRuntimeReplay)).toBe(originalReplay);
+  });
 
   it("rejects incompatible saves atomically", () => {
     const source = createVillageAssaultRuntime(OPTIONS);

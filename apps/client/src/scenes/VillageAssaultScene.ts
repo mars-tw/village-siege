@@ -78,6 +78,9 @@ import {
 import type { CombatAction, CombatArtId } from "../game/directionalAnimation";
 import { getDeviceViewportProfile } from "../game/deviceViewport";
 import { constructionPreviewOccupiedCells } from "../game/constructionPreview";
+import { createProgressionPanel, type ProgressionPanelControl } from "../ui/progressionPanel";
+import type { ProgressionAction } from "../game/progressionPresentation";
+import { saveAutoSave } from "../game/autoSave";
 import { chooseContinuationWorker, constructionContinuationCommand, continuationMovementBlockedCells } from "../game/constructionContinuation";
 import { productionProgressLabel } from "../game/productionProgress";
 import {
@@ -158,6 +161,7 @@ import { OnlineAssaultMatchSource, type OnlineAssaultFrame } from "../match/Onli
 import type { ConnectionState, MatchFrame, MultiplayerClient } from "../network/MultiplayerClient";
 
 interface VillageAssaultSceneData {
+  readonly continueSaveJson?: string;
   readonly villageId?: VillageId;
   readonly aiPersonality?: AiPersonality;
   readonly aiDifficulty?: AiDifficulty;
@@ -278,6 +282,12 @@ export class VillageAssaultScene extends Phaser.Scene {
   private battlePreloadGeneration = 0;
   private battlePreloadSetupFailed = false;
   private battleStarted = false;
+  private progressionPanel?: ProgressionPanelControl;
+  private progressionWasPaused = false;
+  private continueSaveJson?: string;
+  private autoSaveTimer?: number;
+  private lastAutoSaveJson = "";
+  private autoSaveFailureNoticed = false;
   private villageId: VillageId = "pinehold";
   private aiPersonality: AiPersonality = "balanced";
   private aiDifficulty: AiDifficulty = "standard";
@@ -351,6 +361,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private readonly actionButtons: CanvasButtonControl[] = [];
   private currentActions: readonly ActionSpec[] = [];
   private readonly pointerGesture = new ExclusivePointerGesture();
+  private selectionDrag?: { id: number; x: number; y: number; active: boolean; additive: boolean };
+  private selectionDragBox?: HTMLDivElement;
   private cameraKeys?: Record<"up" | "down" | "left" | "right", Phaser.Input.Keyboard.Key>;
   private uiCamera?: Phaser.Cameras.Scene2D.Camera;
 
@@ -359,6 +371,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   init(data: VillageAssaultSceneData): void {
+    this.continueSaveJson = data.continueSaveJson;
+    this.lastAutoSaveJson = ""; this.autoSaveFailureNoticed = false;
     this.battleStarted = false;
     this.invalidateBattlePreload();
     this.battlePreloadSetupFailed = false;
@@ -491,6 +505,14 @@ export class VillageAssaultScene extends Phaser.Scene {
         aiDifficulty: this.tutorialEnabled ? "novice" : this.aiDifficulty,
         seed: this.battleSeed,
       });
+      if (this.continueSaveJson) {
+        this.runtime.importSaveJson(this.continueSaveJson); this.continueSaveJson = undefined;
+        this.tutorialEnabled = false;
+        const savedPlayer = this.runtime.state.players.find(player => player.id === VILLAGE_ASSAULT_PLAYER_ID);
+        const savedAi = this.runtime.state.aiControllers.find(controller => controller.playerId === VILLAGE_ASSAULT_AI_ID);
+        if (savedPlayer) this.villageId = savedPlayer.villageId;
+        if (savedAi) { this.aiPersonality = savedAi.personality; this.aiDifficulty = savedAi.difficulty; }
+      }
     }
     const initialSnapshot = this.currentView();
     this.cameras.main.setBackgroundColor("#17241f");
@@ -540,7 +562,18 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.layoutInterface();
     this.bindOnlineSource();
     this.refreshInterface(true);
+    this.progressionPanel = createProgressionPanel(this.game.canvas.parentElement ?? document.body, {
+      snapshot: () => this.currentView(), action: action => this.runProgressionAction(action), feedback: () => this.notice,
+      opened: () => { this.progressionWasPaused = this.paused; if (!this.onlineSource) this.paused = true; this.input.enabled = false; this.pointerGesture.reset(); },
+      closed: () => { this.paused = this.progressionWasPaused; this.input.enabled = true; if (this.sys.isActive()) this.refreshInterface(true); },
+    });
+    this.layoutInterface();
     this.battleStarted = true;
+    if (!this.onlineSource) {
+      this.autoSaveTimer = window.setInterval(() => void this.saveAutomaticBattle(), 30_000);
+      window.addEventListener("pagehide", this.saveBeforePageHide);
+      void this.saveAutomaticBattle();
+    }
     this.cleanupBattleLoading();
   }
 
@@ -593,6 +626,7 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (!this.battleStarted) return;
+    this.progressionPanel?.update();
     this.updateCamera(delta);
     this.tacticalMinimap?.update(_time, this.currentView());
     for (const actor of this.retiringActors) actor.update(delta);
@@ -602,6 +636,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     if (this.paused || this.ended || this.orientationBlocked || !this.runtime) return;
+    this.updateUnitAnimations(Math.min(delta, 250));
     const result = this.runtime.step(Math.min(delta, 250));
     if (result.steps === 0) {
       if (this.runtime.view.phase === "finished") this.finishBattle();
@@ -622,7 +657,6 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.renderCombatEvents(result.events);
     this.prefetchQueuedUnitArt();
     this.syncEntityViews(false);
-    this.updateUnitAnimations(result.steps * 100);
     this.syncTutorialProgress(result.events);
     if (result.latestRejection?.source === "ai") {
       // AI rejection is kept for audit telemetry; player-facing UI stays focused on their own command.
@@ -1518,7 +1552,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.issueGatherCommand(entity, selectedVillagers);
       return;
     }
-    if (entity.ownerId === VILLAGE_ASSAULT_AI_ID && selectedMilitary.length > 0) {
+    if (this.isHostileTarget(entity) && selectedMilitary.length > 0) {
       this.issue({ type: "attack", entityIds: selectedMilitary.map((unit) => unit.id), targetId: entity.id }, `進攻 ${this.entityDisplayName(entity)}`);
       return;
     }
@@ -1557,6 +1591,10 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private beginPointerGesture(pointer: Phaser.Input.Pointer): void {
     if (this.orientationBlocked) return;
+    if (pointer.event.shiftKey && pointer.leftButtonDown() && !getDeviceViewportProfile().mobile
+      && !this.buildingPlacement && this.tacticalUiMode.kind === "none" && this.productionUiMode.kind === "none") {
+      this.selectionDrag = { id: pointer.id, x: pointer.x, y: pointer.y, active: false, additive: pointer.event.ctrlKey };
+    }
     this.pointerGesture.begin(pointer.id, {
       x: pointer.x,
       y: pointer.y,
@@ -1566,12 +1604,48 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private completeEntityGesture(entityId: string, pointer: Phaser.Input.Pointer): void {
+    if (this.completeSelectionDrag(pointer)) return;
     if (this.orientationBlocked) {
       this.pointerGesture.cancel(pointer.id);
       return;
     }
     const completion = this.pointerGesture.end(pointer.id);
-    if (completion.shouldTap) this.handleEntityTap(entityId, pointer);
+    if (completion.shouldTap) this.handleEntityTap(this.closestUnitTap(entityId, pointer), pointer);
+  }
+
+  private closestUnitTap(entityId: string, pointer: Phaser.Input.Pointer): string {
+    if (this.currentView().entities.find(entity => entity.id === entityId)?.kind !== "unit") return entityId;
+    const world = this.cameras.main.getWorldPoint(pointer.x,pointer.y);
+    const candidates = this.currentView().entities.filter(entity => entity.kind === "unit" && entity.hitPoints > 0)
+      .flatMap(entity => {
+        const view = this.unitViews.get(entity.id);
+        if (!view) return [];
+        const x = world.x - view.actor.container.x, y = world.y - view.actor.container.y;
+        if (Math.abs(x) > 40 || y < -86 || y > 18) return [];
+        return [{ id: entity.id, distance: Math.hypot(x, y + 35) }];
+      }).sort((a,b) => a.distance - b.distance);
+    return candidates[0]?.id ?? entityId;
+  }
+
+  private completeSelectionDrag(pointer: Phaser.Input.Pointer): boolean {
+    const drag = this.selectionDrag;
+    if (!drag || drag.id !== pointer.id) return false;
+    this.selectionDrag = undefined;
+    this.selectionDragBox && (this.selectionDragBox.style.display = "none");
+    if (!drag.active) return false;
+    this.pointerGesture.cancel(pointer.id);
+    if (!drag.additive) this.selectedIds.clear();
+    const left = Math.min(drag.x,pointer.x), right = Math.max(drag.x,pointer.x), top = Math.min(drag.y,pointer.y), bottom = Math.max(drag.y,pointer.y);
+    for (const entity of this.currentView().entities) {
+      if (entity.kind !== "unit" || entity.ownerId !== this.currentPlayerId() || entity.hitPoints <= 0) continue;
+      const actor = this.unitViews.get(entity.id)?.actor.container;
+      if (!actor) continue;
+      const point = this.cameras.main.matrixCombined.transformPoint(actor.x, actor.y - 25);
+      if (point.x >= left && point.x <= right && point.y >= top && point.y <= bottom) this.selectedIds.add(entity.id);
+    }
+    this.refreshSelectionViews(); this.refreshInterface(true);
+    this.setNotice(`框選 ${this.selectedIds.size} 個單位`, "normal");
+    return true;
   }
 
   private previewTacticalEntity(entityId: string): void {
@@ -1587,6 +1661,16 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[] = []): void => {
     if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) return;
+    const drag = this.selectionDrag;
+    if (drag && drag.id === pointer.id && pointer.isDown && Math.hypot(pointer.x - drag.x, pointer.y - drag.y) > 8) {
+      drag.active = true;
+      this.selectionDragBox ??= Object.assign(document.createElement("div"), { className: "unit-selection-box" });
+      if (!this.selectionDragBox.parentElement) (this.game.canvas.parentElement ?? document.body).append(this.selectionDragBox);
+      const rect = this.game.canvas.getBoundingClientRect(), scaleX = rect.width / this.scale.gameSize.width, scaleY = rect.height / this.scale.gameSize.height;
+      Object.assign(this.selectionDragBox.style, { display: "block", left: `${Math.min(drag.x,pointer.x)*scaleX}px`, top: `${Math.min(drag.y,pointer.y)*scaleY}px`,
+        width: `${Math.abs(drag.x-pointer.x)*scaleX}px`, height: `${Math.abs(drag.y-pointer.y)*scaleY}px` });
+      return;
+    }
     if (pointer.isDown && this.pointerGesture.tracking && !this.pointerGesture.owns(pointer.id)) return;
     if (this.onlineSource) {
       this.updateOnlinePointerMove(pointer, currentlyOver);
@@ -1629,6 +1713,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer): void => {
+    if (this.completeSelectionDrag(pointer)) return;
     if (this.orientationBlocked || !this.isPointerInPlayViewport(pointer)) {
       this.pointerGesture.cancel(pointer.id);
       return;
@@ -2216,6 +2301,36 @@ export class VillageAssaultScene extends Phaser.Scene {
       { glyph: "◎", label: "置中工地", run: () => this.centerCameraOn(building.position) },
       this.zoomAction(-0.12), this.zoomAction(0.12), this.systemAction(),
     ];
+  }
+
+  private runProgressionAction(action: ProgressionAction): boolean {
+    if (this.ended) return false;
+    if (action.kind === "command") {
+      return this.issue(action.command, action.command.type === "research" ? "科技已加入研究佇列" : "開始升級聚落");
+    }
+    if (action.kind === "select") {
+      const entity = this.currentView().entities.find(entity => entity.id === action.id);
+      if (!entity) return false;
+      this.selectOnly(entity.id); this.centerCameraOn(entity.position); return true;
+    }
+    if (action.kind === "build") {
+      const definition = BUILDINGS[action.type];
+      if (SETTLEMENT_TIER_ORDER.indexOf(this.currentView().settlementTier) < SETTLEMENT_TIER_ORDER.indexOf(definition.requiredTier)) {
+        this.setNotice(`需要先升級${SETTLEMENT_TIER_LABELS[definition.requiredTier]}`, "warning"); return false;
+      }
+      const wallet = this.currentView().wallet;
+      if (wallet.food < definition.cost.food || wallet.wood < definition.cost.wood || wallet.stone < definition.cost.stone) {
+        this.setNotice(`建造需要${this.spokenCost(definition.cost)}，請先採集材料`, "warning"); return false;
+      }
+      const workers = this.currentView().entities.filter(entity => entity.kind === "unit" && entity.ownerId === this.currentPlayerId()
+        && entity.typeId === "villager" && entity.hitPoints > 0 && entity.civilianActivity !== "constructing" && entity.civilianActivity !== "repairing")
+        .sort((a,b) => Number(b.civilianActivity === "idle") - Number(a.civilianActivity === "idle"));
+      if (!workers[0]) { this.setNotice("請先選取要調回的工匠，或由主城訓練新工匠", "warning"); return false; }
+      this.selectOnly(workers[0].id); this.buildingPlacement = action.type; this.buildingOrientation = "ne";
+      this.buildMenuOpen = false; this.centerCameraOn(workers[0].position);
+      this.setNotice(`已選工匠，點空地建造${buildingDisplayName(action.type)}`, "normal"); this.refreshInterface(true); return true;
+    }
+    return false;
   }
 
   private publicBuildingApproachDistance(position: GridPoint, building: PublicBuildingEntity | BuildingEntityState): number | null {
@@ -3502,6 +3617,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.tutorialProgress = undefined;
     }
     this.prefetchQueuedUnitArt();
+    void this.saveAutomaticBattle(true);
     this.systemPanelOpen = true;
     this.systemPanelPage = "data";
     if (this.runtime.view.phase === "finished") {
@@ -4162,6 +4278,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     const actionY = height - safeBottom - 10 - ACTION_PANEL_HEIGHT * this.uiScale;
     this.topRoot?.setScale(this.uiScale).setPosition(uiX, topY);
     this.actionRoot?.setScale(this.uiScale).setPosition(uiX, actionY);
+    const canvasRect = this.game.canvas.getBoundingClientRect();
+    this.progressionPanel?.setPosition(Math.max(8, canvasRect.width - 112), Math.max(8, actionY * canvasRect.height / height - 58));
     this.objectiveText?.setPosition(compact ? 500 : 460, 13).setWordWrapWidth(compact ? 180 : 416);
     this.noticeText?.setVisible(!compact);
     for (const [id, view] of this.unitViews) view.label.setVisible(!this.compactUi && this.selectedIds.has(id));
@@ -4238,6 +4356,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private finishBattle(): void {
     if (this.ended) return;
     this.ended = true;
+    void this.saveAutomaticBattle(true);
     const snapshot = this.currentView();
     const presentation = createVictoryPresentation(snapshot.victory, this.onlineSource ? snapshot.recipientTeamId : "team-player", snapshot.serverTick);
     this.noticeText?.setText("");
@@ -4270,7 +4389,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     } else if (this.buildingPlacement) this.cancelBuildPlacement("已取消建造", true);
     else if (this.buildMenuOpen) this.closeBuildMenu();
     else if (this.researchMenuOpen) this.closeResearchMenu();
-    else this.leaveBattle();
+    else if (this.selectedIds.size > 0) {
+      this.selectedIds.clear(); this.refreshSelectionViews(); this.refreshInterface(true);
+    } else {
+      this.systemPanelOpen = true; this.systemPanelPage = "root"; this.refreshInterface(true);
+    }
   }
 
   private restartBattle(): void {
@@ -4298,7 +4421,27 @@ export class VillageAssaultScene extends Phaser.Scene {
       });
       return;
     }
-    this.scene.start(this.returnScene);
+    void this.saveAutomaticBattle(true).finally(() => { if (this.sys.isActive()) this.scene.start(this.returnScene); });
+  }
+
+  private readonly saveBeforePageHide = (): void => { void this.saveAutomaticBattle(true); };
+
+  private async saveAutomaticBattle(force = false): Promise<void> {
+    if (this.onlineSource || !this.runtime || !this.battleStarted) return;
+    const runtime = this.runtime;
+    try {
+      const json = runtime.exportSaveJson();
+      if (!force && json === this.lastAutoSaveJson) return;
+      const result = await saveAutoSave(json);
+      if (result.ok) { this.lastAutoSaveJson = json; this.autoSaveFailureNoticed = false; }
+      else if (!this.autoSaveFailureNoticed && this.sys.isActive() && runtime === this.runtime) {
+        this.autoSaveFailureNoticed = true; this.setNotice("無法自動存檔，請從系統手動匯出存檔", "warning", 6_000);
+      }
+    } catch {
+      if (!this.autoSaveFailureNoticed && this.sys.isActive() && runtime === this.runtime) {
+        this.autoSaveFailureNoticed = true; this.setNotice("無法自動存檔，請從系統手動匯出存檔", "warning", 6_000);
+      }
+    }
   }
 
   private readonly onArtLoadError = (file: { readonly key?: unknown }): void => {
@@ -4355,6 +4498,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
+    if (this.autoSaveTimer !== undefined) window.clearInterval(this.autoSaveTimer);
+    this.autoSaveTimer = undefined; window.removeEventListener("pagehide", this.saveBeforePageHide);
+    this.selectionDrag = undefined; this.selectionDragBox?.remove(); this.selectionDragBox = undefined;
+    this.progressionPanel?.destroy(); this.progressionPanel = undefined;
     this.pointerGesture.reset();
     this.onlineDisposers.splice(0).forEach((dispose) => dispose());
     if (this.onlineSource && !this.onlineLeaveRequested) void this.onlineSource.leave();

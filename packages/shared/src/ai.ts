@@ -756,6 +756,9 @@ function decideForProfile(
   const populationRecovery = populationRecoveryCommand(profile, observation);
   if (populationRecovery) return populationRecovery;
 
+  const constructionRecovery = resumeUnattendedConstruction(observation, villagers);
+  if (constructionRecovery) return constructionRecovery;
+
   if (observation.advancement) {
     return advancementSupportCommand(observation, villagers, incompleteBuilding, randomValue);
   }
@@ -815,6 +818,24 @@ function decideForProfile(
       if (military.length > 0 && (strategic.phase === "economy" || strategic.phase === "defending")) return flankPatrol(observation, military[0]!, randomValue);
       return productionCommand(profile, observation, villagers, "boarRider", -1, randomValue, strategic);
   }
+}
+
+/** A foundation must not freeze the planner when its original worker is trapped or lost. */
+function resumeUnattendedConstruction(observation: AiObservation, villagers: readonly PublicEntityState[]): GameCommand | null {
+  for (const site of observation.ownEntities.filter(entity => entity.kind === "building" && observation.ownIncompleteBuildingIds.includes(entity.id)).sort((a,b) => compareText(a.id,b.id))) {
+    if (site.kind !== "building" || !isKnownBuildingType(site.typeId)) continue;
+    const perimeter = new Set(getFootprintPerimeterCells(site.position, getBuildingFootprint(site.typeId, site.orientation)).map(pointKey));
+    if (villagers.some(worker => worker.civilianActivity === "constructing" && perimeter.has(pointKey(worker.position)))) continue;
+    const worker = villagers
+      .filter(candidate => candidate.civilianActivity === "idle" && (candidate.cargo?.amount ?? 0) === 0)
+      .flatMap(candidate => {
+        const route = findKnownVisibleApproachRoute(observation, candidate.position, site);
+        return route ? [{ candidate, distance: route.distance }] : [];
+      })
+      .sort((a,b) => a.distance-b.distance || compareText(a.candidate.id,b.candidate.id))[0]?.candidate;
+    if (worker) return { type: "repair", entityIds: [worker.id], targetId: site.id };
+  }
+  return null;
 }
 
 function defensivePatrol(observation: AiObservation, military: readonly PublicEntityState[], home: GridPoint): GameCommand {

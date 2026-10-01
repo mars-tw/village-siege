@@ -3689,6 +3689,10 @@ function moveToward(
     unit.movementProgress = stepCost;
     return false;
   }
+  if (state.rulesVersion !== "village-siege/0.19.0" && shouldContinueAlliedDetour(unit, next, target, movementReservations)) {
+    const detour = findAlliedSidestep(state, unit, target, movementReservations, true, next);
+    if (detour) next = detour;
+  }
   if (!tryReserveAlliedMovementCell(movementReservations, unit, next)) {
     next = findAlliedSidestep(state, unit, target, movementReservations);
     if (!next || !tryReserveAlliedMovementCell(movementReservations, unit, next)) {

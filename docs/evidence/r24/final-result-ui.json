@@ -1,0 +1,333 @@
+{
+  "appVersion": "1.0.0",
+  "rulesVersion": "village-siege/0.20.0",
+  "status": "VERIFIED",
+  "method": "UI imports legitimate completed timedControl replay from the normal paid standard-AI victory branch, then real mouse/touch clicks download replay, return, and rematch. Two imports per device exercise both result exit branches. No state grants or forced wins. Phone is Chromium emulation.",
+  "checks": [
+    {
+      "appVersion": "1.0.0",
+      "device": "desktop pointer",
+      "mode": "return",
+      "errors": [],
+      "result": {
+        "rulesVersion": "village-siege/0.20.0",
+        "tick": 8941,
+        "hash": "535da733",
+        "phase": "finished",
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 126
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 1200
+            }
+          ],
+          "control": {
+            "controllerTeamId": "team-player",
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "timedControl",
+          "triggeredReasons": [
+            "timedControl"
+          ],
+          "finishedAtTick": 8941
+        },
+        "announcement": "勝利｜中域控制時限達成。戰局於 895 秒結束。可選擇再戰、下載重播或返回。",
+        "actions": [
+          "再戰",
+          "下載重播",
+          "返回"
+        ]
+      },
+      "downloadPoint": {
+        "x": 431.7200012207031,
+        "y": 660.7999877929688
+      },
+      "downloadName": "village-siege-2026-10-01T09-22-40-303Z.vsreplay",
+      "downloadFailure": null,
+      "returnPoint": {
+        "x": 528.47998046875,
+        "y": 660.7999877929688
+      },
+      "returned": true,
+      "status": "VERIFIED"
+    },
+    {
+      "appVersion": "1.0.0",
+      "device": "desktop pointer",
+      "mode": "restart",
+      "errors": [],
+      "result": {
+        "rulesVersion": "village-siege/0.20.0",
+        "tick": 8941,
+        "hash": "535da733",
+        "phase": "finished",
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 126
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 1200
+            }
+          ],
+          "control": {
+            "controllerTeamId": "team-player",
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "timedControl",
+          "triggeredReasons": [
+            "timedControl"
+          ],
+          "finishedAtTick": 8941
+        },
+        "announcement": "勝利｜中域控制時限達成。戰局於 895 秒結束。可選擇再戰、下載重播或返回。",
+        "actions": [
+          "再戰",
+          "下載重播",
+          "返回"
+        ]
+      },
+      "restartPoint": {
+        "x": 334.9599914550781,
+        "y": 660.7999877929688
+      },
+      "restarted": {
+        "tick": 0,
+        "phase": "playing",
+        "ended": false,
+        "ai": "balanced",
+        "difficulty": "standard"
+      },
+      "status": "VERIFIED"
+    },
+    {
+      "appVersion": "1.0.0",
+      "device": "Chromium phone touch",
+      "mode": "return",
+      "errors": [],
+      "result": {
+        "rulesVersion": "village-siege/0.20.0",
+        "tick": 8941,
+        "hash": "535da733",
+        "phase": "finished",
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 126
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 1200
+            }
+          ],
+          "control": {
+            "controllerTeamId": "team-player",
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "timedControl",
+          "triggeredReasons": [
+            "timedControl"
+          ],
+          "finishedAtTick": 8941
+        },
+        "announcement": "勝利｜中域控制時限達成。戰局於 895 秒結束。可選擇再戰、下載重播或返回。",
+        "actions": [
+          "再戰",
+          "下載重播",
+          "返回"
+        ]
+      },
+      "downloadPoint": {
+        "x": 284.0796699343134,
+        "y": 352.0833333333333
+      },
+      "downloadName": "village-siege-2026-10-01T09-22-47-655Z.vsreplay",
+      "downloadFailure": null,
+      "returnPoint": {
+        "x": 347.9206059532708,
+        "y": 352.0833333333333
+      },
+      "returned": true,
+      "status": "VERIFIED"
+    },
+    {
+      "appVersion": "1.0.0",
+      "device": "Chromium phone touch",
+      "mode": "restart",
+      "errors": [],
+      "result": {
+        "rulesVersion": "village-siege/0.20.0",
+        "tick": 8941,
+        "hash": "535da733",
+        "phase": "finished",
+        "victory": {
+          "policy": {
+            "commandCenterConquest": {
+              "rebuildGraceTicks": 600
+            },
+            "elimination": true,
+            "landmark": {
+              "buildingType": "copperLandmark",
+              "holdTicks": 900,
+              "requiredCount": 1
+            },
+            "timedControl": {
+              "point": {
+                "x": 16,
+                "y": 12
+              },
+              "radius": 3,
+              "startsAtTick": 600,
+              "targetTicks": 1200
+            }
+          },
+          "teams": [
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-ai",
+              "timedControlScoreTicks": 126
+            },
+            {
+              "eliminatedAtTick": null,
+              "eliminationReason": null,
+              "landmarkHoldTicks": 0,
+              "teamId": "team-player",
+              "timedControlScoreTicks": 1200
+            }
+          ],
+          "control": {
+            "controllerTeamId": "team-player",
+            "contested": false
+          },
+          "outcome": "victory",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "finishReason": "timedControl",
+          "triggeredReasons": [
+            "timedControl"
+          ],
+          "finishedAtTick": 8941
+        },
+        "announcement": "勝利｜中域控制時限達成。戰局於 895 秒結束。可選擇再戰、下載重播或返回。",
+        "actions": [
+          "再戰",
+          "下載重播",
+          "返回"
+        ]
+      },
+      "restartPoint": {
+        "x": 220.2387504261252,
+        "y": 352.0833333333333
+      },
+      "restarted": {
+        "tick": 0,
+        "phase": "playing",
+        "ended": false,
+        "ai": "balanced",
+        "difficulty": "standard"
+      },
+      "status": "VERIFIED"
+    }
+  ],
+  "downloadSHA256": "2ACE7376D4CD38C705E65D1D285DD495128B4EC0ABC100981E9CBF88D12F747A"
+}

@@ -1,0 +1,641 @@
+{
+  "rulesVersion": "village-siege/0.20.0",
+  "method": "15 fresh public runtimes, all five AI personalities at novice/standard/veteran. Unchanged starting economy, AI and default victory policy. Human orders three visible gather loops only; canonical state is read solely for opponent audit facts.",
+  "scenarios": [
+    {
+      "personality": "aggressor",
+      "difficulty": "novice",
+      "tick": 1560,
+      "advancedAtTick": 1330,
+      "producedPreferredUnit": true,
+      "gatherOrders": 8,
+      "acceptedAiCommands": 13,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 209,
+        "wood": 25,
+        "stone": 242
+      },
+      "telemetry": {
+        "decisions": 39,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "aggressor",
+      "difficulty": "standard",
+      "tick": 1650,
+      "advancedAtTick": 1650,
+      "producedPreferredUnit": true,
+      "gatherOrders": 27,
+      "acceptedAiCommands": 34,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 150,
+        "wood": 34,
+        "stone": 242
+      },
+      "telemetry": {
+        "decisions": 83,
+        "scoutsSent": 1,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "aggressor",
+      "difficulty": "veteran",
+      "tick": 1821,
+      "advancedAtTick": null,
+      "producedPreferredUnit": true,
+      "gatherOrders": 85,
+      "acceptedAiCommands": 97,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 390,
+        "wood": 509,
+        "stone": 342
+      },
+      "telemetry": {
+        "decisions": 183,
+        "scoutsSent": 1,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 1,
+        "counterSwitches": 0
+      },
+      "finishReason": "elimination",
+      "aiWon": true
+    },
+    {
+      "personality": "guardian",
+      "difficulty": "novice",
+      "tick": 2260,
+      "advancedAtTick": 1570,
+      "producedPreferredUnit": true,
+      "gatherOrders": 3,
+      "acceptedAiCommands": 10,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "defenseTower",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 4,
+        "wood": 187,
+        "stone": 389
+      },
+      "telemetry": {
+        "decisions": 57,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "guardian",
+      "difficulty": "standard",
+      "tick": 2060,
+      "advancedAtTick": 1350,
+      "producedPreferredUnit": true,
+      "gatherOrders": 2,
+      "acceptedAiCommands": 9,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "defenseTower",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 40,
+        "wood": 635,
+        "stone": 71
+      },
+      "telemetry": {
+        "decisions": 103,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "guardian",
+      "difficulty": "veteran",
+      "tick": 2220,
+      "advancedAtTick": 1420,
+      "producedPreferredUnit": true,
+      "gatherOrders": 2,
+      "acceptedAiCommands": 8,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "defenseTower",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 14,
+        "wood": 232,
+        "stone": 409
+      },
+      "telemetry": {
+        "decisions": 222,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "prosperer",
+      "difficulty": "novice",
+      "tick": 2540,
+      "advancedAtTick": 1570,
+      "producedPreferredUnit": true,
+      "gatherOrders": 9,
+      "acceptedAiCommands": 31,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "house",
+          "complete": true
+        },
+        {
+          "type": "farmstead",
+          "complete": true
+        },
+        {
+          "type": "archeryRange",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 38,
+        "wood": 233,
+        "stone": 385
+      },
+      "telemetry": {
+        "decisions": 64,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "prosperer",
+      "difficulty": "standard",
+      "tick": 2420,
+      "advancedAtTick": 1450,
+      "producedPreferredUnit": true,
+      "gatherOrders": 15,
+      "acceptedAiCommands": 32,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "house",
+          "complete": true
+        },
+        {
+          "type": "farmstead",
+          "complete": true
+        },
+        {
+          "type": "archeryRange",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 15,
+        "wood": 502,
+        "stone": 554
+      },
+      "telemetry": {
+        "decisions": 121,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "prosperer",
+      "difficulty": "veteran",
+      "tick": 2280,
+      "advancedAtTick": 1490,
+      "producedPreferredUnit": true,
+      "gatherOrders": 27,
+      "acceptedAiCommands": 45,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "house",
+          "complete": true
+        },
+        {
+          "type": "farmstead",
+          "complete": true
+        },
+        {
+          "type": "archeryRange",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 30,
+        "wood": 411,
+        "stone": 294
+      },
+      "telemetry": {
+        "decisions": 228,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "balanced",
+      "difficulty": "novice",
+      "tick": 2140,
+      "advancedAtTick": 1290,
+      "producedPreferredUnit": true,
+      "gatherOrders": 10,
+      "acceptedAiCommands": 16,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 163,
+        "wood": 95,
+        "stone": 202
+      },
+      "telemetry": {
+        "decisions": 54,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "balanced",
+      "difficulty": "standard",
+      "tick": 2090,
+      "advancedAtTick": 2090,
+      "producedPreferredUnit": true,
+      "gatherOrders": 40,
+      "acceptedAiCommands": 50,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "house",
+          "complete": false
+        }
+      ],
+      "wallet": {
+        "food": 33,
+        "wood": 282,
+        "stone": 182
+      },
+      "telemetry": {
+        "decisions": 105,
+        "scoutsSent": 2,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "balanced",
+      "difficulty": "veteran",
+      "tick": 2200,
+      "advancedAtTick": 2200,
+      "producedPreferredUnit": true,
+      "gatherOrders": 91,
+      "acceptedAiCommands": 101,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 68,
+        "wood": 11,
+        "stone": 182
+      },
+      "telemetry": {
+        "decisions": 220,
+        "scoutsSent": 3,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "raider",
+      "difficulty": "novice",
+      "tick": 2880,
+      "advancedAtTick": 1530,
+      "producedPreferredUnit": true,
+      "gatherOrders": 5,
+      "acceptedAiCommands": 12,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "beastStable",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 69,
+        "wood": 483,
+        "stone": 215
+      },
+      "telemetry": {
+        "decisions": 72,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "raider",
+      "difficulty": "standard",
+      "tick": 2240,
+      "advancedAtTick": 1490,
+      "producedPreferredUnit": true,
+      "gatherOrders": 20,
+      "acceptedAiCommands": 27,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "beastStable",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 44,
+        "wood": 429,
+        "stone": 196
+      },
+      "telemetry": {
+        "decisions": 112,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    },
+    {
+      "personality": "raider",
+      "difficulty": "veteran",
+      "tick": 2680,
+      "advancedAtTick": 1350,
+      "producedPreferredUnit": true,
+      "gatherOrders": 24,
+      "acceptedAiCommands": 31,
+      "buildings": [
+        {
+          "type": "townCenter",
+          "complete": true
+        },
+        {
+          "type": "barracks",
+          "complete": true
+        },
+        {
+          "type": "lumberCamp",
+          "complete": true
+        },
+        {
+          "type": "beastStable",
+          "complete": true
+        }
+      ],
+      "wallet": {
+        "food": 68,
+        "wood": 509,
+        "stone": 176
+      },
+      "telemetry": {
+        "decisions": 268,
+        "scoutsSent": 0,
+        "repairsOrdered": 0,
+        "retreatsOrdered": 0,
+        "wavesLaunched": 0,
+        "counterSwitches": 0
+      },
+      "finishReason": null,
+      "aiWon": false
+    }
+  ],
+  "status": "VERIFIED"
+}

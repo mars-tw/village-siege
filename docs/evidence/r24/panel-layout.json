@@ -1,0 +1,3745 @@
+{
+  "checks": [
+    {
+      "label": "era 1280x720",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "tick": 0,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築\n工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "stronghold",
+          "text": "城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築"
+        },
+        {
+          "id": "artificer",
+          "text": "工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 143.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 82.78125,
+          "h": 44,
+          "x": 211,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 69.78125,
+          "h": 44,
+          "x": 299.78125,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "disabled": true,
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "disabled": true,
+          "w": 147.78125,
+          "h": 44,
+          "x": 658,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 147.78125,
+          "h": 44,
+          "x": 811.78125,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "disabled": true,
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "時代 page 0 1280x720",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "tick": 0,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築\n工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "stronghold",
+          "text": "城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築"
+        },
+        {
+          "id": "artificer",
+          "text": "工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 143.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 82.78125,
+          "h": 44,
+          "x": 211,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 69.78125,
+          "h": 44,
+          "x": 299.78125,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "disabled": true,
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "disabled": true,
+          "w": 147.78125,
+          "h": 44,
+          "x": 658,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 147.78125,
+          "h": 44,
+          "x": 811.78125,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "disabled": true,
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "經濟 page 0 1280x720",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "tick": 0,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級\n樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "hearthlandAlmanac",
+          "text": "爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級"
+        },
+        {
+          "id": "resinboundKits",
+          "text": "樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 143.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "disabled": false,
+          "w": 69.78125,
+          "h": 44,
+          "x": 211,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "disabled": false,
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 69.78125,
+          "h": 44,
+          "x": 658,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "disabled": false,
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 0 1280x720",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "tick": 0,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級\n方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級\n逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "layeredHarness",
+          "text": "疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級"
+        },
+        {
+          "id": "surveyedFoundations",
+          "text": "方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級"
+        },
+        {
+          "id": "windspurRigging",
+          "text": "逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 21
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 30,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 84,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 84,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 84,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 84,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 82.78125,
+          "h": 44,
+          "x": 211,
+          "y": 299.1875,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "disabled": false,
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 351.1875,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "disabled": true,
+          "w": 96,
+          "h": 44,
+          "x": 658,
+          "y": 299.1875,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "disabled": false,
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 351.1875,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 147.78125,
+          "h": 44,
+          "x": 211,
+          "y": 548.375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "disabled": false,
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 600.375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 646,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 646,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "工藝 page 0 1280x720",
+      "viewport": {
+        "w": 1280,
+        "h": 720
+      },
+      "tick": 0,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級\n絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "starfireBores",
+          "text": "星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級"
+        },
+        {
+          "id": "torsionCradles",
+          "text": "絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 1028,
+          "y": 143.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 198,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 420.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 643,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 216.5,
+          "h": 44,
+          "x": 865.5,
+          "y": 197.90625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "disabled": true,
+          "w": 147.78125,
+          "h": 44,
+          "x": 211,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "disabled": false,
+          "w": 82.78125,
+          "h": 44,
+          "x": 364.78125,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "disabled": false,
+          "w": 411,
+          "h": 44,
+          "x": 211,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "disabled": true,
+          "w": 147.78125,
+          "h": 44,
+          "x": 658,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "disabled": false,
+          "w": 95.78125,
+          "h": 44,
+          "x": 811.78125,
+          "y": 413.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "disabled": false,
+          "w": 411,
+          "h": 44,
+          "x": 658,
+          "y": 465.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 198,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 68,
+          "h": 44,
+          "x": 1014,
+          "y": 532.09375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "close resumes 1280x720",
+      "paused": false,
+      "inputEnabled": true,
+      "tick": 0,
+      "laterTick": 3
+    },
+    {
+      "label": "era 844x390",
+      "viewport": {
+        "w": 844,
+        "h": 390
+      },
+      "tick": 3,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級\n絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "starfireBores",
+          "text": "星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級"
+        },
+        {
+          "id": "torsionCradles",
+          "text": "絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 164.8125,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "disabled": false,
+          "w": 79.8125,
+          "h": 44,
+          "x": 563.8125,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "時代 page 0 844x390",
+      "viewport": {
+        "w": 844,
+        "h": 390
+      },
+      "tick": 3,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築\n工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "stronghold",
+          "text": "城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築"
+        },
+        {
+          "id": "artificer",
+          "text": "工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 109.8125,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "disabled": true,
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 563.8125,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "disabled": true,
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "經濟 page 0 844x390",
+      "viewport": {
+        "w": 844,
+        "h": 390
+      },
+      "tick": 3,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級\n樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "hearthlandAlmanac",
+          "text": "爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級"
+        },
+        {
+          "id": "resinboundKits",
+          "text": "樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 0 844x390",
+      "viewport": {
+        "w": 844,
+        "h": 390
+      },
+      "tick": 3,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級\n方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級\n上一頁\n1 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "layeredHarness",
+          "text": "疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級"
+        },
+        {
+          "id": "surveyedFoundations",
+          "text": "方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "disabled": true,
+          "w": 80,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 1 844x390",
+      "viewport": {
+        "w": 844,
+        "h": 390
+      },
+      "tick": 3,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級\n上一頁\n2 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "windspurRigging",
+          "text": "逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": false,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "工藝 page 0 844x390",
+      "viewport": {
+        "w": 844,
+        "h": 390
+      },
+      "tick": 3,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級\n絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "starfireBores",
+          "text": "星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級"
+        },
+        {
+          "id": "torsionCradles",
+          "text": "絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 762,
+          "y": 18.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 28,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 226.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 425,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 192.5,
+          "h": 44,
+          "x": 623.5,
+          "y": 68.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 164.8125,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 35,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 434,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "disabled": false,
+          "w": 79.8125,
+          "h": 44,
+          "x": 563.8125,
+          "y": 224.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "disabled": false,
+          "w": 375,
+          "h": 44,
+          "x": 434,
+          "y": 270.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 756,
+          "y": 327.890625,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "close resumes 844x390",
+      "paused": false,
+      "inputEnabled": true,
+      "tick": 3,
+      "laterTick": 6
+    },
+    {
+      "label": "era 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級\n上一頁\n1 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "starfireBores",
+          "text": "星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 162.8125,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "時代 page 0 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築\n上一頁\n1 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "stronghold",
+          "text": "城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 107.8125,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "disabled": true,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "時代 page 1 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期\n上一頁\n2 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "artificer",
+          "text": "工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 44
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 14,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 46,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 46,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 46,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 46,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 202.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 252.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "disabled": true,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 298.78125,
+          "inViewport": false,
+          "centerVisible": false
+        },
+        {
+          "label": "上一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 14,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 14,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "經濟 page 0 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級\n上一頁\n1 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "hearthlandAlmanac",
+          "text": "爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "經濟 page 1 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級\n上一頁\n2 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "resinboundKits",
+          "text": "樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 0 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級\n上一頁\n1 / 3\n下一頁",
+      "cards": [
+        {
+          "id": "layeredHarness",
+          "text": "疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 1 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級\n上一頁\n2 / 3\n下一頁",
+      "cards": [
+        {
+          "id": "surveyedFoundations",
+          "text": "方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "disabled": true,
+          "w": 80,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 2 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級\n上一頁\n3 / 3\n下一頁",
+      "cards": [
+        {
+          "id": "windspurRigging",
+          "text": "逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "工藝 page 0 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級\n上一頁\n1 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "starfireBores",
+          "text": "星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 162.8125,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "工藝 page 1 568x320",
+      "viewport": {
+        "w": 568,
+        "h": 320
+      },
+      "tick": 6,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級\n上一頁\n2 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "torsionCradles",
+          "text": "絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 0
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 488,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 26,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 156.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 287,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 124.5,
+          "h": 44,
+          "x": 417.5,
+          "y": 49.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 33,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "disabled": false,
+          "w": 79.8125,
+          "h": 44,
+          "x": 162.8125,
+          "y": 205.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "disabled": false,
+          "w": 239,
+          "h": 44,
+          "x": 33,
+          "y": 251.890625,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": false,
+          "w": 50,
+          "h": 44,
+          "x": 329.765625,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 50,
+          "h": 44,
+          "x": 422,
+          "y": 17.109375,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "close resumes 568x320",
+      "paused": false,
+      "inputEnabled": true,
+      "tick": 6,
+      "laterTick": 9
+    },
+    {
+      "label": "era 667x375",
+      "viewport": {
+        "w": 667,
+        "h": 375
+      },
+      "tick": 9,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級\n絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "starfireBores",
+          "text": "星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級"
+        },
+        {
+          "id": "torsionCradles",
+          "text": "絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 11
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 164.8125,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 345.5,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "disabled": false,
+          "w": 79.8125,
+          "h": 44,
+          "x": 475.3125,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "時代 page 0 667x375",
+      "viewport": {
+        "w": 667,
+        "h": 375
+      },
+      "tick": 9,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築\n工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "stronghold",
+          "text": "城寨期\n\n解鎖弓箭手、野豬騎士、箭塔與五項科技\n\n糧 500 · 木 300 · 石 100\n\n先完成邊軍兵營、木作營\n\n+ 邊軍兵營\n+ 木作營\n完成前置建築"
+        },
+        {
+          "id": "artificer",
+          "text": "工藝期\n\n解鎖法師、火槍兵、重弩攻手與工藝科技\n\n糧 750 · 木 500 · 石 300\n\n先升級城寨期\n\n+ 射箭庭（需城寨期）\n+ 獠騎圈（需城寨期）\n先升級城寨期"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 11
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 109.8125,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "完成前置建築：城寨期",
+          "disabled": true,
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 射箭庭（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 345.5,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 475.3125,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "先升級城寨期：工藝期",
+          "disabled": true,
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "經濟 page 0 667x375",
+      "viewport": {
+        "w": 667,
+        "h": 375
+      },
+      "tick": 9,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級\n樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "hearthlandAlmanac",
+          "text": "爐原節候錄\n\n採集效率 +15% · 城寨期\n\n糧 220 · 木 80\n\n先升級城寨期\n\n+ 糧秣所\n前往時代升級"
+        },
+        {
+          "id": "resinboundKits",
+          "text": "樹脂固柄術\n\n採集效率 +15% · 城寨期\n\n木 240 · 石 80\n\n先升級城寨期\n\n+ 木作營\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 11
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 糧秣所",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 35,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：爐原節候錄",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 木作營",
+          "disabled": false,
+          "w": 57.8125,
+          "h": 44,
+          "x": 345.5,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：樹脂固柄術",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 0 667x375",
+      "viewport": {
+        "w": 667,
+        "h": 375
+      },
+      "tick": 9,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級\n方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級\n上一頁\n1 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "layeredHarness",
+          "text": "疊革戰具\n\n部隊生命 +12% · 城寨期\n\n糧 250 · 木 120 · 石 80\n\n先升級城寨期\n\n+ 邊軍兵營\n前往時代升級"
+        },
+        {
+          "id": "surveyedFoundations",
+          "text": "方繩基準法\n\n建築耐久 +10% · 城寨期\n\n糧 180 · 木 240 · 石 140\n\n先升級城寨期\n\n✓ 村鎮議事堂\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 11
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 邊軍兵營",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 35,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：疊革戰具",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "✓ 村鎮議事堂",
+          "disabled": true,
+          "w": 80,
+          "h": 44,
+          "x": 345.5,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：方繩基準法",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": false,
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "軍備 page 1 667x375",
+      "viewport": {
+        "w": 667,
+        "h": 375
+      },
+      "tick": 9,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級\n上一頁\n2 / 2\n下一頁",
+      "cards": [
+        {
+          "id": "windspurRigging",
+          "text": "逐風鞍索\n\n移動速度 +15% · 城寨期\n\n糧 240 · 木 150 · 石 40\n\n先升級城寨期\n\n+ 獠騎圈（需城寨期）\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 11
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 獠騎圈（需城寨期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：逐風鞍索",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": false,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "工藝 page 0 667x375",
+      "viewport": {
+        "w": 667,
+        "h": 375
+      },
+      "tick": 9,
+      "paused": true,
+      "inputEnabled": false,
+      "open": true,
+      "text": "科技與時代\n關閉\n時代\n經濟\n軍備\n工藝\n\n拓荒期 · 糧 420　木 420　石 260\n\n星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級\n絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級\n上一頁\n1 / 1\n下一頁",
+      "cards": [
+        {
+          "id": "starfireBores",
+          "text": "星火膛鑽\n\n部隊攻擊 +15% · 工藝期\n\n糧 300 · 木 220 · 石 180\n\n先升級工藝期\n\n+ 火器坊（需工藝期）\n+ 疊革戰具\n前往時代升級"
+        },
+        {
+          "id": "torsionCradles",
+          "text": "絞索衝架\n\n部隊攻擊 +25% · 工藝期\n\n糧 200 · 木 300 · 石 220\n\n先升級工藝期\n\n+ 攻城棚（需工藝期）\n+ 方繩基準法\n前往時代升級"
+        }
+      ],
+      "scroll": {
+        "dialog": 0,
+        "cards": 11
+      },
+      "controls": [
+        {
+          "label": "關閉科技與時代",
+          "disabled": false,
+          "w": 54,
+          "h": 44,
+          "x": 585,
+          "y": 16,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "時代",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 28,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "經濟",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 182.25,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "軍備",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 336.5,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "工藝",
+          "disabled": false,
+          "w": 148.25,
+          "h": 44,
+          "x": 490.75,
+          "y": 66,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 火器坊（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 35,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 疊革戰具",
+          "disabled": false,
+          "w": 68.8125,
+          "h": 44,
+          "x": 164.8125,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：星火膛鑽",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 35,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 攻城棚（需工藝期）",
+          "disabled": true,
+          "w": 123.8125,
+          "h": 44,
+          "x": 345.5,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "+ 方繩基準法",
+          "disabled": false,
+          "w": 79.8125,
+          "h": 44,
+          "x": 475.3125,
+          "y": 222.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "前往時代升級：絞索衝架",
+          "disabled": false,
+          "w": 286.5,
+          "h": 44,
+          "x": 345.5,
+          "y": 268.78125,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "上一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 28,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        },
+        {
+          "label": "下一頁",
+          "disabled": true,
+          "w": 60,
+          "h": 44,
+          "x": 579,
+          "y": 315,
+          "inViewport": true,
+          "centerVisible": true
+        }
+      ]
+    },
+    {
+      "label": "close resumes 667x375",
+      "paused": false,
+      "inputEnabled": true,
+      "tick": 9,
+      "laterTick": 12
+    }
+  ],
+  "errors": [],
+  "status": "LAYOUT_FAILURE",
+  "version": "village-siege/0.20.0",
+  "buildChip": {
+    "open": false,
+    "paused": false,
+    "input": true,
+    "placement": "lumberCamp",
+    "selected": [
+      "unit-5"
+    ],
+    "actions": [
+      "點地圖放置",
+      "轉向 南東",
+      "北東軸",
+      "返回建築表",
+      "縮小",
+      "放大",
+      "系統"
+    ]
+  }
+}

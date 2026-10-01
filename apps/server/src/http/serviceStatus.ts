@@ -1,6 +1,6 @@
 import { MATCH_PROTOCOL_VERSION, RULES_VERSION } from "@village-siege/shared";
 
-export const APPLICATION_VERSION = "0.22.1";
+export const APPLICATION_VERSION = "1.0.0";
 
 export interface ServiceStatus {
   readonly isDraining: () => boolean;

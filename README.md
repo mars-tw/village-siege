@@ -1,6 +1,22 @@
 # Village Siege／村莊攻防
 
-Village Siege 是一個 MIT 授權的瀏覽器即時戰略遊戲原型。它採用原創的中世紀等角視角美術、程式繪製素材與自有介面；節奏參考經典 RTS，但不包含《世紀帝國 II》的名稱、素材、音效或介面複製品。
+Village Siege 是 MIT 授權的開源瀏覽器即時戰略遊戲。它採用原創的中世紀等角視角點陣美術與自有介面；節奏參考經典 RTS，不包含《世紀帝國 II》的名稱、素材、音效或介面複製品。
+
+## 1.0 正式公開版（2026-10-01）
+
+1.0.0 是 Village Siege 第一個正式公開的單機 Web／離線 PWA 版本，規則版本為 `village-siege/0.20.0`。三張村莊地圖、三種難度、五種 AI 性格、三階段聚落、七項科技、七種兵種、三種野外怪物與四條勝利路線都已接上同一套決定論規則。
+
+**[立即遊玩 1.0.0](https://mars-tw.github.io/village-siege/play.html?v=1.0.0)**
+
+這次把完整發展流程需要的地圖有限資源補足：每方家園木材總量由 1,000 提高到 6,000，石材由 700 提高到 4,000，採集速度、資源耗盡與糧田復育規則不變。也修正友軍占住捷徑時的繞行、非城門最後目擊帶入 `undefined` 造成存檔／重播 hash 不一致，以及 AI 未接手已付款工地的問題。
+
+舊 `village-siege/0.19.0` 存檔與重播會先完整驗證，再明確升級到 `0.20.0`；已付建造與生產成本、已採集數量都會保留。驗證失敗時不會取代目前戰局或改動原檔。
+
+戰場新增常駐科技與時代面板，原生對話框會列出建築、成本、聚落階段、前置科技、研究中與已完成狀態，並直接引導玩家選取正確建築操作。單機戰役每 30 秒及離開戰場時自動儲存到 IndexedDB，保留 `latest` 與 `previous` 兩個檢查點；主選單的「繼續戰役」可還原進度，最新檔損壞時會改讀上一個有效檢查點。
+
+操作同步整理：`Esc` 開啟系統選單，按住 `Shift` 拖曳可框選多個單位，直接點可見的中立野怪即可攻擊；角色動畫依 `requestAnimationFrame` 逐影格更新。
+
+本次交付範圍不含 Android／iOS 簽署原生 App、長期公開 WSS 多人服務與劇情戰役。多人伺服器與部署範本仍保留給本機開發、自架和後續公開驗收。
 
 
 ## 施工接續修正（0.22.1，2026-10-01）
@@ -24,18 +40,19 @@ Village Siege 是一個 MIT 授權的瀏覽器即時戰略遊戲原型。它採�
 PWA 可安裝並在完整下載後離線玩單機。更新等所有遊戲視窗關閉，對戰中不強制重新整理。戰前可選新手／標準／老練；新戰役與再戰使用新種子，存檔與重播保留原始種子。提供操作指南與七段互動教學。
 
 - [完整更新與可玩性計畫](docs/REBUILD_ROADMAP_2026-09-30.zh-TW.md)
-- [本輪八面向計畫](docs/OPTIM_PLAN_R22.md)
+- [本輪八面向計畫](docs/OPTIM_PLAN_R24.md)
+- [公開單機版驗收](docs/PLAYER_RELEASE_ACCEPTANCE.zh-TW.md)
 - [PWA 安裝與離線說明](docs/PWA.md)
 - [圖像製作與來源](docs/FRONTIER_ART_PROVENANCE.md)
 
 本機開始：`npm ci`，然後 `npm run dev:client`。正式驗證：`npm run verify`。Android／iOS 原生App、其餘角色六方向、完整戰役與公開多人列於後續里程碑。
 ## 立即遊玩
 
-**[開啟公開單機版](https://mars-tw.github.io/village-siege/play.html?v=0.22.1)**
+**[開啟公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.0.0)**
 
 公開網站由GitHub Pages自動建置，目前提供電腦、手機與平板網頁單機版、離線PWA。公開多人服務仍須完成長期公開WSS部署與雙客戶端驗證。
 
-原始碼與版本紀錄位於 **[mars-tw/village-siege](https://github.com/mars-tw/village-siege)**。本輪保留既有決定論模擬，修正封閉出生格與建造預覽，並加入清楚的「等候出營」狀態。完整改動見 [CHANGELOG](CHANGELOG.md)。
+原始碼與版本紀錄位於 **[mars-tw/village-siege](https://github.com/mars-tw/village-siege)**。1.0 修正完整發展的資源缺口、友軍繞路與存檔問題，補上科技入口及自動存檔。完整改動見 [CHANGELOG](CHANGELOG.md)。
 
 第一次接觸專案請先閱讀 **[繁體中文新手指南](docs/BEGINNER_GUIDE.zh-TW.md)**；本機容器請看 **[自架指南](docs/SELF_HOSTING.zh-TW.md)**，正式 TLS、監控與加密備份請看 **[production 操作指南](docs/PRODUCTION_OPERATIONS.zh-TW.md)**。
 

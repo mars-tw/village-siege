@@ -1,0 +1,69 @@
+{
+  "rulesVersion": "village-siege/0.20.0",
+  "minimalCompleteProgression": {
+    "structures": [
+      "house",
+      "lumberCamp",
+      "farmstead",
+      "barracks",
+      "archeryRange",
+      "beastStable",
+      "mageSanctum",
+      "gunWorkshop",
+      "siegeWorkshop"
+    ],
+    "tiers": [
+      "stronghold",
+      "artificer"
+    ],
+    "technologyIds": [
+      "hearthlandAlmanac",
+      "resinboundKits",
+      "layeredHarness",
+      "surveyedFoundations",
+      "windspurRigging",
+      "starfireBores",
+      "torsionCradles"
+    ],
+    "combatUnitIds": [
+      "warrior",
+      "shieldBearer",
+      "archer",
+      "mage",
+      "musketeer",
+      "boarRider",
+      "heavyCrossbowman"
+    ],
+    "cost": {
+      "food": 3125,
+      "wood": 3845,
+      "stone": 1825
+    }
+  },
+  "oldRules019": {
+    "ownFiniteStockWithStartingWallet": {
+      "wood": 1420,
+      "stone": 960
+    },
+    "maximumFiniteStockIncludingBothHomesAndEveryMonsterReward": {
+      "wood": 2780,
+      "stone": 1910
+    },
+    "woodShortfallEvenWithEnemyDepositsAndAllMonsters": 1065
+  },
+  "currentRules": {
+    "localFiniteStockWithStartingWallet": {
+      "wood": 6420,
+      "stone": 4260
+    },
+    "ratesUnchanged": true,
+    "finiteWoodAndStone": true,
+    "foodRenewalUnchanged": true
+  },
+  "fixes": [
+    "Finite home stocks cover both advances, full research and a fighting force.",
+    "Point movement uses bounded detour continuation when blocked by an idle ally; 0.19 replay behavior stays gated.",
+    "Non-gate enemy sightings omit undefined gateOpen in 0.20, keeping JSON save/replay hashes stable.",
+    "AI assigns idle unloaded workers to unattended paid foundations instead of permanently freezing its build plan."
+  ]
+}
