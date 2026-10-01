@@ -1,5 +1,7 @@
 # R21 交付與驗證報告
 
+發布註記：2026-10-01 用戶另行授權推送至 `mars-tw/village-siege` 並更新公開遊戲；發布狀態請查看 [GitHub Pages 部署紀錄](https://github.com/mars-tw/village-siege/actions/workflows/deploy-pages.yml)。下文保留 2026-09-30 本機驗收時點的紀錄。
+
 2026-09-30，本機版本0.21.0。已完成首輪可玩重製與完整更新計畫，未推送、未公開部署、未製作商店App安裝包。
 
 ## 已完成

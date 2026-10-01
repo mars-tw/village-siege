@@ -4,7 +4,7 @@
 
 開源專案：[github.com/mars-tw/village-siege](https://github.com/mars-tw/village-siege)
 
-## v0.21.0（邊境晨光重製，本機，2026-09-30）
+## v0.21.0（邊境晨光重製，2026-10-01）
 
 - rules更新為village-siege/0.18.1：新兵出生格須有離開建築周邊的通路，封閉時保留已付費佇列並顯示等候出營；舊0.18.0存檔／重播依版本檢查拒絕匯入。
 
@@ -13,7 +13,7 @@
 - 新戰役與再戰使用新種子；匯入存檔後再戰保留難度。修正建造預覽把單位占地顯示成可建造的問題。
 - 提供有版本及完整性檢查的 PWA 離線單機；安裝圖示為PNG。離線排除runtime config與多人，更新不打斷戰局。
 - sharp與Vitest更新到修補版本，保留鎖定相依與原有shared規則；完整 App 化路線另列九階段。
-- 這是本機重製版，未推送或公開部署；角色與牆門完整美術仍有後續缺件。
+- 此版更新開源原型；完整角色與牆門美術、戰役及原生 App 仍屬後續里程碑。
 ## v3 v0.20（六向持盾槍衛，2026-07-22）
 
 - 發行三元組為 app `0.20.0`、protocol `village-siege-network/4`、rules `village-siege/0.18.0`；production Compose、環境範例與 `/version` 驗收文件使用相同版本。
