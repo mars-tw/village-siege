@@ -7,11 +7,12 @@ const manifest = JSON.parse(await readFile(new URL("../../assets/release-asset-m
 
 test("prunes stale or build-only PNGs with a release-manifest allowlist", () => {
   const approved = approvedRuntimePngsFromManifest(manifest);
-  assert.equal(approved.size, 26);
+  assert.equal(approved.size, 34);
   assert.equal(shouldPruneRuntimePng("assets/original/frontier/buildings.png", approved), false);
   assert.equal(shouldPruneRuntimePng("assets/original/frontier/buildings-source.png", approved), true);
-  assert.equal(approved.has("assets/original/units/shieldBearer/sprites/facings/e.png"), true);
-  assert.equal(shouldPruneRuntimePng("assets/original/units/shieldBearer/sprites/facings/e.png", approved), false);
+  assert.equal(approved.has("assets/original/frontier/characters/shieldBearer/facings/e.png"), true);
+  assert.equal(shouldPruneRuntimePng("assets/original/frontier/characters/villager/facings/nw.png", approved), false);
+  assert.equal(shouldPruneRuntimePng("assets/original/units/shieldBearer/sprites/facings/e.png", approved), true);
   assert.equal(shouldPruneRuntimePng("assets/original/units/shieldBearer/sprites/action-sheet.png", approved), true);
   assert.equal(shouldPruneRuntimePng("assets/original/units/shieldBearer/sprites/action-sheet-source.png", approved), true);
   assert.equal(shouldPruneRuntimePng("assets/index.js", approved), false);

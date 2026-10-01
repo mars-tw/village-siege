@@ -1,0 +1,93 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "modelSlug": "not exposed by tool",
+  "created": "2026-10-01",
+  "license": "MIT",
+  "commercialReference": false,
+  "style": "Original hand-painted semi-realistic medieval RTS, 4.5-head human proportions, upper-left warm light, sage/earth/teal palette",
+  "materials": {
+    "grid": [
+      2,
+      2
+    ],
+    "cell": [
+      512,
+      512
+    ],
+    "order": [
+      "meadow",
+      "dirt",
+      "sandstone",
+      "water"
+    ]
+  },
+  "nature": {
+    "grid": [
+      4,
+      2
+    ],
+    "cell": [
+      512,
+      512
+    ],
+    "anchor": [
+      256,
+      435
+    ],
+    "order": [
+      "oakGrove",
+      "pineGrove",
+      "limestoneBoulders",
+      "grainPatch",
+      "cutLogs",
+      "stonePile",
+      "riverbankPebbles",
+      "bushes"
+    ]
+  },
+  "processing": "sharp crop, alpha threshold trim and anchor; source images preserved; landscapes are painted with authoritative terrain masks at runtime",
+  "records": [
+    {
+      "asset": "roster",
+      "source": "docs/art/frontier/source/roster.png",
+      "sourceSHA256": "62ba59fff2c069b79082648001b3c51172b3cf29ca20a9c2c49863afdfbd4984",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "runtime": null,
+      "runtimeSHA256": null
+    },
+    {
+      "asset": "materials",
+      "source": "docs/art/frontier/source/materials.png",
+      "sourceSHA256": "c9823eb7b9993c6c1414dbb688ceb5cc689b9a39c637c2aba8cdd76686c01e78",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "runtime": "apps/client/public/assets/original/frontier/landscape/materials.png",
+      "runtimeSHA256": "6bdd08326998b52c31fd12806870bd00b70c85c5f847b1605137bbb7d5e84151"
+    },
+    {
+      "asset": "nature",
+      "source": "docs/art/frontier/source/nature.png",
+      "sourceSHA256": "3f9590f193ff6ed5dd6967e3cde657fd5095f8fa32128e70ff6fe903ad68f7c1",
+      "sourceSize": [
+        1774,
+        887
+      ],
+      "runtime": "apps/client/public/assets/original/frontier/landscape/nature.png",
+      "runtimeSHA256": "2831a61efdb26bf903661ffcc58a272aa89856483cc5e3341da78c3a9d7cd9bd"
+    }
+  ],
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

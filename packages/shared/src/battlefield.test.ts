@@ -22,39 +22,22 @@ function key(point: { readonly x: number; readonly y: number }): string {
 }
 
 describe("village assault battlefield rules", () => {
-  it("classifies terrain consistently for walking and building", () => {
-    expect(getVillageAssaultTerrainGlyph({ x: 6, y: 0 })).toBe("R");
-    expect(getVillageAssaultTerrainGlyph({ x: 7, y: 3 })).toBe("W");
-    expect(getVillageAssaultTerrainGlyph({ x: 3, y: 2 })).toBe("M");
-    expect(getVillageAssaultTerrainGlyph({ x: 3, y: 4 })).toBe("S");
-    expect(getVillageAssaultTerrainGlyph({ x: 0, y: 0 })).toBe("T");
+  it("uses a larger battlefield with readable terrain and three wide crossing lanes", () => {
+    expect(VILLAGE_ASSAULT_MAP_WIDTH).toBe(32);
+    expect(VILLAGE_ASSAULT_MAP_HEIGHT).toBe(24);
+    expect(getVillageAssaultTerrainGlyph({ x: 15, y: 4 }, "pinehold")).toBe("W");
+    expect(getVillageAssaultTerrainGlyph({ x: 15, y: 3 }, "highcrag")).toBe("R");
+    expect(getVillageAssaultTerrainGlyph({ x: 0, y: 0 }, "pinehold")).toBe("T");
+    expect(isVillageAssaultWalkableCell({ x: 15, y: 4 }, "pinehold")).toBe(false);
+    expect(isVillageAssaultBuildableCell({ x: 15, y: 3 }, "highcrag")).toBe(false);
     expect(getVillageAssaultTerrainGlyph({ x: -1, y: 0 })).toBeUndefined();
-
-    for (const blocked of [{ x: 6, y: 0 }, { x: 7, y: 3 }]) {
-      expect(isVillageAssaultWalkableCell(blocked)).toBe(false);
-      expect(isVillageAssaultBuildableCell(blocked)).toBe(false);
-    }
-    for (const open of [{ x: 3, y: 2 }, { x: 3, y: 4 }, { x: 0, y: 0 }]) {
-      expect(isVillageAssaultWalkableCell(open)).toBe(true);
-      expect(isVillageAssaultBuildableCell(open)).toBe(true);
+    for (const layoutId of Object.keys(VILLAGE_ASSAULT_LAYOUTS) as VillageAssaultLayoutId[]) {
+      for (const y of [8, 12, 17]) for (const x of [14, 15, 16, 17]) {
+        expect(isVillageAssaultWalkableCell({ x, y }, layoutId), `${layoutId} crossing ${x},${y}`).toBe(true);
+        expect(isVillageAssaultBuildableCell({ x, y }, layoutId)).toBe(false);
+      }
     }
   });
-
-  it("reserves a two-cell-wide walkable route that buildings cannot close", () => {
-    const reservedRoute = Array.from({ length: 10 }, (_, row) => row + 3)
-      .flatMap((y) => [{ x: 9, y }, { x: 10, y }]);
-    const buildBlocked = new Set(getVillageAssaultBuildBlockedCells().map(key));
-    const walkBlocked = new Set(getVillageAssaultWalkBlockedCells().map(key));
-
-    expect(reservedRoute).toHaveLength(20);
-    for (const point of reservedRoute) {
-      expect(isVillageAssaultWalkableCell(point), `reserved route ${key(point)} must remain walkable`).toBe(true);
-      expect(isVillageAssaultBuildableCell(point), `reserved route ${key(point)} must reject construction`).toBe(false);
-      expect(buildBlocked.has(key(point))).toBe(true);
-      expect(walkBlocked.has(key(point))).toBe(false);
-    }
-  });
-
   it("returns complete, duplicate-free blocked-cell collections within map bounds", () => {
     for (const cells of [getVillageAssaultWalkBlockedCells(), getVillageAssaultBuildBlockedCells()]) {
       expect(new Set(cells.map(key)).size).toBe(cells.length);
@@ -86,18 +69,18 @@ describe("village assault battlefield rules", () => {
     expect(constraintIds.size).toBe(layoutIds.length);
   });
 
-  it("provides complete fortified metadata for both sides of every layout", () => {
+  it("provides an open town-center start with three separate workers and no prefilled defenses", () => {
     for (const layout of Object.values(VILLAGE_ASSAULT_LAYOUTS)) {
       for (const slot of layout.startSlots) {
         const roles = slot.placements.map((placement) => placement.role);
         expect(roles.filter((role) => role === "command")).toHaveLength(1);
-        expect(roles.filter((role) => role === "gate").length).toBeGreaterThanOrEqual(1);
-        expect(roles.filter((role) => role === "perimeter").length).toBeGreaterThanOrEqual(8);
-        expect(roles.filter((role) => role === "defense")).toHaveLength(2);
-        expect(roles.filter((role) => role === "production")).toHaveLength(1);
-        expect(roles.filter((role) => role === "economy")).toHaveLength(1);
+        expect(roles.filter((role) => role === "gate")).toHaveLength(0);
+        expect(roles.filter((role) => role === "perimeter")).toHaveLength(0);
+        expect(roles.filter((role) => role === "defense")).toHaveLength(0);
+        expect(roles.filter((role) => role === "production")).toHaveLength(0);
+        expect(roles.filter((role) => role === "economy")).toHaveLength(0);
         expect(slot.placements.find((placement) => placement.role === "command")?.buildingType).toBe("townCenter");
-        expect(slot.placements.find((placement) => placement.role === "gate")?.buildingType).toBe("surveyGate");
+        expect(slot.placements).toHaveLength(1);
         expect(slot.resourceAnchors.map((anchor) => anchor.resourceKind).sort()).toEqual(["food", "stone", "wood"]);
         expect(slot.civilianActivities.map((activity) => activity.role).sort()).toEqual(["gatherer", "mason", "porter"]);
         for (const activity of slot.civilianActivities) {
@@ -142,8 +125,8 @@ describe("village assault battlefield rules", () => {
 
   it("routes optional layout ids without changing the pinehold-compatible default", () => {
     expect(getVillageAssaultTerrainGlyph({ x: 8, y: 5 })).toBe(getVillageAssaultTerrainGlyph({ x: 8, y: 5 }, "pinehold"));
-    expect(isVillageAssaultBuildableCell({ x: 10, y: 2 }, "pinehold")).toBe(true);
-    expect(isVillageAssaultBuildableCell({ x: 10, y: 2 }, "riverstead")).toBe(false);
+    expect(isVillageAssaultBuildableCell({ x: 13, y: 7 }, "pinehold")).toBe(false);
+    expect(isVillageAssaultBuildableCell({ x: 6, y: 16 }, "riverstead")).toBe(true);
     expect(getVillageAssaultBuildBlockedCells("highcrag").length).toBeGreaterThan(getVillageAssaultWalkBlockedCells("highcrag").length);
   });
 

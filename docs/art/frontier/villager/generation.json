@@ -1,0 +1,223 @@
+{
+  "date": "2026-10-01",
+  "asset": "villager",
+  "tool": "builtin image_gen",
+  "modelSlug": null,
+  "reference": "docs/art/frontier/villager/reference.png",
+  "rowOrder": [
+    "idle",
+    "walk",
+    "attack",
+    "hurt",
+    "death",
+    "cast"
+  ],
+  "facings": [
+    "e",
+    "ne",
+    "nw",
+    "w",
+    "sw",
+    "se"
+  ],
+  "contract": {
+    "columns": 4,
+    "rows": 6,
+    "framesPerAction": 4,
+    "cellWidth": 96,
+    "cellHeight": 112,
+    "anchorX": 48,
+    "anchorY": 88,
+    "uniformFigureHeight": 70,
+    "noMirroring": true
+  },
+  "calls": [
+    {
+      "index": 1,
+      "facing": "e",
+      "artifactId": "08bac6c7-68be-4dc9-a489-1a233395de8c",
+      "prompt": "Use case: stylized-concept. Asset: a production RTS worker sprite action sheet, exactly FOUR equal columns and SIX equal rows (24 independently drawn animation frames), portrait canvas, genuinely transparent alpha. Input image is an identity/style reference only: faithfully match this same civilian worker's brown soft hat, dark beard, rolled cream linen sleeves, ochre leather apron with shoulder straps, teal waist sash, brown trousers, stout brown boots, belt pouches, and tool-holding hand. Warm handpainted frontier game art, roughly four-head proportions, readable natural shapes, warm upper-left illumination, no armor, swords, shield, modern gear, text, numbers, borders, scenery, grid lines or baked ground/shadow. Every frame is full body, exactly the same camera scale, identity and proportions; character feet centered on the same ground baseline in each invisible cell, tools fully inside the cell with generous transparent gutters. ROW 1 idle: four subtle but visibly different breathing/weight-settle poses, tool lowered. ROW 2 WALK: genuine left-contact, passing, right-contact, passing leg cycle, alternating bent knees and planted/raised boots with arm counter-swing; NOT copies or shifted versions of one pose. ROW 3 HARVEST: four axe-working poses, overhead windup, strong downward swing, low impact with bent knees, recovery; no target or scenery. ROW 4 HURT: recoil, brace on bent knees, regain balance, recover; no gore. ROW 5 DEATH: stagger, kneel, fall, lie still on the same ground line, tool down; same physical scale throughout. ROW 6 BUILD: four carpenter mallet poses, raise, strike, bend/impact, recover; axe holstered, mallet in the same anatomical tool hand. Perspective direction must be genuinely reconstructed for every frame. Never create a left-facing sheet by mirroring a right-facing sheet. Keep hands, sash knot, pouches and face consistent with the reference.\nDIRECTION E: strict right-facing side profile, face and toes toward screen RIGHT, camera sees the worker's side. One consistent side-profile perspective for all 24 frames.",
+      "selected": false,
+      "repair": null,
+      "sourceRelative": "docs/art/frontier/villager/source/e-rejected-1.png",
+      "sourceSha256": "aad2337b90d0af38b2fe7813120ba2e0128ddde38ed3824a5af4ec2fb19abbe3",
+      "sourceBytes": 2239192
+    },
+    {
+      "index": 2,
+      "facing": "se",
+      "artifactId": "ec1d9d31-26d2-491f-95d7-208e971bc607",
+      "prompt": "Use case: stylized-concept. Asset: a production RTS worker sprite action sheet, exactly FOUR equal columns and SIX equal rows (24 independently drawn animation frames), portrait canvas, genuinely transparent alpha. Input image is an identity/style reference only: faithfully match this same civilian worker's brown soft hat, dark beard, rolled cream linen sleeves, ochre leather apron with shoulder straps, teal waist sash, brown trousers, stout brown boots, belt pouches, and tool-holding hand. Warm handpainted frontier game art, roughly four-head proportions, readable natural shapes, warm upper-left illumination, no armor, swords, shield, modern gear, text, numbers, borders, scenery, grid lines or baked ground/shadow. Every frame is full body, exactly the same camera scale, identity and proportions; character feet centered on the same ground baseline in each invisible cell, tools fully inside the cell with generous transparent gutters. ROW 1 idle: four subtle but visibly different breathing/weight-settle poses, tool lowered. ROW 2 WALK: genuine left-contact, passing, right-contact, passing leg cycle, alternating bent knees and planted/raised boots with arm counter-swing; NOT copies or shifted versions of one pose. ROW 3 HARVEST: four axe-working poses, overhead windup, strong downward swing, low impact with bent knees, recovery; no target or scenery. ROW 4 HURT: recoil, brace on bent knees, regain balance, recover; no gore. ROW 5 DEATH: stagger, kneel, fall, lie still on the same ground line, tool down; same physical scale throughout. ROW 6 BUILD: four carpenter mallet poses, raise, strike, bend/impact, recover; axe holstered, mallet in the same anatomical tool hand. Perspective direction must be genuinely reconstructed for every frame. Never create a left-facing sheet by mirroring a right-facing sheet. Keep hands, sash knot, pouches and face consistent with the reference.\nDIRECTION SE: front three-quarter view, face and toes toward screen LOWER-RIGHT, chest/apron front and face visible. One consistent front-right isometric perspective for all 24 frames.",
+      "selected": true,
+      "repair": null,
+      "sourceRelative": "docs/art/frontier/villager/source/se-source.png",
+      "sourceSha256": "b354c7f776301e5af77fce37249505ecd384c7a07366fb616cacc6f3c326ed98",
+      "sourceBytes": 2343451
+    },
+    {
+      "index": 3,
+      "facing": "e",
+      "artifactId": "f9671a9a-649c-4de0-9178-6a07a9d2f3b7",
+      "prompt": "Use case: stylized-concept. Asset: a production RTS worker sprite action sheet, exactly FOUR equal columns and SIX equal rows (24 independently drawn animation frames), portrait canvas, genuinely transparent alpha. Input image is an identity/style reference only: faithfully match this same civilian worker's brown soft hat, dark beard, rolled cream linen sleeves, ochre leather apron with shoulder straps, teal waist sash, brown trousers, stout brown boots, belt pouches, and tool-holding hand. Warm handpainted frontier game art, roughly four-head proportions, readable natural shapes, warm upper-left illumination, no armor, swords, shield, modern gear, text, numbers, borders, scenery, grid lines or baked ground/shadow. Every frame is full body, exactly the same camera scale, identity and proportions; character feet centered on the same ground baseline in each invisible cell, tools fully inside the cell with generous transparent gutters. ROW 1 idle: four subtle but visibly different breathing/weight-settle poses, tool lowered. ROW 2 WALK: genuine left-contact, passing, right-contact, passing leg cycle, alternating bent knees and planted/raised boots with arm counter-swing; NOT copies or shifted versions of one pose. ROW 3 HARVEST: four axe-working poses, overhead windup, strong downward swing, low impact with bent knees, recovery; no target or scenery. ROW 4 HURT: recoil, brace on bent knees, regain balance, recover; no gore. ROW 5 DEATH: stagger, kneel, fall, lie still on the same ground line, tool down; same physical scale throughout. ROW 6 BUILD: four carpenter mallet poses, raise, strike, bend/impact, recover; axe holstered, mallet in the same anatomical tool hand. Perspective direction must be genuinely reconstructed for every frame. Never create a left-facing sheet by mirroring a right-facing sheet. Keep hands, sash knot, pouches and face consistent with the reference.\nCRITICAL DIRECTION E: EXACT 90-DEGREE RIGHT SIDE PROFILE in ALL24 CELLS. Nose silhouette points horizontally RIGHT, only one eye visible, far shoulder overlaps the near shoulder. Torso is side-on, apron front appears as a narrow edge; NOT a three-quarter chest view. Reconstruct the side profile, keep the original worker identity.",
+      "selected": true,
+      "repair": null,
+      "sourceRelative": "docs/art/frontier/villager/source/e-source.png",
+      "sourceSha256": "8a9b97c41239e002be9c6b18c5102b8bb1b14f47dcc8028133cd94a070e8ab54",
+      "sourceBytes": 2123006
+    },
+    {
+      "index": 4,
+      "facing": "ne",
+      "artifactId": "de961e7a-4651-4bf9-9009-6afa18f2b9a6",
+      "prompt": "Use case: stylized-concept. Asset: a production RTS worker sprite action sheet, exactly FOUR equal columns and SIX equal rows (24 independently drawn animation frames), portrait canvas, genuinely transparent alpha. Input image is an identity/style reference only: faithfully match this same civilian worker's brown soft hat, dark beard, rolled cream linen sleeves, ochre leather apron with shoulder straps, teal waist sash, brown trousers, stout brown boots, belt pouches, and tool-holding hand. Warm handpainted frontier game art, roughly four-head proportions, readable natural shapes, warm upper-left illumination, no armor, swords, shield, modern gear, text, numbers, borders, scenery, grid lines or baked ground/shadow. Every frame is full body, exactly the same camera scale, identity and proportions; character feet centered on the same ground baseline in each invisible cell, tools fully inside the cell with generous transparent gutters. ROW 1 idle: four subtle but visibly different breathing/weight-settle poses, tool lowered. ROW 2 WALK: genuine left-contact, passing, right-contact, passing leg cycle, alternating bent knees and planted/raised boots with arm counter-swing; NOT copies or shifted versions of one pose. ROW 3 HARVEST: four axe-working poses, overhead windup, strong downward swing, low impact with bent knees, recovery; no target or scenery. ROW 4 HURT: recoil, brace on bent knees, regain balance, recover; no gore. ROW 5 DEATH: stagger, kneel, fall, lie still on the same ground line, tool down; same physical scale throughout. ROW 6 BUILD: four carpenter mallet poses, raise, strike, bend/impact, recover; axe holstered, mallet in the same anatomical tool hand. Perspective direction must be genuinely reconstructed for every frame. Never create a left-facing sheet by mirroring a right-facing sheet. Keep hands, sash knot, pouches and face consistent with the reference.\nCRITICAL DIRECTION NE: REAR THREE-QUARTER facing AWAY from camera toward UPPER-RIGHT. The worker's BACK, back of hat, crossed apron back straps and rear trousers are visible. Face mostly hidden (at most a sliver of right cheek). Do NOT show apron front or full face. ALL24 frames use the same genuine rear-right viewpoint.",
+      "selected": true,
+      "repair": null,
+      "sourceRelative": "docs/art/frontier/villager/source/ne-source.png",
+      "sourceSha256": "a2397f0deff0edcc6cc61a72d16e7e813ecb511f6b208286f7152d91be9cdc29",
+      "sourceBytes": 2261522
+    },
+    {
+      "index": 5,
+      "facing": "nw",
+      "artifactId": "4d35f76e-bb74-45dc-9c91-1fe1fa80a4b7",
+      "prompt": "Use case: stylized-concept. Asset: a production RTS worker sprite action sheet, exactly FOUR equal columns and SIX equal rows (24 independently drawn animation frames), portrait canvas, genuinely transparent alpha. Input image is an identity/style reference only: faithfully match this same civilian worker's brown soft hat, dark beard, rolled cream linen sleeves, ochre leather apron with shoulder straps, teal waist sash, brown trousers, stout brown boots, belt pouches, and tool-holding hand. Warm handpainted frontier game art, roughly four-head proportions, readable natural shapes, warm upper-left illumination, no armor, swords, shield, modern gear, text, numbers, borders, scenery, grid lines or baked ground/shadow. Every frame is full body, exactly the same camera scale, identity and proportions; character feet centered on the same ground baseline in each invisible cell, tools fully inside the cell with generous transparent gutters. ROW 1 idle: four subtle but visibly different breathing/weight-settle poses, tool lowered. ROW 2 WALK: genuine left-contact, passing, right-contact, passing leg cycle, alternating bent knees and planted/raised boots with arm counter-swing; NOT copies or shifted versions of one pose. ROW 3 HARVEST: four axe-working poses, overhead windup, strong downward swing, low impact with bent knees, recovery; no target or scenery. ROW 4 HURT: recoil, brace on bent knees, regain balance, recover; no gore. ROW 5 DEATH: stagger, kneel, fall, lie still on the same ground line, tool down; same physical scale throughout. ROW 6 BUILD: four carpenter mallet poses, raise, strike, bend/impact, recover; axe holstered, mallet in the same anatomical tool hand. Perspective direction must be genuinely reconstructed for every frame. Never create a left-facing sheet by mirroring a right-facing sheet. Keep hands, sash knot, pouches and face consistent with the reference.\nCRITICAL DIRECTION NW: REAR THREE-QUARTER facing AWAY from camera toward UPPER-LEFT. The worker's BACK, back of hat, crossed apron back straps and rear trousers are visible. Face mostly hidden (at most a sliver of left cheek). Do NOT show apron front or full face. ALL24 frames use the same genuine rear-left viewpoint; independently reconstruct this direction, do not mirror another sheet.",
+      "selected": true,
+      "repair": null,
+      "sourceRelative": "docs/art/frontier/villager/source/nw-source.png",
+      "sourceSha256": "5f310834d1daac23358415e67de26067a60b1bdcb486b8953537fc86ac307c81",
+      "sourceBytes": 2307733
+    },
+    {
+      "index": 6,
+      "facing": "w",
+      "artifactId": "facceac5-7336-4f84-9418-238bdee5ec35",
+      "prompt": "Use case: stylized-concept. Asset: a production RTS worker sprite action sheet, exactly FOUR equal columns and SIX equal rows (24 independently drawn animation frames), portrait canvas, genuinely transparent alpha. Input image is an identity/style reference only: faithfully match this same civilian worker's brown soft hat, dark beard, rolled cream linen sleeves, ochre leather apron with shoulder straps, teal waist sash, brown trousers, stout brown boots, belt pouches, and tool-holding hand. Warm handpainted frontier game art, roughly four-head proportions, readable natural shapes, warm upper-left illumination, no armor, swords, shield, modern gear, text, numbers, borders, scenery, grid lines or baked ground/shadow. Every frame is full body, exactly the same camera scale, identity and proportions; character feet centered on the same ground baseline in each invisible cell, tools fully inside the cell with generous transparent gutters. ROW 1 idle: four subtle but visibly different breathing/weight-settle poses, tool lowered. ROW 2 WALK: genuine left-contact, passing, right-contact, passing leg cycle, alternating bent knees and planted/raised boots with arm counter-swing; NOT copies or shifted versions of one pose. ROW 3 HARVEST: four axe-working poses, overhead windup, strong downward swing, low impact with bent knees, recovery; no target or scenery. ROW 4 HURT: recoil, brace on bent knees, regain balance, recover; no gore. ROW 5 DEATH: stagger, kneel, fall, lie still on the same ground line, tool down; same physical scale throughout. ROW 6 BUILD: four carpenter mallet poses, raise, strike, bend/impact, recover; axe holstered, mallet in the same anatomical tool hand. Perspective direction must be genuinely reconstructed for every frame. Never create a left-facing sheet by mirroring a right-facing sheet. Keep hands, sash knot, pouches and face consistent with the reference.\nCRITICAL DIRECTION W: EXACT 90-DEGREE LEFT SIDE PROFILE in ALL24 CELLS. Nose silhouette points horizontally LEFT, only one eye visible, far shoulder overlaps near shoulder. Torso side-on, apron front appears as a narrow edge; NOT a three-quarter chest view. Genuinely reconstruct this left-side view, never mirror another image; same anatomical tool hand and pouch locations as the reference.",
+      "selected": true,
+      "repair": null,
+      "sourceRelative": "docs/art/frontier/villager/source/w-source.png",
+      "sourceSha256": "debcc50bed4563cf7e81cd34b77b097ea152d52246b6e2665dbfdb2f30402fee",
+      "sourceBytes": 2172198
+    },
+    {
+      "index": 7,
+      "facing": "sw",
+      "artifactId": "b33bd8f9-8212-4534-adee-67c8cf495616",
+      "prompt": "Use case: stylized-concept. Asset: a production RTS worker sprite action sheet, exactly FOUR equal columns and SIX equal rows (24 independently drawn animation frames), portrait canvas, genuinely transparent alpha. Input image is an identity/style reference only: faithfully match this same civilian worker's brown soft hat, dark beard, rolled cream linen sleeves, ochre leather apron with shoulder straps, teal waist sash, brown trousers, stout brown boots, belt pouches, and tool-holding hand. Warm handpainted frontier game art, roughly four-head proportions, readable natural shapes, warm upper-left illumination, no armor, swords, shield, modern gear, text, numbers, borders, scenery, grid lines or baked ground/shadow. Every frame is full body, exactly the same camera scale, identity and proportions; character feet centered on the same ground baseline in each invisible cell, tools fully inside the cell with generous transparent gutters. ROW 1 idle: four subtle but visibly different breathing/weight-settle poses, tool lowered. ROW 2 WALK: genuine left-contact, passing, right-contact, passing leg cycle, alternating bent knees and planted/raised boots with arm counter-swing; NOT copies or shifted versions of one pose. ROW 3 HARVEST: four axe-working poses, overhead windup, strong downward swing, low impact with bent knees, recovery; no target or scenery. ROW 4 HURT: recoil, brace on bent knees, regain balance, recover; no gore. ROW 5 DEATH: stagger, kneel, fall, lie still on the same ground line, tool down; same physical scale throughout. ROW 6 BUILD: four carpenter mallet poses, raise, strike, bend/impact, recover; axe holstered, mallet in the same anatomical tool hand. Perspective direction must be genuinely reconstructed for every frame. Never create a left-facing sheet by mirroring a right-facing sheet. Keep hands, sash knot, pouches and face consistent with the reference.\nCRITICAL DIRECTION SW: FRONT THREE-QUARTER view facing toward screen LOWER-LEFT. Apron front, chest and face visible, nose points LEFT, both shoulders visible with left-side perspective. ALL24 frames use the same genuine front-left isometric viewpoint. Independently reconstruct this side, never mirror another sheet; preserve anatomical tool hand, belt pouch and sash asymmetry.",
+      "selected": false,
+      "repair": null,
+      "sourceRelative": "docs/art/frontier/villager/source/sw-rejected-7.png",
+      "sourceSha256": "bb42367b505871411186c6978125dc3284eb98a8fd5ee4928254c44f702f1828",
+      "sourceBytes": 2339641
+    },
+    {
+      "index": 8,
+      "facing": "sw",
+      "artifactId": "8999be2e-f42d-4694-a14a-4dd8abc40ca3",
+      "prompt": "Use case: identity-preserve game sprite edit. IMAGE1 is the edit target: the existing 4-column ×6-row worker action sheet. IMAGE2 is the worker identity reference. CHANGE ONLY TOP ROW (idle), all FOUR cells: currently those idle figures incorrectly face RIGHT. Redraw those four idle figures as FRONT THREE-QUARTER facing LOWER-LEFT, with nose pointing LEFT, matching the camera/heading of row2 WALK and rows3–6 in IMAGE1. Preserve their different subtle idle poses, hat, dark beard, rolled cream shirt, ochre apron, teal sash, boots, same anatomical tool hand and scale. Do not horizontally flip the existing figures; independently reconstruct correct front-left anatomy and garment asymmetry. Keep ALL of rows2,3,4,5,6 unchanged, preserve exact4x6 layout and generous transparent gutters. Maintain genuine transparent alpha, no backdrop, text, grid or ground. Output one complete corrected24-frame sheet.",
+      "selected": true,
+      "repair": "idle direction",
+      "sourceRelative": "docs/art/frontier/villager/source/sw-source.png",
+      "sourceSha256": "de81bcc88b1ed6e1ce620b2b9d6bd95aca023e4c156c7b805664689cd0c28720",
+      "sourceBytes": 2300230
+    }
+  ],
+  "processing": {
+    "tool": "sharp via scripts/normalize-directional-action-sheet.mjs",
+    "options": [
+      "--cell-width",
+      "96",
+      "--cell-height",
+      "112",
+      "--anchor-y",
+      "88",
+      "--safety-padding",
+      "2",
+      "--alpha-threshold",
+      "32",
+      "--cluster-source-frames",
+      "--uniform-scale",
+      "--uniform-figure-height",
+      "70"
+    ],
+    "creativeEdits": "No animation synthesized from mirrored or translated copies of one pose. Normalization only applies alpha cleanup, component extraction, one shared scale per sheet, and cell anchoring to the independently authored frames."
+  },
+  "nativeAssets": [
+    {
+      "facing": "e",
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/e.png",
+      "bytes": 37683,
+      "sha256": "95df560570a78779c768c28cc2114752d1204384adb8acfdfa250ee7e92549f2",
+      "width": 384,
+      "height": 672,
+      "hasAlpha": true
+    },
+    {
+      "facing": "ne",
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/ne.png",
+      "bytes": 43824,
+      "sha256": "739b92fec32c1f892120ec72ab119076fbbd7635c018f8f905f3a586b007df82",
+      "width": 384,
+      "height": 672,
+      "hasAlpha": true
+    },
+    {
+      "facing": "nw",
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/nw.png",
+      "bytes": 42264,
+      "sha256": "db680cb87d76d8145c4ccf715cc04d9a399469ea95382251d86d70b1a338d652",
+      "width": 384,
+      "height": 672,
+      "hasAlpha": true
+    },
+    {
+      "facing": "w",
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/w.png",
+      "bytes": 40694,
+      "sha256": "9b5ef6a16e176dd322026cf8b90dfae9cfb6bbfbc7707d2af37b012877e94a79",
+      "width": 384,
+      "height": 672,
+      "hasAlpha": true
+    },
+    {
+      "facing": "sw",
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/sw.png",
+      "bytes": 45956,
+      "sha256": "11d041372a24b9fc6a9995d7edc0f93f86b3cb761aa5c0d4db5d3aab240a1981",
+      "width": 384,
+      "height": 672,
+      "hasAlpha": true
+    },
+    {
+      "facing": "se",
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/se.png",
+      "bytes": 43984,
+      "sha256": "3f9a1939e3e95a3336043db16a21b5d102c2a0a02bb9600a431018487e18571b",
+      "width": 384,
+      "height": 672,
+      "hasAlpha": true
+    }
+  ],
+  "validation": {
+    "script": "scripts/validate-directional-action-sheets.mjs",
+    "columns": 4,
+    "rows": 6,
+    "framesUniquePerSheet": 24,
+    "totalAuthoredFrameCells": 144,
+    "edgePadding": 1,
+    "rejectCrossSheetReuse": true,
+    "rejectExactMirrors": true,
+    "result": "PASS",
+    "directionVisualReview": "E/W strict profile; NE/NW rear three-quarter; SE/SW front three-quarter. E first draft rejected for three-quarter view; SW idle row corrected because it originally faced right.",
+    "movementPoseReview": "Walk frames use alternating legs/knees/boots; work/build rows use axe/mallet body bends; death remains a shorter horizontal body at the shared scale.",
+    "limitation": "Single-perspective action row poses may yaw slightly during work/fall. This does not claim a rigid3D skeleton or per-resource unique tool sheet."
+  },
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

@@ -441,7 +441,7 @@ describe("deterministic player visibility", () => {
     const state = createInitialState({
       seed: 81,
       matchId: "fatal-monster-provocation-visibility",
-      map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "pinehold" },
     });
     const ownUnit = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1")!;
     const hiddenEnemy = state.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-2")!;

@@ -6,6 +6,222 @@
   "perRuntimeFileBudgetBytes": 2097152,
   "assets": [
     {
+      "file": "apps/client/public/assets/original/frontier/buildings-source.png",
+      "sha256": "05d0df6ee0bcb8ece5ea2a2b7b41a4d61d08f624d76a51aba83c441f38e8937a",
+      "bytes": 1771464,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/buildings.png",
+      "sha256": "89bbe72d4f50cffaaa559996d5cf82612cdaa8dc95fc5ac40d6ce5e3059d739e",
+      "bytes": 2085918,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/archer/facings/e.png",
+      "sha256": "645e2ef1a14d8d18c4b4e3e9a5dba5df52fb2fa21d7aa9df4613b8d9bddd8001",
+      "bytes": 47246,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/archer/facings/ne.png",
+      "sha256": "7434f59a7823816646055d04c6fc10154b9464c0f9606d50c83aed72605299e5",
+      "bytes": 47890,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/archer/facings/nw.png",
+      "sha256": "950bfd419ad7445151b0b171cf4d4f77c2adec700a89e072d5e50aa507eed652",
+      "bytes": 47764,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/archer/facings/se.png",
+      "sha256": "0e69142f3c08cf3ffd1bde94b30b451e5b592a265eb89001a622c666838d341d",
+      "bytes": 47804,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/archer/facings/sw.png",
+      "sha256": "06a9409b8c5f80fcc3bdfcc79a6248fb01071349a46b4e54b327a12eca305785",
+      "bytes": 49797,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/archer/facings/w.png",
+      "sha256": "a0e20fd27446afaeec5419f3245dfcb0fc9d21bc118405fb96dc2edc5b2a4351",
+      "bytes": 48928,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/boarRider/action-sheet.png",
+      "sha256": "8690dc1829bc6fb221e085774754e5b4a8a3ad82c3d0196d894cf3b40dcda38a",
+      "bytes": 383707,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/heavyCrossbowman/action-sheet.png",
+      "sha256": "e42a5617eb75f3c0465a9020223139781da6117c00580dc9f98f9be9428b7c0c",
+      "bytes": 328111,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/mage/action-sheet.png",
+      "sha256": "3a813200018f635ae57a7930236933b5fd3021345b5aeea73415cd0a1f79a002",
+      "bytes": 297759,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/musketeer/action-sheet.png",
+      "sha256": "f686413d13124efc68cde5dec1bf1bf375f79a0bfddc65af3d3fc1a1bfea9481",
+      "bytes": 321865,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/shieldBearer/facings/e.png",
+      "sha256": "f70cdfdd9b3a6dca566962ab952a8342324e33f4bc27c3ffd2977449770f7fd3",
+      "bytes": 51714,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/shieldBearer/facings/ne.png",
+      "sha256": "ca9593285b3cbca5930426d30e1392d75662470adac8cc6d28ee76364ea17991",
+      "bytes": 56766,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/shieldBearer/facings/nw.png",
+      "sha256": "3db626bd6e1d5fb97d22b4f83923e98832787b66e3f647d1798a27a7bbe935ab",
+      "bytes": 57804,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/shieldBearer/facings/se.png",
+      "sha256": "aa275f1f15ad2fd42691e4376c9b75a51d6965114bec28d637eddb97a674af13",
+      "bytes": 57547,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/shieldBearer/facings/sw.png",
+      "sha256": "238187fc9dacc0eb646cce73367f6270a4b52850744188c70b0e2034c07a338c",
+      "bytes": 53954,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/shieldBearer/facings/w.png",
+      "sha256": "185e1103e9ceab2fdef4362c13679eb551461f9f99beda14be9cd00353cd229d",
+      "bytes": 50940,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/e.png",
+      "sha256": "95df560570a78779c768c28cc2114752d1204384adb8acfdfa250ee7e92549f2",
+      "bytes": 37683,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/ne.png",
+      "sha256": "739b92fec32c1f892120ec72ab119076fbbd7635c018f8f905f3a586b007df82",
+      "bytes": 43824,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/nw.png",
+      "sha256": "db680cb87d76d8145c4ccf715cc04d9a399469ea95382251d86d70b1a338d652",
+      "bytes": 42264,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/se.png",
+      "sha256": "3f9a1939e3e95a3336043db16a21b5d102c2a0a02bb9600a431018487e18571b",
+      "bytes": 43984,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/sw.png",
+      "sha256": "11d041372a24b9fc6a9995d7edc0f93f86b3cb761aa5c0d4db5d3aab240a1981",
+      "bytes": 45956,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/villager/facings/w.png",
+      "sha256": "9b5ef6a16e176dd322026cf8b90dfae9cfb6bbfbc7707d2af37b012877e94a79",
+      "bytes": 40694,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/warrior/facings/e.png",
+      "sha256": "de5fd43debcc2bf5eefce22a8d90d81f68662a594cb31589b6dee6cc5bf87991",
+      "bytes": 35692,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/warrior/facings/ne.png",
+      "sha256": "0b2456360d33fced354f9aad7d7cfc6dff053eb1957d44b5e72211f371edfbef",
+      "bytes": 44308,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/warrior/facings/nw.png",
+      "sha256": "c810fc9ff8ca6f97feeb9b81a2731c6a5fb4beed76383b832652a197e57b5019",
+      "bytes": 44919,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/warrior/facings/se.png",
+      "sha256": "f0a9c717d9d3d1b79dd152901301478d13a8cc572459d6caf2d033c9aa9fab64",
+      "bytes": 44638,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/warrior/facings/sw.png",
+      "sha256": "a2809a0213292362f4c7109cc83f0ff884e288245f15b5621d05629a3d884a31",
+      "bytes": 48940,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/characters/warrior/facings/w.png",
+      "sha256": "e16a29eb35af561a70edc1c5c6390fbcd37aa25095389855d47dc3b949f14c31",
+      "bytes": 41759,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/cover.webp",
+      "sha256": "dbcb54eea32c127ce0243efbefba8b800682b2afa344132a944fa991930987b3",
+      "bytes": 455970,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/landscape/materials.png",
+      "sha256": "6bdd08326998b52c31fd12806870bd00b70c85c5f847b1605137bbb7d5e84151",
+      "bytes": 684618,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/landscape/nature.png",
+      "sha256": "2831a61efdb26bf903661ffcc58a272aa89856483cc5e3341da78c3a9d7cd9bd",
+      "bytes": 578547,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/monsters/ashwing/action-sheet.png",
+      "sha256": "3abc28fdd63e0c6d2f7213b442607a90e520081368d782f84464ddd11169959b",
+      "bytes": 319530,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/monsters/miremaw/action-sheet.png",
+      "sha256": "ec558b2ecdc37c26bf0816f91c4a919c7c09db01eb58b028b32c198afdcfcdfb",
+      "bytes": 436651,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/monsters/rootback/action-sheet.png",
+      "sha256": "ad6c3f3a87cba500fad2a0745283d6d13f1a6526c37bfb2ed7ec26a2cc729397",
+      "bytes": 295652,
+      "runtime": true
+    },
+    {
       "file": "apps/client/public/assets/original/monsters/ashwing/portrait.png",
       "sha256": "5104bf34e68fe9648a2dd9c9817e7c007726ec8865ecb63151538e1f7d0bc222",
       "bytes": 362592,
@@ -21,7 +237,7 @@
       "file": "apps/client/public/assets/original/monsters/ashwing/sprites/action-sheet.png",
       "sha256": "675a9d9dff38d654dbfc0b070599caac7adf5c2ef56cf422ebce659fe6b032bb",
       "bytes": 1150374,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/monsters/miremaw/portrait.png",
@@ -39,7 +255,7 @@
       "file": "apps/client/public/assets/original/monsters/miremaw/sprites/action-sheet.png",
       "sha256": "01adda2d53c06e35178b571fb12c2f21e3c13fa1c4d263445bf8c063ed784dae",
       "bytes": 1633429,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/monsters/rootback/portrait.png",
@@ -57,7 +273,7 @@
       "file": "apps/client/public/assets/original/monsters/rootback/sprites/action-sheet.png",
       "sha256": "00d0974f2f06c42168410f679e59c34cf68bc21bbe7117ac2f16040bc56a37d5",
       "bytes": 1585564,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/source/combat-lineup-approved-alpha.png",
@@ -99,37 +315,37 @@
       "file": "apps/client/public/assets/original/units/archer/sprites/facings/e.png",
       "sha256": "488bbb308b1f5a3deeebbb6d96c9c77b5b7f4df439236fd917617ba33afc9074",
       "bytes": 208100,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/archer/sprites/facings/ne.png",
       "sha256": "84233238c88f77a987516df57f6f1d1599faef4850f0f33347e4655e97492bd9",
       "bytes": 212944,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/archer/sprites/facings/nw.png",
       "sha256": "19425221fc1d9be1251f06a374e9912b512c773754e2ebabdea8492d9f24f6e9",
       "bytes": 209654,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/archer/sprites/facings/se.png",
       "sha256": "145871d9890b2e98cacdb3051025d11f164e47b4b4508842e8e858bd9a99f578",
       "bytes": 221504,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/archer/sprites/facings/sw.png",
       "sha256": "5503fcfa0f8a299a393b8b718e6ce82d915e348b0fdfc133b0653da68492808b",
       "bytes": 216658,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/archer/sprites/facings/w.png",
       "sha256": "abb6db8cf74eed4c823108f6048c2d3a214f0aa0ccb1d2ed3ef98b11bbe85bfe",
       "bytes": 209272,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/boarRider/portrait.png",
@@ -147,7 +363,7 @@
       "file": "apps/client/public/assets/original/units/boarRider/sprites/action-sheet.png",
       "sha256": "e070f202aed9b331045800b1dad5637b3ff6605432ab33a54c32f88822698f14",
       "bytes": 1303179,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/heavyCrossbowman/portrait.png",
@@ -165,7 +381,7 @@
       "file": "apps/client/public/assets/original/units/heavyCrossbowman/sprites/action-sheet.png",
       "sha256": "78bb6b4ccabb7d567877fb48ddeb0d8ffb71dc63538aff21e4e13a71d8c3877a",
       "bytes": 1230141,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/mage/portrait.png",
@@ -183,7 +399,7 @@
       "file": "apps/client/public/assets/original/units/mage/sprites/action-sheet.png",
       "sha256": "587034c8bf62146bcd79c0045f4622ad45ea487a93f92bf60c8d2f2108f73491",
       "bytes": 1324180,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/musketeer/portrait.png",
@@ -201,7 +417,7 @@
       "file": "apps/client/public/assets/original/units/musketeer/sprites/action-sheet.png",
       "sha256": "3480875aa8c5dff3c8a258d2ccd8f5729556c10919750bf37d6b8e9bcb009ce9",
       "bytes": 1140694,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/shieldBearer/portrait.png",
@@ -219,37 +435,37 @@
       "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/e.png",
       "sha256": "e4107c01ee756052cafc95a2469dfa6705c6805523ad076b638edf73ebc7fd3e",
       "bytes": 257027,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/ne.png",
       "sha256": "01957321416d44b2e384843cc29393b34814beb0ef503327dcab9944ff4f7e5b",
       "bytes": 253607,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/nw.png",
       "sha256": "ce11e16ec737fc6db0963cf6f6f66dfbcfc8eabc3f005afac1cccd3ae8c392e5",
       "bytes": 274171,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/se.png",
       "sha256": "3c798bc19d3011c6c2859bced0847e15e6cbdd9e88644d13de0f939254cb7df9",
       "bytes": 284869,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/sw.png",
       "sha256": "20cfa542ede6ad3110a7e8378110116e16c2cbabad8128180c8bcbc61e482f10",
       "bytes": 252293,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/shieldBearer/sprites/facings/w.png",
       "sha256": "53a62107be34c364f72f400f2d9e9a85bb19e007cbc63262d14605fb9ac15f22",
       "bytes": 261286,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/warrior/portrait.png",
@@ -267,55 +483,37 @@
       "file": "apps/client/public/assets/original/units/warrior/sprites/facings/e.png",
       "sha256": "2e8ec0dfba7ba2e7c25db64f5473223762db6a1d17785d7b780d3f3d7df2165e",
       "bytes": 211458,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/warrior/sprites/facings/ne.png",
       "sha256": "9c228f8861b9f55213f8899712156e825d06d729116060a1e25495b9534ee65d",
       "bytes": 223668,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/warrior/sprites/facings/nw.png",
       "sha256": "3ad79d9021a5c5a6f97863368dcbe3f1481a2a4214d453d4ee11645b55f4fe00",
       "bytes": 224308,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/warrior/sprites/facings/se.png",
       "sha256": "b1fda8a7e55fc8ca9ed257310d1cc23ddd258bb47d05f3af627f552b4f94d735",
       "bytes": 226867,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/warrior/sprites/facings/sw.png",
       "sha256": "8daa14f1a3b23705d56752628fbd7600b6874fa4250a155659c304e353442676",
       "bytes": 233205,
-      "runtime": true
+      "runtime": false
     },
     {
       "file": "apps/client/public/assets/original/units/warrior/sprites/facings/w.png",
       "sha256": "e882467e1aee8598f7c3916f2ffaa9e380b6564708420a70751403b720376439",
       "bytes": 213502,
-      "runtime": true
-    },
-    {
-      "file": "apps/client/public/assets/original/frontier/buildings-source.png",
-      "sha256": "05d0df6ee0bcb8ece5ea2a2b7b41a4d61d08f624d76a51aba83c441f38e8937a",
-      "bytes": 1771464,
       "runtime": false
-    },
-    {
-      "file": "apps/client/public/assets/original/frontier/buildings.png",
-      "sha256": "89bbe72d4f50cffaaa559996d5cf82612cdaa8dc95fc5ac40d6ce5e3059d739e",
-      "bytes": 2085918,
-      "runtime": true
-    },
-    {
-      "file": "apps/client/public/assets/original/frontier/cover.webp",
-      "sha256": "dbcb54eea32c127ce0243efbefba8b800682b2afa344132a944fa991930987b3",
-      "bytes": 455970,
-      "runtime": true
     }
   ]
 }

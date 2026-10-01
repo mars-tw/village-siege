@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "unitId": "musketeer",
+  "generator": "Built-in image_gen tool",
+  "style": "Original frontier roster; detailed hand-painted semi-realistic approximately 4.5-head human proportions",
+  "reference": {
+    "path": "docs/art/frontier/references/musketeer.png",
+    "sha256": "f5ed2fad6aa9cff97dcd4e14f1e18a0e64dda79f9aa40ffd2476dba8fcb4062a"
+  },
+  "authoring": {
+    "nativeDirections": [
+      "se"
+    ],
+    "singleAuthoredDirection": true,
+    "nativeSixDirectionClaim": false,
+    "poseRows": [
+      "idle",
+      "walk",
+      "attack",
+      "hurt",
+      "death",
+      "cast"
+    ],
+    "framesPerAction": 4
+  },
+  "rawSources": [
+    {
+      "path": "docs/art/frontier/musketeer/source/generated-01.png",
+      "sha256": "4dc84346104b2c3b479da742c4cfe9546622865c2fffe23aaf66f33da76368aa",
+      "bytes": 2551726,
+      "promptPath": "docs/art/frontier/musketeer/source/prompt-01.txt",
+      "selected": true,
+      "toolOutputFile": "exec-f3d9aae1-ef99-4d43-afbb-7922e1017a34.png"
+    }
+  ],
+  "normalized": {
+    "path": "apps/client/public/assets/original/frontier/characters/musketeer/action-sheet.png",
+    "sha256": "f686413d13124efc68cde5dec1bf1bf375f79a0bfddc65af3d3fc1a1bfea9481",
+    "bytes": 321865,
+    "width": 1024,
+    "height": 1536,
+    "columns": 4,
+    "rows": 6,
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "anchorX": 128,
+    "anchorY": 224,
+    "artScale": 0.3,
+    "uniqueFrameHashes": 24,
+    "frameHashes": [
+      "d86889ef603845fc36ac40a81ad9ef8348bce1af13ef57720e581661c522f41c",
+      "579edc8a27e79ff5c26db5bfe9d77f9641df661abc8cc5f40e577dca32608846",
+      "fa422fc14ba95ed1deec23d4af24e4cd6075d45e179a3211094f427606288410",
+      "e9d8bfbcc0619ab397ce5be7734f6b261cfcbd8784d26c53c9421470462ea91c",
+      "65c8e2c26493c6dc2de1214074039d9bd8600d8e9c58081c78b86b4fee3f8d0b",
+      "921c0e889f85d3f53f8aa99d0f386cff8369d82d06e8584c0496bad9dc351b5e",
+      "eef80b7b589bf6b65facf449789e5c5df3419dbf5297d950e0d606c9bf2ef9d5",
+      "adce45af2272d3d9f371b99f89e7eaea17c5b1337dc0f9174b4da5ff6370e0ca",
+      "bfcbe6ad53685ed9e494d23b6ccac82868db2920e52d2b0d866c38b309598779",
+      "1e345ee93f3fc748e987ea1c74063f8bdae11e79c907775564a07bae2a829fc3",
+      "1a66465bd2912f8800d01b1951916359972fec86f812e9c5b9d614ddce9408dd",
+      "487e8e82b2260759a4c6b678c3cedf923e31c0199aaa5c6ea1612a0deac71a0b",
+      "6be552eb23a44f8364754dd2d243dd9624fa03e2c24ed90583cb9d10b36c5841",
+      "1b2ee7437ba8d128026f897f1839ae215d5597faf06a408a7967216a0561dd26",
+      "96aa1d5b14938e67c19ba9e73577e539a0f7db921ea9b1cfa0ad542e4721d6ab",
+      "404969d7899376577a9f43c1f64f16e0a26e7c35fa44475b69438b92ba924d0a",
+      "beeb58a6fad0a9a030d1e039ce70b2cdfe1f5c992feab7ef0d67da656f7e81e3",
+      "88a0c3cea0d2aa3584821fc0a247d8b356403eed7f5cc229ee5b6b4d30519aed",
+      "755e3d8a5ea5309eb7468476fdf4099519602a1d64f7b8353f2715f0e01f8f74",
+      "e8047b74da05ad20acbb77f521a95535e35cc7bcf93aa6768ad14ad48d29f8d5",
+      "d7edf8a494ece2647cc290a88581f7c66e29128214f737ffc1c3c8cb2aee062b",
+      "9f0f852036a8bd0c6e3e96b7bf41c72ff9c1fa0d0c7fd09da2f12761d44b23e1",
+      "85dc825f7a58afa6041102c18bdfd0c5ee36406b6ff0ab4fb79f020ba388284b",
+      "db5af959b21122e4a01e52a72f41c2fe639a8dafae856640fe1d588433c85295"
+    ],
+    "transparentPixels": 1203943,
+    "meanForegroundAlpha": 236.1286324272656
+  },
+  "normalization": {
+    "script": "scripts/normalize-directional-action-sheet.mjs",
+    "options": [
+      "--cell-width",
+      "256",
+      "--cell-height",
+      "256",
+      "--anchor-y",
+      "224",
+      "--uniform-scale",
+      "--uniform-figure-height",
+      "220",
+      "--cluster-source-frames"
+    ],
+    "deathFigureScale": "Uniform scale shared by all frames; fallen bodies are not enlarged"
+  },
+  "validation": {
+    "tool": "scripts/validate-directional-action-sheets.mjs",
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "edgePadding": 1,
+    "rejectCrossSheetReuse": true,
+    "status": "PASS",
+    "scope": "Native cell/alpha/unique-frame contract; not a claim of six authored directions"
+  },
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

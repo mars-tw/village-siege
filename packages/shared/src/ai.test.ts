@@ -457,13 +457,11 @@ describe("shared AI personalities", () => {
   it("uses the selected village terrain while treating open gates and rubble as placement-only blockers", () => {
     const state = createInitialState({
       seed: 176,
-      map: { id: "villageAssault", width: 18, height: 16, layoutId: "highcrag" },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "highcrag" },
     });
-    const gate = state.entities.find((entity): entity is BuildingEntityState => (
-      entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "surveyGate"
-    ));
-    expect(gate).toBeDefined();
-    gate!.gateOpen = true;
+    const town = state.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1")!;
+    const gate: BuildingEntityState = { ...town, id: "authored-test-gate", typeId: "surveyGate", position: { x: 8, y: 12 }, orientation: "se", gateOpen: true, productionQueue: [], rallyPoint: null };
+    state.entities.push(gate);
     const gateCells = getEntityFootprintCells(gate!);
     const openModel = getAiKnownSpatialModel(getAiObservation(state, "player-1"));
     expect(openModel.walkBlockedCells).not.toEqual(expect.arrayContaining(gateCells));
@@ -643,7 +641,7 @@ function runAiForTicks(personality: AiPersonality, ticks: number, villageMap = f
     seed: 20260717,
     matchId: `long-run-${personality}`,
     ...(villageMap ? {
-      map: { id: "villageAssault" as const, width: 18, height: 16 },
+      map: { id: "villageAssault" as const, width: 32, height: 24 },
       spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
     } : {}),
   });
@@ -702,7 +700,7 @@ function runFortifiedAiForTicks(
   let state = createInitialState({
     seed: 20260721,
     matchId: `fortified-${layoutId}-${personality}`,
-    map: { id: "villageAssault", width: 18, height: 16, layoutId },
+    map: { id: "villageAssault", width: 32, height: 24, layoutId },
   });
   const controller = createAiController(personality, "player-1", 20260721, "standard");
   const rejections: string[] = [];

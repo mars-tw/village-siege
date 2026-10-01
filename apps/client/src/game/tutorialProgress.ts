@@ -37,7 +37,7 @@ export const TUTORIAL_STEPS: readonly TutorialStepDefinition[] = [
     id: "fog",
     title: "派部隊探索未知地形",
     shortTitle: "探索迷霧",
-    hint: "用既有兵營訓練 2–3 名戰士，再選軍隊前往黑霧邊緣；探索命令後須新發現至少十格。",
+    hint: "選工匠建造兵營，訓練 2–3 名戰士，再派軍隊前往黑霧邊緣；探索命令後須新發現至少十格。",
   },
   {
     id: "combat",
@@ -47,15 +47,15 @@ export const TUTORIAL_STEPS: readonly TutorialStepDefinition[] = [
   },
   {
     id: "breach",
-    title: "摧毀敵方城牆或城門建立破口",
-    shortTitle: "建立破口",
-    hint: "以多名戰士、盾衛或弓手集中攻擊敵方城門；持續集火直到出現可穿越破口。",
+    title: "摧毀一座敵方建築",
+    shortTitle: "攻破建築",
+    hint: "偵察敵方基地，派軍隊集中攻擊一座敵方建築；兵營、城牆、城門或主城皆可。",
   },
   {
     id: "victory",
     title: "取得本場戰役勝利",
     shortTitle: "贏得戰役",
-    hint: "穿過破口摧毀敵方主城，或完成地標／中域控制；勝利後教學才算完成。",
+    hint: "摧毀敵方主城，或完成地標／中域控制；勝利後教學才算完成。",
   },
 ] as const;
 
@@ -120,7 +120,6 @@ export function recordTutorialAcceptedCommand(
   const target = command.type === "attack" ? view.entities.find((entity) => entity.id === command.targetId) : undefined;
   const breachTargetIds = target?.kind === "building"
     && target.ownerId === opponentPlayerId
-    && (target.typeId === "resinPalisade" || target.typeId === "surveyGate")
     ? mergeIds(progress.breachTargetIds, [target.id])
     : progress.breachTargetIds;
   const militaryIds = new Set(view.entities
@@ -208,9 +207,13 @@ export function updateTutorialProgress(
   ))) accomplishments.combat = true;
   const commandedBreachTargets = new Set(previous.breachTargetIds);
   if (events.some((event) => (
-    event.type === "breachCreated"
-    && event.ownerId === opponentPlayerId
-    && commandedBreachTargets.has(event.structureId)
+    (event.type === "breachCreated"
+      && event.ownerId === opponentPlayerId
+      && commandedBreachTargets.has(event.structureId))
+    || (event.type === "entityRemoved"
+      && event.entity.kind === "building"
+      && event.entity.ownerId === opponentPlayerId
+      && commandedBreachTargets.has(event.entityId))
   ))) {
     accomplishments.breach = true;
   }

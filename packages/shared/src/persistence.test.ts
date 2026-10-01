@@ -433,8 +433,8 @@ describe("versioned authoritative-private persistence", () => {
 
     const assault = createPersistenceState(912, {
       id: "villageAssault",
-      width: 18,
-      height: 16,
+      width: 32,
+      height: 24,
       layoutId: "pinehold",
     });
     const assaultSave = createMatchSaveFile(assault, runtimeMetadata(assault));

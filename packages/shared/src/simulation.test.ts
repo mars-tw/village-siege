@@ -95,7 +95,7 @@ describe("deterministic shared simulation", () => {
   it("defines the original three-tier settlement content and frontier defaults", () => {
     const state = createInitialState({ seed: 1, matchId: "settlement-content" });
 
-    expect(RULES_VERSION).toBe("village-siege/0.18.1");
+    expect(RULES_VERSION).toBe("village-siege/0.19.0");
     expect(SETTLEMENT_TIERS).toEqual({
       frontier: { id: "frontier", cost: { food: 0, wood: 0, stone: 0 }, advanceTicks: 0, prerequisites: [] },
       stronghold: { id: "stronghold", cost: { food: 500, wood: 300, stone: 100 }, advanceTicks: 450, prerequisites: ["barracks", "lumberCamp"] },
@@ -697,7 +697,7 @@ describe("deterministic shared simulation", () => {
       const state = createInitialState({
         seed: 231,
         matchId: `village-assault-spawns-${layoutId}`,
-        map: { id: "villageAssault", width: 18, height: 16, layoutId },
+        map: { id: "villageAssault", width: 32, height: 24, layoutId },
         players: [
           { id: "p1", teamId: "t1", villageId: "pinehold" },
           { id: "p2", teamId: "t2", villageId: "riverstead" },
@@ -712,7 +712,7 @@ describe("deterministic shared simulation", () => {
       const keys = staticCells.map((cell) => `${cell.x},${cell.y}`);
 
       expect(new Set(keys).size, `${layoutId} static entities must not overlap`).toBe(keys.length);
-      expect(staticCells.every((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < 18 && cell.y < 16)).toBe(true);
+      expect(staticCells.every((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < 32 && cell.y < 24)).toBe(true);
       for (const entity of state.entities) {
         if (entity.kind === "building" || entity.kind === "resource") {
           expect(getEntityFootprintCells(entity).every((cell) => isVillageAssaultBuildableCell(cell, layoutId)), `${layoutId}.${entity.id} must use buildable terrain`).toBe(true);
@@ -735,7 +735,7 @@ describe("deterministic shared simulation", () => {
       const state = createInitialState({
         seed: 2311,
         matchId: `overlapping-overrides-${layoutId}`,
-        map: { id: "villageAssault", width: 18, height: 16, layoutId },
+        map: { id: "villageAssault", width: 32, height: 24, layoutId },
         players,
         spawnOverrides: Object.fromEntries(players.map((player) => [player.id, { x: 3, y: 8 }])),
       });
@@ -744,27 +744,24 @@ describe("deterministic shared simulation", () => {
     }
   });
 
-  it("bootstraps a deterministic fortified assault with working civilians and three neutral monsters", () => {
+  it("bootstraps deterministic open settlements with working civilians and optional side camps", () => {
     const initial = createInitialState({
       seed: 232,
       matchId: "fortified-assault-bootstrap",
-      map: { id: "villageAssault", width: 18, height: 16, layoutId: "riverstead" },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "riverstead" },
     });
     const replay = createInitialState({
       seed: 232,
       matchId: "fortified-assault-bootstrap",
-      map: { id: "villageAssault", width: 18, height: 16, layoutId: "riverstead" },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "riverstead" },
     });
     expect(hashMatchState(initial)).toBe(hashMatchState(replay));
 
-    for (const [index, player] of initial.players.entries()) {
+    for (const player of initial.players) {
       const buildings = initial.entities.filter((entity) => entity.kind === "building" && entity.ownerId === player.id);
       expect(buildings.filter((building) => building.typeId === "townCenter")).toHaveLength(1);
-      expect(buildings.filter((building) => building.typeId === "surveyGate")).toHaveLength(1);
-      expect(buildings.filter((building) => building.typeId === "defenseTower")).toHaveLength(2);
-      expect(buildings.filter((building) => building.typeId === "resinPalisade").length).toBeGreaterThanOrEqual(8);
-      expect(buildings.some((building) => building.typeId === "barracks")).toBe(true);
-      expect(buildings.find((building) => building.typeId === "surveyGate")?.gateOpen).toBe(index === 0);
+      expect(buildings).toHaveLength(1);
+      expect(buildings.some((building) => ["surveyGate", "resinPalisade", "defenseTower", "barracks"].includes(building.typeId))).toBe(false);
       const civilians = initial.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager");
       expect(civilians).toHaveLength(3);
       expect(civilians.every((civilian) => civilian.order.type === "gather")).toBe(true);
@@ -784,7 +781,7 @@ describe("deterministic shared simulation", () => {
       let state = createInitialState({
         seed: 235,
         matchId: `civilian-routes-${layoutId}`,
-        map: { id: "villageAssault", width: 18, height: 16, layoutId },
+        map: { id: "villageAssault", width: 32, height: 24, layoutId },
       });
       const civilianIds = state.entities
         .filter((entity) => entity.kind === "unit" && entity.typeId === "villager")
@@ -804,7 +801,7 @@ describe("deterministic shared simulation", () => {
     let state = createInitialState({
       seed: 233,
       matchId: "neutral-monster-combat",
-      map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "pinehold" },
     });
     const player = state.players[0]!;
     const villager = state.entities.find((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === player.id && entity.typeId === "villager")!;
@@ -845,7 +842,7 @@ describe("deterministic shared simulation", () => {
       const state = createInitialState({
         seed: 234,
         matchId: `monster-ability-${typeId}`,
-        map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+        map: { id: "villageAssault", width: 32, height: 24, layoutId: "pinehold" },
       });
       const player = state.players[0]!;
       const monster = state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.typeId === typeId)!;
@@ -885,7 +882,7 @@ describe("deterministic shared simulation", () => {
       const state = createInitialState({
         seed: 235,
         matchId: `rootback-strike-${enraged}`,
-        map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+        map: { id: "villageAssault", width: 32, height: 24, layoutId: "pinehold" },
       });
       const player = state.players[0]!;
       const monster = state.entities.find((entity): entity is MonsterEntityState => entity.kind === "monster" && entity.typeId === "rootback")!;
@@ -1377,12 +1374,12 @@ describe("deterministic shared simulation", () => {
     const initial = createInitialState({
       seed: 261,
       matchId: "walkable-training-exit",
-      map: { id: "villageAssault", width: 18, height: 16 },
+      map: { id: "villageAssault", width: 32, height: 24 },
       spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
     });
     const townCenter = initial.entities.find((entity) => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "townCenter")!;
     if (townCenter.kind !== "building") throw new Error("missing town center");
-    townCenter.position = { x: 8, y: 13 };
+    townCenter.position = { x: 15, y: 3 };
     const existingVillagerIds = new Set(initial.entities.filter((entity) => entity.kind === "unit" && entity.ownerId === "player-1").map((entity) => entity.id));
     const queued = applyCommand(initial, envelope(initial, 0, { type: "train", producerId: townCenter.id, unitType: "villager", count: 1 }));
     expect(queued.validation).toEqual({ ok: true });
@@ -1391,7 +1388,7 @@ describe("deterministic shared simulation", () => {
     const trained = result.entities.find((entity) => entity.kind === "unit" && entity.ownerId === "player-1" && !existingVillagerIds.has(entity.id));
     expect(trained?.kind).toBe("unit");
     expect(trained && isVillageAssaultWalkableCell(trained.position)).toBe(true);
-    expect(trained?.position).not.toEqual({ x: 8, y: 12 });
+    expect(trained?.position).not.toEqual({ x: 15, y: 2 });
   });
 
   it("skips a free but cardinally sealed producer exit without cutting through open diagonal corners", () => {
@@ -1414,14 +1411,28 @@ describe("deterministic shared simulation", () => {
   });
 
   it("holds a paid completed barracks job in a sealed multi-cell pocket and resumes only after normal harvesting opens its exit", () => {
-    const initial = createInitialState({ seed: 263, matchId: "fortified-training-pocket", map: { id: "villageAssault", width: 18, height: 16 } });
-    initial.entities = initial.entities.filter((entity) => entity.kind !== "monster");
+    const initial = createInitialState({ seed: 263, matchId: "sealed-training-pocket", map: { id: "open", width: 18, height: 16 } });
+    const workers = initial.entities.filter((entity): entity is UnitEntityState => entity.kind === "unit" && entity.ownerId === "player-1");
+    const wood = initial.entities.find((entity): entity is ResourceEntityState => entity.kind === "resource" && entity.typeId === "wood")!;
+    initial.entities = initial.entities.filter((entity) => entity.kind === "building" && entity.typeId === "townCenter");
+    const ownTown = initial.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1")!;
+    ownTown.position = { x: 1, y: 11 };
+    const enemyTown = initial.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-2")!;
+    enemyTown.position = { x: 15, y: 10 };
+    const barracks = addCompletedBuilding(initial, "player-1", "barracks", "sealed-barracks", { x: 4, y: 4 });
+    for (let y = 3; y <= 7; y += 1) for (let x = 3; x <= 6; x += 1) {
+      if ((x === 3 || x === 6 || y === 3 || y === 7) && !(x === 5 && y === 7)) addCompletedBuilding(initial, "player-1", "house", `pocket-${x}-${y}`, { x, y });
+    }
+    wood.position = { x: 5, y: 7 };
+    initial.entities.push(wood);
+    for (const [index, position] of [{ x: 5, y: 8 }, { x: 4, y: 6 }, { x: 7, y: 8 }].entries()) {
+      workers[index]!.position = position;
+      initial.entities.push(workers[index]!);
+    }
     for (const entity of initial.entities) if (entity.kind === "unit") {
       entity.order = { type: "idle" };
       entity.stance = "holdGround";
     }
-    const barracks = initial.entities.find((entity): entity is BuildingEntityState => entity.kind === "building" && entity.ownerId === "player-1" && entity.typeId === "barracks")!;
-    const wood = initial.entities.find((entity): entity is ResourceEntityState => entity.kind === "resource" && entity.typeId === "wood" && entity.position.x === 5 && entity.position.y === 7)!;
     // A late-game forest with one harvest left still blocks movement until depleted.
     wood.amount = 6;
     wood.hitPoints = 6;
@@ -1956,7 +1967,7 @@ describe("deterministic shared simulation", () => {
     let state = createInitialState({
       seed: 3221,
       matchId: "delayed-monster-attribution",
-      map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "pinehold" },
     });
     const player = state.players[0]!;
     const source = configureCombatUnit(state, player.id, 0, "mage", { x: 5, y: 5 });
@@ -2068,11 +2079,11 @@ describe("deterministic shared simulation", () => {
     let state = createInitialState({
       seed: 324,
       matchId: "projectile-terrain-block",
-      map: { id: "villageAssault", width: 18, height: 16 },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "highcrag" },
       spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
     });
-    const crossbow = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 10, y: 2 });
-    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 2 });
+    const crossbow = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 18, y: 3 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 14, y: 3 });
     state.entities = [crossbow, target];
     const initialHp = target.hitPoints;
     state = applyCommand(state, envelope(state, 0, { type: "attack", entityIds: [crossbow.id], targetId: target.id })).state;
@@ -2220,11 +2231,11 @@ describe("deterministic shared simulation", () => {
     let state = createInitialState({
       seed: 354,
       matchId: "line-terrain-block",
-      map: { id: "villageAssault", width: 18, height: 16 },
+      map: { id: "villageAssault", width: 32, height: 24, layoutId: "highcrag" },
       spawnOverrides: { "player-1": { x: 3, y: 8 }, "player-2": { x: 14, y: 8 } },
     });
-    const caster = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 10, y: 2 });
-    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 6, y: 2 });
+    const caster = configureCombatUnit(state, "player-1", 0, "heavyCrossbowman", { x: 18, y: 3 });
+    const target = configureCombatUnit(state, "player-2", 0, "warrior", { x: 14, y: 3 });
     state.entities = [caster, target];
     const initialHp = target.hitPoints;
     state = applyCommand(state, envelope(state, 0, {

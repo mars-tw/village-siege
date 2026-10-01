@@ -1,0 +1,28 @@
+
+> village-siege@0.22.0 smoke:multiplayer:local
+> npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && node scripts/multiplayer-smoke-local.mjs
+
+
+> @village-siege/shared@0.22.0 build
+> tsc -p tsconfig.build.json
+
+
+> @village-siege/server@0.22.0 build
+> tsc -p tsconfig.json
+
+
+   ___      _                                    ___   _ _____
+  / __\___ | |_   _ ___  ___ _   _ ___   __   __/ _ \ / |___  |
+ / /  / _ \| | | | / __|/ _ \ | | / __|  \ \ / / | | || |  / /
+/ /__| (_) | | |_| \__ \  __/ |_| \__ \   \ V /| |_| || | / /
+\____/\___/|_|\__, |___/\___|\__,_|___/    \_/  \___(_)_|/_/
+              |___/
+
+             · Multiplayer Framework for Node.js ·
+
+💖 Consider becoming a Sponsor on GitHub → https://github.com/sponsors/endel
+🌟 Give us a star on GitHub → https://github.com/colyseus/colyseus
+☁️  Deploy and scale your project on Colyseus Cloud → https://cloud.colyseus.io
+
+Village Siege server listening on http://localhost:26567
+{"result":"PASS","roomCode":"XWK25U","lobbyRoomId":"lSlMJEHLe","matchRoomId":"VJwAuHY-C","durableMatchId":"match-ade1dae35c889fc2e744cd4f6f40e355","players":2,"factions":5,"serverTick":50,"checks":{"exactVersionNegotiation":true,"splitRooms":true,"privateSeatHandoff":true,"unreservedSeatTheftRejected":true,"filteredDeltaChain":true,"deltaGapFullResync":true,"fiveSecondSnapshot":50,"sameSequenceAckIsolation":true,"forgedOwnershipRejected":"ENTITY_NOT_OWNED","injectedAuthorityRejected":"INVALID_PAYLOAD","duplicateCommandAppliedOnce":50,"canonicalStateNotSerialized":true,"privateSeedNotSerialized":true,"serverOwnedAiFactions":3}}

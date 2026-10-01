@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "unitId": "boarRider",
+  "generator": "Built-in image_gen tool",
+  "style": "Original frontier roster; detailed hand-painted semi-realistic approximately 4.5-head human proportions",
+  "reference": {
+    "path": "docs/art/frontier/references/boarRider.png",
+    "sha256": "590bfcd172486c5ee7b4f0db92e5c3e133cfe510faf295e564c066abec5f54eb"
+  },
+  "authoring": {
+    "nativeDirections": [
+      "se"
+    ],
+    "singleAuthoredDirection": true,
+    "nativeSixDirectionClaim": false,
+    "poseRows": [
+      "idle",
+      "walk",
+      "attack",
+      "hurt",
+      "death",
+      "cast"
+    ],
+    "framesPerAction": 4
+  },
+  "rawSources": [
+    {
+      "path": "docs/art/frontier/boarRider/source/generated-01.png",
+      "sha256": "352809b8dc91c4a69a605bc3c8d7862f7a4786e27f0e44a58c886ece18a36ef3",
+      "bytes": 2675359,
+      "promptPath": "docs/art/frontier/boarRider/source/prompt-01.txt",
+      "selected": true,
+      "toolOutputFile": "exec-da9d96ec-0585-40b6-aca5-be8da2265d6d.png"
+    }
+  ],
+  "normalized": {
+    "path": "apps/client/public/assets/original/frontier/characters/boarRider/action-sheet.png",
+    "sha256": "8690dc1829bc6fb221e085774754e5b4a8a3ad82c3d0196d894cf3b40dcda38a",
+    "bytes": 383707,
+    "width": 1024,
+    "height": 1536,
+    "columns": 4,
+    "rows": 6,
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "anchorX": 128,
+    "anchorY": 224,
+    "artScale": 0.3,
+    "uniqueFrameHashes": 24,
+    "frameHashes": [
+      "ffd25e0660dbfaaccf4abcca240294ebfd19ac34cc3bd0faf56f37a261972c1a",
+      "c64df543f4e703b0bd5e7cd52f06bf11dcbf69a503c2b3f99cfcc33f5bbdc5b2",
+      "3228471d70c0b1df9c3de17521161cc5e0cc797d593f8c295d14c2520f56d80e",
+      "3d0164505fcaa2ed7b0eadc6d80853551789e98c9f4d374181731821518a8c84",
+      "ee0f7e9dd995084936f93489d6a0d91af33e60bdd9e3dfde634d2f45d6044afc",
+      "6d7a58b4651c023e5abc9a2472f4338c633ee747cb0d7e5ebe91c22fe395a3e0",
+      "e4c24fa3591d1050788021f8fe63b32c766f7b8f0024234c57f020ba0abbca00",
+      "a441ea854090db72a4682daa312970b23ee87ba341a7b515ee11e91c63104d0e",
+      "e4e2606c2a996c010ea19219b54d86b8dcec384c5452b9138e9fe03036988c66",
+      "43c3e89a261a06b81f31066ee91c3121d45171844274a5bc79ea2a0b3b99e123",
+      "8072365a7d05bbcaf609abd16328a6058fdb8f5cd2c078edcb87169526fd903c",
+      "65f360668fe66d5223bb3a1153d967c6820872711b8582d490848e8696e30513",
+      "c89aa0602a9e6acc98b2c28c6aef9c74a70d70a7121a01917f05e67a3ebd0deb",
+      "1127e0010a5d99ad463e3e65eee40045deca3375695e8946e4dbcc85a644e5cc",
+      "63163535ed08c639ededbd90d96310ca74e533ee5f3a234171d1aeae595753d6",
+      "24f1636c1db1748056ed5b3dfa9f512f28e268be37db63fd4375d7e02ea323db",
+      "454d85e553dfa2d8e70dc455bf464e1023110ce93f538b600f6341e7e3735cd7",
+      "787fe5a4fc9e4afc1eedb66cb133264eb46f91961e95ea21e5b77c6f14c01c71",
+      "522dc71aae4ba28f9d9f97ce21def0b0af2275859c7264650ef0080d22da7698",
+      "9455ea8774722bf0cdfefe765ab38df645fb62ca3b999c6daafb259ab13e66e4",
+      "74a9553a6acf1b335a64cbe8248a85825b8ffeefbcc7864107e0bbc087b793ca",
+      "4841c77828684f08f08bb8bac861132b61a62b41e1a0e06bd6ead23f72e75e9a",
+      "be3916f93d6e1be68fd4ff86c5e4c0921f1a13c48f02805bf5eac81ac8a052b8",
+      "efeae7a7b5ac614f7ed5452e94cd02f62a6bcd6b792867f8c1a73fa5b19b4cec"
+    ],
+    "transparentPixels": 1138330,
+    "meanForegroundAlpha": 238.14031933048585
+  },
+  "normalization": {
+    "script": "scripts/normalize-directional-action-sheet.mjs",
+    "options": [
+      "--cell-width",
+      "256",
+      "--cell-height",
+      "256",
+      "--anchor-y",
+      "224",
+      "--uniform-scale",
+      "--uniform-figure-height",
+      "220",
+      "--cluster-source-frames"
+    ],
+    "deathFigureScale": "Uniform scale shared by all frames; fallen bodies are not enlarged"
+  },
+  "validation": {
+    "tool": "scripts/validate-directional-action-sheets.mjs",
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "edgePadding": 1,
+    "rejectCrossSheetReuse": true,
+    "status": "PASS",
+    "scope": "Native cell/alpha/unique-frame contract; not a claim of six authored directions"
+  },
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

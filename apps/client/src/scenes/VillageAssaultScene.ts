@@ -57,7 +57,8 @@ import {
   type VisibleSnapshot,
   type VillageId,
 } from "@village-siege/shared";
-import { drawBattleMap, type BattleMapView } from "../game/battleMap";
+import { drawBattleMap, preloadFrontierLandscape, type BattleMapView } from "../game/battleMap";
+import { VILLAGE_WORKER_FRAME_ASSET, VILLAGE_WORKER_ANIMATION_MANIFEST } from "../game/villageWorkerAnimation";
 import {
   ANIMATED_MONSTER_FRAME_ASSETS,
   ANIMATED_UNIT_FRAME_ASSETS,
@@ -175,6 +176,8 @@ interface UnitView {
   grid: GridPoint;
   hitPoints: number;
   action: CombatAction;
+  combatPhase?: PublicEntityState["combatPhase"];
+  walkUntilTick?: number;
 }
 
 interface ActionSpec {
@@ -198,6 +201,7 @@ interface MonsterView {
   hitPoints: number;
   attackCooldownTicks: number;
   action: CombatAction;
+  combatPhase?: PublicEntityState["combatPhase"];
 }
 
 interface UnitActorView extends FrameAnimatedCombatActorView {
@@ -271,6 +275,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private battlePreloadAttempt?: BattlePreloadAttempt;
   private battlePreloadGeneration = 0;
   private battlePreloadSetupFailed = false;
+  private battleStarted = false;
   private villageId: VillageId = "pinehold";
   private aiPersonality: AiPersonality = "balanced";
   private aiDifficulty: AiDifficulty = "standard";
@@ -352,6 +357,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   init(data: VillageAssaultSceneData): void {
+    this.battleStarted = false;
     this.invalidateBattlePreload();
     this.battlePreloadSetupFailed = false;
     this.villageId = data.villageId ?? "pinehold";
@@ -422,7 +428,9 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.load.on(Phaser.Loader.Events.PROGRESS, this.updateBattleLoadProgress, this);
     try {
       assertCombatAnimationManifestValid();
+      preloadFrontierLandscape(this);
       const assets = [
+        VILLAGE_WORKER_FRAME_ASSET,
         ...ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior"),
         ...ANIMATED_MONSTER_FRAME_ASSETS,
       ].flatMap((asset) => frameAssetFiles(asset)).filter((asset) => !this.textures.exists(asset.textureKey));
@@ -446,6 +454,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     try {
       this.createBattle();
     } catch (error) {
+      this.battleStarted = false;
       console.error("Battle startup failed", error);
       this.battleLoading?.fail("戰場未能啟動。請重新載入，或返回主選單再試一次。");
     }
@@ -459,6 +468,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, "warrior"), "warrior");
+    validateFrameAnimatedCombatActorManifest(this, VILLAGE_WORKER_ANIMATION_MANIFEST, "villager");
     for (const asset of ANIMATED_MONSTER_FRAME_ASSETS) {
       validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, asset.artId), asset.artId);
     }
@@ -503,7 +513,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     this.syncEntityViews(true);
     if (this.onlineSource) this.centerOnlineHome();
-    else this.centerCameraOn({ x: 5, y: 8 });
+    else this.centerCameraOn({ x: 5, y: 12 });
     this.input.mouse?.disableContextMenu();
     this.input.addPointer(2);
     this.input.on("pointerdown", this.onPointerDown, this);
@@ -528,6 +538,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.layoutInterface();
     this.bindOnlineSource();
     this.refreshInterface(true);
+    this.battleStarted = true;
     this.cleanupBattleLoading();
   }
 
@@ -579,6 +590,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    if (!this.battleStarted) return;
     this.updateCamera(delta);
     this.tacticalMinimap?.update(_time, this.currentView());
     for (const actor of this.retiringActors) actor.update(delta);
@@ -805,21 +817,28 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     const target = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
     const moved = view.grid.x !== entity.position.x || view.grid.y !== entity.position.y;
+    if (moved) view.walkUntilTick = this.currentView().serverTick
+      + Math.ceil(1_000 * TICKS_PER_SECOND / UNITS[entity.typeId].speedMilliTilesPerSecond);
     if (moved) view.actor.faceVector(entity.position.x - view.grid.x, entity.position.y - view.grid.y);
     if (initial || !moved) view.actor.setPosition(target.x, target.y);
+    if (entity.facing) view.actor.setFacing(entity.facing);
     if (entity.typeId === "villager") view.actor.setWorkerPose?.(this.publicWorkerPose(entity));
     const action = this.publicActionForUnit(entity, view, moved);
-    if (action !== view.action || action === "attack" || action === "hurt" || action === "cast") {
+    if (action !== view.action || action === "hurt"
+      || (entity.combatPhase === "windup" && view.combatPhase !== "windup")) {
       view.actor.play(action, action !== "idle" && action !== "walk");
       view.action = action;
     }
+    view.combatPhase = entity.combatPhase;
     const cargo = publicUnitCargo(entity);
     const cargoGlyph = cargo.kind ? ({ food: "糧", wood: "木", stone: "石" } as const)[cargo.kind] : "";
     this.drawCargoPack(view.cargoPack, cargo.kind, cargo.amount, cargo.capacity || UNITS[entity.typeId].carryCapacity);
-    view.cargoLabel.setText(cargo.amount > 0 ? `${cargoGlyph}${cargo.amount}/${cargo.capacity || UNITS[entity.typeId].carryCapacity}` : "").setVisible(cargo.amount > 0);
+    view.cargoPack.setVisible(!this.compactUi && cargo.amount > 0 && this.selectedIds.has(entity.id));
+    view.cargoLabel.setText(cargo.amount > 0 ? `${cargoGlyph}${cargo.amount}/${cargo.capacity || UNITS[entity.typeId].carryCapacity}` : "").setVisible(!this.compactUi && cargo.amount > 0 && this.selectedIds.has(entity.id));
     view.grid = { ...entity.position };
     view.hitPoints = entity.hitPoints;
     view.selection.setVisible(this.selectedIds.has(entity.id));
+    view.label.setVisible(!this.compactUi && this.selectedIds.has(entity.id));
     this.drawUnitHealth(view.health, entity);
     view.actor.container.setDepth(target.y + 100);
   }
@@ -842,14 +861,18 @@ export class VillageAssaultScene extends Phaser.Scene {
         : entity.combatActivity === "attacking" || cooldown > view.attackCooldownTicks
           ? "attack"
           : moved ? "walk" : "idle";
-    if (action !== view.action || action === "attack" || action === "hurt" || action === "cast") {
+    if (action !== view.action || action === "hurt"
+      || cooldown > view.attackCooldownTicks
+      || (entity.combatPhase === "windup" && view.combatPhase !== "windup")) {
       view.actor.play(action, action !== "idle" && action !== "walk");
       view.action = action;
     }
+    view.combatPhase = entity.combatPhase;
     view.grid = { ...entity.position };
     view.hitPoints = entity.hitPoints;
     view.attackCooldownTicks = cooldown;
     view.selection.setVisible(this.selectedIds.has(entity.id));
+    view.label.setVisible(!this.compactUi && this.selectedIds.has(entity.id));
     this.drawUnitHealth(view.health, entity);
     view.actor.container.setDepth(target.y + 112);
   }
@@ -904,13 +927,13 @@ export class VillageAssaultScene extends Phaser.Scene {
     const roleMark = entity.typeId === "villager" ? "⚒" : self ? "Ⅰ" : "Ⅱ";
     const label = this.add.text(0, 11, `${roleMark} ${UNIT_LABELS[entity.typeId]}`, {
       color: self ? "#e4efce" : "#ffd2c3", fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif', fontSize: "11px", fontStyle: "bold", stroke: "#101917", strokeThickness: 4,
-    }).setOrigin(0.5, 0).setResolution(2).setVisible(!this.compactUi);
+    }).setOrigin(0.5, 0).setResolution(2).setVisible(false);
     const cargoLabel = this.add.text(23, -44, "", {
       color: "#fff0b3", fontFamily: 'Consolas, "Noto Sans TC", monospace', fontSize: "10px", fontStyle: "bold", backgroundColor: "#101917d8", padding: { x: 3, y: 1 },
     }).setOrigin(0.5).setResolution(2).setVisible(false);
     actor.container.addAt(selection, 0);
     actor.container.add([health, cargoPack, label, cargoLabel]);
-    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.setSize(80, 104).setInteractive(new Phaser.Geom.Rectangle(0, -34, 80, 104), Phaser.Geom.Rectangle.Contains).setData("entityId", entity.id);
     actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => { event.stopPropagation(); this.beginPointerGesture(pointer); });
@@ -928,10 +951,10 @@ export class VillageAssaultScene extends Phaser.Scene {
     const health = this.add.graphics();
     const label = this.add.text(0, 15, `◆ ${MONSTERS[entity.typeId].displayName}`, {
       color: "#f4d58c", fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif', fontSize: "11px", fontStyle: "bold", stroke: "#101917", strokeThickness: 4,
-    }).setOrigin(0.5, 0).setResolution(2).setVisible(!this.compactUi);
+    }).setOrigin(0.5, 0).setResolution(2).setVisible(false);
     actor.container.addAt(selection, 0);
     actor.container.add([health, label]);
-    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.setSize(112, 128).setInteractive(new Phaser.Geom.Rectangle(0, -46, 112, 128), Phaser.Geom.Rectangle.Contains).setData("entityId", entity.id);
     actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => { event.stopPropagation(); this.beginPointerGesture(pointer); });
@@ -944,7 +967,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (entity.hitPoints < view.hitPoints) return "hurt";
     if (entity.combatActivity === "casting") return "cast";
     if (entity.combatActivity === "attacking") return "attack";
-    if (moved || entity.civilianActivity === "walking" || entity.civilianActivity === "hauling") return "walk";
+    if (moved || this.currentView().serverTick < (view.walkUntilTick ?? 0)
+      || entity.civilianActivity === "walking" || entity.civilianActivity === "hauling") return "walk";
     if (entity.civilianActivity === "constructing" || entity.civilianActivity === "repairing") return "cast";
     if (entity.civilianActivity === "gathering") return "attack";
     return "idle";
@@ -1088,19 +1112,24 @@ export class VillageAssaultScene extends Phaser.Scene {
     } else {
       view.actor.setPosition(target.x, target.y);
     }
+    view.actor.setFacing(entity.facing);
     if (entity.typeId === "villager") view.actor.setWorkerPose?.(this.workerPose(entity));
     const action = this.actionForUnit(entity, view);
-    if (action !== view.action) {
+    if (action !== view.action || action === "hurt"
+      || (entity.combat.phase === "windup" && view.combatPhase !== "windup")) {
       view.actor.play(action, action !== "idle" && action !== "walk");
       view.action = action;
     }
+    view.combatPhase = entity.combat.phase;
     view.grid = { ...entity.position };
     view.hitPoints = entity.hitPoints;
     view.selection.setVisible(this.selectedIds.has(entity.id));
+    view.label.setVisible(!this.compactUi && this.selectedIds.has(entity.id));
     this.drawUnitHealth(view.health, entity);
     const cargoGlyph = entity.cargo.kind ? ({ food: "糧", wood: "木", stone: "石" } as const)[entity.cargo.kind] : "";
     this.drawCargoPack(view.cargoPack, entity.cargo.kind, entity.cargo.amount, UNITS[entity.typeId].carryCapacity);
-    view.cargoLabel.setText(entity.cargo.amount > 0 ? `${cargoGlyph}${entity.cargo.amount}/${UNITS[entity.typeId].carryCapacity}` : "").setVisible(entity.cargo.amount > 0);
+    view.cargoPack.setVisible(!this.compactUi && entity.cargo.amount > 0 && this.selectedIds.has(entity.id));
+    view.cargoLabel.setText(entity.cargo.amount > 0 ? `${cargoGlyph}${entity.cargo.amount}/${UNITS[entity.typeId].carryCapacity}` : "").setVisible(!this.compactUi && entity.cargo.amount > 0 && this.selectedIds.has(entity.id));
     view.actor.container.setDepth(target.y + 100);
   }
 
@@ -1130,14 +1159,18 @@ export class VillageAssaultScene extends Phaser.Scene {
         : moved
           ? "walk"
           : "idle";
-    if (action !== view.action || action === "attack" || action === "hurt") {
+    if (action !== view.action || action === "hurt"
+      || entity.attackCooldownTicks > view.attackCooldownTicks
+      || (entity.combat.phase === "windup" && view.combatPhase !== "windup")) {
       view.actor.play(action, action !== "idle" && action !== "walk");
       view.action = action;
     }
+    view.combatPhase = entity.combat.phase;
     view.grid = { ...entity.position };
     view.hitPoints = entity.hitPoints;
     view.attackCooldownTicks = entity.attackCooldownTicks;
     view.selection.setVisible(this.selectedIds.has(entity.id));
+    view.label.setVisible(!this.compactUi && this.selectedIds.has(entity.id));
     this.drawUnitHealth(view.health, entity);
     view.actor.container.setDepth(target.y + 112);
   }
@@ -1161,10 +1194,10 @@ export class VillageAssaultScene extends Phaser.Scene {
       fontStyle: "bold",
       stroke: "#101917",
       strokeThickness: 4,
-    }).setOrigin(0.5, 0).setResolution(2).setVisible(!this.compactUi);
+    }).setOrigin(0.5, 0).setResolution(2).setVisible(false);
     actor.container.addAt(selection, 0);
     actor.container.add([health, label]);
-    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.setSize(112, 128).setInteractive(new Phaser.Geom.Rectangle(0, -46, 112, 128), Phaser.Geom.Rectangle.Contains).setData("entityId", entity.id);
     actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
@@ -1248,7 +1281,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       stroke: "#101917",
       strokeThickness: 4,
     }).setOrigin(0.5, 0).setResolution(2);
-    label.setVisible(!this.compactUi);
+    label.setVisible(false);
     const cargoLabel = this.add.text(23, -44, "", {
       color: "#fff0b3",
       fontFamily: 'Consolas, "Noto Sans TC", monospace',
@@ -1259,7 +1292,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     }).setOrigin(0.5).setResolution(2).setVisible(false);
     actor.container.addAt(selection, 0);
     actor.container.add([health, cargoPack, label, cargoLabel]);
-    actor.container.setSize(160, 160).setInteractive({ useHandCursor: true }).setData("entityId", entity.id);
+    actor.container.setSize(80, 104).setInteractive(new Phaser.Geom.Rectangle(0, -34, 80, 104), Phaser.Geom.Rectangle.Contains).setData("entityId", entity.id);
     actor.container.on("pointerover", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointermove", () => this.previewTacticalEntity(entity.id));
     actor.container.on("pointerdown", (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
@@ -1276,9 +1309,16 @@ export class VillageAssaultScene extends Phaser.Scene {
 
   private actionForUnit(entity: UnitEntityState, view: UnitView): CombatAction {
     if (entity.hitPoints < view.hitPoints) return "hurt";
-    if (entity.combat.phase === "windup" && entity.combat.action === "ability") return "cast";
-    if (entity.combat.phase === "windup" && entity.combat.action === "attack") return "attack";
-    if (entity.order.type === "attack") return "attack";
+    if (entity.combat.action === "ability") return "cast";
+    if (entity.combat.action === "attack") return "attack";
+    if (view.grid.x !== entity.position.x || view.grid.y !== entity.position.y) return "walk";
+    if (entity.order.type === "attack") {
+      const target = this.entityById(entity.order.targetId);
+      if (!target) return "idle";
+      const range = UNITS[entity.typeId].attackRange;
+      return getEntityFootprintCells(target).some((cell) => Math.hypot(cell.x - entity.position.x, cell.y - entity.position.y) <= range)
+        ? "idle" : "walk";
+    }
     if (entity.order.type === "construct" || entity.order.type === "repair") {
       const target = this.entityById(entity.order.targetId);
       return target && this.isAdjacentToEntity(entity.position, target) ? "cast" : "walk";
@@ -1915,26 +1955,27 @@ export class VillageAssaultScene extends Phaser.Scene {
     topPanel.fillStyle(0x172c27, 0.96).fillRoundedRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT, 6);
     topPanel.fillStyle(0x263f35, 0.9).fillRoundedRect(5, 5, UI_WIDTH - 10, TOP_PANEL_HEIGHT - 10, 4);
     topPanel.lineStyle(1.5, 0xb99b67, 0.7).strokeRoundedRect(0, 0, UI_WIDTH, TOP_PANEL_HEIGHT, 6);
-    this.resourceText = this.add.text(24, 15, "", {
+    topPanel.lineStyle(1, 0xb99b67, 0.35).lineBetween(438, 14, 438, 66);
+    this.resourceText = this.add.text(24, 13, "", {
       color: "#f0ebcf",
-      fontFamily: "Consolas, monospace",
-      fontSize: "22px",
-      fontStyle: "bold",
-    }).setResolution(2);
-    this.objectiveText = this.add.text(330, 13, "", {
-      color: "#dce9c6",
       fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
       fontSize: "20px",
       fontStyle: "bold",
-      wordWrap: { width: 300 },
     }).setResolution(2);
-    this.noticeText = this.add.text(UI_WIDTH - 24, 14, "", {
+    this.objectiveText = this.add.text(460, 13, "", {
+      color: "#dce9c6",
+      fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
+      fontSize: "17px",
+      fontStyle: "bold",
+      wordWrap: { width: 416 },
+    }).setResolution(2);
+    this.noticeText = this.add.text(UI_WIDTH - 24, 59, "", {
       align: "right",
       color: "#e0b866",
       fontFamily: '"Segoe UI", "Noto Sans TC", sans-serif',
-      fontSize: "18px",
+      fontSize: "14px",
       fontStyle: "bold",
-      wordWrap: { width: 220 },
+      wordWrap: { width: 416 },
     }).setOrigin(1, 0).setResolution(2);
     this.topRoot = this.add.container(0, 0, [topPanel, this.resourceText, this.objectiveText, this.noticeText]).setScrollFactor(0).setDepth(100_000);
 
@@ -1976,9 +2017,9 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.sanitizeProductionMode();
     const player = this.playerState();
     const tierLabel = SETTLEMENT_TIER_LABELS[player.settlementTier];
-    this.resourceText?.setFontSize(this.compactUi ? 26 : 22).setText(this.compactUi
+    this.resourceText?.setFontSize(this.compactUi ? 26 : 20).setText(this.compactUi
       ? `${tierLabel}｜糧${Math.floor(player.resources.food)} 木${Math.floor(player.resources.wood)}\n石${Math.floor(player.resources.stone)} 人${player.population.used}/${player.population.capacity}`
-      : `${tierLabel}  糧 ${Math.floor(player.resources.food)}   木 ${Math.floor(player.resources.wood)}   石 ${Math.floor(player.resources.stone)}   人口 ${player.population.used}/${player.population.capacity}`);
+      : `${tierLabel}　糧 ${Math.floor(player.resources.food)}　木 ${Math.floor(player.resources.wood)}\n石 ${Math.floor(player.resources.stone)}　人口 ${player.population.used}/${player.population.capacity}`);
     const view = this.runtime.view;
     const victoryPresentation = createVictoryPresentation(view.victory, "team-player", view.serverTick);
     const enemyTown = view.entities.find((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_AI_ID && entity.typeId === "townCenter");
@@ -1997,12 +2038,12 @@ export class VillageAssaultScene extends Phaser.Scene {
         ? tutorialProgressLabel(this.tutorialProgress)
         : this.compactUi
           ? victoryPresentation.compactObjectiveText
-          : `${enemyObjective}｜${victoryPresentation.objectiveText.replace("勝途｜", "")}`
+          : `${enemyObjective}　${victoryPresentation.compactObjectiveText.replaceAll("\n", "　")}`
       : this.compactUi
         ? victoryPresentation.compactObjectiveText
         : victoryPresentation.objectiveText;
     this.objectiveText
-      ?.setFontSize(this.compactUi ? 22 : 18)
+      ?.setFontSize(this.compactUi ? 22 : 17)
       .setColor(victoryPresentation.outcome === "victory"
         ? "#dce9c6"
         : victoryPresentation.outcome === "defeat"
@@ -2010,10 +2051,10 @@ export class VillageAssaultScene extends Phaser.Scene {
           : victoryPresentation.outcome === "draw"
             ? "#e0b866"
             : "#dce9c6")
-      .setWordWrapWidth(this.compactUi ? 180 : 330, true)
+      .setWordWrapWidth(this.compactUi ? 180 : 416, true)
       .setText(objective);
-    if (performance.now() > this.noticeUntil) this.notice = "點空地移動｜點資源採集｜滿載自動卸貨｜點敵軍攻擊";
-    this.noticeText?.setText(this.compactUi || this.ended ? "" : this.paused ? "戰局暫停" : this.notice);
+    if (performance.now() > this.noticeUntil) this.notice = "點空地移動 · 點資源採集 · 滾輪縮放";
+    this.noticeText?.setText(this.compactUi || this.ended ? "" : this.paused ? "戰局暫停" : this.hudNotice(this.notice));
     const selected = this.selectedEntities();
     const selectionLabel = this.selectionLabel(selected);
     this.selectionText?.setFontSize(this.compactUi ? 21 : 18)
@@ -2039,26 +2080,26 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (!force && this.lastUiTick === snapshot.serverTick) return;
     this.lastUiTick = snapshot.serverTick;
     const tierLabel = SETTLEMENT_TIER_LABELS[snapshot.settlementTier];
-    this.resourceText?.setFontSize(this.compactUi ? 26 : 22).setText(this.compactUi
+    this.resourceText?.setFontSize(this.compactUi ? 26 : 20).setText(this.compactUi
       ? `${tierLabel}｜糧${Math.floor(snapshot.wallet.food)} 木${Math.floor(snapshot.wallet.wood)}\n石${Math.floor(snapshot.wallet.stone)} 人${snapshot.population.used}/${snapshot.population.capacity}`
-      : `${tierLabel}  糧 ${Math.floor(snapshot.wallet.food)}   木 ${Math.floor(snapshot.wallet.wood)}   石 ${Math.floor(snapshot.wallet.stone)}   人口 ${snapshot.population.used}/${snapshot.population.capacity}`);
+      : `${tierLabel}　糧 ${Math.floor(snapshot.wallet.food)}　木 ${Math.floor(snapshot.wallet.wood)}\n石 ${Math.floor(snapshot.wallet.stone)}　人口 ${snapshot.population.used}/${snapshot.population.capacity}`);
     const victory = createVictoryPresentation(snapshot.victory, snapshot.recipientTeamId, snapshot.serverTick);
     const enemyCenters = snapshot.entities.filter((entity) => isPublicBuilding(entity) && entity.typeId === "townCenter" && this.onlineIsHostile(entity));
     const enemyObjective = enemyCenters.length > 0
       ? `敵方核心 ${enemyCenters.length}｜最低生命 ${Math.min(...enemyCenters.map((entity) => Math.ceil(entity.hitPoints / entity.maxHitPoints * 100)))}%`
       : "敵方核心尚未偵察";
     const objective = victory.outcome === "playing"
-      ? this.compactUi ? `${enemyObjective}｜Tick ${snapshot.serverTick}` : `${enemyObjective}｜${victory.objectiveText.replace("勝途｜", "")}`
+      ? this.compactUi ? `${enemyObjective}` : `${enemyObjective}　${victory.compactObjectiveText.replaceAll("\n", "　")}`
       : this.compactUi ? victory.compactObjectiveText : victory.objectiveText;
-    this.objectiveText?.setFontSize(this.compactUi ? 22 : 18)
+    this.objectiveText?.setFontSize(this.compactUi ? 22 : 17)
       .setColor(victory.outcome === "victory" ? "#dce9c6" : victory.outcome === "defeat" ? "#ffb09c" : victory.outcome === "draw" ? "#e0b866" : "#dce9c6")
-      .setWordWrapWidth(this.compactUi ? 180 : 330, true)
+      .setWordWrapWidth(this.compactUi ? 180 : 416, true)
       .setText(objective);
     const connectionLabel = this.onlineConnection === "connected"
       ? `權威同步 · Tick ${snapshot.serverTick}`
       : this.onlineConnection === "failed" ? "恢復失敗 · 指令鎖定" : "恢復連線中 · 指令暫停";
     if (performance.now() > this.noticeUntil) this.notice = connectionLabel;
-    this.noticeText?.setText(this.compactUi || this.ended ? "" : this.notice);
+    this.noticeText?.setText(this.compactUi || this.ended ? "" : this.hudNotice(this.notice));
     const selected = snapshot.entities.filter((entity) => this.selectedIds.has(entity.id));
     this.selectionText?.setFontSize(this.compactUi ? 21 : 18).setText(this.ended
       ? victory.selectionText
@@ -2247,7 +2288,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private centerOnlineHome(): void {
-    this.centerCameraOn(publicPlayerHomePosition(this.currentView().entities, this.currentPlayerId()) ?? { x: 3, y: 8 });
+    this.centerCameraOn(publicPlayerHomePosition(this.currentView().entities, this.currentPlayerId()) ?? { x: 5, y: 12 });
   }
 
   private onlineSelectionLabel(selected: readonly PublicEntityState[]): string {
@@ -2282,7 +2323,7 @@ export class VillageAssaultScene extends Phaser.Scene {
         return [
           this.zoomAction(-0.12),
           this.zoomAction(0.12),
-          { glyph: "◎", label: "置中基地", run: () => this.centerCameraOn({ x: 5, y: 8 }) },
+          { glyph: "◎", label: "置中基地", run: () => this.centerCameraOn({ x: 5, y: 12 }) },
           { glyph: "←", label: "返回系統", run: () => { this.systemPanelPage = "root"; this.refreshInterface(true); } },
         ];
       }
@@ -2449,7 +2490,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     return [
       this.selectWorkersAction(),
       this.selectArmyAction(),
-      { glyph: "⌖", label: "回主城", run: () => this.centerCameraOn({ x: 3, y: 8 }) },
+      { glyph: "⌖", label: "回主城", run: () => this.centerCameraOn({ x: 5, y: 12 }) },
       { glyph: "Ⅱ", label: this.paused ? "繼續" : "暫停", run: () => this.togglePause() },
       this.zoomAction(-0.12),
       this.zoomAction(0.12),
@@ -3507,8 +3548,17 @@ export class VillageAssaultScene extends Phaser.Scene {
   }
 
   private refreshSelectionViews(): void {
-    for (const [id, view] of this.unitViews) view.selection.setVisible(this.selectedIds.has(id));
-    for (const [id, view] of this.monsterViews) view.selection.setVisible(this.selectedIds.has(id));
+    for (const [id, view] of this.unitViews) {
+      const selected = this.selectedIds.has(id);
+      view.selection.setVisible(selected);
+      view.label.setVisible(!this.compactUi && selected);
+      if (!selected) view.cargoLabel.setVisible(false);
+      if (!selected) view.cargoPack.setVisible(false);
+    }
+    for (const [id, view] of this.monsterViews) {
+      view.selection.setVisible(this.selectedIds.has(id));
+      view.label.setVisible(!this.compactUi && this.selectedIds.has(id));
+    }
     if (this.onlineSource) {
       for (const entity of this.currentView().entities) {
         if (entity.kind === "unit" || entity.kind === "monster") continue;
@@ -3884,6 +3934,11 @@ export class VillageAssaultScene extends Phaser.Scene {
     return value.length > 13 ? `${value.slice(0, 12)}…` : value;
   }
 
+  private hudNotice(value: string): string {
+    const singleLine = value.replaceAll("\n", " ");
+    return singleLine.length > 28 ? `${singleLine.slice(0, 27)}…` : singleLine;
+  }
+
   private rejectMessage(code: string | null): string {
     if (code === "PRODUCTION_JOB_NOT_FOUND") return "該生產工作已完成或取消，未變更其他佇列項目。";
     return ({
@@ -3906,7 +3961,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.notice = message;
     this.noticeUntil = performance.now() + durationMs;
     this.noticeText?.setColor(tone === "warning" ? "#ffb09c" : tone === "success" ? "#dce9c6" : "#e0b866");
-    this.noticeText?.setText(message);
+    this.noticeText?.setText(this.hudNotice(message));
     if (this.noticeLiveRegion) this.noticeLiveRegion.textContent = message;
   }
 
@@ -3997,8 +4052,8 @@ export class VillageAssaultScene extends Phaser.Scene {
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     const point = worldToGrid(world, VILLAGE_ASSAULT_ORIGIN);
     return {
-      x: Phaser.Math.Clamp(Math.round(point.x), 0, 17),
-      y: Phaser.Math.Clamp(Math.round(point.y), 0, 15),
+      x: Phaser.Math.Clamp(Math.round(point.x), 0, this.currentView().map.width - 1),
+      y: Phaser.Math.Clamp(Math.round(point.y), 0, this.currentView().map.height - 1),
     };
   }
 
@@ -4058,10 +4113,10 @@ export class VillageAssaultScene extends Phaser.Scene {
     const actionY = height - safeBottom - 10 - ACTION_PANEL_HEIGHT * this.uiScale;
     this.topRoot?.setScale(this.uiScale).setPosition(uiX, topY);
     this.actionRoot?.setScale(this.uiScale).setPosition(uiX, actionY);
-    this.objectiveText?.setPosition(compact ? 500 : 330, 13).setWordWrapWidth(compact ? 180 : 300);
+    this.objectiveText?.setPosition(compact ? 500 : 460, 13).setWordWrapWidth(compact ? 180 : 416);
     this.noticeText?.setVisible(!compact);
-    for (const view of this.unitViews.values()) view.label.setVisible(!compact);
-    for (const view of this.monsterViews.values()) view.label.setVisible(!compact);
+    for (const [id, view] of this.unitViews) view.label.setVisible(!this.compactUi && this.selectedIds.has(id));
+    for (const [id, view] of this.monsterViews) view.label.setVisible(!this.compactUi && this.selectedIds.has(id));
     for (const view of this.entityViews.values()) view.setCompact(compact);
     const worldZoom = compact ? Phaser.Math.Clamp(0.55 + width / 2500, 0.55, 0.78) : Phaser.Math.Clamp(width / 1500, 0.72, 1);
     if (compact) {
@@ -4200,9 +4255,10 @@ export class VillageAssaultScene extends Phaser.Scene {
   private readonly onArtLoadError = (file: { readonly key?: unknown }): void => {
     if (!this.battlePreloadAttempt?.owns(file)) return;
     const key = typeof file.key === "string" ? file.key : "unknown-unit-art";
-    if ((key.startsWith("unit-action-sheet-") || key.startsWith("monster-action-sheet-")) && !this.artLoadFailures.includes(key)) {
+    if ((key.startsWith("unit-action-sheet-") || key.startsWith("monster-action-sheet-")
+      || key.startsWith("frontier-landscape-") || key === FRONTIER_BUILDING_TEXTURE) && !this.artLoadFailures.includes(key)) {
       this.artLoadFailures.push(key);
-      this.battleLoading?.fail("部分角色素材未能下載。請檢查網路後重新載入，或返回主選單。");
+      this.battleLoading?.fail("部分戰場素材未能下載。請檢查網路後重新載入，或返回主選單。");
     }
   };
 

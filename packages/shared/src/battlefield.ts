@@ -1,5 +1,6 @@
 import type { MonsterId } from "./combat.js";
 import { getBuildingFootprint } from "./content.js";
+import { findPathToAny, getFootprintPerimeterCells } from "./spatial.js";
 import type {
   BuildingType,
   GridPoint,
@@ -9,11 +10,11 @@ import type {
 } from "./protocol.js";
 
 export const VILLAGE_ASSAULT_MAP_ID = "villageAssault";
-export const VILLAGE_ASSAULT_MAP_WIDTH = 18;
-export const VILLAGE_ASSAULT_MAP_HEIGHT = 16;
+export const VILLAGE_ASSAULT_MAP_WIDTH = 32;
+export const VILLAGE_ASSAULT_MAP_HEIGHT = 24;
 export const VILLAGE_ASSAULT_CONTROL_OBJECTIVE = {
-  point: { x: 8, y: 8 },
-  radius: 2,
+  point: { x: 16, y: 12 },
+  radius: 3,
 } as const;
 
 export type VillageAssaultTerrainGlyph = "G" | "M" | "S" | "W" | "R" | "T";
@@ -81,111 +82,47 @@ export interface VillageAssaultLayoutValidationResult {
 export const VILLAGE_ASSAULT_LAYOUT_IDS = ["pinehold", "riverstead", "highcrag"] as const satisfies readonly VillageAssaultLayoutId[];
 const DEFAULT_VILLAGE_ASSAULT_LAYOUT_ID: VillageAssaultLayoutId = "pinehold";
 
-const PINEHOLD_TERRAIN_ROWS = [
-  "TTGGGGRRRGGGGGGTTT",
-  "TGGGGGRRRGGGGGGGGT",
-  "GGGMMGGRRGGGMMGGGG",
-  "GGGGSSSWWSSSSGGGGG",
-  "GSSSSSSWWSSSSSSSSG",
-  "GGGGGSSWWSSGGGGGGG",
-  "TRGGGGSSSSGGGGGRGT",
-  "TGGGGGSSSSSSGGGGGT",
-  "TGGGGGSSSSSSGGGGGT",
-  "TRGGGGSSSSGGGGRRGT",
-  "GMMMMMMWWMMMMMMMMG",
-  "GGGGGMMWWMMGGGGGGG",
-  "GGTTGGGWWGGGTTGGGG",
-  "GGGTTGGMMMGGTTGGGG",
-  "TGGGGGGMMGGGGGGGGT",
-  "TTTGGGGMMGGGGGGTTT",
-] as const;
+interface TerrainPatch { readonly glyph: VillageAssaultTerrainGlyph; readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 
-const RIVERSTEAD_TERRAIN_ROWS = [
-  "TTGGGGRRRGGGGGGTTT",
-  "TGGGGGRRRGGGGGGGGT",
-  "GGGGGGRRRGGGGGGGGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "GGSSSSSSSSSSSSSSGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "GGGGGGSSSSGGGGGGGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "GGSSSSSSSSSSSSSSGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "GGGGGGGWWGGGGGGGGG",
-  "TGGGGGGRRRGGGGGGGT",
-  "TTGGGGGRRRGGGGGTTT",
-] as const;
+/** Authored terrain patches use no random noise; broad crossings stay readable. */
+function authoredTerrain(patches: readonly TerrainPatch[]): readonly string[] {
+  const rows: VillageAssaultTerrainGlyph[][] = Array.from({ length: VILLAGE_ASSAULT_MAP_HEIGHT }, () => Array<VillageAssaultTerrainGlyph>(VILLAGE_ASSAULT_MAP_WIDTH).fill("G"));
+  for (const patch of patches) for (let y = patch.y; y < patch.y + patch.height; y += 1) for (let x = patch.x; x < patch.x + patch.width; x += 1) rows[y]![x] = patch.glyph;
+  return rows.map(row => row.join(""));
+}
+const patch = (glyph: VillageAssaultTerrainGlyph, x: number, y: number, width: number, height: number): TerrainPatch => ({ glyph, x, y, width, height });
 
-const HIGHCRAG_TERRAIN_ROWS = [
-  "TTTGGGRRRGGGGGGTTT",
-  "TGGGGGRRRGGGGGGGGT",
-  "GGGGGGRRRGGGGGGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "GGGGGSSSSSSSSGGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "GGGGSSSSSSSSSSGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "GGGGGSSSSSSSSGGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "GGGGGGGRRRGGGGGGGG",
-  "TGGGGGGRRRGGGGGGGT",
-  "TTTGGGGRRRGGGGTTTT",
-] as const;
+const PINEHOLD_TERRAIN_ROWS = authoredTerrain([
+  patch("T", 0, 0, 32, 2), patch("T", 0, 22, 32, 2), patch("T", 0, 3, 2, 18), patch("T", 30, 3, 2, 18),
+  patch("T", 9, 2, 3, 3), patch("T", 20, 19, 5, 3), patch("M", 12, 3, 6, 4), patch("M", 13, 18, 6, 4),
+  patch("W", 15, 2, 2, 20), patch("S", 1, 7, 30, 3), patch("S", 1, 11, 30, 3), patch("S", 1, 16, 30, 3),
+]);
+const RIVERSTEAD_TERRAIN_ROWS = authoredTerrain([
+  patch("T", 0, 0, 6, 3), patch("T", 27, 0, 5, 3), patch("T", 0, 21, 7, 3), patch("T", 25, 21, 7, 3),
+  patch("M", 12, 0, 8, 24), patch("W", 15, 0, 2, 24),
+  patch("S", 1, 7, 30, 3), patch("S", 1, 11, 30, 3), patch("S", 1, 17, 30, 3),
+]);
+const HIGHCRAG_TERRAIN_ROWS = authoredTerrain([
+  patch("T", 0, 0, 8, 2), patch("T", 26, 0, 6, 2), patch("T", 0, 22, 6, 2), patch("T", 26, 22, 6, 2),
+  patch("M", 11, 2, 9, 20), patch("R", 15, 0, 2, 24), patch("R", 12, 3, 2, 2), patch("R", 19, 19, 2, 2),
+  patch("S", 1, 6, 30, 4), patch("S", 1, 11, 30, 3), patch("S", 1, 16, 30, 4),
+  patch("G", 12, 3, 1, 1),
+]);
 
 export const VILLAGE_ASSAULT_LAYOUTS: Readonly<Record<VillageAssaultLayoutId, VillageAssaultLayoutDefinition>> = {
-  pinehold: makeLayout(
-    "pinehold",
-    PINEHOLD_TERRAIN_ROWS,
-    {
-      id: "pinehold-caravan-reserve",
-      description: "A broad central caravan reserve cannot be sealed by new construction.",
-      reservedBuildCells: rectangleCells(7, 3, 4, 10),
-    },
-    "lumberCamp",
-    [
-      neutralCamp("pinehold-miremaw", "miremaw", { x: 9, y: 2 }, 4),
-      neutralCamp("pinehold-ashwing", "ashwing", { x: 8, y: 7 }, 5),
-      neutralCamp("pinehold-rootback", "rootback", { x: 9, y: 13 }, 4),
-    ],
-  ),
-  riverstead: makeLayout(
-    "riverstead",
-    RIVERSTEAD_TERRAIN_ROWS,
-    {
-      id: "riverstead-floodplain-reserve",
-      description: "The floodplain and its causeways remain free of construction from bank to bank.",
-      reservedBuildCells: rectangleCells(7, 2, 4, 12),
-    },
-    "farmstead",
-    [
-      neutralCamp("riverstead-miremaw", "miremaw", { x: 9, y: 5 }, 4),
-      neutralCamp("riverstead-ashwing", "ashwing", { x: 9, y: 8 }, 5),
-      neutralCamp("riverstead-rootback", "rootback", { x: 9, y: 11 }, 4),
-    ],
-  ),
-  highcrag: makeLayout(
-    "highcrag",
-    HIGHCRAG_TERRAIN_ROWS,
-    {
-      id: "highcrag-escarpment-reserve",
-      description: "The shale escarpment and three crossing shelves reject permanent construction.",
-      reservedBuildCells: rectangleCells(7, 1, 4, 14),
-    },
-    "lumberCamp",
-    [
-      neutralCamp("highcrag-miremaw", "miremaw", { x: 8, y: 5 }, 4),
-      neutralCamp("highcrag-ashwing", "ashwing", { x: 9, y: 8 }, 5),
-      neutralCamp("highcrag-rootback", "rootback", { x: 8, y: 11 }, 4),
-    ],
-  ),
+  pinehold: makeLayout("pinehold", PINEHOLD_TERRAIN_ROWS, {
+    id: "pinehold-trade-crossings", description: "Three broad woodland crossings stay open; homes retain ample construction land.",
+    reservedBuildCells: [...rectangleCells(12, 7, 8, 3), ...rectangleCells(12, 11, 8, 3), ...rectangleCells(12, 16, 8, 3)],
+  }, [neutralCamp("pinehold-miremaw", "miremaw", { x: 13, y: 3 }, 3), neutralCamp("pinehold-ashwing", "ashwing", { x: 22, y: 3 }, 3), neutralCamp("pinehold-rootback", "rootback", { x: 17, y: 21 }, 3)]),
+  riverstead: makeLayout("riverstead", RIVERSTEAD_TERRAIN_ROWS, {
+    id: "riverstead-three-fords", description: "Three three-cell-wide river fords offer independent north, center and south attack lanes.",
+    reservedBuildCells: [...rectangleCells(13, 7, 6, 3), ...rectangleCells(13, 11, 6, 3), ...rectangleCells(13, 17, 6, 3)],
+  }, [neutralCamp("riverstead-miremaw", "miremaw", { x: 11, y: 21 }, 3), neutralCamp("riverstead-ashwing", "ashwing", { x: 21, y: 3 }, 3), neutralCamp("riverstead-rootback", "rootback", { x: 19, y: 2 }, 3)]),
+  highcrag: makeLayout("highcrag", HIGHCRAG_TERRAIN_ROWS, {
+    id: "highcrag-open-shelves", description: "Wide shale shelves give several approaches without enclosing either settlement.",
+    reservedBuildCells: [...rectangleCells(12, 6, 8, 4), ...rectangleCells(12, 11, 8, 3), ...rectangleCells(12, 16, 8, 4)],
+  }, [neutralCamp("highcrag-miremaw", "miremaw", { x: 12, y: 3 }, 3), neutralCamp("highcrag-ashwing", "ashwing", { x: 22, y: 20 }, 3), neutralCamp("highcrag-rootback", "rootback", { x: 17, y: 22 }, 3)]),
 };
-
 /** Backward-compatible default terrain rows used by the current simulation and client. */
 export const VILLAGE_ASSAULT_MAP_ROWS = VILLAGE_ASSAULT_LAYOUTS[DEFAULT_VILLAGE_ASSAULT_LAYOUT_ID].terrainRows;
 
@@ -293,88 +230,31 @@ function makeLayout(
   id: VillageAssaultLayoutId,
   terrainRows: readonly string[],
   constraint: VillageAssaultLayoutConstraint,
-  economyBuilding: "farmstead" | "lumberCamp",
   neutralCamps: readonly VillageAssaultNeutralCampAnchor[],
 ): VillageAssaultLayoutDefinition {
-  return {
-    id,
-    terrainRows,
-    constraint,
-    startSlots: [
-      makeStartSlot("west", economyBuilding),
-      makeStartSlot("east", economyBuilding),
-    ],
-    neutralCamps,
-  };
+  return { id, terrainRows, constraint, startSlots: [makeStartSlot("west"), makeStartSlot("east")], neutralCamps };
 }
 
-function makeStartSlot(
-  id: VillageAssaultStartSlotId,
-  economyBuilding: "farmstead" | "lumberCamp",
-): VillageAssaultStartSlot {
+function makeStartSlot(id: VillageAssaultStartSlotId): VillageAssaultStartSlot {
   const west = id === "west";
-  const bounds = west
-    ? { minimumX: 2, maximumX: 6, minimumY: 3, maximumY: 12 }
-    : { minimumX: 11, maximumX: 16, minimumY: 3, maximumY: 12 };
-  const gateOrigin = { x: west ? bounds.maximumX : bounds.minimumX, y: 7 };
-  const commandOrigin = { x: west ? 3 : 14, y: 7 };
-  const placements: VillageAssaultStructurePlacement[] = [
-    placement(`${id}-town-center`, "townCenter", commandOrigin, "command"),
-    placement(`${id}-gate`, "surveyGate", gateOrigin, "gate", "se"),
-    ...perimeterWalls(id, bounds, gateOrigin),
-    placement(`${id}-tower-north`, "defenseTower", { x: west ? 3 : 15, y: 4 }, "defense"),
-    placement(`${id}-tower-south`, "defenseTower", { x: west ? 3 : 15, y: 11 }, "defense"),
-    placement(`${id}-barracks`, "barracks", { x: west ? 4 : 12, y: 4 }, "production"),
-    placement(`${id}-economy`, economyBuilding, { x: west ? 4 : 12, y: 10 }, "economy"),
+  const commandOrigin = { x: west ? 4 : 26, y: 11 };
+  const placements = [placement(`${id}-town-center`, "townCenter", commandOrigin, "command")];
+  const resourceAnchors = west ? [
+    resourceAnchor(`${id}-food`, "food", { x: 3, y: 8 }),
+    resourceAnchor(`${id}-wood`, "wood", { x: 8, y: 10 }),
+    resourceAnchor(`${id}-stone`, "stone", { x: 2, y: 14 }),
+  ] : [
+    resourceAnchor(`${id}-food`, "food", { x: 28, y: 8 }),
+    resourceAnchor(`${id}-wood`, "wood", { x: 23, y: 10 }),
+    resourceAnchor(`${id}-stone`, "stone", { x: 29, y: 14 }),
   ];
-  const resourceAnchors: readonly VillageAssaultResourceAnchor[] = west
-    ? [
-        resourceAnchor(`${id}-food`, "food", { x: 3, y: 6 }),
-        resourceAnchor(`${id}-wood`, "wood", { x: 5, y: 7 }),
-        resourceAnchor(`${id}-stone`, "stone", { x: 5, y: 9 }),
-      ]
-    : [
-        resourceAnchor(`${id}-food`, "food", { x: 12, y: 6 }),
-        resourceAnchor(`${id}-wood`, "wood", { x: 13, y: 7 }),
-        resourceAnchor(`${id}-stone`, "stone", { x: 12, y: 9 }),
-      ];
-  const civilianSpawns = west
-    ? [{ x: 4, y: 6 }, { x: 5, y: 8 }, { x: 4, y: 9 }]
-    : [{ x: 13, y: 6 }, { x: 12, y: 7 }, { x: 13, y: 9 }];
-  const civilianRoles = ["gatherer", "porter", "mason"] as const satisfies readonly VillageAssaultCivilianRole[];
+  const civilianSpawns = west ? [{ x: 4, y: 8 }, { x: 8, y: 11 }, { x: 3, y: 14 }] : [{ x: 27, y: 8 }, { x: 23, y: 11 }, { x: 28, y: 14 }];
+  const roles = ["gatherer", "porter", "mason"] as const satisfies readonly VillageAssaultCivilianRole[];
   return {
-    id,
-    placements,
-    resourceAnchors,
-    civilianActivities: civilianRoles.map((role, index) => ({
-      id: `${id}-${role}`,
-      role,
-      spawn: civilianSpawns[index]!,
-      resourceAnchorId: resourceAnchors[index]!.id,
-      dropOffPlacementId: `${id}-town-center`,
-      shelterPlacementId: `${id}-town-center`,
-    })),
+    id, placements, resourceAnchors,
+    civilianActivities: roles.map((role, index) => ({ id: `${id}-${role}`, role, spawn: civilianSpawns[index]!, resourceAnchorId: resourceAnchors[index]!.id, dropOffPlacementId: `${id}-town-center`, shelterPlacementId: `${id}-town-center` })),
   };
 }
-
-function perimeterWalls(
-  slotId: VillageAssaultStartSlotId,
-  bounds: { readonly minimumX: number; readonly maximumX: number; readonly minimumY: number; readonly maximumY: number },
-  gateOrigin: GridPoint,
-): readonly VillageAssaultStructurePlacement[] {
-  const boundary: GridPoint[] = [];
-  for (let y = bounds.minimumY; y <= bounds.maximumY; y += 1) {
-    for (let x = bounds.minimumX; x <= bounds.maximumX; x += 1) {
-      if (x === bounds.minimumX || x === bounds.maximumX || y === bounds.minimumY || y === bounds.maximumY) boundary.push({ x, y });
-    }
-  }
-  const gateCells = new Set([pointKey(gateOrigin), pointKey({ x: gateOrigin.x, y: gateOrigin.y + 1 })]);
-  return boundary
-    .filter((cell) => !gateCells.has(pointKey(cell)))
-    .sort((left, right) => left.y - right.y || left.x - right.x)
-    .map((origin) => placement(`${slotId}-wall-${origin.x}-${origin.y}`, "resinPalisade", origin, "perimeter"));
-}
-
 function placement(
   id: string,
   buildingType: BuildingType,
@@ -415,11 +295,7 @@ function validateStartSlot(
   if (placementById.size !== slot.placements.length) errors.push(`${prefix}.placements must use unique ids`);
   const roleCount = (role: VillageAssaultPlacementRole): number => slot.placements.filter((candidate) => candidate.role === role).length;
   if (roleCount("command") !== 1 || slot.placements.find((candidate) => candidate.role === "command")?.buildingType !== "townCenter") errors.push(`${prefix} requires exactly one townCenter command placement`);
-  if (roleCount("gate") < 1 || slot.placements.some((candidate) => candidate.role === "gate" && candidate.buildingType !== "surveyGate")) errors.push(`${prefix} requires at least one surveyGate placement`);
-  if (roleCount("perimeter") < 8 || slot.placements.some((candidate) => candidate.role === "perimeter" && candidate.buildingType !== "resinPalisade")) errors.push(`${prefix} requires a resinPalisade perimeter`);
-  if (roleCount("defense") < 2 || slot.placements.some((candidate) => candidate.role === "defense" && candidate.buildingType !== "defenseTower")) errors.push(`${prefix} requires at least two defenseTower placements`);
-  if (roleCount("production") < 1) errors.push(`${prefix} requires a production placement`);
-  if (roleCount("economy") < 1) errors.push(`${prefix} requires an economy placement`);
+  if (slot.placements.length !== 1 || roleCount("gate") || roleCount("perimeter") || roleCount("defense") || roleCount("production") || roleCount("economy")) errors.push(`${prefix} must start with one townCenter and open construction land`);
 
   for (const candidate of slot.placements) {
     const path = `${prefix}.placements.${candidate.id}`;
@@ -429,7 +305,6 @@ function validateStartSlot(
       reserveCell(occupied, cell, path, errors);
     }
   }
-  validateClosedPerimeter(layout, slot, errors);
 
   if (slot.resourceAnchors.length < 3 || new Set(slot.resourceAnchors.map((anchor) => anchor.resourceKind)).size < 3) errors.push(`${prefix}.resourceAnchors must cover food, wood and stone`);
   const resourceById = new Map(slot.resourceAnchors.map((anchor) => [anchor.id, anchor]));
@@ -440,7 +315,7 @@ function validateStartSlot(
     reserveCell(occupied, anchor.position, path, errors);
   }
 
-  if (slot.civilianActivities.length < 3) errors.push(`${prefix}.civilianActivities requires at least three activities`);
+  if (slot.civilianActivities.length !== 3) errors.push(`${prefix}.civilianActivities requires exactly three activities`);
   if (new Set(slot.civilianActivities.map((activity) => activity.id)).size !== slot.civilianActivities.length) errors.push(`${prefix}.civilianActivities must use unique ids`);
   for (const activity of slot.civilianActivities) {
     const path = `${prefix}.civilianActivities.${activity.id}`;
@@ -450,32 +325,25 @@ function validateStartSlot(
     if (!isLayoutWalkableCell(layout, activity.spawn)) errors.push(`${path}.spawn must be walkable and in bounds`);
     reserveCell(occupied, activity.spawn, path, errors);
   }
-}
-
-function validateClosedPerimeter(layout: VillageAssaultLayoutDefinition, slot: VillageAssaultStartSlot, errors: string[]): void {
-  const perimeterCells = slot.placements
-    .filter((candidate) => candidate.role === "perimeter" || candidate.role === "gate")
-    .flatMap((candidate) => getBuildingFootprint(candidate.buildingType, candidate.orientation).map((offset) => ({
-      x: candidate.origin.x + offset.x,
-      y: candidate.origin.y + offset.y,
-    })));
-  const keys = new Set(perimeterCells.map(pointKey));
-  if (keys.size !== perimeterCells.length) {
-    errors.push(`layout.${layout.id}.startSlots.${slot.id}.perimeter cells must not overlap`);
-    return;
+  const blocked = [
+    ...collectCells(point => !isLayoutWalkableCell(layout, point)),
+    ...slot.placements.flatMap(candidate => getBuildingFootprint(candidate.buildingType, candidate.orientation).map(offset => ({ x: candidate.origin.x + offset.x, y: candidate.origin.y + offset.y }))),
+    ...slot.resourceAnchors.map(anchor => anchor.position),
+  ];
+  const blockedKeys = new Set(blocked.map(pointKey));
+  const command = slot.placements.find(candidate => candidate.role === "command");
+  if (command) {
+    const exits = getFootprintPerimeterCells(command.origin, getBuildingFootprint(command.buildingType, command.orientation)).filter(cell => isLayoutWalkableCell(layout, cell) && !blockedKeys.has(pointKey(cell)));
+    if (exits.length < 6) errors.push(`${prefix}.townCenter requires at least six clear approach cells`);
+    for (const activity of slot.civilianActivities) {
+      if (findPathToAny(activity.spawn, exits, VILLAGE_ASSAULT_MAP_WIDTH, VILLAGE_ASSAULT_MAP_HEIGHT, blocked) === null) errors.push(`${prefix}.${activity.id} must reach the townCenter`);
+      if (orthogonalNeighbors(activity.spawn).filter(cell => isLayoutWalkableCell(layout, cell) && !blockedKeys.has(pointKey(cell))).length < 2) errors.push(`${prefix}.${activity.id} requires two open movement directions`);
+    }
   }
-  if (perimeterCells.some((cell) => orthogonalNeighbors(cell).filter((neighbor) => keys.has(pointKey(neighbor))).length !== 2)) {
-    errors.push(`layout.${layout.id}.startSlots.${slot.id}.perimeter must form one continuous closed ring`);
-    return;
+  for (const anchor of slot.resourceAnchors) {
+    const approaches = orthogonalNeighbors(anchor.position).filter(cell => isLayoutWalkableCell(layout, cell) && !blockedKeys.has(pointKey(cell)));
+    if (approaches.length < 2 || slot.civilianActivities.some(activity => findPathToAny(activity.spawn, approaches, VILLAGE_ASSAULT_MAP_WIDTH, VILLAGE_ASSAULT_MAP_HEIGHT, blocked) === null)) errors.push(`${prefix}.${anchor.id} requires reachable open resource approaches`);
   }
-  const remaining = new Set(keys);
-  const pending = [perimeterCells[0]!];
-  while (pending.length > 0) {
-    const current = pending.pop()!;
-    if (!remaining.delete(pointKey(current))) continue;
-    pending.push(...orthogonalNeighbors(current).filter((neighbor) => remaining.has(pointKey(neighbor))));
-  }
-  if (remaining.size > 0) errors.push(`layout.${layout.id}.startSlots.${slot.id}.perimeter must be connected`);
 }
 
 function validatePoints(

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import {
+  BUILDINGS,
   type BuildingEntityState,
   type BuildingType,
   type PublicEntityState,
@@ -19,6 +20,7 @@ import {
 } from "./assaultPublicPresentation";
 import { publicAssetUrl } from "./publicAssetUrl";
 import { productionProgressLabel } from "./productionProgress";
+import { createNatureImage } from "./battleMap";
 
 export type AssaultSide = "player" | "enemy";
 type AssaultRenderableEntity = PublicEntityState | BuildingEntityState | ResourceEntityState | RubbleEntityState;
@@ -108,7 +110,7 @@ export function createBuildingView(
     fontStyle: "bold",
     backgroundColor: "#101917cc",
     padding: { x: 5, y: 2 },
-  }).setOrigin(0.5, 0).setResolution(2);
+  }).setOrigin(0.5, 0).setResolution(2).setVisible(false);
   const progress = scene.add.text(0, -68, "", {
     color: "#e0b866",
     fontFamily: "Consolas, monospace",
@@ -116,7 +118,7 @@ export function createBuildingView(
     fontStyle: "bold",
     backgroundColor: "#101917cc",
     padding: { x: 4, y: 2 },
-  }).setOrigin(0.5).setResolution(2);
+  }).setOrigin(0.5).setResolution(2).setVisible(false);
   if (painted) {
     const top = painted.y - painted.displayHeight * painted.originY;
     healthBack.setY(top - 8);
@@ -124,9 +126,16 @@ export function createBuildingView(
     progress.setY(top - 22);
   }
   const container = scene.add.container(0, 0, [shadow, selection, ...(painted ? [painted] : []), art, healthBack, health, label, progress]);
-  container.setName(`assault-building:${entity.id}`).setSize(110, 120);
+  container.setName(`assault-building:${entity.id}`).setSize(footprintWidth(entity.typeId), painted ? painted.displayHeight + 24 : 120);
   let lastRevision = -1;
   let lastSelected = false;
+  let hovered = false;
+  const showAttention = (): void => {
+    label.setVisible(lastSelected || hovered);
+    progress.setVisible(lastSelected && progress.text.length > 0);
+  };
+  container.on("pointerover", () => { hovered = true; showAttention(); });
+  container.on("pointerout", () => { hovered = false; showAttention(); });
 
   const update = (next: AssaultRenderableEntity, selected = false): void => {
     if (next.kind !== "building") return;
@@ -148,7 +157,7 @@ export function createBuildingView(
     const complete = building.complete ?? false;
     const progressLabel = complete ? queueText(queue) : `施工 ${Math.floor(completionRatio(building) * 100)}%`;
     if (progress.text !== progressLabel) progress.setText(progressLabel);
-    progress.setVisible(!complete || queue.length > 0);
+    if (complete && queue.length === 0) progress.setText("");
     if (selected !== lastSelected) {
       selection.clear();
       if (selected) {
@@ -158,12 +167,13 @@ export function createBuildingView(
     }
     healthBack.setVisible(next.hitPoints < next.maxHitPoints || selected);
     health.setVisible(next.hitPoints < next.maxHitPoints || selected);
+    showAttention();
   };
   update(entity);
   return {
     container,
     update,
-    setCompact: (compact) => label.setVisible(!compact),
+    setCompact: (compact) => { label.setFontSize(compact ? 12 : 13); showAttention(); },
     destroy: () => container.destroy(true),
   };
 }
@@ -183,18 +193,20 @@ export function createStaleBuildingView(
     fontStyle: "bold",
     backgroundColor: "#101917b8",
     padding: { x: 5, y: 2 },
-  }).setOrigin(0.5, 0).setResolution(2);
+  }).setOrigin(0.5, 0).setResolution(2).setVisible(false);
   const age = scene.add.text(0, -68, "", {
     color: "#aab8ad",
     fontFamily: 'Consolas, "Noto Sans TC", monospace',
     fontSize: "10px",
     backgroundColor: "#101917b8",
     padding: { x: 4, y: 2 },
-  }).setOrigin(0.5).setResolution(2);
+  }).setOrigin(0.5).setResolution(2).setVisible(false);
   if (painted) age.setY(painted.y - painted.displayHeight * painted.originY - 8);
   const container = scene.add.container(0, 0, [shadow, ...(painted ? [painted] : []), art, label, age])
     .setName(`assault-stale-building:${sighting.entityId}`)
-    .setAlpha(0.52);
+    .setAlpha(0.52).setSize(footprintWidth(sighting.typeId), painted ? painted.displayHeight + 24 : 120).setInteractive();
+  container.on("pointerover", () => { label.setVisible(true); age.setVisible(true); });
+  container.on("pointerout", () => { label.setVisible(false); age.setVisible(false); });
   let lastRevision = -1;
 
   const update = (next: StaleEntitySighting, currentTick: number): void => {
@@ -220,6 +232,7 @@ export function createStaleBuildingView(
 export function createResourceView(scene: Phaser.Scene, entity: PublicResourceEntity | ResourceEntityState): AssaultEntityView {
   const shadow = scene.add.ellipse(0, 9, 74, 27, INK, 0.28);
   const selection = scene.add.graphics();
+  const painted = createNatureImage(scene, entity.typeId === "wood" ? "oakGrove" : entity.typeId === "food" ? "grainPatch" : "stonePile", entity.typeId === "wood" ? 145 : entity.typeId === "food" ? 120 : 110, 24);
   const art = scene.add.graphics();
   const label = scene.add.text(0, 29, RESOURCE_LABELS[entity.typeId], {
     color: "#dce9c6",
@@ -228,28 +241,34 @@ export function createResourceView(scene: Phaser.Scene, entity: PublicResourceEn
     fontStyle: "bold",
     backgroundColor: "#101917b8",
     padding: { x: 4, y: 2 },
-  }).setOrigin(0.5, 0).setResolution(2);
+  }).setOrigin(0.5, 0).setResolution(2).setVisible(false);
   const amount = scene.add.text(0, -47, "", {
     color: "#f0ebcf",
     fontFamily: "Consolas, monospace",
     fontSize: "11px",
     fontStyle: "bold",
-  }).setOrigin(0.5).setResolution(2);
-  const container = scene.add.container(0, 0, [shadow, selection, art, label, amount]);
-  container.setName(`assault-resource:${entity.id}`).setSize(84, 88);
+  }).setOrigin(0.5).setResolution(2).setVisible(false);
+  const container = scene.add.container(0, 0, [shadow, selection, ...(painted ? [painted] : []), art, label, amount]);
+  container.setName(`assault-resource:${entity.id}`).setSize(entity.typeId === "wood" ? 138 : 108, painted ? painted.displayHeight + 18 : 88);
   let lastRevision = -1;
   let lastSelected = false;
-  let compactView = false;
+  let hovered = false;
   let fallow = false;
+  const showAttention = (): void => { label.setVisible(lastSelected || hovered); amount.setVisible(lastSelected); };
+  container.on("pointerover", () => { hovered = true; showAttention(); });
+  container.on("pointerout", () => { hovered = false; showAttention(); });
   const update = (next: AssaultRenderableEntity, selected = false): void => {
     if (next.kind !== "resource") return;
     const resource = next as PublicResourceEntity | ResourceEntityState;
     if (next.stateRevision !== lastRevision) {
       art.clear();
       const remaining: number = "amount" in resource ? resource.amount : publicResourceAmount(resource);
-      drawResource(art, resource.typeId, Phaser.Math.Clamp(remaining / resource.maxHitPoints, 0, 1));
+      if (painted) {
+        painted.setVisible(remaining > 0).setAlpha(remaining > 0 ? 0.93 + Math.min(1, remaining / resource.maxHitPoints) * 0.07 : 0);
+        if (remaining <= 0 && resource.typeId === "food") art.fillStyle(0x8e7850, 0.35).fillEllipse(0, 8, 62, 24);
+      } else drawResource(art, resource.typeId, Phaser.Math.Clamp(remaining / resource.maxHitPoints, 0, 1));
       fallow = remaining <= 0 && ("renewAtTick" in resource ? resource.renewAtTick : publicResourceRenewAtTick(resource)) !== null;
-      amount.setText(fallow ? "休耕" : `${Math.max(0, Math.ceil(remaining))}`).setVisible(!compactView || fallow);
+      amount.setText(fallow ? "休耕" : `${Math.max(0, Math.ceil(remaining))}`);
       lastRevision = next.stateRevision;
     }
     if (selected !== lastSelected) {
@@ -257,15 +276,15 @@ export function createResourceView(scene: Phaser.Scene, entity: PublicResourceEn
       if (selected) selection.lineStyle(3, COPPER, 0.95).strokeEllipse(0, 8, 86, 36);
       lastSelected = selected;
     }
+    showAttention();
   };
   update(entity);
   return {
     container,
     update,
     setCompact: (compact) => {
-      compactView = compact;
-      label.setVisible(!compact);
-      amount.setVisible(!compact || fallow);
+      label.setFontSize(compact ? 11 : 12);
+      showAttention();
     },
     destroy: () => container.destroy(true),
   };
@@ -281,11 +300,18 @@ export function createRubbleView(scene: Phaser.Scene, entity: PublicRubbleEntity
     fontStyle: "bold",
     backgroundColor: "#101917b8",
     padding: { x: 4, y: 2 },
-  }).setOrigin(0.5, 0).setResolution(2);
+  }).setOrigin(0.5, 0).setResolution(2).setVisible(false);
   const container = scene.add.container(0, 0, [shadow, art, label]);
   container.setName(`assault-rubble:${entity.id}`).setSize(92, 62);
   let lastRevision = -1;
-  const update = (next: AssaultRenderableEntity): void => {
+  let selected = false;
+  let hovered = false;
+  const showAttention = (): void => { label.setVisible(selected || hovered); };
+  container.on("pointerover", () => { hovered = true; showAttention(); });
+  container.on("pointerout", () => { hovered = false; showAttention(); });
+  const update = (next: AssaultRenderableEntity, nextSelected = false): void => {
+    selected = nextSelected;
+    showAttention();
     if (next.kind !== "rubble" || next.stateRevision === lastRevision) return;
     const rubble = next as PublicRubbleEntity;
     art.clear();
@@ -296,7 +322,7 @@ export function createRubbleView(scene: Phaser.Scene, entity: PublicRubbleEntity
   return {
     container,
     update,
-    setCompact: (compact) => label.setVisible(!compact),
+    setCompact: (compact) => { label.setFontSize(compact ? 10 : 11); showAttention(); },
     destroy: () => container.destroy(true),
   };
 }
@@ -334,8 +360,8 @@ function createPaintedBuilding(scene: Phaser.Scene, type: BuildingType): Phaser.
     if (cellWidth <= 0 || cellHeight <= 0) return undefined;
     texture.add(type, 0, index % 4 * cellWidth, Math.floor(index / 4) * cellHeight, cellWidth, cellHeight);
   }
-  const image = scene.add.image(0, 14, FRONTIER_BUILDING_TEXTURE, type).setOrigin(0.5, 0.85);
-  const width = footprintWidth(type) * 1.32;
+  const image = scene.add.image(0, footprintHeight(type) / 2 - 4, FRONTIER_BUILDING_TEXTURE, type).setOrigin(0.5, 0.85);
+  const width = footprintWidth(type) * 1.16;
   image.setDisplaySize(width, width * image.frame.cutHeight / image.frame.cutWidth);
   return image;
 }
@@ -376,22 +402,12 @@ function drawOwnerHeraldry(graphics: Phaser.GameObjects.Graphics, width: number,
 }
 
 function footprintWidth(type: BuildingType): number {
-  if (type === "townCenter") return 122;
-  if (type === "surveyGate" || type === "copperLandmark") return 116;
-  if (type === "resinPalisade") return 76;
-  if (type === "siegeWorkshop") return 118;
-  if (type === "archeryRange" || type === "gunWorkshop" || type === "beastStable") return 108;
-  if (type === "barracks" || type === "farmstead" || type === "mageSanctum") return 104;
-  return 82;
+  const footprint = BUILDINGS[type].footprint;
+  return (Math.max(...footprint.map((cell) => cell.x)) + Math.max(...footprint.map((cell) => cell.y)) + 2) * 48;
 }
 
 function footprintHeight(type: BuildingType): number {
-  if (type === "townCenter") return 47;
-  if (type === "surveyGate" || type === "copperLandmark") return 46;
-  if (type === "resinPalisade") return 30;
-  if (type === "siegeWorkshop" || type === "beastStable") return 44;
-  if (type === "barracks" || type === "farmstead" || type === "archeryRange" || type === "gunWorkshop" || type === "mageSanctum") return 40;
-  return 32;
+  return footprintWidth(type) / 2;
 }
 
 function drawBuilding(

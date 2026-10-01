@@ -1,0 +1,38 @@
+[
+  {
+    "unitId": "mage",
+    "path": "apps/client/public/assets/original/frontier/characters/mage/action-sheet.png",
+    "sha256": "3a813200018f635ae57a7930236933b5fd3021345b5aeea73415cd0a1f79a002",
+    "bytes": 297759,
+    "frames": 24,
+    "meanForegroundAlpha": 237.1651453028948,
+    "provenance": "docs/art/frontier/mage/provenance.json"
+  },
+  {
+    "unitId": "musketeer",
+    "path": "apps/client/public/assets/original/frontier/characters/musketeer/action-sheet.png",
+    "sha256": "f686413d13124efc68cde5dec1bf1bf375f79a0bfddc65af3d3fc1a1bfea9481",
+    "bytes": 321865,
+    "frames": 24,
+    "meanForegroundAlpha": 236.1286324272656,
+    "provenance": "docs/art/frontier/musketeer/provenance.json"
+  },
+  {
+    "unitId": "boarRider",
+    "path": "apps/client/public/assets/original/frontier/characters/boarRider/action-sheet.png",
+    "sha256": "8690dc1829bc6fb221e085774754e5b4a8a3ad82c3d0196d894cf3b40dcda38a",
+    "bytes": 383707,
+    "frames": 24,
+    "meanForegroundAlpha": 238.14031933048585,
+    "provenance": "docs/art/frontier/boarRider/provenance.json"
+  },
+  {
+    "unitId": "heavyCrossbowman",
+    "path": "apps/client/public/assets/original/frontier/characters/heavyCrossbowman/action-sheet.png",
+    "sha256": "e42a5617eb75f3c0465a9020223139781da6117c00580dc9f98f9be9428b7c0c",
+    "bytes": 328111,
+    "frames": 24,
+    "meanForegroundAlpha": 240.78007962502824,
+    "provenance": "docs/art/frontier/heavyCrossbowman/provenance.json"
+  }
+]

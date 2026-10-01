@@ -18,6 +18,9 @@ export const ANIMATED_UNIT_IDS = [
 
 export type AnimatedUnitId = (typeof ANIMATED_UNIT_IDS)[number];
 
+/** Promote an ID only after its complete 24-frame sheet has passed art QA. */
+export const FRONTIER_UNIT_SHEET_IDS: readonly AnimatedUnitId[] = ["mage", "musketeer", "boarRider", "heavyCrossbowman"];
+
 export const ANIMATED_MONSTER_IDS = ["miremaw", "ashwing", "rootback"] as const;
 export type AnimatedMonsterId = (typeof ANIMATED_MONSTER_IDS)[number];
 
@@ -61,6 +64,7 @@ const ACTION_FPS: Readonly<Record<AnimatedUnitId, Readonly<Record<CombatAction, 
 
 interface DirectionalSheetConfig {
   readonly assetFolder: string;
+  readonly assetDirectory?: string;
   readonly frameWidth: number;
   readonly frameHeight: number;
   readonly anchorX: number;
@@ -76,6 +80,7 @@ interface DirectionalSheetConfig {
 const DIRECTIONAL_UNIT_SHEETS: Readonly<Partial<Record<AnimatedUnitId, DirectionalSheetConfig>>> = {
   warrior: {
     assetFolder: "warrior",
+    assetDirectory: "assets/original/frontier/characters/warrior/facings",
     frameWidth: 96,
     frameHeight: 112,
     anchorX: 48,
@@ -84,6 +89,7 @@ const DIRECTIONAL_UNIT_SHEETS: Readonly<Partial<Record<AnimatedUnitId, Direction
   },
   archer: {
     assetFolder: "archer",
+    assetDirectory: "assets/original/frontier/characters/archer/facings",
     frameWidth: 96,
     frameHeight: 112,
     anchorX: 48,
@@ -92,6 +98,7 @@ const DIRECTIONAL_UNIT_SHEETS: Readonly<Partial<Record<AnimatedUnitId, Direction
   },
   shieldBearer: {
     assetFolder: "shieldBearer",
+    assetDirectory: "assets/original/frontier/characters/shieldBearer/facings",
     frameWidth: 112,
     frameHeight: 112,
     anchorX: 56,
@@ -104,6 +111,21 @@ const DIRECTIONAL_MONSTER_SHEETS: Readonly<Partial<Record<AnimatedMonsterId, Dir
 
 function createAsset(unitId: AnimatedUnitId): UnitFrameAsset {
   const artId = ART_IDS[unitId];
+  if (FRONTIER_UNIT_SHEET_IDS.includes(unitId)) {
+    const textureKey = `unit-action-sheet-${artId}-frontier`;
+    return {
+      unitId, artId, textureKey,
+      path: publicAssetUrl(`assets/original/frontier/characters/${unitId}/action-sheet.png`),
+      manifest: createSixRowManifest({
+        id: artId, textureKey,
+        frameWidth: 256, frameHeight: 256, anchorX: 128, anchorY: 224,
+        artScale: 0.30, authoredFacing: "right", mirrorFacings: false, teamPennant: true,
+        shadowWidth: unitId === "boarRider" ? 45 : 30,
+        shadowHeight: unitId === "boarRider" ? 16 : 10,
+        frameNamePrefix: `frontier-${artId}-frame`,
+      }, { idle: 4, walk: 4, attack: 4, hurt: 4, death: 4, cast: 4 }, ACTION_FPS[unitId]),
+    };
+  }
   const directional = DIRECTIONAL_UNIT_SHEETS[unitId];
   const directionalTextureKeys = directional
     ? Object.fromEntries(FACING_ORDER.map((facing) => [facing, `unit-action-sheet-${artId}-${facing}`])) as Record<Facing, string>
@@ -111,7 +133,7 @@ function createAsset(unitId: AnimatedUnitId): UnitFrameAsset {
   const directionalPaths = directional
     ? Object.fromEntries(FACING_ORDER.map((facing) => [
       facing,
-      publicAssetUrl(`assets/original/units/${directional.assetFolder}/sprites/facings/${facing}.png`),
+      publicAssetUrl(`${directional.assetDirectory ?? `assets/original/units/${directional.assetFolder}/sprites/facings`}/${facing}.png`),
     ])) as Record<Facing, string>
     : undefined;
   const textureKey = directionalTextureKeys?.se ?? `unit-action-sheet-${artId}`;
@@ -139,6 +161,8 @@ function createAsset(unitId: AnimatedUnitId): UnitFrameAsset {
       anchorY: directional?.anchorY ?? 224,
       artScale: directional?.artScale ?? (artId === "boar_rider" ? 0.55 : 0.5),
       authoredFacing: "right",
+      mirrorFacings: directional?.assetDirectory ? false : undefined,
+      teamPennant: Boolean(directional?.assetDirectory),
       frameNamePrefix: `unit-action-frame-${artId}`,
     }, frames, ACTION_FPS[unitId]),
     directionalPaths,
@@ -179,7 +203,7 @@ function createMonsterAsset(monsterId: AnimatedMonsterId): MonsterFrameAsset {
     monsterId,
     artId: monsterId,
     textureKey,
-    path: directionalPaths?.se ?? publicAssetUrl(`assets/original/monsters/${monsterId}/sprites/action-sheet.png`),
+    path: directionalPaths?.se ?? publicAssetUrl(`assets/original/frontier/monsters/${monsterId}/action-sheet.png`),
     manifest: createSixRowManifest({
       id: monsterId,
       textureKey,
@@ -188,8 +212,11 @@ function createMonsterAsset(monsterId: AnimatedMonsterId): MonsterFrameAsset {
       frameHeight: directional?.frameHeight ?? 256,
       anchorX: directional?.anchorX ?? 128,
       anchorY: directional?.anchorY ?? 224,
-      artScale: directional?.artScale ?? (monsterId === "rootback" ? 0.55 : 0.52),
+      artScale: directional?.artScale ?? (monsterId === "rootback" ? 0.48 : 0.42),
+      shadowWidth: monsterId === "rootback" ? 54 : 38,
+      shadowHeight: monsterId === "rootback" ? 18 : 12,
       authoredFacing: "right",
+      mirrorFacings: false,
       frameNamePrefix: `monster-action-frame-${monsterId}`,
     }, frames, fps),
     directionalPaths,
@@ -207,7 +234,12 @@ export interface FrameAssetFile {
   readonly path: string;
 }
 
-export function frameAssetFiles(asset: UnitFrameAsset | MonsterFrameAsset): readonly FrameAssetFile[] {
+export function frameAssetFiles(asset: {
+  readonly textureKey: string;
+  readonly path: string;
+  readonly directionalPaths?: Readonly<Record<Facing, string>>;
+  readonly manifest: FrameAnimatedCombatActorManifest;
+}): readonly FrameAssetFile[] {
   if (!asset.directionalPaths || !asset.manifest.directionalTextureKeys) {
     return [{ textureKey: asset.textureKey, path: asset.path }];
   }
@@ -264,7 +296,11 @@ export function validateCombatAnimationManifest(): readonly string[] {
       }
       if (!file.path?.endsWith(".png")) issues.push(`invalid directional action-sheet path: ${file.path || "<empty>"}`);
     }
-    if (!asset.directionalPaths && !asset.path.endsWith("/sprites/action-sheet.png")) issues.push(`invalid action-sheet path: ${asset.path}`);
+    const frontierPath = `/frontier/characters/${asset.unitId}/action-sheet.png`;
+    if (!asset.directionalPaths && !asset.path.endsWith("/sprites/action-sheet.png")
+        && !(FRONTIER_UNIT_SHEET_IDS.includes(asset.unitId) && asset.path.endsWith(frontierPath))) {
+      issues.push(`invalid action-sheet path: ${asset.path}`);
+    }
     for (const action of ["idle", "walk", "attack", "cast", "hurt", "death"] as const) {
       const row = asset.manifest.actions[action];
       if (row.frames < 4) issues.push(`${asset.unitId}.${action} has fewer than four frames`);
@@ -307,7 +343,7 @@ export function validateCombatAnimationManifest(): readonly string[] {
       }
       if (!file.path?.endsWith(".png")) issues.push(`invalid monster directional action-sheet path: ${file.path || "<empty>"}`);
     }
-    if (!asset.directionalPaths && !asset.path.endsWith("/sprites/action-sheet.png")) issues.push(`invalid monster action-sheet path: ${asset.path}`);
+    if (!asset.directionalPaths && !asset.path.endsWith(`/frontier/monsters/${asset.monsterId}/action-sheet.png`)) issues.push(`invalid monster action-sheet path: ${asset.path}`);
     for (const action of ["idle", "walk", "attack", "cast", "hurt", "death"] as const) {
       if (asset.manifest.actions[action].frames < 4) issues.push(`${asset.monsterId}.${action} has fewer than four frames`);
     }

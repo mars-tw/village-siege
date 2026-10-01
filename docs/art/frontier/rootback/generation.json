@@ -1,0 +1,54 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "modelSlug": "not exposed by tool",
+  "created": "2026-10-01",
+  "prompt": "Create original production animation sprite sheet of a broad root-and-limestone forest golem with a recognizable small face, two long heavy wooden arms, two short root legs, pale stone shoulders and moss. A compact living guardian, restrained moss patches, no random crystals or weapon.. Cohesive refined hand-painted SEMI-REALISTIC medieval RTS miniatures matching warm earth tones, sage foliage and teal game palette. Volumetric illustrated materials, upper-left warm daylight, 30degree elevated isometric3/4 view. Exact4columns×6rows,24complete separatefullbodyposes on TRUE transparent alpha, samecharacteridentity/samebody scale,centeredin eachcell baseline85% and12%gutters. Allposesfacinglowerright. No background,groundtile,text,grid,borders,othercreatures. ROW1 idlefourbreathing/readystances. ROW2 walkfourclear alternatinglimbsteps. ROW3 attackfour distinct articulated ready,windup,strikebite/claw/arm,recover. ROW4 hurtfourflinch/recoil/bend/recover. ROW5 deathfourstagger/collapse/fall/pronewholebodywithinonecell. ROW6 active abilityfour hugewindup,coiledcharge,powerfulstrike,dissipatingrecovery, distinctfromregularattack. Genuine articulated body changes; NEVER repeatoneportraitoronlymoveit. Preservecorrectlimbcount in everycell, weaponsnone, boundedcompactshape andcleanreadablesilhouettesatsmallscale. Framegridexact4x6withuniform spacing.",
+  "rows": [
+    "idle",
+    "walk",
+    "attack",
+    "hurt",
+    "death",
+    "cast"
+  ],
+  "framesPerRow": 4,
+  "authoredPerspectives": 1,
+  "mirroring": false,
+  "normalizationArgs": [
+    "--input",
+    "docs/art/frontier/rootback/source/action-sheet.png",
+    "--out",
+    "apps/client/public/assets/original/frontier/monsters/rootback/action-sheet.png",
+    "--cell-width",
+    "256",
+    "--cell-height",
+    "256",
+    "--anchor-y",
+    "224",
+    "--safety-padding",
+    "8",
+    "--cluster-source-frames",
+    "--uniform-scale",
+    "--uniform-figure-height",
+    "210",
+    "--alpha-threshold",
+    "32"
+  ],
+  "records": [
+    {
+      "source": "docs/art/frontier/rootback/source/action-sheet.png",
+      "sourceSHA256": "fa18b5fa9bc153a9f8da6c7475439a73bc059e3c50c8de06bd45ed43c2a2c144",
+      "runtime": "apps/client/public/assets/original/frontier/monsters/rootback/action-sheet.png",
+      "sha256": "ad6c3f3a87cba500fad2a0745283d6d13f1a6526c37bfb2ed7ec26a2cc729397"
+    }
+  ],
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

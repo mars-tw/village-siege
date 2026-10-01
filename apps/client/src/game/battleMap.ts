@@ -13,6 +13,8 @@ import {
   type GridPoint,
   type ScreenPoint
 } from "./isometric";
+import { publicAssetUrl } from "./publicAssetUrl";
+import { VILLAGE_ASSAULT_BOUNDS } from "./villageAssaultMap";
 
 export const BATTLE_MAP_WIDTH = VILLAGE_ASSAULT_MAP_WIDTH;
 export const BATTLE_MAP_HEIGHT = VILLAGE_ASSAULT_MAP_HEIGHT;
@@ -51,8 +53,8 @@ export interface SuggestedSpawns {
 
 export interface BattleMapView {
   readonly container: Phaser.GameObjects.Container;
-  readonly terrain: Phaser.GameObjects.Graphics;
-  readonly props: Phaser.GameObjects.Graphics;
+  readonly terrain: Phaser.GameObjects.Image;
+  readonly props: Phaser.GameObjects.Container;
   readonly objectives: Phaser.GameObjects.Graphics;
   destroy(): void;
 }
@@ -94,27 +96,27 @@ const MAP_TILES_BY_LAYOUT = Object.fromEntries(VILLAGE_ASSAULT_LAYOUT_IDS.map((l
 })) as unknown as Readonly<Record<VillageAssaultLayoutId, readonly BattleTile[]>>;
 
 const OBJECTIVE_ZONES: readonly ObjectiveZone[] = [
-  { id: "central-crossroads", displayName: "斷橋十字口", kind: "centralControl", center: { x: 8.5, y: 7.5 }, radiusTiles: 2.25 },
-  { id: "west-beacon", displayName: "西岸烽火台", kind: "beacon", center: { x: 5, y: 6 }, radiusTiles: 1.15 },
-  { id: "east-beacon", displayName: "東岸烽火台", kind: "beacon", center: { x: 12, y: 9 }, radiusTiles: 1.15 },
-  { id: "miremaw-camp", displayName: "泥沼獠口巢", kind: "monsterCamp", center: { x: 3.5, y: 2 }, radiusTiles: 1.3, monsterId: "miremaw" },
-  { id: "ashwing-camp", displayName: "灰燼翼巢", kind: "monsterCamp", center: { x: 13, y: 2 }, radiusTiles: 1.3, monsterId: "ashwing" },
-  { id: "rootback-camp", displayName: "根甲巨獸窟", kind: "monsterCamp", center: { x: 8, y: 13 }, radiusTiles: 1.45, monsterId: "rootback" }
+  { id: "central-crossroads", displayName: "中央通道", kind: "centralControl", center: { x: BATTLE_MAP_WIDTH / 2, y: BATTLE_MAP_HEIGHT / 2 }, radiusTiles: 3 },
+  { id: "west-beacon", displayName: "西岸烽火台", kind: "beacon", center: { x: Math.round(BATTLE_MAP_WIDTH * 0.35), y: BATTLE_MAP_HEIGHT / 2 }, radiusTiles: 1.15 },
+  { id: "east-beacon", displayName: "東岸烽火台", kind: "beacon", center: { x: Math.round(BATTLE_MAP_WIDTH * 0.65), y: BATTLE_MAP_HEIGHT / 2 }, radiusTiles: 1.15 },
+  ...getVillageAssaultLayout("pinehold").neutralCamps.map((camp): ObjectiveZone => ({
+    id: camp.id, displayName: camp.monsterTypeId, kind: "monsterCamp", center: camp.position, radiusTiles: 1.3, monsterId: camp.monsterTypeId,
+  })),
 ];
 
 const SUGGESTED_SPAWNS: SuggestedSpawns = {
-  westTeam: [{ x: 1, y: 4 }, { x: 2, y: 4 }, { x: 1, y: 10 }, { x: 2, y: 10 }],
-  eastTeam: [{ x: 16, y: 4 }, { x: 15, y: 4 }, { x: 16, y: 10 }, { x: 15, y: 10 }],
+  westTeam: [{ x: 6, y: 11 }, { x: 7, y: 11 }, { x: 6, y: 13 }, { x: 7, y: 13 }],
+  eastTeam: [{ x: BATTLE_MAP_WIDTH - 6, y: 11 }, { x: BATTLE_MAP_WIDTH - 7, y: 11 }, { x: BATTLE_MAP_WIDTH - 6, y: 13 }, { x: BATTLE_MAP_WIDTH - 7, y: 13 }],
   monsterCamps: {
-    miremaw: [{ x: 3, y: 2 }, { x: 4, y: 2 }],
-    ashwing: [{ x: 12, y: 2 }, { x: 13, y: 2 }],
-    rootback: [{ x: 8, y: 13 }, { x: 9, y: 13 }]
+    miremaw: [{ x: 13, y: 3 }, { x: 14, y: 3 }],
+    ashwing: [{ x: 22, y: 3 }, { x: 23, y: 3 }],
+    rootback: [{ x: 17, y: 21 }, { x: 18, y: 21 }]
   }
 };
 
 export const ATTACK_ROUTES = {
-  north: [{ x: 1, y: 4 }, { x: 6, y: 4 }, { x: 9, y: 4 }, { x: 16, y: 4 }],
-  south: [{ x: 1, y: 10 }, { x: 6, y: 10 }, { x: 9, y: 10 }, { x: 16, y: 10 }]
+  north: [{ x: 4, y: 8 }, { x: 12, y: 8 }, { x: 19, y: 8 }, { x: BATTLE_MAP_WIDTH - 5, y: 8 }],
+  south: [{ x: 4, y: BATTLE_MAP_HEIGHT - 6 }, { x: 12, y: BATTLE_MAP_HEIGHT - 6 }, { x: 19, y: BATTLE_MAP_HEIGHT - 6 }, { x: BATTLE_MAP_WIDTH - 5, y: BATTLE_MAP_HEIGHT - 6 }]
 } as const satisfies Readonly<Record<"north" | "south", readonly GridPoint[]>>;
 
 const NEIGHBOR_OFFSETS = [
@@ -227,435 +229,227 @@ export function getSuggestedSpawns(): SuggestedSpawns {
   };
 }
 
+export const FRONTIER_MATERIALS_TEXTURE = "frontier-landscape-materials";
+export const FRONTIER_NATURE_TEXTURE = "frontier-landscape-nature";
+export const NATURE_FRAMES = ["oakGrove", "pineGrove", "limestoneBoulders", "grainPatch", "cutLogs", "stonePile", "riverbankPebbles", "bushes"] as const;
+export type NatureFrame = typeof NATURE_FRAMES[number];
+let landscapeTextureSequence = 0;
+
+export function preloadFrontierLandscape(scene: Phaser.Scene): void {
+  for (const [key, file] of [
+    [FRONTIER_MATERIALS_TEXTURE, "materials.png"],
+    [FRONTIER_NATURE_TEXTURE, "nature.png"],
+  ] as const) {
+    if (!scene.textures.exists(key)) scene.load.image(key, publicAssetUrl(`assets/original/frontier/landscape/${file}`));
+  }
+}
+
+export function createNatureImage(scene: Phaser.Scene, kind: NatureFrame, width: number, groundY = 20): Phaser.GameObjects.Image | undefined {
+  if (!scene.textures.exists(FRONTIER_NATURE_TEXTURE)) return undefined;
+  const texture = scene.textures.get(FRONTIER_NATURE_TEXTURE);
+  if (!texture.has(kind)) {
+    const base = texture.get("__BASE");
+    const cellWidth = Math.floor(base.cutWidth / 4);
+    const cellHeight = Math.floor(base.cutHeight / 2);
+    const index = NATURE_FRAMES.indexOf(kind);
+    const topInset = index >= 4 ? Math.floor(cellHeight / 8) : 0;
+    texture.add(kind, 0, index % 4 * cellWidth, Math.floor(index / 4) * cellHeight + topInset, cellWidth, cellHeight - topInset);
+  }
+  const sourceHeight = texture.get("__BASE").cutHeight / 2;
+  const frame = texture.get(kind);
+  const inset = sourceHeight - frame.cutHeight;
+  const image = scene.add.image(0, groundY, FRONTIER_NATURE_TEXTURE, kind).setOrigin(0.5, (sourceHeight * 0.85 - inset) / frame.cutHeight);
+  image.setDisplaySize(width, width * image.frame.cutHeight / image.frame.cutWidth);
+  return image;
+}
+
 export function drawBattleMap(scene: Phaser.Scene, origin: ScreenPoint, layoutId: VillageAssaultLayoutId = "pinehold"): BattleMapView {
-  const rim = scene.add.graphics();
-  const terrain = scene.add.graphics();
-  const props = scene.add.graphics();
+  const textureKey = `frontier-landscape-baked-${++landscapeTextureSequence}`;
+  const canvas = paintLandscape(scene, origin, layoutId);
+  scene.textures.addCanvas(textureKey, canvas);
+  const terrain = scene.add.image(-origin.x, -origin.y, textureKey).setOrigin(0);
+  const props = scene.add.container(0, 0);
   const objectives = scene.add.graphics();
-  const container = scene.add.container(origin.x, origin.y, [rim, terrain, props, objectives]);
-  const boundary = mapBoundary();
-  fillPolygon(rim, boundary.map((point) => ({ x: point.x, y: point.y + 24 })), 0x202b27, 0.55);
-  fillPolygon(rim, boundary.map((point) => ({ x: point.x, y: point.y + 14 })), 0x5b5643, 1);
-  drawContinuousGround(terrain, layoutId);
-  drawNaturalProps(props, layoutId);
-  const campZones: ObjectiveZone[] = getVillageAssaultLayout(layoutId).neutralCamps.map((camp) => ({
-    id: camp.id,
-    displayName: camp.monsterTypeId,
-    kind: "monsterCamp",
-    center: camp.position,
-    radiusTiles: camp.monsterTypeId === "rootback" ? 1.45 : 1.3,
-    monsterId: camp.monsterTypeId,
-  }));
-  for (const zone of [...OBJECTIVE_ZONES.filter((candidate) => candidate.kind !== "monsterCamp"), ...campZones]) drawObjective(objectives, zone);
-
+  const container = scene.add.container(origin.x, origin.y, [terrain, props, objectives]);
+  dressLandscape(scene, props, layoutId);
+  const center = gridToWorld({ x: BATTLE_MAP_WIDTH / 2, y: BATTLE_MAP_HEIGHT / 2 }, { x: 0, y: 0 });
+  // One restrained survey mark identifies the shared control point without a
+  // field of giant target rings, fake neutral buildings, or name labels.
+  objectives.lineStyle(2, 0xd6c18b, 0.35).strokeEllipse(center.x, center.y, 52, 24);
+  objectives.fillStyle(0xe4d7ae, 0.7).fillCircle(center.x, center.y, 3);
   return {
-    container,
-    terrain,
-    props,
-    objectives,
-    destroy: () => container.destroy(true)
+    container, terrain, props, objectives,
+    destroy: () => { container.destroy(true); scene.textures.remove(textureKey); },
   };
 }
 
-/** Keep the grid for simulation, but paint one continuous RTS landscape. */
-function drawContinuousGround(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
-  const boundary = mapBoundary();
-  const palette = layoutId === "riverstead"
-    ? { base: 0x78915f, light: 0x9baa71, dark: 0x567353, soil: 0x938466 }
-    : layoutId === "highcrag"
-      ? { base: 0x85846c, light: 0xa9a081, dark: 0x676d58, soil: 0x9a8262 }
-      : { base: 0x829462, light: 0xa6ad71, dark: 0x667e51, soil: 0x9a8057 };
-  fillPolygon(graphics, boundary, palette.base, 1);
-
-  drawBlob(graphics, [
-    grid(-0.5, 10.4), grid(2.2, 8.8), grid(5.5, 9.7), grid(7.6, 12.2),
-    grid(4.5, 16.2), grid(0.2, 15.7)
-  ], palette.light, 0.68);
-  drawBlob(graphics, [
-    grid(9.1, -0.4), grid(14.6, -0.2), grid(18.3, 2.9), grid(16.9, 6.3),
-    grid(13.5, 5.4), grid(10.2, 3.1)
-  ], palette.dark, 0.72);
-  drawBlob(graphics, [
-    grid(2.2, 11), grid(5.5, 9.6), grid(9.6, 10.2), grid(13.4, 12.1),
-    grid(11.8, 15.7), grid(6.1, 15.9)
-  ], palette.soil, 0.55);
-  drawBlob(graphics, [
-    grid(1.4, 1.2), grid(5.2, 0.3), grid(7.3, 2.5), grid(5.1, 5.3),
-    grid(1.4, 4.6), grid(-0.2, 2.8)
-  ], palette.light, 0.5);
-
-  const river = [
-    grid(7.1, -1.2), grid(7.25, 1.2), grid(7.7, 3.5), grid(7.35, 5.7),
-    grid(7.9, 7.8), grid(7.5, 10.1), grid(7.75, 12.4), grid(7.35, 14.6), grid(7.55, 17)
-  ];
-  const channelColors = layoutId === "highcrag"
-    ? [0x595440, 0x797a65, 0x96977d] as const
-    : layoutId === "riverstead"
-      ? [0x64724e, 0x315f70, 0x548e98] as const
-      : [0x747852, 0x386979, 0x568b92] as const;
-  const channelScale = layoutId === "riverstead" ? 1.18 : layoutId === "highcrag" ? 0.82 : 1;
-  drawOrganicRibbon(graphics, river, [70, 62, 72, 61, 69, 64, 75, 62, 72].map((width) => width * channelScale), channelColors[0], 1);
-  drawOrganicRibbon(graphics, river, [54, 48, 56, 47, 53, 49, 58, 48, 55].map((width) => width * channelScale), channelColors[1], 1);
-  drawOrganicRibbon(graphics, river, [38, 34, 40, 33, 37, 35, 43, 34, 39].map((width) => width * channelScale), channelColors[2], 0.94);
-
-  const northRoad = [
-    grid(-1.1, 4.25), grid(1.6, 4.05), grid(4.2, 4.25), grid(6.4, 4.02),
-    grid(9.3, 4.2), grid(11.8, 3.92), grid(14.4, 4.13), grid(18.3, 3.95)
-  ];
-  const southRoad = [
-    grid(-1.1, 10.15), grid(1.5, 9.9), grid(4.1, 10.18), grid(6.3, 9.98),
-    grid(9.4, 10.2), grid(12.1, 9.92), grid(14.9, 10.14), grid(18.3, 9.94)
-  ];
-  drawOrganicRibbon(graphics, northRoad, [54, 47, 51, 45, 50, 46, 52, 48], 0x776b4d, 0.68);
-  drawOrganicRibbon(graphics, northRoad, [39, 34, 37, 32, 36, 33, 38, 34], 0xada084, 0.97);
-  drawOrganicRibbon(graphics, southRoad, [58, 49, 55, 47, 54, 48, 56, 50], 0x715739, 0.78);
-  drawOrganicRibbon(graphics, southRoad, [43, 36, 40, 34, 39, 35, 42, 36], 0x98774f, 0.98);
-
-  drawAuthoritativeTerrainPatches(graphics, layoutId);
-  // Material marks must be painted after the authoritative regions, or the solid
-  // cell fills erase them and the map falls back to a flat board-game appearance.
-  if (layoutId !== "highcrag") drawRiverDetails(graphics, river);
-  drawRoadDetails(graphics, northRoad, true);
-  drawRoadDetails(graphics, southRoad, false);
-  scatterMeadowDetails(graphics, layoutId);
-  graphics.lineStyle(2, 0x545d3e, 0.55);
-  strokePolygon(graphics, boundary);
-}
-
-/**
- * Paint exact authoritative cells as seamless isometric regions on top of the
- * broad organic underpainting. Adjacent diamonds share one fill and no grid
- * stroke, so bridges and blockers read accurately without exposing a tile grid.
- */
-function drawAuthoritativeTerrainPatches(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
-  const rows = getVillageAssaultLayout(layoutId).terrainRows;
-  const colors: Readonly<Record<Exclude<TileGlyph, "G">, number>> = {
-    M: TERRAIN.mud.fillColor,
-    S: layoutId === "highcrag" ? 0xaca48b : TERRAIN.stoneRoad.fillColor,
-    W: TERRAIN.shallowWater.fillColor,
-    R: layoutId === "highcrag" ? 0x7f806d : TERRAIN.rock.fillColor,
-    T: TERRAIN.thicket.fillColor,
-  };
-  const alphas: Readonly<Record<Exclude<TileGlyph, "G">, number>> = { M: 0.9, S: 0.96, W: 0.98, R: 0.98, T: 0.72 };
-  const drawOrder: readonly Exclude<TileGlyph, "G">[] = ["W", "R", "T", "M", "S"];
-  for (const targetGlyph of drawOrder) {
-    graphics.fillStyle(colors[targetGlyph], alphas[targetGlyph]);
-    for (let y = 0; y < rows.length; y += 1) {
-      for (let x = 0; x < rows[y]!.length; x += 1) {
-        if (rows[y]![x] !== targetGlyph) continue;
-        const center = grid(x, y);
-        graphics.fillPoints([
-          new Phaser.Math.Vector2(center.x, center.y - HALF_TILE_HEIGHT),
-          new Phaser.Math.Vector2(center.x + HALF_TILE_WIDTH, center.y),
-          new Phaser.Math.Vector2(center.x, center.y + HALF_TILE_HEIGHT),
-          new Phaser.Math.Vector2(center.x - HALF_TILE_WIDTH, center.y),
-        ], true);
-      }
-    }
-  }
-  drawTerrainMaterialDetails(graphics, rows);
-}
-
-/** Small, seeded marks give regions a painted surface while retaining exact collision cells. */
-function drawTerrainMaterialDetails(graphics: Phaser.GameObjects.Graphics, rows: readonly string[]): void {
-  for (let y = 0; y < rows.length; y += 1) {
-    for (let x = 0; x < rows[y]!.length; x += 1) {
-      const glyph = rows[y]![x] as TileGlyph;
-      if (glyph === "G") continue;
-      const center = grid(x, y);
-      const seed = detailSeed(x, y);
-      if (glyph === "W") {
-        graphics.fillStyle(0x74a4a7, 0.14).fillEllipse(center.x - 7, center.y - 3, 44, 14);
-        graphics.lineStyle(1, 0xb1c8b8, 0.35)
-          .lineBetween(center.x - 20, center.y + seed % 7 - 3, center.x + 11, center.y + seed % 7 - 1);
-      } else if (glyph === "S") {
-        graphics.fillStyle(seed % 2 ? 0xd6c7a2 : 0x786d55, 0.22)
-          .fillEllipse(center.x + seed % 18 - 9, center.y - 2, 29 + seed % 13, 10);
-        graphics.lineStyle(1, 0x6f6853, 0.27).lineBetween(center.x - 13, center.y + 4, center.x + 4, center.y + 10);
-      } else if (glyph === "M") {
-        graphics.fillStyle(0x5b472f, 0.13).fillEllipse(center.x - 5, center.y + 2, 32 + seed % 19, 9);
-        graphics.lineStyle(1, 0xd1b17b, 0.28).lineBetween(center.x - 19, center.y - 3, center.x + 15, center.y + 3);
-      } else {
-        graphics.fillStyle(glyph === "R" ? 0xb3b094 : 0x9ba46a, 0.16)
-          .fillEllipse(center.x + seed % 17 - 8, center.y - 2, 35 + seed % 15, 12);
-      }
-    }
-  }
-}
-
-function mapCorners(): ScreenPoint[] {
-  const north = grid(0, 0);
-  const east = grid(BATTLE_MAP_WIDTH - 1, 0);
-  const south = grid(BATTLE_MAP_WIDTH - 1, BATTLE_MAP_HEIGHT - 1);
-  const west = grid(0, BATTLE_MAP_HEIGHT - 1);
-  return [
-    { x: north.x, y: north.y - HALF_TILE_HEIGHT },
-    { x: east.x + HALF_TILE_WIDTH, y: east.y },
-    { x: south.x, y: south.y + HALF_TILE_HEIGHT },
-    { x: west.x - HALF_TILE_WIDTH, y: west.y }
-  ];
-}
-
-function mapBoundary(): ScreenPoint[] {
-  const corners = mapCorners();
-  const edge: ScreenPoint[] = [];
-  for (let index = 0; index < corners.length; index += 1) {
-    const left = corners[index]!;
-    const right = corners[(index + 1) % corners.length]!;
-    const dx = right.x - left.x;
-    const dy = right.y - left.y;
-    const length = Math.hypot(dx, dy);
-    edge.push(left);
-    for (let step = 1; step < 12; step += 1) {
-      const t = step / 12;
-      const outset = 3 + detailSeed(index, step) % 8;
-      edge.push({ x: left.x + dx * t + dy / length * outset, y: left.y + dy * t - dx / length * outset });
-    }
-  }
-  return edge;
-}
-
-function grid(x: number, y: number): ScreenPoint {
-  return gridToWorld({ x, y }, { x: 0, y: 0 });
-}
-
-function fillPolygon(graphics: Phaser.GameObjects.Graphics, points: readonly ScreenPoint[], color: number, alpha: number): void {
-  if (points.length < 3) return;
-  graphics.fillStyle(color, alpha).beginPath().moveTo(points[0]!.x, points[0]!.y);
-  for (let index = 1; index < points.length; index += 1) graphics.lineTo(points[index]!.x, points[index]!.y);
-  graphics.closePath().fillPath();
-}
-
-function strokePolygon(graphics: Phaser.GameObjects.Graphics, points: readonly ScreenPoint[]): void {
-  if (points.length < 2) return;
-  graphics.beginPath().moveTo(points[0]!.x, points[0]!.y);
-  for (let index = 1; index < points.length; index += 1) graphics.lineTo(points[index]!.x, points[index]!.y);
-  graphics.closePath().strokePath();
-}
-
-function drawBlob(graphics: Phaser.GameObjects.Graphics, points: readonly ScreenPoint[], color: number, alpha: number): void {
-  fillPolygon(graphics, clipLandscapePolygon(points), color, alpha);
-}
-
-/** Clip once while painting; no renderer-specific masks or per-frame filter passes. */
-function clipLandscapePolygon(points: readonly ScreenPoint[]): ScreenPoint[] {
-  let output = [...points];
-  const corners = mapCorners();
-  for (let edge = 0; edge < corners.length && output.length > 0; edge += 1) {
-    const start = corners[edge]!;
-    const end = corners[(edge + 1) % corners.length]!;
-    const cross = (point: ScreenPoint): number => (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x);
-    const input = output;
-    output = [];
-    let previous = input[input.length - 1]!;
-    let previousSide = cross(previous);
-    for (const current of input) {
-      const currentSide = cross(current);
-      if ((currentSide >= 0) !== (previousSide >= 0)) {
-        const fraction = previousSide / (previousSide - currentSide);
-        output.push({ x: previous.x + (current.x - previous.x) * fraction, y: previous.y + (current.y - previous.y) * fraction });
-      }
-      if (currentSide >= 0) output.push(current);
-      previous = current;
-      previousSide = currentSide;
-    }
-  }
-  return output;
-}
-
-function insideLandscape(point: ScreenPoint): boolean {
-  const corners = mapCorners();
-  return corners.every((start, index) => {
-    const end = corners[(index + 1) % corners.length]!;
-    return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) >= 0;
+function materialPatterns(scene: Phaser.Scene, context: CanvasRenderingContext2D): readonly (CanvasPattern | null)[] {
+  if (!scene.textures.exists(FRONTIER_MATERIALS_TEXTURE)) return [];
+  const source = scene.textures.get(FRONTIER_MATERIALS_TEXTURE).getSourceImage() as HTMLImageElement;
+  const width = Math.floor(source.width / 2);
+  const height = Math.floor(source.height / 2);
+  return [0, 1, 2, 3].map((index) => {
+    const tile = document.createElement("canvas");
+    tile.width = Math.floor(width * 0.6);
+    tile.height = Math.floor(height * 0.6);
+    tile.getContext("2d")!.drawImage(source, index % 2 * width, Math.floor(index / 2) * height, width, height, 0, 0, tile.width, tile.height);
+    return context.createPattern(tile, "repeat");
   });
 }
 
-function drawOrganicRibbon(
-  graphics: Phaser.GameObjects.Graphics,
-  centerline: readonly ScreenPoint[],
-  halfWidths: readonly number[],
-  color: number,
-  alpha: number
-): void {
-  if (centerline.length < 2 || centerline.length !== halfWidths.length) return;
-  const left: ScreenPoint[] = [];
-  const right: ScreenPoint[] = [];
-  for (let index = 0; index < centerline.length; index += 1) {
-    const previous = centerline[Math.max(0, index - 1)]!;
-    const next = centerline[Math.min(centerline.length - 1, index + 1)]!;
-    const dx = next.x - previous.x;
-    const dy = next.y - previous.y;
-    const length = Math.max(1, Math.hypot(dx, dy));
-    const normalX = -dy / length;
-    const normalY = dx / length;
-    const center = centerline[index]!;
-    const halfWidth = halfWidths[index]!;
-    left.push({ x: center.x + normalX * halfWidth, y: center.y + normalY * halfWidth });
-    right.unshift({ x: center.x - normalX * halfWidth, y: center.y - normalY * halfWidth });
-  }
-  fillPolygon(graphics, clipLandscapePolygon([...left, ...right]), color, alpha);
-}
-
-function drawRiverDetails(graphics: Phaser.GameObjects.Graphics, river: readonly ScreenPoint[]): void {
-  for (let index = 0; index < 15; index += 1) {
-    const center = samplePolyline(river, (index + 0.45) / 15);
-    if (!insideLandscape(center)) continue;
-    const drift = detailSeed(index, 71) % 31 - 15;
-    const length = 18 + detailSeed(index, 83) % 29;
-    graphics.lineStyle(2, index % 3 === 0 ? 0x9bc0b7 : 0x75aaa5, 0.38)
-      .lineBetween(center.x - length / 2 + drift, center.y - 3, center.x + length / 2 + drift, center.y + 3);
-  }
-}
-
-function drawRoadDetails(graphics: Phaser.GameObjects.Graphics, road: readonly ScreenPoint[], stone: boolean): void {
+/** A baked raster surface follows the authoritative grid; it is never a scene illustration. */
+function paintLandscape(scene: Phaser.Scene, origin: ScreenPoint, layoutId: VillageAssaultLayoutId): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = VILLAGE_ASSAULT_BOUNDS.width;
+  canvas.height = VILLAGE_ASSAULT_BOUNDS.height;
+  const context = canvas.getContext("2d")!;
+  const patterns = materialPatterns(scene, context);
+  context.fillStyle = patterns[0] ?? "#88954e";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  // Diffuse light and vegetation variation merge into continuous meadow. There
+  // are no hard polygon patches or a raised miniature-board boundary.
   for (let index = 0; index < 22; index += 1) {
-    const center = samplePolyline(road, (index + 0.35) / 22);
-    if (!insideLandscape(center)) continue;
-    const seed = detailSeed(index, stone ? 137 : 173);
-    const driftX = seed % 25 - 12;
-    const driftY = Math.floor(seed / 25) % 13 - 6;
-    if (stone) {
-      graphics.lineStyle(1, index % 2 === 0 ? 0xc0b8a0 : 0x5d5b50, 0.42)
-        .lineBetween(center.x + driftX - 10, center.y + driftY - 4, center.x + driftX + 10, center.y + driftY + 4);
-    } else {
-      graphics.fillStyle(index % 3 === 0 ? 0x493828 : 0xa07951, 0.3)
-        .fillEllipse(center.x + driftX, center.y + driftY, 19 + seed % 14, 5);
+    const seed = detailSeed(index, 319);
+    const x = seed % canvas.width;
+    const y = Math.floor(seed / 113) % canvas.height;
+    const radius = 220 + seed % 270;
+    const wash = context.createRadialGradient(x, y, 0, x, y, radius);
+    wash.addColorStop(0, index % 3 === 0 ? "rgba(39,65,32,0.14)" : "rgba(239,213,136,0.11)");
+    wash.addColorStop(1, "rgba(150,160,100,0)");
+    context.fillStyle = wash;
+    context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+  const rows = getVillageAssaultLayout(layoutId).terrainRows;
+  const regions: Record<string, Path2D> = { M: new Path2D(), S: new Path2D(), W: new Path2D(), R: new Path2D(), T: new Path2D() };
+  for (let y = 0; y < rows.length; y += 1) for (let x = 0; x < rows[y]!.length; x += 1) {
+    const path = regions[rows[y]![x]!];
+    if (!path) continue;
+    const center = gridToWorld({ x, y }, origin);
+    path.moveTo(center.x, center.y - HALF_TILE_HEIGHT);
+    path.lineTo(center.x + HALF_TILE_WIDTH, center.y);
+    path.lineTo(center.x, center.y + HALF_TILE_HEIGHT);
+    path.lineTo(center.x - HALF_TILE_WIDTH, center.y);
+    path.closePath();
+  }
+  const region = (glyph: string, material: number, fallback: string, alpha = 1, shadow = "rgba(71,72,37,0.2)"): void => {
+    context.save();
+    context.globalAlpha = alpha;
+    context.fillStyle = patterns[material] ?? fallback;
+    context.shadowColor = shadow;
+    context.shadowBlur = glyph === "W" ? 18 : 10;
+    context.fill(regions[glyph]!);
+    context.restore();
+  };
+  region("T", 0, "#657b41", 0.3);
+  region("R", 2, "#9d9578", 0.78);
+  region("W", 3, "#548d91", 1, "rgba(166,151,97,0.65)");
+  region("M", 1, "#ad885c", 0.95, "rgba(180,162,102,0.45)");
+  // The full legal movement corridor stays three or four cells wide, while
+  // its visible route is a narrow, worn dirt path through grass.
+  region("S", 1, "#ad885c", 0.12, "rgba(0,0,0,0)");
+  const bands = new Map<number, ScreenPoint[]>();
+  const bridges = new Path2D();
+  for (let x = 0; x < BATTLE_MAP_WIDTH; x += 1) {
+    let band = 0;
+    const isCrossing = Math.abs(x - (BATTLE_MAP_WIDTH - 1) / 2) <= 1.5
+      && rows.some((row) => row[x] === "W" || row[x] === "R");
+    for (let y = 0; y < rows.length; y += 1) {
+      if (rows[y]![x] !== "S") continue;
+      const first = y;
+      while (y + 1 < rows.length && rows[y + 1]![x] === "S") y += 1;
+      const centerY = (first + y) / 2 + Math.sin(x * 0.47 + first) * 0.28;
+      const points = bands.get(band) ?? [];
+      points.push(gridToWorld({ x, y: centerY }, origin));
+      bands.set(band++, points);
+      if (isCrossing) for (let bridgeY = first; bridgeY <= y; bridgeY += 1) {
+        const center = gridToWorld({ x, y: bridgeY }, origin);
+        bridges.moveTo(center.x, center.y - HALF_TILE_HEIGHT);
+        bridges.lineTo(center.x + HALF_TILE_WIDTH, center.y);
+        bridges.lineTo(center.x, center.y + HALF_TILE_HEIGHT);
+        bridges.lineTo(center.x - HALF_TILE_WIDTH, center.y);
+        bridges.closePath();
+      }
     }
   }
-}
-
-function scatterMeadowDetails(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId): void {
-  for (let index = 0; index < 190; index += 1) {
-    const seed = detailSeed(index, 211);
-    const x = (seed % 1700) / 100;
-    const y = (Math.floor(seed / 1700) % 1500) / 100;
-    const tile = getBattleTile({ x, y }, layoutId);
-    if (!tile || tile.kind !== "grass") continue;
-    const center = grid(x, y);
-    graphics.fillStyle(index % 3 === 0 ? 0xc0ba7d : 0x496943, 0.07)
-      .fillEllipse(center.x, center.y + 1, 30 + seed % 38, 9 + seed % 10);
-    graphics.lineStyle(1, index % 4 === 0 ? 0xc7c28a : 0x546c42, 0.48)
-      .lineBetween(center.x, center.y + 2, center.x - 2, center.y - 4)
-      .lineBetween(center.x, center.y + 2, center.x + 3, center.y - 3);
-    if (index % 7 === 0) {
-      graphics.fillStyle(0xe2c487, 0.8).fillCircle(center.x + 5, center.y - 2, 1.5);
-      graphics.fillStyle(0xf0e2b9, 0.65).fillCircle(center.x - 4, center.y + 1, 1);
+  context.save();
+  context.clip(regions.S!);
+  context.strokeStyle = patterns[1] ?? "#ad885c";
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.shadowColor = "rgba(141,117,74,0.24)";
+  context.shadowBlur = 13;
+  for (const points of bands.values()) {
+    if (points.length < 2) continue;
+    const path = new Path2D();
+    path.moveTo(points[0]!.x, points[0]!.y);
+    for (let index = 1; index < points.length - 1; index += 1) {
+      const point = points[index]!;
+      const next = points[index + 1]!;
+      path.quadraticCurveTo(point.x, point.y, (point.x + next.x) / 2, (point.y + next.y) / 2);
     }
+    path.lineTo(points[points.length - 1]!.x, points[points.length - 1]!.y);
+    context.globalAlpha = 0.35;
+    context.lineWidth = 38;
+    context.stroke(path);
+    context.globalAlpha = 0.22;
+    context.lineWidth = 15;
+    context.stroke(path);
   }
-}
+  context.restore();
+  context.save();
+  context.fillStyle = patterns[2] ?? "#c5af82";
+  context.globalAlpha = 0.68;
+  context.shadowColor = "rgba(137,113,71,0.35)";
+  context.shadowBlur = 7;
+  context.fill(bridges);
+  context.restore();
 
-function samplePolyline(points: readonly ScreenPoint[], t: number): ScreenPoint {
-  if (points.length < 2) throw new Error("Polyline requires at least two points");
-  const scaled = Math.max(0, Math.min(0.999999, t)) * (points.length - 1);
-  const index = Math.floor(scaled);
-  const local = scaled - index;
-  const left = points[index]!;
-  const right = points[index + 1]!;
-  return { x: left.x + (right.x - left.x) * local, y: left.y + (right.y - left.y) * local };
-}
-
-function drawNaturalProps(graphics: Phaser.GameObjects.Graphics, layoutId: VillageAssaultLayoutId = "pinehold"): void {
-  const clusters: Array<{ readonly kind: "rock" | "thicket"; readonly point: GridPoint; readonly size: number }> = [
-    { kind: "thicket", point: { x: 0.4, y: 0.6 }, size: 4 },
-    { kind: "thicket", point: { x: 16.4, y: 0.8 }, size: 4 },
-    { kind: "thicket", point: { x: 0.5, y: 14.4 }, size: 4 },
-    { kind: "thicket", point: { x: 15.8, y: 14.5 }, size: 5 },
-    { kind: "thicket", point: { x: 3.2, y: 12.4 }, size: 3 },
-    { kind: "thicket", point: { x: 12.7, y: 12.1 }, size: 3 },
-    { kind: "rock", point: { x: 6.5, y: 0.7 }, size: 4 },
-    { kind: "rock", point: { x: 7.2, y: 2.2 }, size: 3 },
-    { kind: "rock", point: { x: 1.1, y: 6.3 }, size: 2 },
-    { kind: "rock", point: { x: 1.3, y: 9.1 }, size: 2 },
-    { kind: "rock", point: { x: 14.2, y: 6.2 }, size: 3 },
-    { kind: "rock", point: { x: 14.4, y: 9.2 }, size: 3 }
-  ];
-  clusters.sort((left, right) => left.point.x + left.point.y - right.point.x - right.point.y);
-  for (const cluster of clusters) {
-    const center = grid(cluster.point.x, cluster.point.y);
-    const kind = layoutId === "highcrag" ? "rock" : layoutId === "riverstead" && cluster.kind === "rock" ? "thicket" : cluster.kind;
-    if (kind === "rock") drawRockCluster(graphics, center.x, center.y, cluster.point, cluster.size);
-    else drawThicketCluster(graphics, center.x, center.y, cluster.point, cluster.size);
+  // Light weathering is placed within each material's exact playable region.
+  // Texture detail survives because it is painted after the terrain masks.
+  for (let y = 0; y < rows.length; y += 1) for (let x = 0; x < rows[y]!.length; x += 1) {
+    const glyph = rows[y]![x];
+    if (glyph !== "W") continue;
+    const center = gridToWorld({ x, y }, origin);
+    const seed = detailSeed(x, y);
+    context.beginPath();
+    context.moveTo(center.x - 18, center.y - 4 + seed % 5);
+    context.lineTo(center.x + 17, center.y + 3 + seed % 5);
+    context.strokeStyle = "rgba(209,233,213,0.19)";
+    context.lineWidth = 1.5;
+    context.stroke();
   }
+  return canvas;
 }
 
-function drawRockCluster(graphics: Phaser.GameObjects.Graphics, x: number, y: number, point: GridPoint, size: number): void {
-  graphics.fillStyle(0x252d2b, 0.24).fillEllipse(x, y + 7, 42 + size * 18, 14 + size * 2);
-  for (let index = 0; index < size; index += 1) {
-    const seed = detailSeed(Math.round(point.x * 10) + index, Math.round(point.y * 10));
-    const offsetX = index * 17 - (size - 1) * 8 + seed % 9 - 4;
-    const offsetY = seed % 13 - 4;
-    const scale = 0.62 + (seed % 5) * 0.09;
-    drawRock(graphics, x + offsetX, y + offsetY, scale, seed % 7 - 3);
+function dressLandscape(scene: Phaser.Scene, props: Phaser.GameObjects.Container, layoutId: VillageAssaultLayoutId): void {
+  const rows = getVillageAssaultLayout(layoutId).terrainRows;
+  const sprites: Phaser.GameObjects.Image[] = [];
+  const add = (kind: NatureFrame, point: GridPoint, width: number, alpha = 1): void => {
+    const sprite = createNatureImage(scene, kind, width, 0);
+    if (!sprite) return;
+    const world = gridToWorld(point, { x: 0, y: 0 });
+    sprite.setPosition(world.x, world.y + 18).setAlpha(alpha).setName(`landscape:${kind}:${point.x},${point.y}`);
+    sprites.push(sprite);
+  };
+  for (let y = 0; y < rows.length; y += 1) for (let x = 0; x < rows[y]!.length; x += 1) {
+    const glyph = rows[y]![x];
+    const seed = detailSeed(x, y);
+    const drift = (seed % 9 - 4) / 24;
+    if (glyph === "T") {
+      if (seed % 3 === 0) add(layoutId === "pinehold" ? "pineGrove" : "oakGrove", { x: x + drift, y }, 115 + seed % 32);
+      else if (seed % 3 === 1) add("bushes", { x, y: y + drift }, 66 + seed % 20, 0.92);
+    } else if (glyph === "R" && seed % 3 !== 0) {
+      add("limestoneBoulders", { x: x + drift, y }, 82 + seed % 22);
+    } else if (glyph === "G" && seed % 41 === 0) {
+      // Small flowering vegetation leaves room for buildings and units.
+      add("bushes", { x: x + drift, y: y - 0.15 }, 34 + seed % 12, 0.8);
+    }
+    const besideWater = glyph !== "W" && glyph !== "S" && [rows[y - 1]?.[x], rows[y + 1]?.[x], rows[y]?.[x - 1], rows[y]?.[x + 1]].includes("W");
+    if (besideWater && seed % 3 === 0) add("riverbankPebbles", { x: x - 0.1, y: y + drift }, 62 + seed % 12, 0.95);
   }
+  sprites.sort((left, right) => left.y - right.y || left.x - right.x);
+  props.add(sprites);
 }
-
-function drawRock(graphics: Phaser.GameObjects.Graphics, x: number, y: number, scale: number, lean: number): void {
-  graphics.fillStyle(0x555b4f).beginPath()
-    .moveTo(x - 18 * scale, y + 4)
-    .lineTo(x + (-11 + lean) * scale, y - 24 * scale)
-    .lineTo(x + 5 * scale, y - 31 * scale)
-    .lineTo(x + 21 * scale, y - 8 * scale)
-    .lineTo(x + 17 * scale, y + 6)
-    .closePath().fillPath();
-  graphics.fillStyle(0x969783).beginPath()
-    .moveTo(x + (-10 + lean) * scale, y - 22 * scale)
-    .lineTo(x + 5 * scale, y - 29 * scale)
-    .lineTo(x + 15 * scale, y - 11 * scale)
-    .lineTo(x - 2 * scale, y - 7 * scale)
-    .closePath().fillPath();
-  graphics.lineStyle(1, 0xc0b994, 0.65).lineBetween(x + (-9 + lean) * scale, y - 22 * scale, x + 5 * scale, y - 28 * scale);
-  graphics.fillStyle(0x77844b, 0.65).fillEllipse(x - 7 * scale, y + 3, 15 * scale, 5 * scale);
-}
-
-function drawThicketCluster(graphics: Phaser.GameObjects.Graphics, x: number, y: number, point: GridPoint, size: number): void {
-  graphics.fillStyle(0x263629, 0.26).fillEllipse(x, y + 8, 52 + size * 20, 18);
-  for (let index = 0; index < size; index += 1) {
-    const seed = detailSeed(Math.round(point.x * 10) + index, Math.round(point.y * 10));
-    const offsetX = index * 19 - (size - 1) * 10 + seed % 11 - 5;
-    const offsetY = seed % 13 - 6;
-    const height = 32 + seed % 18;
-    graphics.lineStyle(3, 0x493a2d, 0.9).lineBetween(x + offsetX, y + offsetY + 4, x + offsetX, y + offsetY - height * 0.55);
-    graphics.fillStyle(index % 2 === 0 ? 0x375637 : 0x466440)
-      .fillEllipse(x + offsetX, y + offsetY - height * 0.6, 37, height * 0.72)
-      .fillEllipse(x + offsetX - 10, y + offsetY - height * 0.38, 25, height * 0.51)
-      .fillEllipse(x + offsetX + 11, y + offsetY - height * 0.4, 23, height * 0.48);
-    graphics.fillStyle(0x809154, 0.65)
-      .fillEllipse(x + offsetX - 5, y + offsetY - height * 0.71, 22, height * 0.28)
-      .fillEllipse(x + offsetX + 9, y + offsetY - height * 0.48, 14, 11);
-    graphics.fillStyle(0xa5a766, 0.5).fillEllipse(x + offsetX - 8, y + offsetY - height * 0.72, 9, 5);
-  }
-  graphics.fillStyle(0x5f7947).fillEllipse(x - size * 8, y - 3, 23, 15).fillEllipse(x + size * 9, y - 2, 21, 14);
-}
-
-function drawObjective(graphics: Phaser.GameObjects.Graphics, zone: ObjectiveZone): void {
-  const center = gridToWorld(zone.center, { x: 0, y: 0 });
-  if (zone.kind === "centralControl") {
-    graphics.fillStyle(0xb47a36, 0.08).fillEllipse(center.x, center.y, 196, 82);
-    graphics.lineStyle(3, 0xe0b866, 0.7).strokeEllipse(center.x, center.y, 196, 82);
-    graphics.lineStyle(2, 0x356b78, 0.8).strokeEllipse(center.x, center.y, 30, 13);
-    return;
-  }
-  if (zone.kind === "beacon") {
-    graphics.fillStyle(0x2b3432, 0.35).fillEllipse(center.x, center.y + 5, 52, 17);
-    graphics.fillStyle(0x777569).fillEllipse(center.x, center.y, 42, 18);
-    graphics.lineStyle(2, 0x3f4441, 0.9).strokeEllipse(center.x, center.y, 42, 18);
-    graphics.lineStyle(5, 0x47423a).lineBetween(center.x, center.y - 2, center.x, center.y - 34);
-    graphics.fillStyle(0xb47a36).fillTriangle(center.x, center.y - 48, center.x - 8, center.y - 32, center.x + 8, center.y - 32);
-    graphics.fillStyle(0xe0b866).fillTriangle(center.x, center.y - 44, center.x - 4, center.y - 34, center.x + 4, center.y - 34);
-    graphics.lineStyle(2, 0xf0ebcf, 0.8).strokeEllipse(center.x, center.y - 3, 42, 17);
-    return;
-  }
-
-  const campColor = zone.monsterId === "miremaw" ? 0x87925c : zone.monsterId === "ashwing" ? 0xa45b45 : 0x71807b;
-  graphics.lineStyle(3, campColor, 0.72).strokeEllipse(center.x, center.y, zone.radiusTiles * 42, zone.radiusTiles * 18);
-  graphics.fillStyle(0x2b2520, 0.45).fillEllipse(center.x, center.y + 5, 43, 13);
-  graphics.lineStyle(3, 0xc2b38f, 0.85)
-    .lineBetween(center.x - 13, center.y + 7, center.x + 12, center.y - 8)
-    .lineBetween(center.x - 10, center.y - 8, center.x + 14, center.y + 7);
-  graphics.fillStyle(campColor, 0.9).fillCircle(center.x, center.y - 12, 5);
-}
-
 function detailSeed(x: number, y: number): number {
   return Math.abs(((x + 11) * 73856093) ^ ((y + 17) * 19349663));
 }

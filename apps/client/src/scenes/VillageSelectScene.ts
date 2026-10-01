@@ -39,7 +39,7 @@ export class VillageSelectScene extends Phaser.Scene {
   root.style.setProperty("--frontier-atlas",`url("${publicAssetUrl("assets/original/frontier/buildings.png")}")`);
   root.innerHTML=`
    <div class="frontier-landscape" aria-hidden="true"></div>
-   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v${import.meta.env.VITE_APP_VERSION ?? "0.21.1"}</span></span></header>
+   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v${import.meta.env.VITE_APP_VERSION ?? "0.22.0"}</span></span></header>
    <div class="frontier-content">
     <div class="frontier-intro"><p class="frontier-eyebrow">一座村莊，一場攻防。</p><h1>把邊境，<br>變成你的堡壘。</h1><p class="frontier-description">開拓、築城、帶兵出征。<br>從松林深處，打開通往河谷的道路。</p></div>
     <section class="frontier-settings">
@@ -53,7 +53,7 @@ export class VillageSelectScene extends Phaser.Scene {
    </div>
    <aside class="frontier-world-note" aria-label="戰役概要"><span>THE FRONTIER</span><h2>河谷的晨光</h2><p>三座聚落 · 七種兵種 · 四條勝途</p><div class="world-note-rule"></div><small>發展經濟，突破城防，或守住中域。</small></aside>
    <div class="frontier-bottom"><span>原創等角即時戰略</span><output class="frontier-readout" aria-live="polite"></output><span class="frontier-device-note">滑鼠鍵盤／觸控操作</span></div>
-   <dialog class="frontier-guide"><div class="guide-heading"><h2>把第一座村莊守好</h2><button type="button" data-close-guide aria-label="關閉操作指南">×</button></div><div class="guide-body"><p><strong>先發展：</strong>點選工匠，再點林木、糧食或石礦。選取主城可訓練更多工匠。</p><p><strong>再出兵：</strong>建造兵營並訓練士兵。升級聚落後，開放弓箭、騎兵與攻城兵器。</p><p><strong>電腦：</strong>點選或框選單位，右鍵移動／攻擊；WASD 移動鏡頭，滾輪縮放，B 建造，P 暫停。</p><p><strong>手機／平板：</strong>戰場採橫向。點選單位後點目標，拖曳移動鏡頭，雙指縮放；底部指令可選工匠、全軍、建造與系統。</p><p><strong>贏得戰役：</strong>摧毀敵方議事堂、殲滅敵軍、持守拓界銅標，或取得中域控制。</p></div><button type="button" class="guide-play" data-guide-tutorial>用七個目標學會操作 →</button></dialog>`;
+   <dialog class="frontier-guide"><div class="guide-heading"><h2>把第一座村莊守好</h2><button type="button" data-close-guide aria-label="關閉操作指南">×</button></div><div class="guide-body"><p><strong>先發展：</strong>點選工匠，再點林木、糧食或石礦。選取主城可訓練更多工匠。</p><p><strong>再出兵：</strong>建造兵營並訓練士兵。升級聚落後，開放弓箭、騎兵與攻城兵器。</p><p><strong>電腦：</strong>點選或框選單位，右鍵移動／攻擊；WASD 移動鏡頭，滾輪縮放，B 建造，P 暫停。</p><p><strong>手機／平板：</strong>戰場採橫向。點選單位後點目標，拖曳移動鏡頭，用縮放按鈕拉近、拉遠；底部指令可選工匠、全軍、建造與系統。</p><p><strong>贏得戰役：</strong>摧毀敵方議事堂、殲滅敵軍、持守拓界銅標，或取得中域控制。</p></div><button type="button" class="guide-play" data-guide-tutorial>用七個目標學會操作 →</button></dialog>`;
   host.append(root);this.root=root;
   root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach(b=>b.addEventListener("click",()=>{this.villageId=b.dataset.village as VillageId;this.syncSelection();}));
   root.querySelectorAll<HTMLButtonElement>("[data-ai]").forEach(b=>b.addEventListener("click",()=>{this.aiPersonality=b.dataset.ai as AiPersonality;this.syncSelection();}));

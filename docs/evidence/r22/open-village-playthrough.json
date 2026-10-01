@@ -1,0 +1,1516 @@
+{
+  "options": {
+    "playerVillageId": "pinehold",
+    "aiVillageId": "riverstead",
+    "aiPersonality": "balanced",
+    "aiDifficulty": "standard",
+    "seed": 220420,
+    "matchId": "r22-open-village-default-ai"
+  },
+  "rulesVersion": "village-siege/0.19.0",
+  "method": "Public runtime commands and fixed steps; all player choices use VisibleSnapshot. No canonical mutations, resource grants, AI control or victory override.",
+  "commands": [
+    {
+      "tick": 0,
+      "sequence": 0,
+      "label": "gather food",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-5"
+        ],
+        "targetId": "resource-2"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 0,
+      "sequence": 1,
+      "label": "gather wood",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-6"
+        ],
+        "targetId": "resource-3"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 0,
+      "sequence": 2,
+      "label": "gather stone",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      },
+      "walletAfter": {
+        "food": 420,
+        "wood": 420,
+        "stone": 260
+      }
+    },
+    {
+      "tick": 41,
+      "sequence": 3,
+      "label": "build first house",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "house",
+        "origin": {
+          "x": 6,
+          "y": 8
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 432,
+        "wood": 432,
+        "stone": 272
+      },
+      "walletAfter": {
+        "food": 432,
+        "wood": 352,
+        "stone": 272
+      }
+    },
+    {
+      "tick": 312,
+      "sequence": 4,
+      "label": "build first barracks",
+      "command": {
+        "type": "build",
+        "builderIds": [
+          "unit-7"
+        ],
+        "buildingType": "barracks",
+        "origin": {
+          "x": 7,
+          "y": 13
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 492,
+        "wood": 412,
+        "stone": 272
+      },
+      "walletAfter": {
+        "food": 492,
+        "wood": 262,
+        "stone": 237
+      }
+    },
+    {
+      "tick": 664,
+      "sequence": 5,
+      "label": "builder returns to economy",
+      "command": {
+        "type": "gather",
+        "entityIds": [
+          "unit-7"
+        ],
+        "targetId": "resource-4"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 576,
+        "wood": 358,
+        "stone": 237
+      },
+      "walletAfter": {
+        "food": 576,
+        "wood": 358,
+        "stone": 237
+      }
+    },
+    {
+      "tick": 664,
+      "sequence": 6,
+      "label": "set open army staging point",
+      "command": {
+        "type": "setRallyPoint",
+        "producerId": "building-20",
+        "target": {
+          "x": 12,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 576,
+        "wood": 358,
+        "stone": 237
+      },
+      "walletAfter": {
+        "food": 576,
+        "wood": 358,
+        "stone": 237
+      }
+    },
+    {
+      "tick": 664,
+      "sequence": 7,
+      "label": "train shield bearer",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "shieldBearer",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 576,
+        "wood": 358,
+        "stone": 237
+      },
+      "walletAfter": {
+        "food": 501,
+        "wood": 313,
+        "stone": 217
+      }
+    },
+    {
+      "tick": 664,
+      "sequence": 8,
+      "label": "train four warriors",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 4
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 501,
+        "wood": 313,
+        "stone": 217
+      },
+      "walletAfter": {
+        "food": 241,
+        "wood": 193,
+        "stone": 217
+      }
+    },
+    {
+      "tick": 1524,
+      "sequence": 9,
+      "label": "activate player shield wall",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-22",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      },
+      "walletAfter": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      }
+    },
+    {
+      "tick": 1527,
+      "sequence": 10,
+      "label": "occupy central objective",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29"
+        ],
+        "target": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      },
+      "walletAfter": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      }
+    },
+    {
+      "tick": 1527,
+      "sequence": 11,
+      "label": "hold central objective",
+      "command": {
+        "type": "setStance",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29"
+        ],
+        "stance": "holdGround"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      },
+      "walletAfter": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      }
+    },
+    {
+      "tick": 1530,
+      "sequence": 12,
+      "label": "return live troops to central control",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29"
+        ],
+        "target": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 445,
+        "wood": 409,
+        "stone": 385
+      },
+      "walletAfter": {
+        "food": 445,
+        "wood": 409,
+        "stone": 385
+      }
+    },
+    {
+      "tick": 1530,
+      "sequence": 13,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 445,
+        "wood": 409,
+        "stone": 385
+      },
+      "walletAfter": {
+        "food": 380,
+        "wood": 379,
+        "stone": 385
+      }
+    },
+    {
+      "tick": 1560,
+      "sequence": 14,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 380,
+        "wood": 379,
+        "stone": 385
+      },
+      "walletAfter": {
+        "food": 315,
+        "wood": 349,
+        "stone": 385
+      }
+    },
+    {
+      "tick": 1710,
+      "sequence": 15,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 315,
+        "wood": 385,
+        "stone": 421
+      },
+      "walletAfter": {
+        "food": 250,
+        "wood": 355,
+        "stone": 421
+      }
+    },
+    {
+      "tick": 1800,
+      "sequence": 16,
+      "label": "return live troops to central control",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29",
+          "unit-30"
+        ],
+        "target": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 262,
+        "wood": 379,
+        "stone": 433
+      },
+      "walletAfter": {
+        "food": 262,
+        "wood": 379,
+        "stone": 433
+      }
+    },
+    {
+      "tick": 1860,
+      "sequence": 17,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 274,
+        "wood": 391,
+        "stone": 445
+      },
+      "walletAfter": {
+        "food": 209,
+        "wood": 361,
+        "stone": 445
+      }
+    },
+    {
+      "tick": 2010,
+      "sequence": 18,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 245,
+        "wood": 397,
+        "stone": 481
+      },
+      "walletAfter": {
+        "food": 180,
+        "wood": 367,
+        "stone": 481
+      }
+    },
+    {
+      "tick": 2070,
+      "sequence": 19,
+      "label": "return live troops to central control",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29",
+          "unit-30",
+          "unit-32",
+          "unit-33"
+        ],
+        "target": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 204,
+        "wood": 391,
+        "stone": 493
+      },
+      "walletAfter": {
+        "food": 204,
+        "wood": 391,
+        "stone": 493
+      }
+    },
+    {
+      "tick": 2190,
+      "sequence": 20,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 228,
+        "wood": 415,
+        "stone": 517
+      },
+      "walletAfter": {
+        "food": 163,
+        "wood": 385,
+        "stone": 517
+      }
+    },
+    {
+      "tick": 2340,
+      "sequence": 21,
+      "label": "return live troops to central control",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29",
+          "unit-30",
+          "unit-32",
+          "unit-33",
+          "unit-34",
+          "unit-35"
+        ],
+        "target": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 199,
+        "wood": 421,
+        "stone": 553
+      },
+      "walletAfter": {
+        "food": 199,
+        "wood": 421,
+        "stone": 553
+      }
+    },
+    {
+      "tick": 2340,
+      "sequence": 22,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 199,
+        "wood": 421,
+        "stone": 553
+      },
+      "walletAfter": {
+        "food": 134,
+        "wood": 391,
+        "stone": 553
+      }
+    },
+    {
+      "tick": 2430,
+      "sequence": 23,
+      "label": "attack a visible threat to central control",
+      "command": {
+        "type": "attack",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29",
+          "unit-30",
+          "unit-32",
+          "unit-33",
+          "unit-34",
+          "unit-35"
+        ],
+        "targetId": "unit-23"
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 158,
+        "wood": 415,
+        "stone": 565
+      },
+      "walletAfter": {
+        "food": 158,
+        "wood": 415,
+        "stone": 565
+      }
+    },
+    {
+      "tick": 2430,
+      "sequence": 24,
+      "label": "shield wall against visible pressure",
+      "command": {
+        "type": "castAbility",
+        "casterId": "unit-22",
+        "abilityId": "shieldWall",
+        "target": {
+          "kind": "self"
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 158,
+        "wood": 415,
+        "stone": 565
+      },
+      "walletAfter": {
+        "food": 158,
+        "wood": 415,
+        "stone": 565
+      }
+    },
+    {
+      "tick": 2490,
+      "sequence": 25,
+      "label": "economy-funded reinforcement",
+      "command": {
+        "type": "train",
+        "producerId": "building-20",
+        "unitType": "warrior",
+        "count": 1
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 170,
+        "wood": 427,
+        "stone": 577
+      },
+      "walletAfter": {
+        "food": 105,
+        "wood": 397,
+        "stone": 577
+      }
+    },
+    {
+      "tick": 2520,
+      "sequence": 26,
+      "label": "return live troops to central control",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29",
+          "unit-30",
+          "unit-32",
+          "unit-33",
+          "unit-34",
+          "unit-35",
+          "unit-36"
+        ],
+        "target": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 117,
+        "wood": 409,
+        "stone": 589
+      },
+      "walletAfter": {
+        "food": 117,
+        "wood": 409,
+        "stone": 589
+      }
+    },
+    {
+      "tick": 2790,
+      "sequence": 27,
+      "label": "return live troops to central control",
+      "command": {
+        "type": "move",
+        "entityIds": [
+          "unit-22",
+          "unit-24",
+          "unit-26",
+          "unit-28",
+          "unit-29",
+          "unit-30",
+          "unit-32",
+          "unit-33",
+          "unit-34",
+          "unit-35",
+          "unit-36",
+          "unit-37"
+        ],
+        "target": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      "accepted": true,
+      "rejectCode": null,
+      "walletBefore": {
+        "food": 177,
+        "wood": 481,
+        "stone": 637
+      },
+      "walletAfter": {
+        "food": 177,
+        "wood": 481,
+        "stone": 637
+      }
+    }
+  ],
+  "eventCounts": {
+    "commandAccepted": 28,
+    "resourcesDeposited": 146,
+    "entitySpawned": 14,
+    "entityUpdated": 2,
+    "rallyPointChanged": 1,
+    "statusApplied": 13,
+    "resourceDepleted": 2,
+    "combatPhaseChanged": 88,
+    "statusExpired": 12,
+    "controlObjectiveChanged": 3,
+    "victoryProgressChanged": 20,
+    "resourceRenewed": 1,
+    "tacticalSignalRaised": 4,
+    "entityDamaged": 24,
+    "entityRemoved": 2,
+    "matchFinished": 1
+  },
+  "samples": {
+    "resourcesDeposited": [
+      {
+        "tick": 31,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 31,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 41,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-7",
+          "dropOffId": "building-1",
+          "resourceKind": "stone",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 79,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 79,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 127,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 133,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 176,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 191,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 224,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 239,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 272,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 288,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 321,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 336,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 369,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 384,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 418,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 433,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-5",
+          "dropOffId": "building-1",
+          "resourceKind": "food",
+          "amount": 12
+        }
+      },
+      {
+        "tick": 466,
+        "event": {
+          "type": "resourcesDeposited",
+          "playerId": "player-1",
+          "unitId": "unit-6",
+          "dropOffId": "building-1",
+          "resourceKind": "wood",
+          "amount": 12
+        }
+      }
+    ],
+    "statusApplied": [
+      {
+        "tick": 953,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 1527,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "shieldWall",
+          "expiresAtTick": 1567
+        }
+      },
+      {
+        "tick": 1844,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2115,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2409,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2433,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "shieldWall",
+          "expiresAtTick": 2473
+        }
+      },
+      {
+        "tick": 2479,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2479,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-23",
+          "targetId": "unit-23",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2526,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-27",
+          "targetId": "unit-27",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2536,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-25",
+          "targetId": "unit-25",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2537,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-22",
+          "targetId": "unit-22",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2603,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-25",
+          "targetId": "unit-25",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      },
+      {
+        "tick": 2711,
+        "event": {
+          "type": "statusApplied",
+          "sourceId": "unit-27",
+          "targetId": "unit-27",
+          "statusId": "braced",
+          "expiresAtTick": 9007199254740991
+        }
+      }
+    ],
+    "entityDamaged": [
+      {
+        "tick": 2461,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-26",
+          "targetId": "unit-23",
+          "amount": 20,
+          "hitPoints": 210
+        }
+      },
+      {
+        "tick": 2472,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-26",
+          "targetId": "unit-23",
+          "amount": 21,
+          "hitPoints": 189
+        }
+      },
+      {
+        "tick": 2475,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-22",
+          "targetId": "unit-23",
+          "amount": 11,
+          "hitPoints": 178
+        }
+      },
+      {
+        "tick": 2475,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-23",
+          "targetId": "unit-22",
+          "amount": 11,
+          "hitPoints": 219
+        }
+      },
+      {
+        "tick": 2483,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-26",
+          "targetId": "unit-23",
+          "amount": 22,
+          "hitPoints": 156
+        }
+      },
+      {
+        "tick": 2489,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-22",
+          "targetId": "unit-23",
+          "amount": 11,
+          "hitPoints": 145
+        }
+      },
+      {
+        "tick": 2489,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-23",
+          "targetId": "unit-22",
+          "amount": 11,
+          "hitPoints": 208
+        }
+      },
+      {
+        "tick": 2490,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-24",
+          "targetId": "unit-23",
+          "amount": 20,
+          "hitPoints": 125
+        }
+      },
+      {
+        "tick": 2494,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-26",
+          "targetId": "unit-23",
+          "amount": 23,
+          "hitPoints": 102
+        }
+      },
+      {
+        "tick": 2501,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-24",
+          "targetId": "unit-23",
+          "amount": 21,
+          "hitPoints": 81
+        }
+      },
+      {
+        "tick": 2503,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-22",
+          "targetId": "unit-23",
+          "amount": 11,
+          "hitPoints": 70
+        }
+      },
+      {
+        "tick": 2505,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-26",
+          "targetId": "unit-23",
+          "amount": 23,
+          "hitPoints": 47
+        }
+      },
+      {
+        "tick": 2509,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-28",
+          "targetId": "unit-23",
+          "amount": 20,
+          "hitPoints": 27
+        }
+      },
+      {
+        "tick": 2512,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-24",
+          "targetId": "unit-23",
+          "amount": 22,
+          "hitPoints": 5
+        }
+      },
+      {
+        "tick": 2516,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-26",
+          "targetId": "unit-23",
+          "amount": 23,
+          "hitPoints": 0
+        }
+      },
+      {
+        "tick": 2532,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-25",
+          "targetId": "unit-22",
+          "amount": 11,
+          "hitPoints": 197
+        }
+      },
+      {
+        "tick": 2536,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-27",
+          "targetId": "unit-22",
+          "amount": 11,
+          "hitPoints": 186
+        }
+      },
+      {
+        "tick": 2707,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-27",
+          "targetId": "unit-22",
+          "amount": 11,
+          "hitPoints": 175
+        }
+      },
+      {
+        "tick": 2721,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-27",
+          "targetId": "unit-22",
+          "amount": 11,
+          "hitPoints": 164
+        }
+      },
+      {
+        "tick": 2735,
+        "event": {
+          "type": "entityDamaged",
+          "sourceId": "unit-27",
+          "targetId": "unit-22",
+          "amount": 11,
+          "hitPoints": 153
+        }
+      }
+    ],
+    "matchFinished": [
+      {
+        "tick": 2795,
+        "event": {
+          "type": "matchFinished",
+          "winningTeamIds": [
+            "team-player"
+          ],
+          "outcome": "victory",
+          "reason": "timedControl",
+          "triggeredReasons": [
+            "timedControl"
+          ],
+          "finishedAtTick": 2795,
+          "teamScores": [
+            {
+              "teamId": "team-ai",
+              "landmarkHoldTicks": 0,
+              "timedControlScoreTicks": 0
+            },
+            {
+              "teamId": "team-player",
+              "landmarkHoldTicks": 0,
+              "timedControlScoreTicks": 1200
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "label": "real deposits for every resource",
+      "tick": 41,
+      "wallet": {
+        "food": 432,
+        "wood": 432,
+        "stone": 272
+      }
+    },
+    {
+      "label": "house completes through real construction",
+      "tick": 312,
+      "wallet": {
+        "food": 492,
+        "wood": 412,
+        "stone": 272
+      }
+    },
+    {
+      "label": "barracks completes through real construction",
+      "tick": 664,
+      "wallet": {
+        "food": 576,
+        "wood": 358,
+        "stone": 237
+      }
+    },
+    {
+      "label": "five trained units leave the open barracks",
+      "tick": 1524,
+      "wallet": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      }
+    },
+    {
+      "label": "player shield wall takes effect",
+      "tick": 1527,
+      "wallet": {
+        "food": 445,
+        "wood": 397,
+        "stone": 385
+      }
+    }
+  ],
+  "deposits": {
+    "food": 624,
+    "wood": 696,
+    "stone": 432
+  },
+  "spawnedPlayerArmy": [
+    "unit-22",
+    "unit-24",
+    "unit-26",
+    "unit-28",
+    "unit-29",
+    "unit-30",
+    "unit-32",
+    "unit-33",
+    "unit-34",
+    "unit-35",
+    "unit-36",
+    "unit-37"
+  ],
+  "aiBuiltBarracks": true,
+  "aiProducedArmy": true,
+  "result": {
+    "status": "VERIFIED",
+    "finalTick": 2795,
+    "simulatedSeconds": 279.5,
+    "victory": {
+      "policy": {
+        "commandCenterConquest": {
+          "rebuildGraceTicks": 600
+        },
+        "elimination": true,
+        "landmark": {
+          "buildingType": "copperLandmark",
+          "requiredCount": 1,
+          "holdTicks": 900
+        },
+        "timedControl": {
+          "point": {
+            "x": 16,
+            "y": 12
+          },
+          "radius": 3,
+          "startsAtTick": 600,
+          "targetTicks": 1200
+        }
+      },
+      "teams": [
+        {
+          "teamId": "team-ai",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 0,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        },
+        {
+          "teamId": "team-player",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 1200,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        }
+      ],
+      "control": {
+        "controllerTeamId": "team-player",
+        "contested": false
+      },
+      "outcome": "victory",
+      "winningTeamIds": [
+        "team-player"
+      ],
+      "finishReason": "timedControl",
+      "triggeredReasons": [
+        "timedControl"
+      ],
+      "finishedAtTick": 2795
+    },
+    "presentation": {
+      "outcome": "victory",
+      "objectiveText": "勝利｜中域控制時限達成",
+      "compactObjectiveText": "勝利\n中域控制達標",
+      "selectionText": "戰局已結束｜再戰、下載重播或返回",
+      "announcement": "勝利｜中域控制時限達成。戰局於 280 秒結束。可選擇再戰、下載重播或返回。",
+      "tone": "success"
+    },
+    "replayHashMatches": true,
+    "restart": {
+      "phase": "playing",
+      "tick": 0,
+      "outcome": null
+    },
+    "finalHash": "0b288898"
+  },
+  "wallMilliseconds": 12218
+}

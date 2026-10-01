@@ -1,0 +1,348 @@
+{
+  "desktop-resource-clicks": {
+    "method": "Actual pointer clicks at the visible raster resource centers; no canonical state mutation",
+    "results": [
+      {
+        "id": "resource-2",
+        "type": "food",
+        "x": 812.1600043773651,
+        "y": 296.39999306201935,
+        "selected": [
+          "resource-2"
+        ]
+      },
+      {
+        "id": "resource-3",
+        "type": "wood",
+        "x": 950.400007724762,
+        "y": 457.6799969673157,
+        "selected": [
+          "resource-3"
+        ]
+      },
+      {
+        "id": "resource-4",
+        "type": "stone",
+        "x": 489.59999656677246,
+        "y": 411.5999958515167,
+        "selected": [
+          "resource-4"
+        ]
+      }
+    ],
+    "errors": [],
+    "buttons": [
+      {
+        "label": "全選工匠",
+        "width": 103.31999909877777,
+        "height": 108.85499905049801
+      },
+      {
+        "label": "全選軍隊",
+        "width": 103.31999909877777,
+        "height": 108.85499905049801
+      },
+      {
+        "label": "回主城",
+        "width": 103.31999909877777,
+        "height": 108.85499905049801
+      },
+      {
+        "label": "暫停",
+        "width": 103.31999909877777,
+        "height": 108.85499905049801
+      },
+      {
+        "label": "縮小",
+        "width": 103.31999909877777,
+        "height": 108.85499905049801
+      },
+      {
+        "label": "放大",
+        "width": 103.31999909877777,
+        "height": 108.85499905049801
+      },
+      {
+        "label": "系統",
+        "width": 103.31999909877777,
+        "height": 108.85499905049801
+      }
+    ]
+  },
+  "browser-mid-match": {
+    "method": "Normal seeded scene with standard balanced AI; accepted scene commands and fixed game updates, no state/resource/AI/victory writes",
+    "issued": [
+      {
+        "tick": 1,
+        "label": "gather food",
+        "accepted": true
+      },
+      {
+        "tick": 1,
+        "label": "gather wood",
+        "accepted": true
+      },
+      {
+        "tick": 1,
+        "label": "gather stone",
+        "accepted": true
+      },
+      {
+        "tick": 41,
+        "label": "build first house",
+        "accepted": true
+      },
+      {
+        "tick": 312,
+        "label": "build first barracks",
+        "accepted": true
+      },
+      {
+        "tick": 664,
+        "label": "builder returns to economy",
+        "accepted": true
+      },
+      {
+        "tick": 664,
+        "label": "set open army staging point",
+        "accepted": true
+      },
+      {
+        "tick": 664,
+        "label": "train shield bearer",
+        "accepted": true
+      },
+      {
+        "tick": 664,
+        "label": "train four warriors",
+        "accepted": true
+      },
+      {
+        "tick": 1524,
+        "label": "activate player shield wall",
+        "accepted": true
+      },
+      {
+        "tick": 1527,
+        "label": "occupy central objective",
+        "accepted": true
+      },
+      {
+        "tick": 1527,
+        "label": "hold central objective",
+        "accepted": true
+      },
+      {
+        "tick": 1530,
+        "label": "return live troops to central control",
+        "accepted": true
+      },
+      {
+        "tick": 1530,
+        "label": "economy-funded reinforcement",
+        "accepted": true
+      },
+      {
+        "tick": 1560,
+        "label": "economy-funded reinforcement",
+        "accepted": true
+      }
+    ],
+    "map": {
+      "id": "villageAssault",
+      "width": 32,
+      "height": 24,
+      "layoutId": "pinehold"
+    },
+    "tick": 1700,
+    "army": [
+      {
+        "id": "unit-22",
+        "type": "shieldBearer",
+        "position": {
+          "x": 16,
+          "y": 11
+        }
+      },
+      {
+        "id": "unit-24",
+        "type": "warrior",
+        "position": {
+          "x": 17,
+          "y": 11
+        }
+      },
+      {
+        "id": "unit-26",
+        "type": "warrior",
+        "position": {
+          "x": 16,
+          "y": 12
+        }
+      },
+      {
+        "id": "unit-28",
+        "type": "warrior",
+        "position": {
+          "x": 15,
+          "y": 13
+        }
+      },
+      {
+        "id": "unit-29",
+        "type": "warrior",
+        "position": {
+          "x": 14,
+          "y": 14
+        }
+      },
+      {
+        "id": "unit-30",
+        "type": "warrior",
+        "position": {
+          "x": 8,
+          "y": 12
+        }
+      }
+    ],
+    "phase": "playing",
+    "errors": []
+  },
+  "browser-victory": {
+    "tick": 2745,
+    "issued": [],
+    "phase": "finished",
+    "victory": {
+      "policy": {
+        "commandCenterConquest": {
+          "rebuildGraceTicks": 600
+        },
+        "elimination": true,
+        "landmark": {
+          "buildingType": "copperLandmark",
+          "requiredCount": 1,
+          "holdTicks": 900
+        },
+        "timedControl": {
+          "point": {
+            "x": 16,
+            "y": 12
+          },
+          "radius": 3,
+          "startsAtTick": 600,
+          "targetTicks": 1200
+        }
+      },
+      "teams": [
+        {
+          "teamId": "team-ai",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 0,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        },
+        {
+          "teamId": "team-player",
+          "landmarkHoldTicks": 0,
+          "timedControlScoreTicks": 1200,
+          "eliminatedAtTick": null,
+          "eliminationReason": null
+        }
+      ],
+      "control": {
+        "controllerTeamId": "team-player",
+        "contested": false
+      },
+      "outcome": "victory",
+      "winningTeamIds": [
+        "team-player"
+      ],
+      "finishReason": "timedControl",
+      "triggeredReasons": [
+        "timedControl"
+      ],
+      "finishedAtTick": 2745
+    },
+    "ended": true,
+    "buttons": [
+      "再戰",
+      "下載重播",
+      "返回"
+    ],
+    "artFailures": [],
+    "dynamicArtFailures": [],
+    "army": 7,
+    "errors": []
+  },
+  "offline-install": {
+    "status": [
+      "離線版已備妥"
+    ],
+    "cache": {
+      "registrations": [
+        {
+          "scope": "http://127.0.0.1:4173/",
+          "active": "http://127.0.0.1:4173/sw.js?offline=0.22.0"
+        }
+      ],
+      "names": [
+        "village-siege:http%3A%2F%2F127.0.0.1%3A4173%2F:0af19bdd7105552bf25b"
+      ]
+    }
+  },
+  "offline-battle": {
+    "online": false,
+    "buttons": [
+      "⚒ 全選工匠",
+      "⚔ 全選軍隊",
+      "⌖ 回主城",
+      "Ⅱ 暫停",
+      "− 縮小",
+      "+ 放大",
+      "⋯ 系統"
+    ],
+    "status": [
+      ""
+    ]
+  },
+  "warm-desktop-frame-intervals": {
+    "measurement": "Warm Chromium desktop requestAnimationFrame intervals, offline real battle with three live workers; not a physical phone benchmark",
+    "frames": 120,
+    "p50": 16.699999999953434,
+    "p95": 16.79999999998836,
+    "max": 16.900000000023283
+  },
+  "touchPhone": {
+    "engine": "Chromium, iPhone 13 emulation",
+    "viewport": [
+      844,
+      390
+    ],
+    "physicalDevice": false,
+    "interaction": [
+      "real touchscreen tap all workers",
+      "real touchscreen tap wood gather",
+      "real touchscreen tap build menu",
+      "real touchscreen tap house option",
+      "occupied source correctly rejected",
+      "empty ground starts house construction"
+    ],
+    "observedStatus": "開始建造 拓荒家屋",
+    "completedFullPhoneMatch": false
+  },
+  "tablet": {
+    "engine": "Chromium, iPad gen 7 emulation",
+    "physicalDevice": false,
+    "landscape": [
+      1024,
+      768
+    ],
+    "portrait": [
+      768,
+      1024
+    ],
+    "battleBoot": "verified",
+    "evidence": "production-battle-tablet.png",
+    "portraitEvidence": "tablet-portrait-rotate.png"
+  }
+}

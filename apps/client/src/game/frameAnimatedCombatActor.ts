@@ -4,7 +4,6 @@ import {
   ANCHOR_CONTRACT,
   type AnimationFrameEvent,
   type CombatAction,
-  type CombatArtId,
   type Facing,
   FACING_ORDER,
   resolveFacing,
@@ -12,6 +11,7 @@ import {
 import { FRAME_ANIMATED_ACTION_ROWS } from "./sixRowAnimationManifest";
 import type {
   FrameAnimatedActionRow,
+  FrameAnimatedActorId,
   FrameAnimatedCombatActorManifest,
   FrameAnimatedCombatActorManifestTable,
 } from "./sixRowAnimationManifest";
@@ -30,7 +30,7 @@ export type {
 const LEFT_FACINGS = new Set<Facing>(["w", "nw", "sw"]);
 
 export interface FrameAnimatedCombatSnapshot {
-  readonly id: CombatArtId;
+  readonly id: FrameAnimatedActorId;
   readonly action: CombatAction;
   readonly facing: Facing;
   readonly frame: number;
@@ -49,10 +49,12 @@ export interface FrameAnimatedCombatActorView {
   destroy(): void;
 }
 
+export type FrameAnimatedActorOptions = Omit<ProceduralCombatActorOptions, "id"> & { readonly id: FrameAnimatedActorId };
+
 /** Throws when a character table has no manifest for the requested actor. */
 export function requireFrameAnimatedManifest(
   table: FrameAnimatedCombatActorManifestTable,
-  id: CombatArtId,
+  id: FrameAnimatedActorId,
 ): FrameAnimatedCombatActorManifest {
   const manifest = table[id];
   if (!manifest) throw new Error(`Required frame-animation manifest is missing for actor: ${id}`);
@@ -70,7 +72,7 @@ export function requireFrameAnimatedManifest(
 export function validateFrameAnimatedCombatActorManifest(
   scene: Phaser.Scene,
   manifest: FrameAnimatedCombatActorManifest,
-  expectedId: CombatArtId = manifest.id,
+  expectedId: FrameAnimatedActorId = manifest.id,
 ): void {
   if (manifest.id !== expectedId) {
     throw new Error(`Frame-animation manifest id mismatch: expected ${expectedId}, received ${manifest.id}`);
@@ -145,6 +147,7 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
   private readonly image: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly aura: Phaser.GameObjects.Ellipse;
+  private readonly pennant?: Phaser.GameObjects.Graphics;
   private readonly frameNames: Readonly<Record<Facing, Readonly<Record<CombatAction, readonly string[]>>>>;
   private palette: TeamPalette;
   private currentAction: CombatAction;
@@ -156,7 +159,7 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
 
   constructor(
     scene: Phaser.Scene,
-    options: ProceduralCombatActorOptions,
+    options: FrameAnimatedActorOptions,
     manifest: FrameAnimatedCombatActorManifest,
   ) {
     validateFrameAnimatedCombatActorManifest(scene, manifest, options.id);
@@ -166,9 +169,13 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
     this.palette = options.teamPalette ?? DEFAULT_TEAM_PALETTES.neutral;
     this.frameNames = registerSpriteSheetFrames(scene, manifest);
 
-    const contract = ANCHOR_CONTRACT[options.id];
-    this.shadow = scene.add.ellipse(0, 2, contract.shadowWidth * 1.2, contract.shadowHeight * 1.15, 0x10241e, 0.38);
-    this.aura = scene.add.ellipse(0, -7, contract.shadowWidth * 1.25, contract.shadowHeight * 1.2, this.palette.highlight, 0.08);
+    const contract = options.id === "villager"
+      ? { frameWidth: 256, frameHeight: 256, anchorX: 128, anchorY: 224, shadowWidth: 30, shadowHeight: 10 }
+      : ANCHOR_CONTRACT[options.id];
+    const shadowWidth = manifest.shadowWidth ?? contract.shadowWidth;
+    const shadowHeight = manifest.shadowHeight ?? contract.shadowHeight;
+    this.shadow = scene.add.ellipse(0, 2, shadowWidth * 1.2, shadowHeight * 1.15, 0x10241e, 0.38);
+    this.aura = scene.add.ellipse(0, -7, shadowWidth * 1.25, shadowHeight * 1.2, this.palette.highlight, 0.08);
     this.image = scene.add.image(
       0,
       0,
@@ -183,6 +190,11 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
       .setScale(manifest.artScale ?? 1);
 
     this.container = scene.add.container(options.x, options.y, [this.shadow, this.aura, this.image]);
+    if (manifest.teamPennant) {
+      this.pennant = scene.add.graphics();
+      this.container.add(this.pennant);
+      this.renderPennant();
+    }
     this.container.setSize(manifest.frameWidth, manifest.frameHeight);
     this.container.setDepth(options.depth ?? options.y);
     this.container.setScale(options.scale ?? 1);
@@ -229,6 +241,7 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
   setTeamPalette(palette: TeamPalette): this {
     this.palette = palette;
     this.aura.setFillStyle(palette.highlight, 0.08);
+    this.renderPennant();
     return this;
   }
 
@@ -286,7 +299,7 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
   }
 
   private renderFacing(): void {
-    if (this.manifest.directionalTextureKeys) {
+    if (this.manifest.directionalTextureKeys || this.manifest.mirrorFacings === false) {
       this.image.setFlipX(false);
       this.renderFrame();
       return;
@@ -295,11 +308,18 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
     const sourceFacesLeft = this.manifest.authoredFacing === "left";
     this.image.setFlipX(facingLeft !== sourceFacesLeft);
   }
+
+  private renderPennant(): void {
+    this.pennant?.clear()
+      .lineStyle(1, 0xdbc7a2, 0.9).lineBetween(15, -15, 15, -3)
+      .fillStyle(this.palette.primary, 1).fillTriangle(15, -15, 25, -12, 15, -9)
+      .lineStyle(1, this.palette.highlight, 0.9).lineBetween(15, -15, 25, -12);
+  }
 }
 
 export function createFrameAnimatedCombatActor(
   scene: Phaser.Scene,
-  options: ProceduralCombatActorOptions,
+  options: FrameAnimatedActorOptions,
   manifest: FrameAnimatedCombatActorManifest,
 ): FrameAnimatedCombatActor {
   return new FrameAnimatedCombatActor(scene, options, manifest);
@@ -380,13 +400,13 @@ function cellY(manifest: FrameAnimatedCombatActorManifest, row: number): number 
   return (manifest.marginY ?? 0) + row * (manifest.frameHeight + (manifest.spacingY ?? 0));
 }
 
-function assertPositiveInteger(value: number, field: string, id: CombatArtId): void {
+function assertPositiveInteger(value: number, field: string, id: FrameAnimatedActorId): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`Invalid frame-animation ${field} for ${id}: ${value}`);
   }
 }
 
-function assertNonNegativeInteger(value: number, field: string, id: CombatArtId): void {
+function assertNonNegativeInteger(value: number, field: string, id: FrameAnimatedActorId): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(`Invalid frame-animation ${field} for ${id}: ${value}`);
   }

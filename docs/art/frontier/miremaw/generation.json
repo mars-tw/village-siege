@@ -1,0 +1,54 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "modelSlug": "not exposed by tool",
+  "created": "2026-10-01",
+  "prompt": "Create original production animation sprite sheet of a low four-legged mossy marsh predator, crocodile-badger hybrid with short curled tusks, muted olive hide, earthy fur ridges and readable amber eyes, believable animal anatomy. Small quadruped, not a dragon.. Cohesive refined hand-painted SEMI-REALISTIC medieval RTS miniatures matching warm earth tones, sage foliage and teal game palette. Volumetric illustrated materials, upper-left warm daylight, 30degree elevated isometric3/4 view. Exact4columns×6rows,24complete separatefullbodyposes on TRUE transparent alpha, samecharacteridentity/samebody scale,centeredin eachcell baseline85% and12%gutters. Allposesfacinglowerright. No background,groundtile,text,grid,borders,othercreatures. ROW1 idlefourbreathing/readystances. ROW2 walkfourclear alternatinglimbsteps. ROW3 attackfour distinct articulated ready,windup,strikebite/claw/arm,recover. ROW4 hurtfourflinch/recoil/bend/recover. ROW5 deathfourstagger/collapse/fall/pronewholebodywithinonecell. ROW6 active abilityfour hugewindup,coiledcharge,powerfulstrike,dissipatingrecovery, distinctfromregularattack. Genuine articulated body changes; NEVER repeatoneportraitoronlymoveit. Preservecorrectlimbcount in everycell, weaponsnone, boundedcompactshape andcleanreadablesilhouettesatsmallscale. Framegridexact4x6withuniform spacing.",
+  "rows": [
+    "idle",
+    "walk",
+    "attack",
+    "hurt",
+    "death",
+    "cast"
+  ],
+  "framesPerRow": 4,
+  "authoredPerspectives": 1,
+  "mirroring": false,
+  "normalizationArgs": [
+    "--input",
+    "docs/art/frontier/miremaw/source/action-sheet.png",
+    "--out",
+    "apps/client/public/assets/original/frontier/monsters/miremaw/action-sheet.png",
+    "--cell-width",
+    "256",
+    "--cell-height",
+    "256",
+    "--anchor-y",
+    "224",
+    "--safety-padding",
+    "8",
+    "--cluster-source-frames",
+    "--uniform-scale",
+    "--uniform-figure-height",
+    "210",
+    "--alpha-threshold",
+    "32"
+  ],
+  "records": [
+    {
+      "source": "docs/art/frontier/miremaw/source/action-sheet.png",
+      "sourceSHA256": "ec4d62805fd0b12cfae35849ade20ba3e45d669126ce8d23e6939e9bcbae1b1b",
+      "runtime": "apps/client/public/assets/original/frontier/monsters/miremaw/action-sheet.png",
+      "sha256": "ec558b2ecdc37c26bf0816f91c4a919c7c09db01eb58b028b32c198afdcfcdfb"
+    }
+  ],
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

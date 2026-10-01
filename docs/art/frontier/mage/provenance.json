@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "unitId": "mage",
+  "generator": "Built-in image_gen tool",
+  "style": "Original frontier roster; detailed hand-painted semi-realistic approximately 4.5-head human proportions",
+  "reference": {
+    "path": "docs/art/frontier/references/mage.png",
+    "sha256": "1cadd24aaa71cdafa542cd57af1c85401fac8f26e856827ae4590b79523dd9f2"
+  },
+  "authoring": {
+    "nativeDirections": [
+      "se"
+    ],
+    "singleAuthoredDirection": true,
+    "nativeSixDirectionClaim": false,
+    "poseRows": [
+      "idle",
+      "walk",
+      "attack",
+      "hurt",
+      "death",
+      "cast"
+    ],
+    "framesPerAction": 4
+  },
+  "rawSources": [
+    {
+      "path": "docs/art/frontier/mage/source/generated-01.png",
+      "sha256": "c3e1c290ada4cec30361fd6fcd44abbee6449962d5423d4c90755a9deb25e60a",
+      "bytes": 2506653,
+      "promptPath": "docs/art/frontier/mage/source/prompt-01.txt",
+      "selected": false,
+      "toolOutputFile": "exec-a02cf7ee-374e-4e70-a637-bc3704af4dc5.png"
+    },
+    {
+      "path": "docs/art/frontier/mage/source/generated-02.png",
+      "sha256": "b9b02aca2ac46c487da2022861201cd1d9162cfcba6a12b90434852ca58d6c17",
+      "bytes": 2460009,
+      "promptPath": "docs/art/frontier/mage/source/prompt-02.txt",
+      "selected": false,
+      "toolOutputFile": "exec-34193fec-babc-4e70-9caf-1f4a38d1b410.png"
+    },
+    {
+      "path": "docs/art/frontier/mage/source/generated-03.png",
+      "sha256": "64622f0c8346de5eac53899207ab4a2acd96d46d037614ffa1504e0172a4aa31",
+      "bytes": 2418833,
+      "promptPath": "docs/art/frontier/mage/source/prompt-03.txt",
+      "selected": true,
+      "toolOutputFile": "exec-4b24601a-629e-48e1-a94b-62bc454f7b6b.png"
+    }
+  ],
+  "normalized": {
+    "path": "apps/client/public/assets/original/frontier/characters/mage/action-sheet.png",
+    "sha256": "3a813200018f635ae57a7930236933b5fd3021345b5aeea73415cd0a1f79a002",
+    "bytes": 297759,
+    "width": 1024,
+    "height": 1536,
+    "columns": 4,
+    "rows": 6,
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "anchorX": 128,
+    "anchorY": 224,
+    "artScale": 0.3,
+    "uniqueFrameHashes": 24,
+    "frameHashes": [
+      "08055b67baf8dfc340ee9dc483a315b59c71ef2e17d6bcdc5ec5fabe3547cb3f",
+      "f21cbf6379905e86ad40267f0b61cbf52466e0f90956ca6722fcde21d603c34f",
+      "bc6383a097d605c137572a3894a28e156486843941bd5a92650bd2d856ec0728",
+      "779b3542949734663fc8fa51d12fda41de16ad7ffd364afdf22718ac5d4cfa40",
+      "107341c0b01b320fcf6e70cc9a495b9459a3347428fdb6f237d2bd2e29c175e4",
+      "00b13d89ff06269376fd357d763baec0e36392d9a00ddf95e504f0318e37ecf9",
+      "558e5789c6b5f76bfaa25721395eb1b479a1e1f9f3f817b014f553a4c1588936",
+      "1dada063092d87d65c96058cf70bcf2c2b65590e3db5883605eb28bb94d73306",
+      "f2466152efd2a2c465905b4741a36a307392764087e77f9ae29b93f42fcb7674",
+      "c61286dfab5c3517a29f721faff351f12cd958cdf009ca4fd5c2861e5719de7c",
+      "bb8f1ed0cb9a1a3886e2d16e8497a1889397c7fc7a4018586a2824bea3fc0f85",
+      "201be107832aad5a905560e48378d22081c7a23840e97631708522cf9909dde8",
+      "de54303500054948cb36372292536f898735e72b6c6cb9f58ba14bb5fcb9b8a2",
+      "3e6461a0ccc31493972a6e79aac6e4238e782ace2de39749255e2264449d63f9",
+      "27c1f0807971db9f19d8fa8cea20837eede7ebad11313d42138875a61270f3af",
+      "02a811b2bf87c36fba9d56c29435830d749a70490ef456eedc0fc838606b4b01",
+      "9805496f62410f28aacf41f639f6f88a420ccb0dd50d43609c0e3d15e4b1dd57",
+      "da830629f63bd1c4cb528f62d6a04afa734e4a543d9ca405eeecb2fadf90892e",
+      "07a382607e47fe5b9e803ed3cb48bf6174710fc511d334923259d4180314ede0",
+      "dd06723f06341e52d0f810c8144981579e01404d4206e146ec8a639351de85e1",
+      "75b3d73de640e3232a28d138d55b148e610a40f6fceb139716f858277d5623a5",
+      "c1222fca892f56025651b9d537d05838ba298c1c6c4523967e272db810906026",
+      "0bcc9374f9412fa724e16ffe8eaf853f27fe38a0d075345e0cc14894d2524c29",
+      "dff321639eae59e7dc2dd5470d3e191adf8e80a6e3ab75216189972e5a396d0c"
+    ],
+    "transparentPixels": 1200126,
+    "meanForegroundAlpha": 237.1651453028948
+  },
+  "normalization": {
+    "script": "scripts/normalize-directional-action-sheet.mjs",
+    "options": [
+      "--cell-width",
+      "256",
+      "--cell-height",
+      "256",
+      "--anchor-y",
+      "224",
+      "--uniform-scale",
+      "--uniform-figure-height",
+      "220",
+      "--cluster-source-frames"
+    ],
+    "deathFigureScale": "Uniform scale shared by all frames; fallen bodies are not enlarged"
+  },
+  "validation": {
+    "tool": "scripts/validate-directional-action-sheets.mjs",
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "edgePadding": 1,
+    "rejectCrossSheetReuse": true,
+    "status": "PASS",
+    "scope": "Native cell/alpha/unique-frame contract; not a claim of six authored directions"
+  },
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

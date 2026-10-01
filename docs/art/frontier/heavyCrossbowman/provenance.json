@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "unitId": "heavyCrossbowman",
+  "generator": "Built-in image_gen tool",
+  "style": "Original frontier roster; detailed hand-painted semi-realistic approximately 4.5-head human proportions",
+  "reference": {
+    "path": "docs/art/frontier/references/heavyCrossbowman.png",
+    "sha256": "d0545a2b29deac71e253288ec57cfbc2332ff3f5d51dda6c0ab1934b61e8b05b"
+  },
+  "authoring": {
+    "nativeDirections": [
+      "se"
+    ],
+    "singleAuthoredDirection": true,
+    "nativeSixDirectionClaim": false,
+    "poseRows": [
+      "idle",
+      "walk",
+      "attack",
+      "hurt",
+      "death",
+      "cast"
+    ],
+    "framesPerAction": 4
+  },
+  "rawSources": [
+    {
+      "path": "docs/art/frontier/heavyCrossbowman/source/generated-01.png",
+      "sha256": "da60f74128dbdb7515e4f9c8f8e156889da7a12c233d2b3a6aec5f2d921054ee",
+      "bytes": 2424278,
+      "promptPath": "docs/art/frontier/heavyCrossbowman/source/prompt-01.txt",
+      "selected": true,
+      "toolOutputFile": "exec-897ba35c-bc23-4da8-949f-7fb06e8a0abb.png"
+    }
+  ],
+  "normalized": {
+    "path": "apps/client/public/assets/original/frontier/characters/heavyCrossbowman/action-sheet.png",
+    "sha256": "e42a5617eb75f3c0465a9020223139781da6117c00580dc9f98f9be9428b7c0c",
+    "bytes": 328111,
+    "width": 1024,
+    "height": 1536,
+    "columns": 4,
+    "rows": 6,
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "anchorX": 128,
+    "anchorY": 224,
+    "artScale": 0.3,
+    "uniqueFrameHashes": 24,
+    "frameHashes": [
+      "21ae86d03bceb48eeb89fd64586ab4d499887f5b303395d41bcb2f315df93e56",
+      "12b317080f6fbe0f21640f9b59e293240684fcc98b5c0ff482285b3ad59844bf",
+      "cdd9a806cac5cd1195cc5fa3b3f4434fff2ae6f2b31df5a4ad7814ce9010a430",
+      "333e9964d0728e6063a4e90b5974e3bf16342755f0b51033597e2f5226e5cbcf",
+      "a1c8c21f7d159df2dbd4fb5ab4680a710177e3a54b5bdf2e9838beb33e6156d2",
+      "1e4ab77613080b05d4f4fab33e70c4d2776ea472eef2074beecd0c08b6f89ae2",
+      "4fec157f649855bdab3ecd71dc015f51523597f85c0d8162ccc5ea222baf477f",
+      "d4bf68ff6267752dce380618925791cf791b78aa840bf0ff01576a7ece51cc03",
+      "dcc9fb556c32af61d5f021c4c1fba8f1aa1f45907e15907530c2ad6ab3c248ad",
+      "4ea49aacaf8730a7381397ca40a0724fe0e01d42acc630f522e92aaa7c8581b9",
+      "127886eec80682cd75684b65bce23958b0a1b2fd13b502db577a7af706febde1",
+      "47716211682e19441e4cab4059372d0b68597c10eccc6e2a10644fa247cb9a58",
+      "a304173b3597250e2979235e5331f3862806d771444a538698a9700d8cd1870b",
+      "3848ce2346de2a544da82ddf02658b44f520e040ea8906fa1580d06e9ae2b12f",
+      "8340f3cf21c7d1bc5ef34c1d35e5af87d32d9ccac85d0436061a4d165cc9204d",
+      "1b662f2fe4e531e7b0abf3b63ae48a205d53130c337b1c28f3ae4b053ab8bd9c",
+      "387f84fc40869328e816da4d98eb3e58882574ca3767baf16eb353e9f053cd3b",
+      "06e3a9e73bbc70cae243baea4d25cd12324fdef0cf017fa2c1bedd3a00e6ce9c",
+      "a9c5b260d74099de1555c031696beeb2e77c09f536a798eafd731b0c1b45316a",
+      "7ac71f7e9814b42ad512e16c8ac6585257240aa5e5c37d98b2b84ff0310dff9b",
+      "4e61a4ee7550d24a69badcb5bd9f6f75ec758c0097dba70db80320a799609e0c",
+      "acc4478071bd7328ff7dfee8c615a0444d3e41efaf3c112518fae64632f545fe",
+      "fe960d461e3af767848a2d0a0bba5e7135b284538b3d439053990afdd0d8297b",
+      "fed40ddd3aa312b479d4fdf064319f5689a240196fc7b09d6c4df90b6473512e"
+    ],
+    "transparentPixels": 1201532,
+    "meanForegroundAlpha": 240.78007962502824
+  },
+  "normalization": {
+    "script": "scripts/normalize-directional-action-sheet.mjs",
+    "options": [
+      "--cell-width",
+      "256",
+      "--cell-height",
+      "256",
+      "--anchor-y",
+      "224",
+      "--uniform-scale",
+      "--uniform-figure-height",
+      "220",
+      "--cluster-source-frames"
+    ],
+    "deathFigureScale": "Uniform scale shared by all frames; fallen bodies are not enlarged"
+  },
+  "validation": {
+    "tool": "scripts/validate-directional-action-sheets.mjs",
+    "cellWidth": 256,
+    "cellHeight": 256,
+    "edgePadding": 1,
+    "rejectCrossSheetReuse": true,
+    "status": "PASS",
+    "scope": "Native cell/alpha/unique-frame contract; not a claim of six authored directions"
+  },
+  "runtimeEncoding": {
+    "tool": "scripts/optimize-frontier-runtime-art.mjs",
+    "format": "indexed PNG",
+    "colors": 256,
+    "quality": 95,
+    "dither": 0.25,
+    "transparentPaletteRgb": "black",
+    "sourceMastersUnchanged": true
+  }
+}

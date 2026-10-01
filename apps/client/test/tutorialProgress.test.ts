@@ -24,6 +24,17 @@ import {
 const PLAYER_TEAM_ID = "team-player";
 
 describe("touch tutorial progress", () => {
+  it("counts an attacked enemy building demolition in the open frontier map", () => {
+    const runtime = createVillageAssaultRuntime({ playerVillageId: "pinehold", aiPersonality: "balanced", seed: 20260721 });
+    const enemyTown = runtime.state.entities.find((entity) => entity.kind === "building" && entity.ownerId === VILLAGE_ASSAULT_AI_ID)!;
+    const enemyPublic = { ...runtime.view.entities.find((entity) => entity.kind === "building")!, id: enemyTown.id, ownerId: VILLAGE_ASSAULT_AI_ID };
+    const view = { ...runtime.view, entities: [...runtime.view.entities, enemyPublic] };
+    const worker = view.entities.find((entity) => entity.kind === "unit" && entity.ownerId === VILLAGE_ASSAULT_PLAYER_ID)!;
+    const progress = recordTutorialAcceptedCommand(createTutorialProgress(view), { type: "attack", entityIds: [worker.id], targetId: enemyTown.id }, view, VILLAGE_ASSAULT_PLAYER_ID, VILLAGE_ASSAULT_AI_ID);
+    const result = advance(progress, view, [{ type: "entityRemoved", entityId: enemyTown.id, entity: enemyTown }]);
+    expect(result.accomplishments.breach).toBe(true);
+  });
+
   it("requires the seven real visible milestones in order and completes on player victory", () => {
     let view = baseView();
     let progress = createTutorialProgress(view);

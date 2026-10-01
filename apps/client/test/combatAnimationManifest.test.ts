@@ -3,6 +3,7 @@ import {
   ANIMATED_MONSTER_FRAME_ASSETS,
   ANIMATED_UNIT_FRAME_ASSETS,
   COMBAT_ANIMATION_MANIFEST,
+  FRONTIER_UNIT_SHEET_IDS,
   frameAssetFiles,
   validateCombatAnimationManifest,
 } from "../src/game/combatAnimationManifest.js";
@@ -29,10 +30,12 @@ describe("combat animation manifest", () => {
       expect(asset?.manifest.anchorX).toBe(unitId === "shieldBearer" ? 56 : 48);
       expect(asset?.manifest.anchorY).toBe(88);
       expect(asset?.manifest.artScale).toBe(1);
+      expect(files.every(({ path }) => path.includes(`/frontier/characters/${unitId}/facings/`))).toBe(true);
+      expect(asset?.manifest.teamPennant).toBe(true);
     }
   });
 
-  it("keeps unapproved migrations on their single authored sheet", () => {
+  it("keeps single-perspective units and monsters on honestly declared authored sheets", () => {
     const approved = new Set(["warrior", "archer", "shieldBearer"]);
     const remaining = ANIMATED_UNIT_FRAME_ASSETS.filter(({ unitId }) => !approved.has(unitId));
     expect(remaining).toHaveLength(4);
@@ -40,14 +43,20 @@ describe("combat animation manifest", () => {
       expect(asset.directionalPaths).toBeUndefined();
       expect(asset.manifest.directionalTextureKeys).toBeUndefined();
       expect(frameAssetFiles(asset)).toEqual([{ textureKey: asset.textureKey, path: asset.path }]);
-      expect(asset.path).toMatch(new RegExp(`/units/${asset.unitId}/sprites/action-sheet\\.png$`));
+      if (FRONTIER_UNIT_SHEET_IDS.includes(asset.unitId)) {
+        expect(asset.path).toMatch(new RegExp(`/frontier/characters/${asset.unitId}/action-sheet\\.png$`));
+        expect(asset.manifest.mirrorFacings).toBe(false);
+        expect(asset.manifest.teamPennant).toBe(true);
+      } else {
+        expect(asset.path).toMatch(new RegExp(`/units/${asset.unitId}/sprites/action-sheet\\.png$`));
+      }
     }
 
     for (const asset of ANIMATED_MONSTER_FRAME_ASSETS) {
       expect(asset.directionalPaths).toBeUndefined();
       expect(asset.manifest.directionalTextureKeys).toBeUndefined();
       expect(frameAssetFiles(asset)).toEqual([{ textureKey: asset.textureKey, path: asset.path }]);
-      expect(asset.path).toMatch(new RegExp(`/monsters/${asset.monsterId}/sprites/action-sheet\\.png$`));
+      expect(asset.path).toMatch(new RegExp(`/frontier/monsters/${asset.monsterId}/action-sheet\\.png$`));
     }
   });
 

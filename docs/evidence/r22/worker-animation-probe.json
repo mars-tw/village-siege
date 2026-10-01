@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-01",
+  "verification": "VERIFIED",
+  "method": "Read-only Chromium Playwright dev-scene observation after clicking the real 開始戰役 button. No canonical-state writes, no injected commands, no gifted resources, no artificial movement or forced animation states. Existing gather/deliver orders ran naturally.",
+  "origin": "http://127.0.0.1:5173/",
+  "sampleIntervalRequestedMs": 50,
+  "iterations": 180,
+  "elapsedMs": 10115,
+  "observedWorkers": ["unit-5", "unit-6", "unit-7"],
+  "observations": [
+    { "id": "unit-5", "action": "attack", "frames": [0, 1, 2, 3], "textures": ["unit-action-sheet-villager-frontier-ne"], "bitmapOffsets": [[0, 0]], "flipX": false },
+    { "id": "unit-6", "action": "attack", "frames": [0, 1, 2, 3], "textures": ["unit-action-sheet-villager-frontier-ne", "unit-action-sheet-villager-frontier-se"], "bitmapOffsets": [[0, 0]], "flipX": false },
+    { "id": "unit-7", "action": "attack", "frames": [0, 1, 2, 3], "textures": ["unit-action-sheet-villager-frontier-ne", "unit-action-sheet-villager-frontier-sw"], "bitmapOffsets": [[0, 0]], "flipX": false },
+    { "id": "unit-5", "action": "walk", "frames": [0, 1, 2, 3], "textures": ["unit-action-sheet-villager-frontier-ne", "unit-action-sheet-villager-frontier-sw"], "bitmapOffsets": [[0, 0]], "flipX": false },
+    { "id": "unit-6", "action": "walk", "frames": [0, 1, 2, 3], "textures": ["unit-action-sheet-villager-frontier-ne", "unit-action-sheet-villager-frontier-nw", "unit-action-sheet-villager-frontier-se", "unit-action-sheet-villager-frontier-sw"], "bitmapOffsets": [[0, 0]], "flipX": false },
+    { "id": "unit-7", "action": "walk", "frames": [0, 1, 2, 3], "textures": ["unit-action-sheet-villager-frontier-ne", "unit-action-sheet-villager-frontier-sw"], "bitmapOffsets": [[0, 0]], "flipX": false }
+  ],
+  "actualSourceFrames": {
+    "walkCutY": 112,
+    "workCutY": 224,
+    "cutXByFrame": [0, 96, 192, 288],
+    "frameNameExample": "frontier-villager-frame:ne:attack:3",
+    "noAnimatedBitmapOffset": true,
+    "noHorizontalMirroring": true,
+    "worldPositionBehavior": "World container positions changed during legitimate path interpolation. Sprite image.x/image.y stayed0 throughout; distinct texture rectangles supplied limb/tool animation. Small interpolation completion offsets may overlap the transition from walking to working."
+  },
+  "assets": {
+    "manifest": "apps/client/src/game/villageWorkerAnimation.ts",
+    "sixNativeSheets": "apps/client/public/assets/original/frontier/characters/villager/facings/{e,ne,nw,w,sw,se}.png",
+    "cellWidth": 96,
+    "cellHeight": 112,
+    "anchor": [48, 88],
+    "metadata": "docs/art/frontier/villager/generation.json",
+    "compressionNote": "Root subsequently optimized runtime PNGs to PNG8 while preserving source sheets and updating hashes. Do not treat pre-optimization hashes as final."
+  },
+  "helperChecks": {
+    "actorTestsPassed": 6,
+    "manifestTestsPassed": 3,
+    "pixelValidation": "Six worker sheets passed24-unique-frames/safety-border/cross-sheet-reuse/exact-mirror checks before root PNG8 optimization. Root owns final optimized-art gate."
+  },
+  "limits": [
+    "This live observation verified natural walk/work states only. Cast, hurt and death were verified with helper tests and source pose inspection, not forced into the live scene.",
+    "No physical-device performance, native app build, production network playback or complete-match outcome is claimed.",
+    "Same parent model and PWA/worker author context; not a different-model or third-party review."
+  ],
+  "browserClosed": true
+}

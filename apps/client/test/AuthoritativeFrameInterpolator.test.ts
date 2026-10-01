@@ -161,7 +161,7 @@ function createState(): MatchState {
   return createInitialState({
     matchId: "match-11111111111111111111111111111111",
     seed: 51,
-    map: { id: "villageAssault", width: 18, height: 16, layoutId: "pinehold" },
+    map: { id: "villageAssault", width: 32, height: 24, layoutId: "pinehold" },
     players: [
       { id: "player-1", teamId: "team-1", villageId: "pinehold" },
       { id: "player-2", teamId: "team-2", villageId: "riverstead" },

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { isRuntimeOriginalAssetPath } from "./runtime-art-policy.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const assetRoot = join(repoRoot, "apps/client/public/assets/original");
@@ -79,8 +80,7 @@ function validateAssetsAndAttribution() {
     assert(!declared.has(entry.file), `Duplicate asset manifest entry: ${entry.file}`);
     assert(/^[a-f0-9]{64}$/.test(entry.sha256), `Invalid SHA-256 for ${entry.file}`);
     assert(Number.isSafeInteger(entry.bytes) && entry.bytes > 0, `Invalid byte count for ${entry.file}`);
-    const expectedRuntime = /\/sprites\/(?:action-sheet|facings\/[^/]+)\.png$/.test(entry.file)
-      || /\/frontier\/(?:buildings\.png|cover\.webp)$/.test(entry.file);
+    const expectedRuntime = isRuntimeOriginalAssetPath(entry.file);
     assert(entry.runtime === expectedRuntime, `Incorrect runtime classification for ${entry.file}`);
     declared.set(entry.file, entry);
   }

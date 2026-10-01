@@ -1,5 +1,7 @@
 import type { AnimationFrameEvent, CombatAction, CombatArtId, Facing } from "./directionalAnimation";
 
+export type FrameAnimatedActorId = CombatArtId | "villager";
+
 export interface FrameAnimatedActionRow {
   /** Zero-based sprite-sheet row. Rows must be unique between actions. */
   readonly row: number;
@@ -11,7 +13,7 @@ export interface FrameAnimatedActionRow {
 }
 
 export interface FrameAnimatedCombatActorManifest {
-  readonly id: CombatArtId;
+  readonly id: FrameAnimatedActorId;
   readonly textureKey: string;
   /** Six independently authored source sheets. When present, mirroring is disabled. */
   readonly directionalTextureKeys?: Readonly<Record<Facing, string>>;
@@ -28,12 +30,18 @@ export interface FrameAnimatedCombatActorManifest {
   readonly artScale?: number;
   /** Which horizontal direction the source artwork faces. Defaults to right. */
   readonly authoredFacing?: "left" | "right";
+  /** Single-perspective characters can retain authored handedness without fake facings. */
+  readonly mirrorFacings?: boolean;
+  readonly shadowWidth?: number;
+  readonly shadowHeight?: number;
+  /** Palette pennant keeps teams distinct without tinting skin, clothes, or tools. */
+  readonly teamPennant?: boolean;
   /** Optional stable namespace when multiple layouts share one texture key. */
   readonly frameNamePrefix?: string;
   readonly actions: Readonly<Record<CombatAction, FrameAnimatedActionRow>>;
 }
 
-export type FrameAnimatedCombatActorManifestTable = Readonly<Partial<Record<CombatArtId, FrameAnimatedCombatActorManifest>>>;
+export type FrameAnimatedCombatActorManifestTable = Readonly<Partial<Record<FrameAnimatedActorId, FrameAnimatedCombatActorManifest>>>;
 
 export const FRAME_ANIMATED_ACTION_ROWS = ["idle", "walk", "attack", "hurt", "death", "cast"] as const satisfies readonly CombatAction[];
 

@@ -59,7 +59,8 @@ const pixelCount = info.width * info.height;
 const labels = new Int32Array(pixelCount);
 const queue = new Int32Array(pixelCount);
 const components = [];
-const alphaThreshold = 8;
+const alphaThreshold = positiveIntegerOption("alpha-threshold", 8);
+if (alphaThreshold >= 255) throw new Error("--alpha-threshold must be below 255");
 
 for (let seed = 0; seed < pixelCount; seed += 1) {
   if (labels[seed] !== 0 || data[seed * 4 + 3] <= alphaThreshold) continue;
@@ -223,6 +224,14 @@ const output = sharp({
 const composites = [];
 const maxFrameWidth = cellWidth - safetyPadding * 2;
 const maxFrameHeight = anchorY - safetyPadding;
+// A common scale keeps a falling body from expanding to standing height,
+// and keeps sword windups from changing the actor's body size every frame.
+const targetFigureHeight = positiveIntegerOption("uniform-figure-height", maxFrameHeight);
+const uniformScale = process.argv.includes("--uniform-scale")
+  ? Math.min(1, targetFigureHeight / Math.max(...slots.slice(0, columns).map((slot) => slot.maxY - slot.minY + 1)),
+    ...slots.map((slot) => maxFrameWidth / (slot.maxX - slot.minX + 1)),
+    ...slots.map((slot) => maxFrameHeight / (slot.maxY - slot.minY + 1)))
+  : undefined;
 
 for (const slot of slots) {
   if (slot.area < 500 || slot.maxX < slot.minX || slot.maxY < slot.minY) {
@@ -248,7 +257,7 @@ for (const slot of slots) {
     }
   }
 
-  const scale = Math.min(1, maxFrameWidth / width, maxFrameHeight / height);
+  const scale = uniformScale ?? Math.min(1, maxFrameWidth / width, maxFrameHeight / height);
   const resizedWidth = Math.max(1, Math.round(width * scale));
   const resizedHeight = Math.max(1, Math.round(height * scale));
   const frame = await sharp(isolated, { raw: { width, height, channels: 4 } })

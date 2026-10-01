@@ -357,11 +357,11 @@ const SPAWNS: Readonly<Record<VillageId, GridPoint>> = {
 };
 
 const VILLAGE_ASSAULT_SPAWNS: readonly GridPoint[] = [
-  { x: 3, y: 8 },
-  { x: 14, y: 8 },
-  { x: 3, y: 2 },
-  { x: 14, y: 2 },
-  { x: 8, y: 13 },
+  { x: 4, y: 11 },
+  { x: 26, y: 11 },
+  { x: 4, y: 4 },
+  { x: 26, y: 18 },
+  { x: 4, y: 19 },
 ];
 
 function createVictoryState(
@@ -511,12 +511,12 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     victory: createVictoryState(participants, mapWidth, mapHeight, options.victoryPolicy),
   };
 
-  const fortifiedLayout = mapId === VILLAGE_ASSAULT_MAP_ID && participants.length === 2 && options.spawnOverrides === undefined
+  const authoredLayout = mapId === VILLAGE_ASSAULT_MAP_ID && participants.length === 2 && options.spawnOverrides === undefined
     ? getVillageAssaultLayout(state.map.layoutId ?? "pinehold")
     : null;
   for (const [playerIndex, player] of state.players.entries()) {
-    if (fortifiedLayout) {
-      const slot = fortifiedLayout.startSlots[playerIndex]!;
+    if (authoredLayout) {
+      const slot = authoredLayout.startSlots[playerIndex]!;
       const buildingByPlacementId = new Map<string, BuildingEntityState>();
       for (const placement of slot.placements) {
         const building = createBuilding(state, player.id, placement.buildingType, placement.origin, true, placement.orientation);
@@ -566,8 +566,8 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
       state.entities.push(createResource(state, kind, spawn));
     }
   }
-  if (fortifiedLayout) {
-    for (const camp of fortifiedLayout.neutralCamps) {
+  if (authoredLayout) {
+    for (const camp of authoredLayout.neutralCamps) {
       state.entities.push(createMonster(state, camp.monsterTypeId, camp.position, camp.leashRadius));
     }
   }

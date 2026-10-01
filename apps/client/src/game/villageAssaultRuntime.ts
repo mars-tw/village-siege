@@ -6,6 +6,8 @@ import {
   TOWN_CENTER_REBUILD_GRACE_TICKS,
   VILLAGE_ASSAULT_CONTROL_OBJECTIVE,
   VILLAGE_ASSAULT_MAP_ID,
+  VILLAGE_ASSAULT_MAP_WIDTH,
+  VILLAGE_ASSAULT_MAP_HEIGHT,
   MatchPersistenceError,
   appendJournalAdvance,
   appendJournalAiAuthority,
@@ -44,10 +46,10 @@ import { deriveVisibleTacticalSignalRaised } from "./aiTacticalSignals";
 
 export const VILLAGE_ASSAULT_PLAYER_ID = "player-1";
 export const VILLAGE_ASSAULT_AI_ID = "player-2";
-export const VILLAGE_ASSAULT_MAP_SIZE = { id: VILLAGE_ASSAULT_MAP_ID, width: 18, height: 16 } as const;
+export const VILLAGE_ASSAULT_MAP_SIZE = { id: VILLAGE_ASSAULT_MAP_ID, width: VILLAGE_ASSAULT_MAP_WIDTH, height: VILLAGE_ASSAULT_MAP_HEIGHT } as const;
 export const VILLAGE_ASSAULT_SPAWNS = {
-  player: { x: 3, y: 8 },
-  ai: { x: 14, y: 8 },
+  player: { x: 4, y: 11 },
+  ai: { x: 26, y: 11 },
 } as const satisfies Readonly<Record<"player" | "ai", GridPoint>>;
 
 /** Original multi-route victory policy used by the playable village assault. */

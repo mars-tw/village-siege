@@ -1,9 +1,14 @@
 import Phaser from "phaser";
-import { isVillageAssaultBuildableCell, type GridPoint as SharedGridPoint, type VillageAssaultLayoutId } from "@village-siege/shared";
-import { gridToWorld, type ScreenPoint } from "./isometric";
+import { VILLAGE_ASSAULT_MAP_HEIGHT, VILLAGE_ASSAULT_MAP_WIDTH, isVillageAssaultBuildableCell, type GridPoint as SharedGridPoint, type VillageAssaultLayoutId } from "@village-siege/shared";
+import { HALF_TILE_HEIGHT, HALF_TILE_WIDTH, gridToWorld, type ScreenPoint } from "./isometric";
 
-export const VILLAGE_ASSAULT_ORIGIN: ScreenPoint = { x: 780, y: 70 };
-export const VILLAGE_ASSAULT_BOUNDS = { x: 0, y: 0, width: 1660, height: 920 } as const;
+const LANDSCAPE_MARGIN = 192;
+export const VILLAGE_ASSAULT_ORIGIN: ScreenPoint = { x: VILLAGE_ASSAULT_MAP_HEIGHT * HALF_TILE_WIDTH + LANDSCAPE_MARGIN, y: LANDSCAPE_MARGIN };
+export const VILLAGE_ASSAULT_BOUNDS = {
+  x: 0, y: 0,
+  width: (VILLAGE_ASSAULT_MAP_WIDTH + VILLAGE_ASSAULT_MAP_HEIGHT) * HALF_TILE_WIDTH + LANDSCAPE_MARGIN * 2,
+  height: (VILLAGE_ASSAULT_MAP_WIDTH + VILLAGE_ASSAULT_MAP_HEIGHT) * HALF_TILE_HEIGHT + LANDSCAPE_MARGIN * 2,
+} as const;
 
 export interface SettlementOverlay {
   readonly container: Phaser.GameObjects.Container;
@@ -17,7 +22,6 @@ export function drawSettlementOverlay(scene: Phaser.Scene, origin = VILLAGE_ASSA
   const container = scene.add.container(origin.x, origin.y, [props, placement]);
   container.setName("village-assault-settlement-overlay");
 
-  drawWorksiteProps(props);
   return { container, placement, destroy: () => container.destroy(true) };
 }
 
@@ -67,34 +71,33 @@ export function drawFogOfWar(
   const visible = new Set(visibleTileIndices);
   const explored = new Set(exploredTileIndices);
   graphics.clear();
+  // Extend unknown land into the surrounding meadow rather than exposing a
+  // raised board edge around the simulation's isometric footprint.
+  const north = { x: 0, y: -HALF_TILE_HEIGHT };
+  const east = { x: mapWidth * HALF_TILE_WIDTH, y: (mapWidth - 1) * HALF_TILE_HEIGHT };
+  const south = { x: (mapWidth - mapHeight) * HALF_TILE_WIDTH, y: (mapWidth + mapHeight - 1) * HALF_TILE_HEIGHT };
+  const west = { x: -mapHeight * HALF_TILE_WIDTH, y: (mapHeight - 1) * HALF_TILE_HEIGHT };
+  const left = -VILLAGE_ASSAULT_ORIGIN.x;
+  const top = -VILLAGE_ASSAULT_ORIGIN.y;
+  const right = VILLAGE_ASSAULT_BOUNDS.width + left;
+  const bottom = VILLAGE_ASSAULT_BOUNDS.height + top;
+  for (const points of [
+    [{ x: left, y: top }, { x: north.x, y: top }, north, west, { x: left, y: west.y }],
+    [{ x: north.x, y: top }, { x: right, y: top }, { x: right, y: east.y }, east, north],
+    [{ x: right, y: east.y }, { x: right, y: bottom }, { x: south.x, y: bottom }, south, east],
+    [{ x: south.x, y: bottom }, { x: left, y: bottom }, { x: left, y: west.y }, west, south],
+  ]) graphics.fillStyle(0x142b24, 0.88).fillPoints(points.map((point) => new Phaser.Math.Vector2(point.x, point.y)), true);
   for (let y = 0; y < mapHeight; y += 1) {
     for (let x = 0; x < mapWidth; x += 1) {
       const index = y * mapWidth + x;
       if (visible.has(index)) continue;
       const world = gridToWorld({ x, y }, { x: 0, y: 0 });
-      graphics.fillStyle(explored.has(index) ? 0x13221e : 0x07100e, explored.has(index) ? 0.66 : 0.94).beginPath()
-        .moveTo(world.x, world.y - 25)
-        .lineTo(world.x + 49, world.y)
-        .lineTo(world.x, world.y + 25)
-        .lineTo(world.x - 49, world.y)
+      graphics.fillStyle(explored.has(index) ? 0x172b24 : 0x142b24, explored.has(index) ? 0.64 : 0.88).beginPath()
+        .moveTo(world.x, world.y - HALF_TILE_HEIGHT)
+        .lineTo(world.x + HALF_TILE_WIDTH, world.y)
+        .lineTo(world.x, world.y + HALF_TILE_HEIGHT)
+        .lineTo(world.x - HALF_TILE_WIDTH, world.y)
         .closePath().fillPath();
     }
-  }
-}
-
-function drawWorksiteProps(g: Phaser.GameObjects.Graphics): void {
-  const logPoints = [{ x: 4, y: 9 }, { x: 13, y: 6 }];
-  for (const point of logPoints) {
-    const world = gridToWorld(point, { x: 0, y: 0 });
-    for (let index = 0; index < 3; index += 1) {
-      g.lineStyle(8, 0x75533b, 1).lineBetween(world.x - 23 + index * 8, world.y + 10, world.x + 8 + index * 8, world.y - 6);
-      g.lineStyle(2, 0x2b211b, 0.8).strokeCircle(world.x - 23 + index * 8, world.y + 10, 4);
-    }
-  }
-  for (const point of [{ x: 5, y: 5 }, { x: 12, y: 10 }]) {
-    const world = gridToWorld(point, { x: 0, y: 0 });
-    g.fillStyle(0x3b2a20, 1).fillRect(world.x - 25, world.y - 11, 50, 17);
-    g.fillStyle(0xc29c43, 0.88).fillRect(world.x - 21, world.y - 7, 42, 4);
-    g.lineStyle(3, 0x101917, 0.75).strokeRect(world.x - 25, world.y - 11, 50, 17);
   }
 }
