@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "pwaWaitedVisible": true,
+  "stabilityWaitMs": 1000,
+  "viewports": [
+    { "width": 844, "height": 390, "visibleEnabledButtons": 18, "centerMisses": 0, "filmPwaOverlap": 0, "overflowX": false },
+    { "width": 667, "height": 375, "visibleEnabledButtons": 18, "centerMisses": 0, "filmPwaOverlap": 0, "overflowX": false },
+    { "width": 568, "height": 320, "visibleEnabledButtons": 18, "centerMisses": 0, "filmPwaOverlap": 0, "overflowX": false },
+    { "width": 390, "height": 844, "visibleEnabledButtons": 18, "centerMisses": 0, "filmPwaOverlap": 0, "overflowX": false },
+    { "width": 1366, "height": 600, "visibleEnabledButtons": 18, "centerMisses": 0, "filmPwaOverlap": 0, "overflowX": false }
+  ],
+  "filmButtonHeight": 44,
+  "video": { "decodedWidth": 960, "decodedHeight": 540, "timeAdvanced": true, "error": null },
+  "offlineDownload": { "started": true, "finalStatus": "離線版已備妥", "cancelStageObserved": false },
+  "filmReachableAfterDownload": true
+}

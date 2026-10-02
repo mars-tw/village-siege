@@ -1,0 +1,34 @@
+
+> village-siege@1.3.1 test:ops
+> node --test deploy/test/*.test.mjs
+
+✔ PWA manifest and icon URLs remain under a GitHub Pages base (4.2774ms)
+✔ worker precaches only base-scoped files and never interrupts active games (15.956ms)
+✔ browser soft updates without the current explicit download token never start a full cache (1.4926ms)
+✔ cancelling an installing worker aborts its requests and preserves an old active cache (1.6763ms)
+✔ a cancel received before installation begins also prevents the complete download (0.8191ms)
+✔ an explicit current-version repair restores an incomplete active cache (1.528ms)
+✔ a repair for a different release never changes stored offline bytes (0.8804ms)
+✔ failed repair retains an active cache's remaining offline resources (1.0303ms)
+✔ offline-ready stays false when the complete download is absent (0.9071ms)
+✔ failed download removes its partial cache while preserving a working old version (1.5685ms)
+✔ mixed deployment bytes fail pinned integrity and cannot replace a working cache (0.6578ms)
+✔ offline navigation uses the shell paired with its precached code (2.007ms)
+✔ online refresh cannot overwrite a running worker's shell with newer code (0.8589ms)
+✔ live runtime config is fetched without caching and disables multiplayer offline (1.2468ms)
+✔ API, multiplayer, non-GET, foreign and sibling-app requests bypass caching (0.5549ms)
+✔ cache cleanup affects only older versions of this exact app scope (0.7369ms)
+✔ prunes stale or build-only raster art with a release-manifest allowlist (0.6829ms)
+✔ normalizes only an exact HTTPS origin (0.7517ms)
+✔ disables multiplayer when no runtime endpoint is configured (0.4629ms)
+✔ emits a frozen browser assignment for the validated endpoint (0.1712ms)
+✔ requires an exact HTTPS Pages endpoint only when multiplayer is enabled (0.2443ms)
+✔ static server supports MP4 MIME, single byte ranges, and immutable caching (103.2711ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 201.5561

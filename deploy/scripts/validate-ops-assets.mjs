@@ -111,13 +111,13 @@ if (!productionTemplate.includes('VITE_MULTIPLAYER_ENABLED: "false"')
   throw new Error("production client build must remain domain-agnostic and runtime-configured");
 }
 for (const required of [
-  "VILLAGE_SIEGE_TAG:-1.3.0",
+  "VILLAGE_SIEGE_TAG:-1.3.1",
   "ghcr.io/mars-tw/village-siege-client",
   "ghcr.io/mars-tw/village-siege-server",
 ]) {
   if (!productionTemplate.includes(required)) throw new Error(`production release tag check missing: ${required}`);
 }
-if (!contents.get("deploy/production.env.example").includes("VILLAGE_SIEGE_TAG=1.3.0")) {
+if (!contents.get("deploy/production.env.example").includes("VILLAGE_SIEGE_TAG=1.3.1")) {
   throw new Error("production environment example must select the current release tag");
 }
 

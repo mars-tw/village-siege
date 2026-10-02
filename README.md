@@ -8,7 +8,7 @@ Village Siege 是 MIT 授權的開源瀏覽器即時戰略遊戲。它採用原�
 
 影片按播放後才下載，單人戰局觀看時暫停、關閉後恢復。離線戰役下載不包含影片；完整遊戲仍可離線玩。MP4、封面、來源與雜湊均隨原始碼以 MIT 授權公開。
 
-**[遊玩 1.3.0／觀看實玩影片](https://mars-tw.github.io/village-siege/play.html?v=1.3.0)** · [錄影與驗收報告](docs/CODEX_RESPONSE_R27.md)
+**[遊玩 1.3.1／觀看實玩影片](https://mars-tw.github.io/village-siege/play.html?v=1.3.1)** · [錄影與驗收報告](docs/CODEX_RESPONSE_R27.md)
 
 ## 1.2：移動、進場與出征指引（2026-10-02）
 
@@ -34,7 +34,7 @@ App 1.1.1、rules 0.20.0、network 4。526 項測試、正式包及授權／秘�
 
 1.0.0 是 Village Siege 第一個正式公開的單機 Web／離線 PWA 版本，規則版本為 `village-siege/0.20.0`。三張村莊地圖、三種難度、五種 AI 性格、三階段聚落、七項科技、七種兵種、三種野外怪物與四條勝利路線都已接上同一套決定論規則。
 
-**[立即遊玩最新版本](https://mars-tw.github.io/village-siege/play.html?v=1.3.0)**
+**[立即遊玩最新版本](https://mars-tw.github.io/village-siege/play.html?v=1.3.1)**
 
 這次把完整發展流程需要的地圖有限資源補足：每方家園木材總量由 1,000 提高到 6,000，石材由 700 提高到 4,000，採集速度、資源耗盡與糧田復育規則不變。也修正友軍占住捷徑時的繞行、非城門最後目擊帶入 `undefined` 造成存檔／重播 hash 不一致，以及 AI 未接手已付款工地的問題。
 
@@ -76,7 +76,7 @@ PWA 可安裝並在完整下載後離線玩單機。更新等所有遊戲視窗�
 本機開始：`npm ci`，然後 `npm run dev:client`。正式驗證：`npm run verify`。Android／iOS 原生App、其餘角色六方向、完整戰役與公開多人列於後續里程碑。
 ## 立即遊玩
 
-**[開啟公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.3.0)**
+**[開啟公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.3.1)**
 
 公開網站由GitHub Pages自動建置，目前提供電腦、手機與平板網頁單機版、離線PWA。公開多人服務仍須完成長期公開WSS部署與雙客戶端驗證。
 

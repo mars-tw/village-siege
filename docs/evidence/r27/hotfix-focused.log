@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/apps/client
+
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  14:51:50
+   Duration  315ms (transform 98ms, setup 0ms, import 138ms, tests 119ms, environment 0ms)
+
