@@ -31,6 +31,14 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Ensure gameplay media verifier
+        run: |
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y ffmpeg
+          fi
+          ffprobe -version
+
       - name: Type-check, test and build every workspace
         run: npm run verify
 

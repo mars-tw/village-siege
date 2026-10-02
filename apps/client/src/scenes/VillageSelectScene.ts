@@ -6,6 +6,7 @@ import { multiplayerAvailability } from "../network/multiplayerAvailability";
 import { readAutoSave, type AutoSaveEntry } from "../game/autoSave";
 import { parseMatchSaveFile, type AiDifficulty } from "@village-siege/shared";
 import { idFromPolicy, type BattleModeId } from "../game/battleModes";
+import { createGameplayFilmGallery, type GameplayFilmGalleryControl } from "../ui/gameplayFilmGallery";
 import "../frontier-menu.css";
 export type VillageId = "pinehold" | "riverstead" | "highcrag";
 export type AiPersonality = "aggressor" | "guardian" | "prosperer" | "balanced" | "raider";
@@ -32,6 +33,7 @@ const BATTLE_MODES = [
 ] as const;
 export class VillageSelectScene extends Phaser.Scene {
  private root?: HTMLElement;
+ private filmGallery?: GameplayFilmGalleryControl;
  private villageId: VillageId = "pinehold";
  private aiPersonality: AiPersonality = "balanced";
  private aiDifficulty: AiDifficulty = "standard";
@@ -47,7 +49,7 @@ export class VillageSelectScene extends Phaser.Scene {
   root.style.setProperty("--frontier-atlas",`url("${publicAssetUrl("assets/original/frontier/buildings-menu.webp")}")`);
   root.innerHTML=`
    <div class="frontier-landscape" aria-hidden="true"></div>
-   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><span class="frontier-version">邊境篇 <span>v${import.meta.env.VITE_APP_VERSION ?? "1.2.0"}</span></span></header>
+   <header class="frontier-header"><div class="frontier-brand"><span class="brand-seal" aria-hidden="true">村</span><span>VILLAGE SIEGE<small>村莊攻防</small></span></div><div class="frontier-header-actions"><button type="button" class="frontier-film" data-gameplay-film>實玩影片</button><span class="frontier-version">邊境篇 <span>v${import.meta.env.VITE_APP_VERSION ?? "1.3.0"}</span></span></div></header>
    <div class="frontier-content">
     <div class="frontier-intro"><p class="frontier-eyebrow">一座村莊，一場攻防。</p><h1>把邊境，<br>變成你的堡壘。</h1><p class="frontier-description">開拓、築城、帶兵出征。<br>從松林深處，打開通往河谷的道路。</p></div>
     <section class="frontier-settings">
@@ -64,6 +66,8 @@ export class VillageSelectScene extends Phaser.Scene {
    <div class="frontier-bottom"><span>原創等角即時戰略</span><output class="frontier-readout" aria-live="polite"></output><span class="frontier-device-note">滑鼠鍵盤／觸控操作</span></div>
    <dialog class="frontier-guide"><div class="guide-heading"><h2>把第一座村莊守好</h2><button type="button" data-close-guide aria-label="關閉操作指南">×</button></div><div class="guide-body"><p><strong>先發展：</strong>點選工匠，再點林木、糧食或石礦。選取主城可訓練更多工匠。</p><p><strong>再出兵：</strong>建造兵營並訓練士兵。點「科技與時代」查看建築與材料前置，升級後開放弓箭、騎兵與攻城兵器。</p><p><strong>電腦：</strong>點選單位，按住 Shift 拖曳框選，右鍵移動／攻擊；WASD 或拖曳移動鏡頭，滾輪縮放，B 建造，P 暫停。</p><p><strong>手機／平板：</strong>戰場採橫向。點選單位後點目標，拖曳移動鏡頭，用縮放按鈕拉近、拉遠；底部指令可選工匠、全軍、建造與系統。</p><p><strong>贏得戰役：</strong>摧毀敵方議事堂、殲滅敵軍、持守拓界銅標，或取得中域控制。</p></div><button type="button" class="guide-play" data-guide-tutorial>用七個目標學會操作 →</button></dialog>`;
   host.append(root);this.root=root;
+  this.filmGallery=createGameplayFilmGallery(host);
+  root.querySelector("[data-gameplay-film]")?.addEventListener("click",()=>this.filmGallery?.open());
   root.querySelectorAll<HTMLButtonElement>("[data-village]").forEach(b=>b.addEventListener("click",()=>{this.villageId=b.dataset.village as VillageId;this.syncSelection();}));
   root.querySelectorAll<HTMLButtonElement>("[data-ai]").forEach(b=>b.addEventListener("click",()=>{this.aiPersonality=b.dataset.ai as AiPersonality;this.syncSelection();}));
   root.querySelectorAll<HTMLButtonElement>("[data-difficulty]").forEach(b=>b.addEventListener("click",()=>{this.aiDifficulty=b.dataset.difficulty as AiDifficulty;this.syncSelection();}));
@@ -113,6 +117,6 @@ export class VillageSelectScene extends Phaser.Scene {
   this.root.querySelector("[data-rival-detail]")!.textContent=`${p.detail}。${d.detail}`;
   this.root.querySelector(".frontier-readout")!.textContent=`${v.name} ／ ${mode.name} ／ ${p.name} ／ ${d.name}${this.autoSaveNotice?` ／ ${this.autoSaveNotice}`:""}`;
  }
- private destroySelector():void {this.root?.querySelector<HTMLDialogElement>("dialog")?.close();this.root?.remove();(this.game.canvas.parentElement??document.body).classList.remove("selection-active");this.root=undefined;}
+ private destroySelector():void {this.filmGallery?.destroy();this.filmGallery=undefined;this.root?.querySelector<HTMLDialogElement>("dialog")?.close();this.root?.remove();(this.game.canvas.parentElement??document.body).classList.remove("selection-active");this.root=undefined;}
 }
 export default VillageSelectScene;

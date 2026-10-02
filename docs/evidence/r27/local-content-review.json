@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-02",
+  "timezone": "Asia/Taipei",
+  "backend": "lmstudio",
+  "model": "qwen3.8-27b-deep",
+  "worker": "qwen38_27b_deep",
+  "overall": "PASS",
+  "initial": {
+    "taskId": "644c4e1a-8b2b-499b-9c6c-dba5f59dd949",
+    "status": "completed",
+    "verdict": {
+      "economy": {
+        "status": "PASS",
+        "reason": "上方兩排顯示資源數值與建造操作；第2格出現施工網格，符合真實遊戲內採集與建造示範。"
+      },
+      "movement": {
+        "status": "PASS",
+        "reason": "中間兩排先呈現科技視窗，後續畫面回到地圖並可見單位位置變化，符合科技開啟、關閉與部隊移動的循序內容。"
+      },
+      "battle": {
+        "status": "NEEDS_REVIEW",
+        "reason": "下方兩排可辨攻擊/偵察意圖，但接觸點受小地圖遮擋，且僅有6格抽樣，不足以確認清晰交戰或結果；不宣稱勝利。"
+      },
+      "overall": "NEEDS_REVIEW",
+      "scope": "本裁決僅基於contact sheet可見證據與既有解碼/blackdetect結果；不推論鏡頭外內容、不聲稱逐幀動作或真人娛樂評測。"
+    },
+    "inputSheetSha256": "34060a7c14cf823975a2dcffbf5e4047d541451f9ff9f19951e5ef42b077c0f7"
+  },
+  "correction": {
+    "taskId": "77cbe76d-c218-41b2-ab88-0b2de89baacd",
+    "status": "completed",
+    "verdict": {
+      "status": "PASS",
+      "reason": "12格採樣顯示中央林緣遭遇與近身接觸可辨，小地圖未遮擋主畫面；生命列、遇敵提示及野獸退場/戰利品結果依序出現，符合『林緣遭遇戰』描述且非靜止畫面。",
+      "scope": "僅依據提供的12格採樣影像與影片元數據進行本機內容審查"
+    },
+    "inputSheetSha256": "55fba6c6ab564f6fd11e7b5dac470f1f632610099a3639c47b7d36f96c8bbbfc"
+  },
+  "finalClips": [
+    {
+      "id": "economy",
+      "sha256": "8abe5fbb794f68c6c3e84015f8fe9d40cd2be123d98f330d327b749906eebfa3",
+      "bytes": 1329519,
+      "verdict": {
+        "status": "PASS",
+        "reason": "上方兩排顯示資源數值與建造操作；第2格出現施工網格，符合真實遊戲內採集與建造示範。"
+      }
+    },
+    {
+      "id": "movement",
+      "sha256": "351f1936e5f333edb38e9d97e1f6a229538c0e265f4ca2b75afcfe5d8b156e95",
+      "bytes": 1268258,
+      "verdict": {
+        "status": "PASS",
+        "reason": "中間兩排先呈現科技視窗，後續畫面回到地圖並可見單位位置變化，符合科技開啟、關閉與部隊移動的循序內容。"
+      }
+    },
+    {
+      "id": "battle",
+      "sha256": "7e34cfbd40739639aee45b38a77cf05c6492a191ac6b8047e758f04714c4a753",
+      "bytes": 1255407,
+      "verdict": {
+        "status": "PASS",
+        "reason": "12格採樣顯示中央林緣遭遇與近身接觸可辨，小地圖未遮擋主畫面；生命列、遇敵提示及野獸退場/戰利品結果依序出現，符合『林緣遭遇戰』描述且非靜止畫面。",
+        "scope": "僅依據提供的12格採樣影像與影片元數據進行本機內容審查"
+      }
+    }
+  ],
+  "scope": "Local model adjudicates chronological sampled frames plus deterministic decode/black-screen evidence; this is not a full per-frame motion review or human enjoyment study. Old obscured battle footage was replaced and reviewed again."
+}

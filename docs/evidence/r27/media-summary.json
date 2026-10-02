@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-02T13:38:40+08:00",
+  "capture": {
+    "tool": "@playwright/cli video-start/video-stop",
+    "sessions": [
+      "r27-record-a",
+      "r27-record-b",
+      "r27-record-c",
+      "r27-record-d"
+    ],
+    "publicUrl": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
+    "importedSave": ".audit-tmp/r25/visual-final-owner-save.vssave",
+    "rawDirectory": ".audit-tmp/r27/raw",
+    "economyConstructionRaw": ".audit-tmp/r27/raw/economy-construction.webm",
+    "battleCenteredRaw": ".audit-tmp/r27/raw/battle-direct.webm"
+  },
+  "encode": {
+    "script": "docs/evidence/r27/encode-gameplay.ps1",
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "faststart": true,
+    "audio": false,
+    "width": 960,
+    "height": 540,
+    "fps": 24
+  },
+  "clips": [
+    {
+      "id": "economy",
+      "durationSeconds": 24,
+      "bytes": 1329519,
+      "sha256": "8abe5fbb794f68c6c3e84015f8fe9d40cd2be123d98f330d327b749906eebfa3",
+      "posterBytes": 54754,
+      "posterSha256": "84accc84e1fb4dd977ad868f7aa6f1bb374bf350dd0878ea5116e591bae9258c"
+    },
+    {
+      "id": "movement",
+      "durationSeconds": 24,
+      "bytes": 1268258,
+      "sha256": "351f1936e5f333edb38e9d97e1f6a229538c0e265f4ca2b75afcfe5d8b156e95",
+      "posterBytes": 68452,
+      "posterSha256": "39cd554c0652ba43f561657fcf6cc71fbd388e608438142fadd0d1a9d8826816"
+    },
+    {
+      "id": "battle",
+      "durationSeconds": 24,
+      "bytes": 1255407,
+      "sha256": "7e34cfbd40739639aee45b38a77cf05c6492a191ac6b8047e758f04714c4a753",
+      "posterBytes": 49516,
+      "posterSha256": "5bb6fb44127980029abe366f9ebe8da77e240b31f85ce1108eb3bc491c3162e1"
+    }
+  ],
+  "verification": {
+    "fullDecode": "PASS",
+    "blackdetect": "no black intervals",
+    "freezedetect": "expected static UI/map intervals reported; see recording-report.md",
+    "localVisionReview": {
+      "status": "PASS",
+      "model": "qwen3.8-27b-deep",
+      "tasks": [
+        "644c4e1a-8b2b-499b-9c6c-dba5f59dd949",
+        "77cbe76d-c218-41b2-ab88-0b2de89baacd"
+      ],
+      "scope": "Local model adjudicates chronological sampled frames plus deterministic decode/black-screen evidence; this is not a full per-frame motion review or human enjoyment study. Old obscured battle footage was replaced and reviewed again.",
+      "evidence": "local-content-review.json"
+    },
+    "initialLocalFailure": {
+      "status": "BLOCKED",
+      "taskId": "b92bab06-96ec-4af0-87bf-6834874ba493",
+      "error": "RuntimeError: all workers failed: qwen38_27b_deep: RuntimeError: HTTP 503: <urlopen error [WinError 10061] 無法連線，因為目標電腦拒絕連線。>"
+    }
+  },
+  "finalizedAt": "2026-10-02T06:30:20.231Z"
+}

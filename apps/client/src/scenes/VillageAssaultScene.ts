@@ -90,6 +90,7 @@ import { initialBattleArtIds } from "../game/initialBattleArt";
 import { UnitMotionPresentation } from "../game/unitMotionPresentation";
 import { createBattleObjectivesPanel, type BattleObjectivesPanelControl } from "../ui/battleObjectivesPanel";
 import type { BattleObjectiveAction } from "../game/battleObjectives";
+import { createGameplayFilmGallery, type GameplayFilmGalleryControl } from "../ui/gameplayFilmGallery";
 import type { ProgressionAction } from "../game/progressionPresentation";
 import { saveAutoSave } from "../game/autoSave";
 import { chooseContinuationWorker, constructionContinuationCommand, continuationMovementBlockedCells } from "../game/constructionContinuation";
@@ -310,6 +311,8 @@ export class VillageAssaultScene extends Phaser.Scene {
   private assetLoadingOutput?: HTMLOutputElement;
   private objectivesPanel?: BattleObjectivesPanelControl;
   private objectivesWasPaused = false;
+  private filmGallery?: GameplayFilmGalleryControl;
+  private filmWasPaused = false;
   private progressionWasPaused = false;
   private continueSaveJson?: string;
   private autoSaveTimer?: number;
@@ -609,6 +612,10 @@ export class VillageAssaultScene extends Phaser.Scene {
       closed: () => { this.paused = this.objectivesWasPaused; this.input.enabled = true; if (this.sys.isActive()) this.refreshInterface(true); },
     });
     this.layoutInterface();
+    this.filmGallery = createGameplayFilmGallery(this.game.canvas.parentElement ?? document.body, {
+      opened: () => { this.filmWasPaused = this.paused; if (!this.onlineSource) this.paused = true; this.input.enabled = false; this.pointerGesture.reset(); },
+      closed: () => { this.paused = this.filmWasPaused; this.input.enabled = true; if (this.sys.isActive()) this.refreshInterface(true); },
+    });
     if (!this.onlineSource) {
       this.autoSaveTimer = window.setInterval(() => void this.saveAutomaticBattle(), 30_000);
       window.addEventListener("pagehide", this.saveBeforePageHide);
@@ -2609,6 +2616,7 @@ export class VillageAssaultScene extends Phaser.Scene {
           this.zoomAction(0.12),
           { glyph: "◎", label: "置中基地", run: () => this.centerCameraOn({ x: 5, y: 12 }) },
           { glyph: "♪", label: this.battleAudio?.muted ? "開啟音效" : "關閉音效", run: () => { this.battleAudio?.toggle(); this.refreshInterface(true); } },
+          { glyph: "播", label: "實玩影片", run: () => this.filmGallery?.open() },
           { glyph: "←", label: "返回系統", run: () => { this.systemPanelPage = "root"; this.refreshInterface(true); } },
         ];
       }
@@ -4665,6 +4673,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.workerPanel?.destroy(); this.workerPanel = undefined; this.workerTrigger?.remove(); this.workerTrigger = undefined;
     this.battleFeedback?.destroy(); this.battleFeedback = undefined; this.battleAudio?.destroy(); this.battleAudio = undefined;
     this.objectivesPanel?.destroy(); this.objectivesPanel = undefined;
+    this.filmGallery?.destroy(); this.filmGallery = undefined;
     this.pointerGesture.reset();
     this.onlineDisposers.splice(0).forEach((dispose) => dispose());
     if (this.onlineSource && !this.onlineLeaveRequested) void this.onlineSource.leave();

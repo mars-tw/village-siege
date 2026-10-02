@@ -8,6 +8,10 @@ interface ReleaseAsset {
   readonly runtime?: boolean;
 }
 
+interface GameplayMediaAsset {
+  readonly file: string;
+}
+
 /** Emit a worker from the files Vite actually writes, including unbundled game art. */
 export function villageSiegePwa(): Plugin {
   let config: ResolvedConfig;
@@ -29,6 +33,16 @@ export function villageSiegePwa(): Plugin {
       const manifest = JSON.parse(await readFile(path.join(repoRoot, "assets/release-asset-manifest.json"), "utf8")) as {
         assets: ReleaseAsset[];
       };
+      const gameplayMediaManifest = JSON.parse(await readFile(path.join(repoRoot, "assets/gameplay-media-manifest.json"), "utf8")) as {
+        assets: GameplayMediaAsset[];
+      };
+      const optionalGameplayMedia = new Set(gameplayMediaManifest.assets.map((asset) => {
+        const publicPrefix = "apps/client/public/";
+        if (!asset.file.startsWith(`${publicPrefix}media/gameplay/`)) {
+          throw new Error(`Gameplay media manifest path is outside media/gameplay: ${asset.file}`);
+        }
+        return asset.file.slice(publicPrefix.length);
+      }));
       const originalRuntimeRasters = new Set(manifest.assets
         .filter((asset) => asset.runtime === true && /\.(?:png|webp)$/.test(asset.file))
         .map((asset) => asset.file.replace(/^apps\/client\/public\//, "")));
@@ -39,6 +53,10 @@ export function villageSiegePwa(): Plugin {
           if (entry.isDirectory()) { await visit(absolute); continue; }
           const relative = path.relative(outputRoot, absolute).split(path.sep).join("/");
           if (relative === "sw.js" || relative === "runtime-config.js" || relative.endsWith(".map")) continue;
+          // Gameplay recordings ship with the release, but remain network-on-demand.
+          // In particular, install/first boot and offline campaign caching must not
+          // download complete videos or their optional posters/metadata.
+          if (optionalGameplayMedia.has(relative)) continue;
           // Match the raster allowlist used by the post-build runtime pruner.
           if (relative.startsWith("assets/original/") && /\.(?:png|webp)$/.test(relative)
               && !originalRuntimeRasters.has(relative)) continue;

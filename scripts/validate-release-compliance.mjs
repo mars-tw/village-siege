@@ -4,6 +4,7 @@ import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { isRuntimeOriginalAssetPath } from "./runtime-art-policy.mjs";
+import { validateGameplayMedia } from "./validate-gameplay-media.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const assetRoot = join(repoRoot, "apps/client/public/assets/original");
@@ -207,7 +208,7 @@ function validateNoCommittedSecrets() {
   return { checked, findings: findings.length };
 }
 
-function validateRuntimeDirectory(directory, manifest) {
+function validateRuntimeDirectory(directory, manifest, gameplayMediaManifest) {
   const absoluteDirectory = resolve(repoRoot, directory);
   assert(existsSync(absoluteDirectory), `Runtime directory does not exist: ${directory}`);
   const publicPrefix = "apps/client/public/";
@@ -229,16 +230,33 @@ function validateRuntimeDirectory(directory, manifest) {
     expected.delete(pathWithinRuntime);
   }
   assert(expected.size === 0, `Runtime bundle is missing approved raster assets: ${[...expected.keys()].join(", ")}`);
+  const gameplayPrefix = "apps/client/public/";
+  const expectedGameplayMedia = new Map(gameplayMediaManifest.assets.map((entry) => [entry.file.slice(gameplayPrefix.length), entry]));
+  const runtimeGameplayRoot = join(absoluteDirectory, "media", "gameplay");
+  assert(existsSync(runtimeGameplayRoot), "Runtime bundle is missing media/gameplay");
+  const runtimeGameplayMedia = walkFiles(runtimeGameplayRoot);
+  for (const file of runtimeGameplayMedia) {
+    const pathWithinRuntime = toPosix(relative(absoluteDirectory, file));
+    const entry = expectedGameplayMedia.get(pathWithinRuntime);
+    assert(entry, `Runtime bundle includes undeclared gameplay media: ${pathWithinRuntime}`);
+    const buffer = readFileSync(file);
+    assert(buffer.length === entry.bytes, `Runtime gameplay media byte count drift: ${pathWithinRuntime}`);
+    assert(sha256(buffer) === entry.sha256, `Runtime gameplay media hash drift: ${pathWithinRuntime}`);
+    expectedGameplayMedia.delete(pathWithinRuntime);
+  }
+  assert(expectedGameplayMedia.size === 0, `Runtime bundle is missing gameplay media: ${[...expectedGameplayMedia.keys()].join(", ")}`);
   const totalBytes = files.reduce((total, file) => total + statSync(file).size, 0);
   assert(totalBytes <= manifest.runtimeBundleBudgetBytes, `Runtime bundle is ${totalBytes} bytes; budget is ${manifest.runtimeBundleBudgetBytes}`);
-  return { pngs: runtimePngs.length, files: files.length, totalBytes };
+  return { pngs: runtimePngs.length, gameplayMedia: runtimeGameplayMedia.length, files: files.length, totalBytes };
 }
 
 try {
   const assetResult = validateAssetsAndAttribution();
+  const gameplayMediaResult = validateGameplayMedia();
   const licenseResult = validateProductionLicenses();
   const secretResult = validateNoCommittedSecrets();
   console.log(`[release-compliance] assets ${assetResult.pngs}/${assetResult.pngs} hashed; attribution rows ${assetResult.attributionRows}`);
+  console.log(`[release-compliance] gameplay media ${gameplayMediaResult.assets} assets; ${gameplayMediaResult.videos} H.264 video streams verified by ffprobe`);
   console.log(`[release-compliance] runtime art ${assetResult.runtimeAssets} files, ${assetResult.runtimeBytes}/${assetResult.manifest.runtimeBudgetBytes} bytes`);
   console.log(`[release-compliance] production dependency licenses ${licenseResult.checked} allowed; optional unavailable ${licenseResult.unavailableOptional}`);
   console.log(`[release-compliance] secret scan ${secretResult.checked} text files; findings ${secretResult.findings}`);
@@ -246,8 +264,8 @@ try {
   if (runtimeIndex !== -1) {
     const runtimeDirectory = process.argv[runtimeIndex + 1];
     assert(runtimeDirectory, "--runtime-dir requires a directory");
-    const runtimeResult = validateRuntimeDirectory(runtimeDirectory, assetResult.manifest);
-    console.log(`[release-compliance] runtime bundle ${runtimeResult.files} files, ${runtimeResult.pngs} approved raster assets, ${runtimeResult.totalBytes} bytes`);
+    const runtimeResult = validateRuntimeDirectory(runtimeDirectory, assetResult.manifest, gameplayMediaResult.manifest);
+    console.log(`[release-compliance] runtime bundle ${runtimeResult.files} files, ${runtimeResult.pngs} approved raster assets, ${runtimeResult.gameplayMedia} optional gameplay media, ${runtimeResult.totalBytes} bytes`);
   }
   console.log("[release-compliance] PASS");
 } catch (error) {
