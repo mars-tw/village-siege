@@ -1,98 +1,48 @@
 {
   "schemaVersion": 1,
-  "mediaRoot": "apps/client/public/media/gameplay",
+  "mediaRoot": "docs/media/gameplay",
   "perFileBudgetBytes": 2097152,
+  "overviewBudgetBytes": 10485760,
   "assets": [
     {
-      "file": "apps/client/public/media/gameplay/economy.mp4",
-      "kind": "video",
-      "format": "video/mp4",
-      "bytes": 1329519,
+      "file": "docs/media/gameplay/economy.mp4", "kind": "video", "format": "video/mp4", "bytes": 1329519,
       "sha256": "8abe5fbb794f68c6c3e84015f8fe9d40cd2be123d98f330d327b749906eebfa3",
-      "source": {
-        "type": "original-gameplay-capture",
-        "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
-        "attribution": "Village Siege / MARS-TW",
-        "license": "MIT"
-      }
+      "source": { "type": "original-gameplay-capture", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
     },
     {
-      "file": "apps/client/public/media/gameplay/economy.webp",
-      "kind": "poster",
-      "format": "image/webp",
-      "bytes": 54754,
+      "file": "docs/media/gameplay/economy.webp", "kind": "poster", "format": "image/webp", "bytes": 54754,
       "sha256": "84accc84e1fb4dd977ad868f7aa6f1bb374bf350dd0878ea5116e591bae9258c",
-      "source": {
-        "type": "original-gameplay-capture",
-        "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
-        "attribution": "Village Siege / MARS-TW",
-        "license": "MIT"
-      }
+      "source": { "type": "original-gameplay-capture", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
     },
     {
-      "file": "apps/client/public/media/gameplay/movement.mp4",
-      "kind": "video",
-      "format": "video/mp4",
-      "bytes": 1268258,
+      "file": "docs/media/gameplay/movement.mp4", "kind": "video", "format": "video/mp4", "bytes": 1268258,
       "sha256": "351f1936e5f333edb38e9d97e1f6a229538c0e265f4ca2b75afcfe5d8b156e95",
-      "source": {
-        "type": "original-gameplay-capture",
-        "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
-        "attribution": "Village Siege / MARS-TW",
-        "license": "MIT"
-      }
+      "source": { "type": "original-gameplay-capture", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
     },
     {
-      "file": "apps/client/public/media/gameplay/movement.webp",
-      "kind": "poster",
-      "format": "image/webp",
-      "bytes": 68452,
+      "file": "docs/media/gameplay/movement.webp", "kind": "poster", "format": "image/webp", "bytes": 68452,
       "sha256": "39cd554c0652ba43f561657fcf6cc71fbd388e608438142fadd0d1a9d8826816",
-      "source": {
-        "type": "original-gameplay-capture",
-        "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
-        "attribution": "Village Siege / MARS-TW",
-        "license": "MIT"
-      }
+      "source": { "type": "original-gameplay-capture", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
     },
     {
-      "file": "apps/client/public/media/gameplay/battle.mp4",
-      "kind": "video",
-      "format": "video/mp4",
-      "bytes": 1255407,
+      "file": "docs/media/gameplay/battle.mp4", "kind": "video", "format": "video/mp4", "bytes": 1255407,
       "sha256": "7e34cfbd40739639aee45b38a77cf05c6492a191ac6b8047e758f04714c4a753",
-      "source": {
-        "type": "original-gameplay-capture",
-        "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
-        "attribution": "Village Siege / MARS-TW",
-        "license": "MIT"
-      }
+      "source": { "type": "original-gameplay-capture", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
     },
     {
-      "file": "apps/client/public/media/gameplay/battle.webp",
-      "kind": "poster",
-      "format": "image/webp",
-      "bytes": 49516,
+      "file": "docs/media/gameplay/battle.webp", "kind": "poster", "format": "image/webp", "bytes": 49516,
       "sha256": "5bb6fb44127980029abe366f9ebe8da77e240b31f85ce1108eb3bc491c3162e1",
-      "source": {
-        "type": "original-gameplay-capture",
-        "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
-        "attribution": "Village Siege / MARS-TW",
-        "license": "MIT"
-      }
+      "source": { "type": "original-gameplay-capture", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
     },
     {
-      "file": "apps/client/public/media/gameplay/metadata.json",
-      "kind": "metadata",
-      "format": "application/json",
-      "bytes": 2670,
-      "sha256": "fc1fd3c025dc561c5f87092278a68e6ffcbfcbb9778fa6ccf24c1eb9fb575485",
-      "source": {
-        "type": "original-gameplay-capture",
-        "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
-        "attribution": "Village Siege / MARS-TW",
-        "license": "MIT"
-      }
+      "file": "docs/media/gameplay/overview.mp4", "kind": "overview-video", "format": "video/mp4", "bytes": 3851823,
+      "sha256": "36b637518a2182c465373d70868e2bbecc9eaf52c854ab869f49574a1922b12f",
+      "source": { "type": "original-gameplay-capture-concat", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
+    },
+    {
+      "file": "docs/media/gameplay/metadata.json", "kind": "metadata", "format": "application/json", "bytes": 3253,
+      "sha256": "1d81daef27dbccdee94c0f07d92d0eb0ce74b7eb271c459adf500606910eaf1c",
+      "source": { "type": "original-gameplay-capture", "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0", "attribution": "Village Siege / MARS-TW", "license": "MIT" }
     }
   ]
 }

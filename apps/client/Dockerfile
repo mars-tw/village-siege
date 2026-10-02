@@ -28,7 +28,6 @@ COPY apps/client/public apps/client/public
 COPY scripts/prune-runtime-art.mjs scripts/prune-runtime-art.mjs
 COPY scripts/runtime-art-policy.mjs scripts/runtime-art-policy.mjs
 COPY assets/release-asset-manifest.json assets/release-asset-manifest.json
-COPY assets/gameplay-media-manifest.json assets/gameplay-media-manifest.json
 
 ARG VITE_MULTIPLAYER_ENABLED=false
 ARG VITE_COLYSEUS_URL

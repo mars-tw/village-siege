@@ -5,8 +5,8 @@
       "id": "economy",
       "title": "採集與建造",
       "description": "工匠先依正常命令前往林木，接著在全新戰局開啟建造選單、選擇邊軍兵營、合法放置並開始施工；畫面可見地基、工匠進場與建築進度變化。",
-      "video": "media/gameplay/economy.mp4",
-      "poster": "media/gameplay/economy.webp",
+      "video": "docs/media/gameplay/economy.mp4",
+      "poster": "docs/media/gameplay/economy.webp",
       "source": {
         "type": "original-gameplay-capture",
         "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
@@ -26,8 +26,8 @@
       "id": "movement",
       "title": "軍備科技與部隊移動",
       "description": "從正常匯入的自有戰局短暫展示軍備科技頁，接著關閉視窗、全選兩名邊境戰士並下達移動命令；後半段持續呈現部隊沿道路移動。",
-      "video": "media/gameplay/movement.mp4",
-      "poster": "media/gameplay/movement.webp",
+      "video": "docs/media/gameplay/movement.mp4",
+      "poster": "docs/media/gameplay/movement.webp",
       "source": {
         "type": "original-gameplay-capture",
         "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
@@ -47,8 +47,8 @@
       "id": "battle",
       "title": "林緣遭遇戰",
       "description": "鏡頭先移到林緣交戰區，兩名邊境戰士對畫面中央可見的野獸執行攻擊移動；畫面清楚呈現接觸、敵方生命條與警報，接著野獸退場並出現戰利品結果。",
-      "video": "media/gameplay/battle.mp4",
-      "poster": "media/gameplay/battle.webp",
+      "video": "docs/media/gameplay/battle.mp4",
+      "poster": "docs/media/gameplay/battle.webp",
       "source": {
         "type": "original-gameplay-capture",
         "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
@@ -64,5 +64,22 @@
       "audio": false,
       "recordedAt": "2026-10-02T14:04:46+08:00"
     }
-  ]
+  ],
+  "overview": {
+    "video": "docs/media/gameplay/overview.mp4",
+    "composition": ["economy", "movement", "battle"],
+    "source": {
+      "type": "original-gameplay-capture-concat",
+      "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
+      "attribution": "Village Siege / MARS-TW",
+      "license": "MIT"
+    },
+    "durationSeconds": 72,
+    "fps": 24,
+    "width": 960,
+    "height": 540,
+    "bytes": 3851823,
+    "sha256": "36b637518a2182c465373d70868e2bbecc9eaf52c854ab869f49574a1922b12f",
+    "audio": false
+  }
 }

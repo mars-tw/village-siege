@@ -1,0 +1,201 @@
+
+> village-siege@1.3.2 verify
+> npm run typecheck && npm test && npm run test:ops && npm run validate:directional-art && npm run build
+
+
+> village-siege@1.3.2 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @village-siege/client@1.3.2 typecheck
+> tsc -p tsconfig.json
+
+
+> @village-siege/server@1.3.2 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @village-siege/shared@1.3.2 typecheck
+> tsc -p tsconfig.json
+
+
+> village-siege@1.3.2 test
+> npm run test --workspaces --if-present
+
+
+> @village-siege/client@1.3.2 test
+> vitest run --no-file-parallelism test
+
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/apps/client
+
+
+ Test Files  31 passed (31)
+      Tests  177 passed (177)
+   Start at  16:20:27
+   Duration  11.80s (transform 1.88s, setup 0ms, import 3.31s, tests 3.71s, environment 2ms)
+
+
+> @village-siege/server@1.3.2 test
+> vitest run --no-file-parallelism test
+
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/apps/server
+
+
+ Test Files  11 passed (11)
+      Tests  86 passed (86)
+   Start at  16:20:39
+   Duration  13.80s (transform 415ms, setup 0ms, import 7.59s, tests 4.90s, environment 1ms)
+
+
+> @village-siege/shared@1.3.2 test
+> vitest run --no-file-parallelism
+
+
+ RUN  v4.1.11 C:/Users/digimkt/Desktop/遊戲/village-siege/packages/shared
+
+
+ Test Files  16 passed (16)
+      Tests  262 passed (262)
+   Start at  16:20:53
+   Duration  29.57s (transform 1.01s, setup 0ms, import 1.62s, tests 26.33s, environment 1ms)
+
+
+> village-siege@1.3.2 test:ops
+> node --test deploy/test/*.test.mjs
+
+✔ PWA manifest and icon URLs remain under a GitHub Pages base (3.3585ms)
+✔ worker precaches only base-scoped files and never interrupts active games (12.2061ms)
+✔ browser soft updates without the current explicit download token never start a full cache (1.0836ms)
+✔ cancelling an installing worker aborts its requests and preserves an old active cache (1.2283ms)
+✔ a cancel received before installation begins also prevents the complete download (0.5956ms)
+✔ an explicit current-version repair restores an incomplete active cache (1.1975ms)
+✔ a repair for a different release never changes stored offline bytes (0.7249ms)
+✔ failed repair retains an active cache's remaining offline resources (0.8871ms)
+✔ offline-ready stays false when the complete download is absent (0.7787ms)
+✔ failed download removes its partial cache while preserving a working old version (1.2483ms)
+✔ mixed deployment bytes fail pinned integrity and cannot replace a working cache (0.5444ms)
+✔ offline navigation uses the shell paired with its precached code (1.6733ms)
+✔ online refresh cannot overwrite a running worker's shell with newer code (0.7146ms)
+✔ live runtime config is fetched without caching and disables multiplayer offline (1.0435ms)
+✔ API, multiplayer, non-GET, foreign and sibling-app requests bypass caching (0.4888ms)
+✔ cache cleanup affects only older versions of this exact app scope (0.658ms)
+✔ prunes stale or build-only raster art with a release-manifest allowlist (0.5815ms)
+✔ normalizes only an exact HTTPS origin (0.6717ms)
+✔ disables multiplayer when no runtime endpoint is configured (0.4006ms)
+✔ emits a frozen browser assignment for the validated endpoint (0.0946ms)
+✔ requires an exact HTTPS Pages endpoint only when multiplayer is enabled (0.1364ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.2271
+
+> village-siege@1.3.2 validate:directional-art
+> node scripts/validate-frontier-art.mjs
+
+apps/client/public/assets/original/frontier/characters/villager/facings/e.png: 384x672; transparent=86.0%; partial=14.0%; frames=24
+  r1c1:36,18-59,87 | r1c2:36,18-59,87 | r1c3:35,18-60,87 | r1c4:36,18-59,87 | r2c1:28,19-67,87 | r2c2:27,19-68,87 | r2c3:26,19-70,87 | r2c4:25,19-71,87 | r3c1:24,17-71,87 | r3c2:19,31-76,87 | r3c3:18,44-78,87 | r3c4:20,24-75,87 | r4c1:29,22-67,87 | r4c2:27,38-68,87 | r4c3:31,30-65,87 | r4c4:37,20-59,87 | r5c1:25,30-70,87 | r5c2:23,46-73,87 | r5c3:16,60-79,87 | r5c4:15,64-81,87 | r6c1:34,9-62,87 | r6c2:23,27-73,87 | r6c3:23,37-72,87 | r6c4:28,17-68,87
+apps/client/public/assets/original/frontier/characters/villager/facings/ne.png: 384x672; transparent=83.7%; partial=16.3%; frames=24
+  r1c1:27,18-68,87 | r1c2:28,19-68,87 | r1c3:28,19-68,87 | r1c4:28,19-68,87 | r2c1:26,19-69,87 | r2c2:25,19-71,87 | r2c3:26,19-70,87 | r2c4:27,18-69,87 | r3c1:27,13-69,87 | r3c2:20,33-76,87 | r3c3:20,41-75,87 | r3c4:24,22-72,87 | r4c1:24,24-71,87 | r4c2:22,38-74,87 | r4c3:22,26-73,87 | r4c4:26,22-69,87 | r5c1:25,29-71,87 | r5c2:17,41-78,87 | r5c3:13,60-82,87 | r5c4:15,61-80,87 | r6c1:24,11-71,87 | r6c2:24,30-72,87 | r6c3:20,41-75,87 | r6c4:26,19-69,87
+apps/client/public/assets/original/frontier/characters/villager/facings/nw.png: 384x672; transparent=84.0%; partial=16.0%; frames=24
+  r1c1:29,18-67,87 | r1c2:28,18-67,87 | r1c3:28,19-67,87 | r1c4:28,19-67,87 | r2c1:26,22-70,87 | r2c2:27,20-68,87 | r2c3:27,20-69,87 | r2c4:27,21-68,87 | r3c1:25,11-71,87 | r3c2:22,25-73,87 | r3c3:21,38-74,87 | r3c4:27,22-69,87 | r4c1:20,25-75,87 | r4c2:23,41-72,87 | r4c3:24,31-72,87 | r4c4:28,24-67,87 | r5c1:17,27-78,87 | r5c2:22,45-74,87 | r5c3:15,55-80,87 | r5c4:15,59-81,87 | r6c1:24,11-71,87 | r6c2:24,31-71,87 | r6c3:23,39-72,87 | r6c4:26,20-70,87
+apps/client/public/assets/original/frontier/characters/villager/facings/w.png: 384x672; transparent=84.8%; partial=15.2%; frames=24
+  r1c1:36,18-60,87 | r1c2:36,18-60,87 | r1c3:36,18-60,87 | r1c4:36,18-59,87 | r2c1:27,17-69,87 | r2c2:27,16-69,87 | r2c3:25,16-70,87 | r2c4:25,17-71,87 | r3c1:24,13-72,87 | r3c2:21,14-74,87 | r3c3:22,39-73,87 | r3c4:24,22-72,87 | r4c1:27,21-69,87 | r4c2:26,28-70,87 | r4c3:28,25-67,87 | r4c4:35,21-61,87 | r5c1:17,23-78,87 | r5c2:24,39-71,87 | r5c3:16,55-79,87 | r5c4:13,62-83,87 | r6c1:28,13-68,87 | r6c2:20,27-75,87 | r6c3:23,36-73,87 | r6c4:32,18-64,87
+apps/client/public/assets/original/frontier/characters/villager/facings/sw.png: 384x672; transparent=82.8%; partial=17.2%; frames=24
+  r1c1:24,20-71,87 | r1c2:23,18-73,87 | r1c3:23,18-72,87 | r1c4:24,18-72,87 | r2c1:24,23-72,87 | r2c2:25,24-70,87 | r2c3:26,23-70,87 | r2c4:27,24-69,87 | r3c1:26,11-69,87 | r3c2:24,30-72,87 | r3c3:21,35-74,87 | r3c4:27,21-68,87 | r4c1:25,22-71,87 | r4c2:27,35-69,87 | r4c3:28,26-68,87 | r4c4:26,26-69,87 | r5c1:18,28-78,87 | r5c2:21,43-74,87 | r5c3:16,55-79,87 | r5c4:15,61-81,87 | r6c1:21,10-75,87 | r6c2:25,30-70,87 | r6c3:21,41-74,87 | r6c4:26,21-69,87
+apps/client/public/assets/original/frontier/characters/villager/facings/se.png: 384x672; transparent=83.7%; partial=16.3%; frames=24
+  r1c1:27,18-68,87 | r1c2:28,19-67,87 | r1c3:28,18-68,87 | r1c4:28,19-68,87 | r2c1:24,23-71,87 | r2c2:26,23-69,87 | r2c3:26,22-70,87 | r2c4:26,23-70,87 | r3c1:25,10-70,87 | r3c2:25,30-71,87 | r3c3:24,32-72,87 | r3c4:25,21-70,87 | r4c1:22,26-73,87 | r4c2:23,37-73,87 | r4c3:27,27-69,87 | r4c4:27,21-69,87 | r5c1:22,29-73,87 | r5c2:23,42-72,87 | r5c3:19,52-77,87 | r5c4:13,58-82,87 | r6c1:25,13-71,87 | r6c2:28,27-68,87 | r6c3:25,36-70,87 | r6c4:27,20-68,87
+apps/client/public/assets/original/frontier/characters/warrior/facings/e.png: 384x672; transparent=87.0%; partial=13.0%; frames=24
+  r1c1:34,21-62,87 | r1c2:33,21-62,87 | r1c3:33,21-63,87 | r1c4:34,21-61,87 | r2c1:24,22-72,87 | r2c2:21,23-74,87 | r2c3:29,23-66,87 | r2c4:25,24-71,87 | r3c1:22,23-73,87 | r3c2:27,18-68,87 | r3c3:9,27-87,87 | r3c4:24,23-71,87 | r4c1:26,25-70,87 | r4c2:28,26-67,87 | r4c3:31,32-64,87 | r4c4:34,25-62,87 | r5c1:26,34-70,87 | r5c2:21,45-75,87 | r5c3:22,55-74,87 | r5c4:14,66-81,87 | r6c1:31,2-65,87 | r6c2:24,21-71,87 | r6c3:30,24-66,87 | r6c4:32,22-63,87
+apps/client/public/assets/original/frontier/characters/warrior/facings/ne.png: 384x672; transparent=83.4%; partial=16.6%; frames=24
+  r1c1:24,19-72,87 | r1c2:26,19-70,87 | r1c3:24,18-71,87 | r1c4:25,20-70,87 | r2c1:23,19-73,87 | r2c2:23,21-73,87 | r2c3:21,19-75,87 | r2c4:22,17-74,87 | r3c1:20,22-75,87 | r3c2:28,14-68,87 | r3c3:12,22-83,87 | r3c4:19,22-76,87 | r4c1:21,24-74,87 | r4c2:27,27-69,87 | r4c3:23,32-73,87 | r4c4:27,23-68,87 | r5c1:22,32-73,87 | r5c2:18,40-77,87 | r5c3:9,53-87,87 | r5c4:11,58-85,87 | r6c1:29,2-66,87 | r6c2:25,22-70,87 | r6c3:28,25-68,87 | r6c4:23,20-73,87
+apps/client/public/assets/original/frontier/characters/warrior/facings/nw.png: 384x672; transparent=83.4%; partial=16.6%; frames=24
+  r1c1:28,19-68,87 | r1c2:25,19-70,87 | r1c3:26,19-70,87 | r1c4:25,19-71,87 | r2c1:22,22-73,87 | r2c2:23,22-72,87 | r2c3:23,20-72,87 | r2c4:23,22-72,87 | r3c1:22,20-74,87 | r3c2:23,12-72,87 | r3c3:13,17-82,87 | r3c4:19,24-76,87 | r4c1:21,26-75,87 | r4c2:26,23-70,87 | r4c3:25,37-70,87 | r4c4:25,23-71,87 | r5c1:18,26-77,87 | r5c2:25,38-71,87 | r5c3:16,54-80,87 | r5c4:13,56-82,87 | r6c1:29,2-66,87 | r6c2:17,21-78,87 | r6c3:21,27-75,87 | r6c4:25,20-71,87
+apps/client/public/assets/original/frontier/characters/warrior/facings/w.png: 384x672; transparent=85.0%; partial=15.0%; frames=24
+  r1c1:24,19-71,87 | r1c2:25,18-71,87 | r1c3:22,18-73,87 | r1c4:24,19-71,87 | r2c1:20,25-76,87 | r2c2:25,25-71,87 | r2c3:19,24-76,87 | r2c4:25,24-70,87 | r3c1:25,25-71,87 | r3c2:25,17-70,87 | r3c3:11,28-85,87 | r3c4:18,25-78,87 | r4c1:20,25-75,87 | r4c2:23,23-73,87 | r4c3:24,37-72,87 | r4c4:28,25-68,87 | r5c1:19,28-76,87 | r5c2:21,49-74,87 | r5c3:17,59-79,87 | r5c4:15,66-80,87 | r6c1:25,8-70,87 | r6c2:24,29-72,87 | r6c3:22,31-73,87 | r6c4:23,23-72,87
+apps/client/public/assets/original/frontier/characters/warrior/facings/sw.png: 384x672; transparent=82.1%; partial=17.9%; frames=24
+  r1c1:28,18-67,87 | r1c2:28,19-68,87 | r1c3:27,18-68,87 | r1c4:27,18-68,87 | r2c1:24,20-72,87 | r2c2:22,20-73,87 | r2c3:24,20-71,87 | r2c4:25,20-70,87 | r3c1:25,12-70,87 | r3c2:21,12-74,87 | r3c3:14,27-82,87 | r3c4:25,23-71,87 | r4c1:21,24-74,87 | r4c2:21,25-74,87 | r4c3:28,29-68,87 | r4c4:24,25-72,87 | r5c1:18,25-77,87 | r5c2:24,38-71,87 | r5c3:15,53-80,87 | r5c4:17,62-79,87 | r6c1:24,7-72,87 | r6c2:18,21-77,87 | r6c3:22,21-73,87 | r6c4:28,19-68,87
+apps/client/public/assets/original/frontier/characters/warrior/facings/se.png: 384x672; transparent=83.7%; partial=16.3%; frames=24
+  r1c1:29,18-66,87 | r1c2:29,18-67,87 | r1c3:31,18-64,87 | r1c4:28,18-67,87 | r2c1:29,22-67,87 | r2c2:29,23-67,87 | r2c3:29,23-66,87 | r2c4:28,23-67,87 | r3c1:25,25-70,87 | r3c2:24,20-72,87 | r3c3:10,28-86,87 | r3c4:25,25-70,87 | r4c1:26,26-69,87 | r4c2:24,24-71,87 | r4c3:27,30-68,87 | r4c4:27,27-69,87 | r5c1:24,27-71,87 | r5c2:23,40-72,87 | r5c3:20,55-76,87 | r5c4:14,60-82,87 | r6c1:26,6-69,87 | r6c2:22,20-74,87 | r6c3:26,22-69,87 | r6c4:27,20-68,87
+apps/client/public/assets/original/frontier/characters/archer/facings/e.png: 384x672; transparent=82.5%; partial=17.4%; frames=24
+  r1c1:29,18-67,87 | r1c2:28,18-67,87 | r1c3:29,18-67,87 | r1c4:29,18-67,87 | r2c1:27,17-69,87 | r2c2:25,18-71,87 | r2c3:24,17-71,87 | r2c4:25,17-70,87 | r3c1:25,17-70,87 | r3c2:18,12-78,87 | r3c3:7,13-89,87 | r3c4:28,19-68,87 | r4c1:22,19-74,87 | r4c2:23,14-72,87 | r4c3:19,30-77,87 | r4c4:28,20-67,87 | r5c1:20,16-75,87 | r5c2:17,38-79,87 | r5c3:13,46-82,87 | r5c4:13,42-83,87 | r6c1:26,3-69,87 | r6c2:26,3-70,87 | r6c3:26,2-70,87 | r6c4:27,2-68,87
+apps/client/public/assets/original/frontier/characters/archer/facings/ne.png: 384x672; transparent=82.4%; partial=17.5%; frames=24
+  r1c1:30,19-66,87 | r1c2:29,19-66,87 | r1c3:29,19-66,87 | r1c4:28,18-67,87 | r2c1:26,20-70,87 | r2c2:27,19-68,87 | r2c3:19,5-77,87 | r2c4:28,19-68,87 | r3c1:25,11-70,87 | r3c2:21,8-74,87 | r3c3:24,16-72,87 | r3c4:28,19-68,87 | r4c1:24,19-71,87 | r4c2:29,27-67,87 | r4c3:24,31-71,87 | r4c4:29,18-67,87 | r5c1:18,28-78,87 | r5c2:25,36-70,87 | r5c3:14,37-81,87 | r5c4:13,42-82,87 | r6c1:28,4-67,87 | r6c2:28,6-68,87 | r6c3:26,4-69,87 | r6c4:30,3-65,87
+apps/client/public/assets/original/frontier/characters/archer/facings/nw.png: 384x672; transparent=82.6%; partial=17.4%; frames=24
+  r1c1:29,21-66,87 | r1c2:28,21-68,87 | r1c3:29,21-67,87 | r1c4:29,21-67,87 | r2c1:28,21-67,87 | r2c2:27,21-68,87 | r2c3:27,21-69,87 | r2c4:28,21-68,87 | r3c1:26,21-69,87 | r3c2:21,16-75,87 | r3c3:22,15-73,87 | r3c4:27,25-68,87 | r4c1:23,20-73,87 | r4c2:26,24-70,87 | r4c3:22,28-74,87 | r4c4:27,23-69,87 | r5c1:22,27-73,87 | r5c2:16,40-79,87 | r5c3:9,49-86,87 | r5c4:8,54-88,87 | r6c1:26,2-70,87 | r6c2:29,2-67,87 | r6c3:26,6-69,87 | r6c4:26,3-69,87
+apps/client/public/assets/original/frontier/characters/archer/facings/w.png: 384x672; transparent=81.9%; partial=18.1%; frames=24
+  r1c1:25,18-70,87 | r1c2:25,19-71,87 | r1c3:25,19-71,87 | r1c4:25,19-71,87 | r2c1:22,26-73,87 | r2c2:24,26-72,87 | r2c3:23,26-73,87 | r2c4:24,26-72,87 | r3c1:22,17-74,87 | r3c2:8,16-87,87 | r3c3:23,16-73,87 | r3c4:21,21-74,87 | r4c1:21,21-74,87 | r4c2:16,27-79,87 | r4c3:22,25-73,87 | r4c4:19,23-76,87 | r5c1:20,25-76,87 | r5c2:20,42-76,87 | r5c3:16,46-79,87 | r5c4:14,62-81,87 | r6c1:28,3-67,87 | r6c2:24,4-71,87 | r6c3:24,2-71,87 | r6c4:21,4-75,87
+apps/client/public/assets/original/frontier/characters/archer/facings/sw.png: 384x672; transparent=81.6%; partial=18.4%; frames=24
+  r1c1:28,18-68,87 | r1c2:28,19-68,87 | r1c3:30,18-65,87 | r1c4:27,19-68,87 | r2c1:24,19-71,87 | r2c2:24,19-71,87 | r2c3:27,19-69,87 | r2c4:28,18-68,87 | r3c1:23,19-73,87 | r3c2:18,12-78,87 | r3c3:20,15-76,87 | r3c4:24,21-71,87 | r4c1:23,19-72,87 | r4c2:24,21-72,87 | r4c3:23,27-73,87 | r4c4:28,24-68,87 | r5c1:23,28-72,87 | r5c2:23,44-73,87 | r5c3:14,50-82,87 | r5c4:15,61-80,87 | r6c1:26,8-69,87 | r6c2:23,8-73,87 | r6c3:23,8-73,87 | r6c4:24,11-72,87
+apps/client/public/assets/original/frontier/characters/archer/facings/se.png: 384x672; transparent=82.5%; partial=17.5%; frames=24
+  r1c1:29,19-66,87 | r1c2:28,19-67,87 | r1c3:29,19-66,87 | r1c4:29,19-66,87 | r2c1:26,22-69,87 | r2c2:28,23-67,87 | r2c3:26,23-69,87 | r2c4:28,24-67,87 | r3c1:24,24-71,87 | r3c2:20,14-76,87 | r3c3:20,14-75,87 | r3c4:15,20-80,87 | r4c1:25,24-70,87 | r4c2:24,25-72,87 | r4c3:26,35-70,87 | r4c4:26,26-69,87 | r5c1:19,27-76,87 | r5c2:18,41-78,87 | r5c3:14,58-81,87 | r5c4:14,46-82,87 | r6c1:26,12-70,87 | r6c2:27,10-68,87 | r6c3:24,2-72,87 | r6c4:27,11-69,87
+Directional action-sheet validation passed for 18 sheet(s).
+apps/client/public/assets/original/frontier/characters/shieldBearer/facings/e.png: 448x672; transparent=83.3%; partial=16.7%; frames=24
+  r1c1:39,8-73,87 | r1c2:38,8-73,87 | r1c3:39,7-73,87 | r1c4:38,7-74,87 | r2c1:33,10-78,87 | r2c2:36,10-76,87 | r2c3:33,10-78,87 | r2c4:35,10-76,87 | r3c1:30,9-81,87 | r3c2:23,10-88,87 | r3c3:9,19-103,87 | r3c4:33,9-79,87 | r4c1:31,2-80,87 | r4c2:26,12-85,87 | r4c3:23,27-89,87 | r4c4:36,8-76,87 | r5c1:23,18-89,87 | r5c2:31,29-81,87 | r5c3:20,63-92,87 | r5c4:16,66-95,87 | r6c1:35,2-77,87 | r6c2:32,9-79,87 | r6c3:23,6-88,87 | r6c4:38,7-73,87
+apps/client/public/assets/original/frontier/characters/shieldBearer/facings/ne.png: 448x672; transparent=81.6%; partial=18.3%; frames=24
+  r1c1:33,9-79,87 | r1c2:33,9-78,87 | r1c3:33,9-79,87 | r1c4:33,9-79,87 | r2c1:29,9-82,87 | r2c2:30,7-81,87 | r2c3:29,9-83,87 | r2c4:30,10-81,87 | r3c1:27,11-84,87 | r3c2:21,7-91,87 | r3c3:7,22-104,87 | r3c4:31,10-81,87 | r4c1:34,15-78,87 | r4c2:28,15-83,87 | r4c3:22,37-90,87 | r4c4:31,19-80,87 | r5c1:29,17-82,87 | r5c2:29,18-83,87 | r5c3:9,47-102,87 | r5c4:17,45-94,87 | r6c1:33,4-79,87 | r6c2:28,9-83,87 | r6c3:26,14-85,87 | r6c4:34,2-78,87
+apps/client/public/assets/original/frontier/characters/shieldBearer/facings/nw.png: 448x672; transparent=81.2%; partial=18.8%; frames=24
+  r1c1:34,8-77,87 | r1c2:33,7-79,87 | r1c3:33,7-78,87 | r1c4:33,6-78,87 | r2c1:32,6-80,87 | r2c2:31,9-80,87 | r2c3:32,3-79,87 | r2c4:29,5-83,87 | r3c1:28,15-84,87 | r3c2:26,3-86,87 | r3c3:14,23-98,87 | r3c4:29,14-83,87 | r4c1:32,16-79,87 | r4c2:29,11-82,87 | r4c3:32,30-79,87 | r4c4:32,13-79,87 | r5c1:26,16-85,87 | r5c2:30,19-81,87 | r5c3:21,47-91,87 | r5c4:16,40-96,87 | r6c1:26,10-85,87 | r6c2:29,10-82,87 | r6c3:22,19-89,87 | r6c4:32,6-80,87
+apps/client/public/assets/original/frontier/characters/shieldBearer/facings/w.png: 448x672; transparent=83.3%; partial=16.7%; frames=24
+  r1c1:38,6-74,87 | r1c2:39,7-73,87 | r1c3:39,6-73,87 | r1c4:39,6-73,87 | r2c1:33,8-79,87 | r2c2:32,7-79,87 | r2c3:33,7-78,87 | r2c4:35,6-77,87 | r3c1:23,21-88,87 | r3c2:23,12-88,87 | r3c3:7,24-104,87 | r3c4:36,6-75,87 | r4c1:33,10-79,87 | r4c2:32,5-79,87 | r4c3:24,29-87,87 | r4c4:32,5-79,87 | r5c1:29,10-83,87 | r5c2:24,28-88,87 | r5c3:12,58-100,87 | r5c4:16,62-96,87 | r6c1:30,6-81,87 | r6c2:29,7-83,87 | r6c3:16,22-95,87 | r6c4:38,5-73,87
+apps/client/public/assets/original/frontier/characters/shieldBearer/facings/sw.png: 448x672; transparent=82.6%; partial=17.4%; frames=24
+  r1c1:36,6-75,87 | r1c2:37,6-75,87 | r1c3:36,7-75,87 | r1c4:35,6-77,87 | r2c1:33,9-78,87 | r2c2:32,9-79,87 | r2c3:33,8-79,87 | r2c4:33,9-79,87 | r3c1:25,23-86,87 | r3c2:24,12-88,87 | r3c3:9,23-103,87 | r3c4:34,5-77,87 | r4c1:32,12-80,87 | r4c2:33,10-79,87 | r4c3:25,28-86,87 | r4c4:34,7-77,87 | r5c1:31,12-81,87 | r5c2:28,28-84,87 | r5c3:14,58-97,87 | r5c4:17,61-95,87 | r6c1:31,6-81,87 | r6c2:33,6-79,87 | r6c3:15,22-96,87 | r6c4:34,5-77,87
+apps/client/public/assets/original/frontier/characters/shieldBearer/facings/se.png: 448x672; transparent=81.5%; partial=18.5%; frames=24
+  r1c1:33,8-78,87 | r1c2:33,6-79,87 | r1c3:33,6-79,87 | r1c4:33,6-78,87 | r2c1:33,5-78,87 | r2c2:35,7-77,87 | r2c3:33,6-79,87 | r2c4:35,6-76,87 | r3c1:30,8-82,87 | r3c2:29,7-82,87 | r3c3:12,8-100,87 | r3c4:31,9-81,87 | r4c1:30,8-82,87 | r4c2:31,7-80,87 | r4c3:33,9-78,87 | r4c4:33,6-78,87 | r5c1:28,17-84,87 | r5c2:30,22-81,87 | r5c3:21,25-90,87 | r5c4:17,53-95,87 | r6c1:31,5-81,87 | r6c2:33,8-79,87 | r6c3:24,21-87,87 | r6c4:33,5-79,87
+Directional action-sheet validation passed for 6 sheet(s).
+apps/client/public/assets/original/frontier/characters/mage/action-sheet.png: 1024x1536; transparent=76.8%; partial=23.2%; frames=24
+  r1c1:72,38-184,223 | r1c2:66,38-190,223 | r1c3:66,38-189,223 | r1c4:70,38-186,223 | r2c1:61,31-194,223 | r2c2:61,31-195,223 | r2c3:61,36-194,223 | r2c4:60,30-195,223 | r3c1:53,38-203,223 | r3c2:39,39-217,223 | r3c3:24,39-231,223 | r3c4:61,36-195,223 | r4c1:58,34-197,223 | r4c2:62,36-194,223 | r4c3:72,39-183,223 | r4c4:70,32-186,223 | r5c1:51,69-204,223 | r5c2:41,82-214,223 | r5c3:44,152-211,223 | r5c4:45,148-210,223 | r6c1:60,21-196,223 | r6c2:59,12-197,223 | r6c3:35,14-220,223 | r6c4:62,24-193,223
+apps/client/public/assets/original/frontier/characters/musketeer/action-sheet.png: 1024x1536; transparent=76.6%; partial=23.4%; frames=24
+  r1c1:53,15-203,223 | r1c2:52,15-204,223 | r1c3:54,16-201,223 | r1c4:62,17-194,223 | r2c1:57,18-199,223 | r2c2:58,13-198,223 | r2c3:61,18-194,223 | r2c4:67,12-189,223 | r3c1:40,30-215,223 | r3c2:24,31-232,223 | r3c3:33,26-222,223 | r3c4:54,30-202,223 | r4c1:57,29-199,223 | r4c2:62,20-194,223 | r4c3:56,51-200,223 | r4c4:70,20-186,223 | r5c1:53,67-203,223 | r5c2:42,97-213,223 | r5c3:32,139-224,223 | r5c4:25,139-230,223 | r6c1:49,31-206,223 | r6c2:45,37-211,223 | r6c3:34,42-222,223 | r6c4:56,14-199,223
+apps/client/public/assets/original/frontier/characters/boarRider/action-sheet.png: 1024x1536; transparent=72.4%; partial=27.6%; frames=24
+  r1c1:55,12-200,223 | r1c2:49,16-207,223 | r1c3:52,17-204,223 | r1c4:55,13-201,223 | r2c1:54,19-202,223 | r2c2:54,19-201,223 | r2c3:45,19-210,223 | r2c4:57,16-198,223 | r3c1:44,30-212,223 | r3c2:30,23-225,223 | r3c3:23,25-232,223 | r3c4:52,24-203,223 | r4c1:45,27-211,223 | r4c2:32,25-223,223 | r4c3:51,18-204,223 | r4c4:53,15-202,223 | r5c1:48,41-208,222 | r5c2:50,39-206,222 | r5c3:30,103-226,223 | r5c4:32,120-223,223 | r6c1:51,16-205,223 | r6c2:51,26-204,223 | r6c3:28,22-228,223 | r6c4:46,18-209,223
+apps/client/public/assets/original/frontier/characters/heavyCrossbowman/action-sheet.png: 1024x1536; transparent=76.4%; partial=23.6%; frames=24
+  r1c1:56,19-200,223 | r1c2:61,20-195,223 | r1c3:59,19-196,223 | r1c4:54,20-201,223 | r2c1:58,19-197,223 | r2c2:57,19-199,223 | r2c3:57,21-198,223 | r2c4:61,16-195,223 | r3c1:48,21-208,223 | r3c2:19,21-237,223 | r3c3:53,21-203,223 | r3c4:57,21-199,223 | r4c1:51,21-204,223 | r4c2:58,24-198,223 | r4c3:48,51-207,223 | r4c4:58,16-197,223 | r5c1:43,76-213,223 | r5c2:27,120-228,223 | r5c3:26,134-229,223 | r5c4:28,139-228,223 | r6c1:42,36-214,223 | r6c2:41,33-215,223 | r6c3:12,33-243,223 | r6c4:53,32-202,223
+apps/client/public/assets/original/frontier/monsters/miremaw/action-sheet.png: 1024x1536; transparent=68.8%; partial=31.2%; frames=24
+  r1c1:29,62-227,223 | r1c2:17,55-239,223 | r1c3:21,60-234,223 | r1c4:29,59-226,223 | r2c1:23,43-233,223 | r2c2:17,67-239,223 | r2c3:19,57-237,223 | r2c4:23,50-232,223 | r3c1:23,60-233,223 | r3c2:22,40-233,223 | r3c3:8,59-247,223 | r3c4:24,56-232,223 | r4c1:32,35-223,223 | r4c2:27,62-229,223 | r4c3:36,59-220,223 | r4c4:18,69-237,223 | r5c1:23,33-233,223 | r5c2:31,73-225,223 | r5c3:16,95-240,223 | r5c4:13,125-243,223 | r6c1:24,50-231,223 | r6c2:18,19-238,223 | r6c3:16,53-240,223 | r6c4:23,56-233,223
+apps/client/public/assets/original/frontier/monsters/ashwing/action-sheet.png: 1024x1536; transparent=76.5%; partial=23.5%; frames=24
+  r1c1:46,77-210,223 | r1c2:54,85-201,223 | r1c3:49,90-207,223 | r1c4:51,74-204,223 | r2c1:44,71-212,223 | r2c2:44,74-212,223 | r2c3:47,76-209,223 | r2c4:43,74-212,223 | r3c1:42,79-213,223 | r3c2:46,32-210,223 | r3c3:38,54-218,223 | r3c4:51,51-205,223 | r4c1:40,77-216,223 | r4c2:52,105-204,223 | r4c3:45,93-211,223 | r4c4:51,62-204,223 | r5c1:49,82-206,223 | r5c2:45,96-211,223 | r5c3:47,120-209,223 | r5c4:34,139-221,223 | r6c1:40,8-216,223 | r6c2:43,78-212,223 | r6c3:27,16-229,223 | r6c4:48,90-208,223
+apps/client/public/assets/original/frontier/monsters/rootback/action-sheet.png: 1024x1536; transparent=80.2%; partial=19.8%; frames=24
+  r1c1:53,68-202,223 | r1c2:58,66-198,223 | r1c3:60,71-195,223 | r1c4:62,80-194,223 | r2c1:53,77-203,223 | r2c2:69,80-187,223 | r2c3:53,80-203,223 | r2c4:52,78-203,223 | r3c1:55,71-200,223 | r3c2:57,53-199,223 | r3c3:35,86-221,223 | r3c4:51,88-205,223 | r4c1:70,66-185,223 | r4c2:67,87-189,223 | r4c3:73,88-182,223 | r4c4:64,75-191,223 | r5c1:62,81-193,223 | r5c2:58,98-197,223 | r5c3:53,110-203,223 | r5c4:44,140-212,223 | r6c1:63,8-193,223 | r6c2:62,111-194,223 | r6c3:30,52-225,223 | r6c4:47,69-209,223
+Directional action-sheet validation passed for 7 sheet(s).
+Frontier art: 24 six-facing sheets and 7 authored single-facing action sheets validated.
+
+> village-siege@1.3.2 build
+> npm run build --workspace @village-siege/shared && npm run build --workspace @village-siege/server && npm run build --workspace @village-siege/client
+
+
+> @village-siege/shared@1.3.2 build
+> tsc -p tsconfig.build.json
+
+
+> @village-siege/server@1.3.2 build
+> tsc -p tsconfig.json
+
+
+> @village-siege/client@1.3.2 build
+> tsc -p tsconfig.json && vite build
+
+vite v8.1.5 building client environment for production...
+[2K
+transforming...✓ 112 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               3.22 kB │ gzip:   1.41 kB
+dist/assets/index-k2OXU4DG.css               49.79 kB │ gzip:  10.63 kB
+dist/assets/rolldown-runtime-B-9mzPXz.js      0.65 kB │ gzip:   0.40 kB
+dist/assets/network-CD8nIwhX.js             104.89 kB │ gzip:  33.57 kB
+dist/assets/index-C7lOgaL8.js               625.05 kB │ gzip: 179.26 kB
+dist/assets/phaser-rZ1QYEJ0.js            1,375.89 kB │ gzip: 358.02 kB
+
+✓ built in 611ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+PWA: prepared 54 runtime files for offline play.

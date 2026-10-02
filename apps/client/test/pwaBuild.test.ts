@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,16 +8,6 @@ import { villageSiegePwa } from "../build/pwaPlugin";
 
 const fixtures: string[] = [];
 const workerTemplate = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
-const optionalGameplayMedia = [
-  "media/gameplay/gather-build.mp4",
-  "media/gameplay/gather-build.webp",
-  "media/gameplay/tech-army.mp4",
-  "media/gameplay/tech-army.webp",
-  "media/gameplay/move-battle.mp4",
-  "media/gameplay/move-battle.webp",
-  "media/gameplay/metadata.json",
-];
-
 afterEach(async () => {
   for (const directory of fixtures.splice(0)) {
     // Restrict recursive cleanup to the explicitly-created test directory.
@@ -46,16 +36,12 @@ async function fixture(base = "/village-siege/") {
     { file: "apps/client/public/assets/original/units/warrior/sprites/action-sheet.png", runtime: true },
     { file: "apps/client/public/assets/original/source/reference.png", runtime: false },
   ] }));
-  await writeFile(path.join(root, "assets/gameplay-media-manifest.json"), JSON.stringify({ assets:
-    optionalGameplayMedia.map((file) => ({ file: `apps/client/public/${file}` })),
-  }));
   await put("index.html", "<main>Offline game</main>");
   await put("manifest.webmanifest", JSON.stringify({ icons: [{ src: "icons/app-192.png" }] }));
   await put("icons/app-192.png", "icon fixture");
   await put("assets/app-123.js", "console.log('game');");
   await put("assets/original/units/warrior/sprites/action-sheet.png", "approved sprite fixture");
   await put("assets/original/source/reference.png", "unapproved source fixture");
-  for (const file of optionalGameplayMedia) await put(file, `optional ${file}`);
   await put("runtime-config.js", "deployment-specific config");
   await put("sw.js", workerTemplate);
   const plugin = villageSiegePwa();
@@ -65,6 +51,16 @@ async function fixture(base = "/village-siege/") {
   } as unknown as ResolvedConfig);
   const build = plugin.closeBundle as () => Promise<void>;
   return { output, put, build };
+}
+
+async function outputFiles(root: string, prefix = ""): Promise<string[]> {
+  const files: string[] = [];
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) files.push(...await outputFiles(path.join(root, entry.name), relative));
+    else files.push(relative);
+  }
+  return files;
 }
 
 function workerData(source: string) {
@@ -77,7 +73,7 @@ function workerData(source: string) {
 }
 
 describe("PWA build contract", () => {
-  it("pins the offline game while excluding live config, pruned art, and optional gameplay media", async () => {
+  it("pins the offline game without reading or shipping documentation gameplay media", async () => {
     const project = await fixture();
     await project.build();
     const data = workerData(await readFile(path.join(project.output, "sw.js"), "utf8"));
@@ -89,15 +85,20 @@ describe("PWA build contract", () => {
     expect(data.files).not.toContain("runtime-config.js");
     expect(data.files).not.toContain("sw.js");
     expect(data.files).not.toContain("assets/original/source/reference.png");
-    for (const file of optionalGameplayMedia) {
-      expect(data.files).not.toContain(file);
-      expect(await readFile(path.join(project.output, file), "utf8")).toBe(`optional ${file}`);
-    }
+    const builtFiles = await outputFiles(project.output);
+    expect(builtFiles.some((file) => file.toLowerCase().endsWith(".mp4"))).toBe(false);
+    expect(builtFiles.some((file) => file === "media/gameplay" || file.startsWith("media/gameplay/"))).toBe(false);
     expect(Object.keys(data.integrity)).toEqual(data.files);
     for (const file of data.files) {
       const content = await readFile(path.join(project.output, file));
       expect(data.integrity[file]).toBe(`sha256-${createHash("sha256").update(content).digest("base64")}`);
     }
+  });
+
+  it("rejects an MP4 accidentally copied into the runtime output", async () => {
+    const project = await fixture();
+    await project.put("media/gameplay/overview.mp4", "documentation movie must stay outside runtime");
+    await expect(project.build()).rejects.toThrow("must not contain documentation gameplay media");
   });
 
   it("art-only edits change both the cache generation and the pinned art digest", async () => {

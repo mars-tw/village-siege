@@ -1,22 +1,28 @@
 # Village Siege／村莊攻防
 
-Village Siege 是 MIT 授權的開源瀏覽器即時戰略遊戲。它採用原創的中世紀等角視角點陣美術與自有介面；節奏參考經典 RTS，不包含《世紀帝國 II》的名稱、素材、音效或介面複製品。
+Village Siege 是 MIT 授權的開源瀏覽器即時戰略遊戲。指揮工匠採集、興建村莊、發展科技，再集結軍隊穿過河谷與野獸營地。採用原創中世紀等角美術，支援電腦與手機、平板橫向操作。
 
-## 1.3：真實遊玩影片（2026-10-02）
+**[開始遊玩 1.3.2](https://mars-tw.github.io/village-siege/play.html?v=1.3.2)** · 電腦／手機與平板橫向 · 單人離線 PWA
 
-主選單品牌旁按「實玩影片」，或在戰場開啟「系統 → 鏡頭視角 → 實玩影片」，可觀看三段真實操作：採集與建造、科技與部隊移動、林緣遭遇戰。每段 24 秒，保留實際資源、施工、軍隊與戰利品回饋；影片沒有音訊。
+## 遊玩介紹影片
 
-影片按播放後才下載，單人戰局觀看時暫停、關閉後恢復。離線戰役下載不包含影片；完整遊戲仍可離線玩。MP4、封面、來源與雜湊均隨原始碼以 MIT 授權公開。
+先看 72 秒真實操作：指揮工匠採集、放置兵營、查看軍備科技，再帶兩名戰士進入林緣遭遇戰。正常新局與自有戰局接續錄製，影片無音訊。
 
-**[遊玩 1.3.1／觀看實玩影片](https://mars-tw.github.io/village-siege/play.html?v=1.3.1)** · [錄影與驗收報告](docs/CODEX_RESPONSE_R27.md)
+https://github.com/user-attachments/assets/5a5ebbdf-72f7-4fb2-9eec-971393ddfd76
 
-### 遊玩介紹影片
+| 時間 | 遊戲內容 |
+| --- | --- |
+| 0:00–0:24 | 採集與建造：派工匠前往林木，放置兵營地基並施工。 |
+| 0:24–0:48 | 科技與部隊移動：查看軍備科技，再選取戰士下達移動命令。 |
+| 0:48–1:12 | 林緣遭遇戰：接近可見野獸、近身交戰與戰利品結果。 |
 
-點選下方封面即可開啟 MP4，或進入遊戲按「實玩影片」使用內建播放器。
+### 原始片段
 
 | 採集與建造 · 24 秒 | 科技與部隊移動 · 24 秒 | 林緣遭遇戰 · 24 秒 |
 | --- | --- | --- |
-| [![播放採集與建造](apps/client/public/media/gameplay/economy.webp)](https://mars-tw.github.io/village-siege/media/gameplay/economy.mp4) | [![播放科技與部隊移動](apps/client/public/media/gameplay/movement.webp)](https://mars-tw.github.io/village-siege/media/gameplay/movement.mp4) | [![播放林緣遭遇戰](apps/client/public/media/gameplay/battle.webp)](https://mars-tw.github.io/village-siege/media/gameplay/battle.mp4) |
+| [![播放採集與建造](docs/media/gameplay/economy.webp)](docs/media/gameplay/economy.mp4) | [![播放科技與部隊移動](docs/media/gameplay/movement.webp)](docs/media/gameplay/movement.mp4) | [![播放林緣遭遇戰](docs/media/gameplay/battle.webp)](docs/media/gameplay/battle.mp4) |
+
+[下載 72 秒介紹影片](docs/media/gameplay/overview.mp4) · [錄影來源與授權](assets/GAMEPLAY_RECORDINGS.md) · [更新紀錄](CHANGELOG.md)
 
 ## 1.2：移動、進場與出征指引（2026-10-02）
 
@@ -42,7 +48,7 @@ App 1.1.1、rules 0.20.0、network 4。526 項測試、正式包及授權／秘�
 
 1.0.0 是 Village Siege 第一個正式公開的單機 Web／離線 PWA 版本，規則版本為 `village-siege/0.20.0`。三張村莊地圖、三種難度、五種 AI 性格、三階段聚落、七項科技、七種兵種、三種野外怪物與四條勝利路線都已接上同一套決定論規則。
 
-**[立即遊玩最新版本](https://mars-tw.github.io/village-siege/play.html?v=1.3.1)**
+**[立即遊玩最新版本](https://mars-tw.github.io/village-siege/play.html?v=1.3.2)**
 
 這次把完整發展流程需要的地圖有限資源補足：每方家園木材總量由 1,000 提高到 6,000，石材由 700 提高到 4,000，採集速度、資源耗盡與糧田復育規則不變。也修正友軍占住捷徑時的繞行、非城門最後目擊帶入 `undefined` 造成存檔／重播 hash 不一致，以及 AI 未接手已付款工地的問題。
 
@@ -84,7 +90,7 @@ PWA 可安裝並在完整下載後離線玩單機。更新等所有遊戲視窗�
 本機開始：`npm ci`，然後 `npm run dev:client`。正式驗證：`npm run verify`。Android／iOS 原生App、其餘角色六方向、完整戰役與公開多人列於後續里程碑。
 ## 立即遊玩
 
-**[開啟公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.3.1)**
+**[開啟公開單機版](https://mars-tw.github.io/village-siege/play.html?v=1.3.2)**
 
 公開網站由GitHub Pages自動建置，目前提供電腦、手機與平板網頁單機版、離線PWA。公開多人服務仍須完成長期公開WSS部署與雙客戶端驗證。
 

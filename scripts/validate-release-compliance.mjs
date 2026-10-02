@@ -208,7 +208,7 @@ function validateNoCommittedSecrets() {
   return { checked, findings: findings.length };
 }
 
-function validateRuntimeDirectory(directory, manifest, gameplayMediaManifest) {
+function validateRuntimeDirectory(directory, manifest) {
   const absoluteDirectory = resolve(repoRoot, directory);
   assert(existsSync(absoluteDirectory), `Runtime directory does not exist: ${directory}`);
   const publicPrefix = "apps/client/public/";
@@ -230,24 +230,13 @@ function validateRuntimeDirectory(directory, manifest, gameplayMediaManifest) {
     expected.delete(pathWithinRuntime);
   }
   assert(expected.size === 0, `Runtime bundle is missing approved raster assets: ${[...expected.keys()].join(", ")}`);
-  const gameplayPrefix = "apps/client/public/";
-  const expectedGameplayMedia = new Map(gameplayMediaManifest.assets.map((entry) => [entry.file.slice(gameplayPrefix.length), entry]));
   const runtimeGameplayRoot = join(absoluteDirectory, "media", "gameplay");
-  assert(existsSync(runtimeGameplayRoot), "Runtime bundle is missing media/gameplay");
-  const runtimeGameplayMedia = walkFiles(runtimeGameplayRoot);
-  for (const file of runtimeGameplayMedia) {
-    const pathWithinRuntime = toPosix(relative(absoluteDirectory, file));
-    const entry = expectedGameplayMedia.get(pathWithinRuntime);
-    assert(entry, `Runtime bundle includes undeclared gameplay media: ${pathWithinRuntime}`);
-    const buffer = readFileSync(file);
-    assert(buffer.length === entry.bytes, `Runtime gameplay media byte count drift: ${pathWithinRuntime}`);
-    assert(sha256(buffer) === entry.sha256, `Runtime gameplay media hash drift: ${pathWithinRuntime}`);
-    expectedGameplayMedia.delete(pathWithinRuntime);
-  }
-  assert(expectedGameplayMedia.size === 0, `Runtime bundle is missing gameplay media: ${[...expectedGameplayMedia.keys()].join(", ")}`);
+  assert(!existsSync(runtimeGameplayRoot), "Runtime bundle must not contain documentation media/gameplay");
+  const runtimeVideos = files.filter((file) => extname(file).toLowerCase() === ".mp4");
+  assert(runtimeVideos.length === 0, `Runtime bundle must not contain MP4 files: ${runtimeVideos.map((file) => toPosix(relative(absoluteDirectory, file))).join(", ")}`);
   const totalBytes = files.reduce((total, file) => total + statSync(file).size, 0);
   assert(totalBytes <= manifest.runtimeBundleBudgetBytes, `Runtime bundle is ${totalBytes} bytes; budget is ${manifest.runtimeBundleBudgetBytes}`);
-  return { pngs: runtimePngs.length, gameplayMedia: runtimeGameplayMedia.length, files: files.length, totalBytes };
+  return { pngs: runtimePngs.length, files: files.length, totalBytes };
 }
 
 try {
@@ -264,8 +253,8 @@ try {
   if (runtimeIndex !== -1) {
     const runtimeDirectory = process.argv[runtimeIndex + 1];
     assert(runtimeDirectory, "--runtime-dir requires a directory");
-    const runtimeResult = validateRuntimeDirectory(runtimeDirectory, assetResult.manifest, gameplayMediaResult.manifest);
-    console.log(`[release-compliance] runtime bundle ${runtimeResult.files} files, ${runtimeResult.pngs} approved raster assets, ${runtimeResult.gameplayMedia} optional gameplay media, ${runtimeResult.totalBytes} bytes`);
+    const runtimeResult = validateRuntimeDirectory(runtimeDirectory, assetResult.manifest);
+    console.log(`[release-compliance] runtime bundle ${runtimeResult.files} files, ${runtimeResult.pngs} approved raster assets, 0 documentation videos, ${runtimeResult.totalBytes} bytes`);
   }
   console.log("[release-compliance] PASS");
 } catch (error) {

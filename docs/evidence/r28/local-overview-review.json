@@ -1,0 +1,13 @@
+{
+  "taskId": "4a21ca6a-aac0-4bef-9868-0d97da601a57",
+  "status": "completed",
+  "worker": "qwen38_27b_deep",
+  "model": "qwen3.8-27b-deep",
+  "backend": "lmstudio",
+  "verdict": "PASS",
+  "childTasks": [],
+  "sourceFile": "docs/media/gameplay/overview.mp4",
+  "sourceSha256": "36b637518a2182c465373d70868e2bbecc9eaf52c854ab869f49574a1922b12f",
+  "scope": "Eighteen chronological sampled frames from the 72-second stream-copy overview, plus complete FFmpeg decode. The local model returned PASS without detailed reasons; no per-frame or human enjoyment claim.",
+  "earlierAttempt": "The first request returned PASS with an unsolicited text-review child whose browser-mode description was not supported by the game-only frames. It was excluded and direct, nondelegating local review was requested again."
+}

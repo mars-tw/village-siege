@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, resolve, sep } from "node:path";
 import { createRuntimeConfigBody, normalizeConnectOrigin } from "./runtime-config.mjs";
@@ -61,24 +61,13 @@ createServer((request, response) => {
   }
   if (!existsSync(filePath)) filePath = resolve(root, "index.html");
 
-  const size = statSync(filePath).size;
-  const range = extname(filePath).toLowerCase() === ".mp4" ? parseByteRange(request.headers.range, size) : undefined;
-  if (range === null) {
-    response.writeHead(416, { "Accept-Ranges": "bytes", "Content-Range": `bytes */${size}` });
-    response.end();
-    return;
-  }
-  const headers = {
+  response.writeHead(200, {
     "Cache-Control": /(?:\.html|sw\.js|manifest\.webmanifest|startup\.js|startup\.css)$/.test(filePath)
       ? "no-cache" : "public, max-age=31536000, immutable",
     "Content-Type": contentType(filePath),
-    "Content-Length": range ? range.end - range.start + 1 : size,
-    ...(extname(filePath).toLowerCase() === ".mp4" ? { "Accept-Ranges": "bytes" } : {}),
-    ...(range ? { "Content-Range": `bytes ${range.start}-${range.end}/${size}` } : {}),
-  };
-  response.writeHead(range ? 206 : 200, headers);
+  });
   if (request.method === "HEAD") response.end();
-  else createReadStream(filePath, range ?? undefined).on("error", () => response.destroy()).pipe(response);
+  else createReadStream(filePath).on("error", () => response.destroy()).pipe(response);
 }).listen(port, "0.0.0.0", () => console.log(`Village Siege client listening on http://0.0.0.0:${port}`));
 
 function contentType(filePath) {
@@ -91,26 +80,5 @@ function contentType(filePath) {
     ".png": "image/png",
     ".svg": "image/svg+xml",
     ".webp": "image/webp",
-    ".mp4": "video/mp4",
   })[extname(filePath).toLowerCase()] ?? "application/octet-stream";
-}
-
-function parseByteRange(header, size) {
-  if (header === undefined) return undefined;
-  const match = /^bytes=(\d*)-(\d*)$/.exec(header);
-  if (!match || (match[1] === "" && match[2] === "")) return null;
-  let start;
-  let end;
-  if (match[1] === "") {
-    const suffix = Number.parseInt(match[2], 10);
-    if (!Number.isSafeInteger(suffix) || suffix <= 0) return null;
-    start = Math.max(0, size - suffix);
-    end = size - 1;
-  } else {
-    start = Number.parseInt(match[1], 10);
-    end = match[2] === "" ? size - 1 : Number.parseInt(match[2], 10);
-    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start >= size || end < start) return null;
-    end = Math.min(end, size - 1);
-  }
-  return { start, end };
 }

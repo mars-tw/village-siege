@@ -53,8 +53,7 @@ body:has(.pwa-tools:not([hidden])) .frontier-bottom { display: none; }
   }
 }
 @media (orientation: landscape) and (max-height: 540px) {
-  .pwa-tools { top: max(4px, env(safe-area-inset-top)); bottom: auto; padding: 0 5px; max-width: calc(100vw - 304px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); gap: 6px; font-size: 9px; }
-  .pwa-status { min-width: 0; }
+  .pwa-tools { top: max(4px, env(safe-area-inset-top)); bottom: auto; padding: 0 5px; max-width: 60vw; gap: 6px; font-size: 9px; }
   .pwa-tools button { min-height: 44px; padding: 4px 8px; font-size: 10px; }
   body:has(.pwa-tools:not([hidden])) .frontier-version { display: none; }
 }

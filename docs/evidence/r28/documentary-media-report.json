@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-02T16:10:42.1608739+08:00",
+  "scope": "documentation gameplay media and runtime exclusion",
+  "mediaRoot": "docs/media/gameplay",
+  "source": {
+    "type": "original-gameplay-capture",
+    "recordedFrom": "https://mars-tw.github.io/village-siege/play.html?v=1.2.0",
+    "attribution": "Village Siege / MARS-TW",
+    "license": "MIT"
+  },
+  "assets": {
+    "count": 8,
+    "chapterVideos": [
+      { "file": "docs/media/gameplay/economy.mp4", "bytes": 1329519, "sha256": "8abe5fbb794f68c6c3e84015f8fe9d40cd2be123d98f330d327b749906eebfa3" },
+      { "file": "docs/media/gameplay/movement.mp4", "bytes": 1268258, "sha256": "351f1936e5f333edb38e9d97e1f6a229538c0e265f4ca2b75afcfe5d8b156e95" },
+      { "file": "docs/media/gameplay/battle.mp4", "bytes": 1255407, "sha256": "7e34cfbd40739639aee45b38a77cf05c6492a191ac6b8047e758f04714c4a753" }
+    ],
+    "overview": {
+      "file": "docs/media/gameplay/overview.mp4",
+      "bytes": 3851823,
+      "sha256": "36b637518a2182c465373d70868e2bbecc9eaf52c854ab869f49574a1922b12f",
+      "composition": ["economy", "movement", "battle"],
+      "durationSeconds": 72,
+      "width": 960,
+      "height": 540,
+      "fps": 24,
+      "codec": "h264",
+      "audio": false,
+      "faststart": true,
+      "construction": "ffmpeg concat demuxer with stream copy; no generated frames, subtitles, audio, or music"
+    },
+    "posters": 3,
+    "metadata": "docs/media/gameplay/metadata.json"
+  },
+  "budgets": {
+    "chapterPosterMetadataPerFileBytes": 2097152,
+    "overviewAttachmentBytes": 10485760,
+    "runtimePerFileBytes": 2097152,
+    "runtimeBundleBytes": 20971520
+  },
+  "runtime": {
+    "documentaryMp4Count": 0,
+    "documentaryMediaGameplayPathCount": 0,
+    "bundleFiles": 56,
+    "bundleBytes": 9134516,
+    "approvedRasterAssets": 37,
+    "originalArtManifestAssets": 91
+  },
+  "verification": [
+    { "command": "node scripts/validate-gameplay-media.mjs", "status": "PASS", "result": "8 assets; 4 H.264 videos; ffprobe metadata and ffmpeg full decode completed with zero errors" },
+    { "command": "npx vitest run apps/client/test/pwaBuild.test.ts --no-file-parallelism", "status": "PASS", "result": "4 tests passed; build fixture has no documentary manifest, rejects accidental runtime MP4, and emits no documentation media" },
+    { "command": "npm run build --workspace @village-siege/client", "status": "PASS", "result": "Vite production build completed; 54 runtime files prepared for offline play" },
+    { "command": "npm run typecheck --workspace @village-siege/client", "status": "PASS" },
+    { "command": "npm run test:ops", "status": "PASS", "result": "21 tests passed" },
+    { "command": "node scripts/prune-runtime-art.mjs --runtime-dir apps/client/dist && npm run validate:runtime-assets", "status": "PASS", "result": "91/91 art hashes; 8 documentation assets; 4 H.264 videos; 0 runtime documentation videos; 9,134,516 runtime bytes" },
+    { "command": "Dockerfile static contract check", "status": "PASS", "result": "apps/client/Dockerfile no longer copies assets/gameplay-media-manifest.json" },
+    { "command": "docker build -f apps/client/Dockerfile --target builder -t village-siege-client-r28-check .", "status": "UNAVAILABLE", "result": "docker executable is not installed or available on PATH in this environment" }
+  ],
+  "audit": {
+    "concatList": ".audit-tmp/r28/overview-concat.txt",
+    "concatListCommitted": false,
+    "staticServerBaseline": "deploy/static-server.mjs restored byte-for-byte to ee623082",
+    "removedObsoleteTest": "deploy/test/static-server-media.test.mjs"
+  }
+}
