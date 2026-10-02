@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { singleSheetFlipX } from "./unitMotionPresentation";
 import { DEFAULT_TEAM_PALETTES, type ProceduralCombatActorOptions, type TeamPalette } from "./combatArt";
 import {
   ANCHOR_CONTRACT,
@@ -28,7 +29,6 @@ export type {
  * Required row order for authored combat sprite sheets. Every action owns a
  * separate row, so changing actions always changes the source artwork.
  */
-const LEFT_FACINGS = new Set<Facing>(["w", "nw", "sw"]);
 
 export interface FrameAnimatedCombatSnapshot {
   readonly id: FrameAnimatedActorId;
@@ -306,14 +306,14 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
   }
 
   private renderFacing(): void {
-    if (this.manifest.directionalTextureKeys || this.manifest.mirrorFacings === false) {
+    if (this.manifest.directionalTextureKeys) {
       this.image.setFlipX(false);
       this.renderFrame();
       return;
     }
-    const facingLeft = LEFT_FACINGS.has(this.currentFacing);
-    const sourceFacesLeft = this.manifest.authoredFacing === "left";
-    this.image.setFlipX(facingLeft !== sourceFacesLeft);
+    // A single-perspective sheet only gets a horizontal east/west presentation;
+    // this does not claim or synthesize six authored directions.
+    this.image.setFlipX(singleSheetFlipX(this.currentFacing, this.manifest.authoredFacing));
   }
 
   private renderPennant(): void {
@@ -323,6 +323,7 @@ export class FrameAnimatedCombatActor implements FrameAnimatedCombatActorView {
       .lineStyle(1, this.palette.highlight, 0.9).lineBetween(15, -15, 25, -12);
   }
 }
+
 
 export function createFrameAnimatedCombatActor(
   scene: Phaser.Scene,

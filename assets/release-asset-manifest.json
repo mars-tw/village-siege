@@ -15,6 +15,18 @@
       "file": "apps/client/public/assets/original/frontier/buildings.png",
       "sha256": "89bbe72d4f50cffaaa559996d5cf82612cdaa8dc95fc5ac40d6ce5e3059d739e",
       "bytes": 2085918,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/buildings-menu.webp",
+      "sha256": "62204ae56d7c3dd66266d5d052c8665783804ee8b77ddd077543080ed958f01f",
+      "bytes": 100140,
+      "runtime": true
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/buildings.webp",
+      "sha256": "1ba44d5eb6d0fc01f92fe3861f46a8e54db9504763ceef808d8fc796cf5c41b8",
+      "bytes": 1263750,
       "runtime": true
     },
     {
@@ -207,12 +219,24 @@
       "file": "apps/client/public/assets/original/frontier/landscape/materials.png",
       "sha256": "6bdd08326998b52c31fd12806870bd00b70c85c5f847b1605137bbb7d5e84151",
       "bytes": 684618,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/landscape/materials.webp",
+      "sha256": "7de3bc4b3a8d05e0a29b6ab3628dbbd603f37a6f7213fd63dca36c2ae247e0ac",
+      "bytes": 653090,
       "runtime": true
     },
     {
       "file": "apps/client/public/assets/original/frontier/landscape/nature.png",
       "sha256": "2831a61efdb26bf903661ffcc58a272aa89856483cc5e3341da78c3a9d7cd9bd",
       "bytes": 578547,
+      "runtime": false
+    },
+    {
+      "file": "apps/client/public/assets/original/frontier/landscape/nature.webp",
+      "sha256": "1fe934b65624d085cfec2edd0d3ccf92fcd1b3c51b1942b80b24edcd6a44e812",
+      "bytes": 508776,
       "runtime": true
     },
     {

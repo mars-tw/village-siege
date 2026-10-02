@@ -1,0 +1,59 @@
+{
+  "schema": "village-siege-r26-motion-after/v1",
+  "build": {
+    "appVersion": "1.2.0",
+    "url": "http://127.0.0.1:5176/village-siege/play.html",
+    "scope": "Movement session opened before the final fresh reload. A later fresh production reload reported index-D1dz4dOS.js and no development global; final-load performance must be rerun against the eventual locked artifact."
+  },
+  "method": "Desktop Chromium 1366x600. A user-owned normal-play save was imported through System > Save/Replay > Import Save. Visible canvas clicks, normal right-click ground commands, and the visible Stop control were used. No game private API, runtime command, state mutation, route mock, or clock control was used.",
+  "archiveImport": {
+    "status": "VERIFIED",
+    "notice": "存檔已匯入",
+    "finding": "Imported units and structures appeared at their archived map positions without an observed spawn-origin leap."
+  },
+  "worker": {
+    "unit": "拓荒工匠",
+    "selectedAtCssPx": [803, 263],
+    "commands": [
+      { "kind": "move", "targetCssPx": [965, 300] },
+      { "kind": "stop", "visibleControl": "停止" },
+      { "kind": "turnAndMove", "targetCssPx": [690, 340] }
+    ],
+    "continuousFrames": 70,
+    "observedCaptureDurationMs": 33259,
+    "visualFinding": "The selected worker visibly moved, stopped through the normal Stop control, then accepted a new direction. The second target approached an owned structure, so the final representative frame shows the resulting normal structure interaction rather than a clean isolated endpoint.",
+    "privateFrames": ".audit-tmp/r26/motion-after-worker-frames",
+    "privateVideo": ".audit-tmp/r26/motion-after-worker.webm",
+    "publicRepresentativePng": "motion-after-worker.png"
+  },
+  "military": {
+    "unit": "邊境戰士",
+    "health": "150/150",
+    "normalControlsObserved": ["攻擊移動", "巡邏", "橫列", "主動", "碎甲擊", "停止"],
+    "selectedAtCssPx": [1040, 350],
+    "commands": [
+      { "kind": "move", "targetCssPx": [1120, 270] },
+      { "kind": "stop", "visibleControl": "停止" },
+      { "kind": "turnAndMove", "targetCssPx": [900, 240] }
+    ],
+    "continuousFrames": 55,
+    "observedCaptureDurationMs": 31053,
+    "representativeVisibleRingCssPx": {
+      "before": [1040, 360],
+      "after": [883, 240]
+    },
+    "visualFinding": "The 31-second physical video shows smooth visible travel, a stationary stop interval, and a turn toward the second target without the repeated 100 ms snap-back pattern seen in the old implementation.",
+    "privateFrames": ".audit-tmp/r26/motion-after-military-frames",
+    "privateVideo": ".audit-tmp/r26/motion-after-military.webm",
+    "publicRepresentativePng": "motion-after-military.png"
+  },
+  "lazyPresentation": {
+    "evidence": "Read-only PerformanceResourceTiming from the normal player session.",
+    "initialWorkerSheetsStartMs": 16031.7,
+    "archiveImportedWarriorSheetsStartMs": 53615.0,
+    "laterMiremawSheetStartMs": 184605.1,
+    "finding": "Warrior sheets were requested when imported warriors became present, and miremaw was requested later during play rather than in the initial battle-blocking window. Existing presentation continued while those requests completed."
+  },
+  "coordinateExtractionNote": "Raw sequential PNGs and WebM videos are authoritative. Experimental copper-ring extraction remains private because similarly colored buildings and UI can attract a tracker after a unit crosses dense scenery.",
+  "status": "VERIFIED_PLAYER_MOVEMENT_WITH_SCOPE_NOTE"
+}

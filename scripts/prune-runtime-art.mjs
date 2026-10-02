@@ -1,7 +1,7 @@
 import { readFile, readdir, rmdir, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { approvedRuntimePngsFromManifest, shouldPruneRuntimePng } from "./runtime-art-policy.mjs";
+import { approvedRuntimeArtFromManifest, shouldPruneRuntimeArt } from "./runtime-art-policy.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDirectory, "..");
@@ -20,7 +20,7 @@ if (!runtimeStats.isDirectory()) throw new Error("Runtime target is not a direct
 const originalRoot = path.join(runtimeRoot, "assets", "original");
 const removed = [];
 const releaseManifest = JSON.parse(await readFile(path.join(repoRoot, "assets", "release-asset-manifest.json"), "utf8"));
-const approvedRuntimePngs = approvedRuntimePngsFromManifest(releaseManifest);
+const approvedRuntimeArt = approvedRuntimeArtFromManifest(releaseManifest);
 
 async function visit(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -31,7 +31,7 @@ async function visit(directory) {
       await visit(absolute);
       continue;
     }
-    if (!shouldPruneRuntimePng(relative, approvedRuntimePngs)) continue;
+    if (!shouldPruneRuntimeArt(relative, approvedRuntimeArt)) continue;
     await unlink(absolute);
     removed.push(relative);
   }

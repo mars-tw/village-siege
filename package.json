@@ -1,6 +1,6 @@
 {
   "name": "village-siege",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "license": "MIT",
   "workspaces": [
@@ -17,6 +17,7 @@
     "verify": "npm run typecheck && npm test && npm run test:ops && npm run validate:directional-art && npm run build",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "validate:directional-art": "node scripts/validate-frontier-art.mjs",
+    "prepare:fast-runtime-art": "node scripts/prepare-fast-runtime-art.mjs",
     "validate:compliance": "node scripts/validate-release-compliance.mjs",
     "validate:runtime-assets": "node scripts/validate-release-compliance.mjs --runtime-dir apps/client/dist",
     "prune:runtime-art": "node scripts/prune-runtime-art.mjs --runtime-dir apps/client/dist",

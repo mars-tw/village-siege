@@ -1,0 +1,37 @@
+{
+  "schema": "village-siege-r26-load-summary/v1",
+  "build": {
+    "appVersion": "1.1.1",
+    "artifact": "GitHub Pages artifact 36863152368",
+    "url": "http://127.0.0.1:5175/village-siege/play.html"
+  },
+  "conditions": {
+    "kind": "synthetic Chromium CDP transport throttle; not a real phone or carrier",
+    "freshNamedSession": "r26-load-before-correct",
+    "browserCacheCleared": true,
+    "latencyMs": 60,
+    "downloadBytesPerSecond": 409600,
+    "uploadBytesPerSecond": 409600
+  },
+  "wallTimeMs": {
+    "navigationToMenuReady": 5569.9,
+    "startClickToBattleReady": 13095.3
+  },
+  "menu": {
+    "requests": 8,
+    "transferBytes": 4702359,
+    "encodedBodyBytes": 4699959
+  },
+  "battleBlockingWindow": {
+    "requests": 19,
+    "transferBytes": 5122141,
+    "encodedBodyBytes": 5116441
+  },
+  "allToBattleReady": {
+    "requests": 27,
+    "transferBytes": 9824500,
+    "encodedBodyBytes": 9816400
+  },
+  "status": "MEASURED",
+  "privateFullEvidence": ".audit-tmp/r26/load-before.json"
+}

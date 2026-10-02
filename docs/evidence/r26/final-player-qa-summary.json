@@ -1,0 +1,50 @@
+{
+  "schema": "village-siege-r26-final-player-qa/v1",
+  "finalBuild": {
+    "appVersion": "1.2.0",
+    "script": "assets/index-BH8sAHob.js",
+    "stylesheet": "assets/index-k2OXU4DG.css",
+    "url": "http://127.0.0.1:5176/village-siege/play.html"
+  },
+  "controlledCold": {
+    "conditions": "Fresh Chromium context, cleared browser cache, synthetic 400 KiB/s up/down and 60 ms round-trip latency; not a physical phone/carrier.",
+    "sampleCount": 1,
+    "navigationToMenuReadyMs": 5649.1,
+    "startClickToBattleReadyMs": 7614.5,
+    "menu": { "requests": 11, "transferBytes": 2739751, "encodedBodyBytes": 2736451 },
+    "battleBlocking": { "requests": 10, "transferBytes": 2883885, "encodedBodyBytes": 2880885 },
+    "allToBattleReady": { "requests": 21, "transferBytes": 5623636, "encodedBodyBytes": 5617336 },
+    "comparisonTo111": { "battleReadyImprovementMs": 5480.8, "battleReadyImprovementPercent": 41.9, "blockingEncodedReductionBytes": 2235556, "blockingEncodedReductionPercent": 43.7 },
+    "privateEvidence": ".audit-tmp/r26/final-cold.json"
+  },
+  "rafPerformance": {
+    "method": "One context at a time, active visible normal new battle, at least 2 s warmup, three serial 5 s requestAnimationFrame samples. HUD screenshots before/after show the game remained visibly active. No private game state was read.",
+    "desktop1280x720": {
+      "runs": [
+        { "frames": 300, "meanMs": 16.6667, "p95Ms": 16.8, "maxMs": 17.6 },
+        { "frames": 300, "meanMs": 16.6667, "p95Ms": 16.8, "maxMs": 16.9 },
+        { "frames": 300, "meanMs": 16.6667, "p95Ms": 16.8, "maxMs": 16.9 }
+      ],
+      "medianP95Ms": 16.8
+    },
+    "phone844x390": {
+      "scope": "Chromium viewport plus CDP touch emulation on the Windows host; not a physical phone. The CLI context lacked hasTouch, so the visible Start button used a normal click before sampling.",
+      "runs": [
+        { "frames": 300, "meanMs": 16.6667, "p95Ms": 16.8, "maxMs": 16.9 },
+        { "frames": 300, "meanMs": 16.6667, "p95Ms": 16.8, "maxMs": 17.0 },
+        { "frames": 301, "meanMs": 16.6664, "p95Ms": 16.8, "maxMs": 16.9 }
+      ],
+      "medianP95Ms": 16.8
+    },
+    "privateEvidence": [".audit-tmp/r26/final-perf-desktop.json", ".audit-tmp/r26/final-perf-phone.json"]
+  },
+  "offline": {
+    "download": "The normal Download Offline flow reached ready before the reporting expression raised a harness-only ReferenceError after completion.",
+    "reload": "Browser explicitly offline; actual reload displayed 離線中，可玩單人戰役.",
+    "battleReadyMs": 651,
+    "status": "VERIFIED",
+    "screenshot": "final-offline-start.png"
+  },
+  "movementEvidence": "motion-after-summary.json",
+  "status": "VERIFIED_WITH_SCOPES"
+}

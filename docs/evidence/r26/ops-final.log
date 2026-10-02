@@ -1,0 +1,33 @@
+
+> village-siege@1.2.0 test:ops
+> node --test deploy/test/*.test.mjs
+
+✔ PWA manifest and icon URLs remain under a GitHub Pages base (4.3592ms)
+✔ worker precaches only base-scoped files and never interrupts active games (15.797ms)
+✔ browser soft updates without the current explicit download token never start a full cache (1.7314ms)
+✔ cancelling an installing worker aborts its requests and preserves an old active cache (1.6957ms)
+✔ a cancel received before installation begins also prevents the complete download (0.7976ms)
+✔ an explicit current-version repair restores an incomplete active cache (1.6113ms)
+✔ a repair for a different release never changes stored offline bytes (0.8623ms)
+✔ failed repair retains an active cache's remaining offline resources (1.3482ms)
+✔ offline-ready stays false when the complete download is absent (0.9092ms)
+✔ failed download removes its partial cache while preserving a working old version (1.5587ms)
+✔ mixed deployment bytes fail pinned integrity and cannot replace a working cache (0.6257ms)
+✔ offline navigation uses the shell paired with its precached code (1.9494ms)
+✔ online refresh cannot overwrite a running worker's shell with newer code (0.7953ms)
+✔ live runtime config is fetched without caching and disables multiplayer offline (1.0894ms)
+✔ API, multiplayer, non-GET, foreign and sibling-app requests bypass caching (0.5344ms)
+✔ cache cleanup affects only older versions of this exact app scope (0.645ms)
+✔ prunes stale or build-only raster art with a release-manifest allowlist (0.894ms)
+✔ normalizes only an exact HTTPS origin (1.0382ms)
+✔ disables multiplayer when no runtime endpoint is configured (0.6966ms)
+✔ emits a frozen browser assignment for the validated endpoint (0.1142ms)
+✔ requires an exact HTTPS Pages endpoint only when multiplayer is enabled (0.16ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 118.8437

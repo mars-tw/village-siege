@@ -3,7 +3,7 @@ import type { VisibleSnapshot } from "@village-siege/shared";
 import "./progressionPanel.css";
 
 export interface ProgressionPanelControl {
-  open(): void; close(): void; update(): void; setPosition(left: number, top: number): void; destroy(): void;
+  open(tab?: ProgressionTab): void; close(): void; update(): void; setPosition(left: number, top: number): void; destroy(): void;
   readonly isOpen: boolean;
 }
 export function createProgressionPanel(parent: HTMLElement, hooks: {
@@ -74,10 +74,11 @@ export function createProgressionPanel(parent: HTMLElement, hooks: {
   function close() {
     if (!dialog.open) return; dialog.close(); hooks.closed(); trigger.focus();
   }
-  function open() {
+  function open(nextTab?: ProgressionTab) {
+    if (nextTab) { tab = nextTab; page = 0; }
     if (dialog.open) return; feedback.hidden = true; hooks.opened(); dialog.showModal(); render(true); closeButton.focus();
   }
-  trigger.onclick = open; closeButton.onclick = close;
+  trigger.onclick = () => open(); closeButton.onclick = close;
   previous.onclick = () => { page--; render(true); }; next.onclick = () => { page++; render(true); };
   dialog.addEventListener("cancel", event => { event.preventDefault(); event.stopPropagation(); close(); });
   dialog.addEventListener("keydown", event => event.stopPropagation());

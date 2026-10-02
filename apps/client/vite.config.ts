@@ -9,5 +9,14 @@ export default defineConfig({
   define: { "import.meta.env.VITE_APP_VERSION": JSON.stringify(version) },
   server: { host: "0.0.0.0", port: 5173 },
   preview: { host: "0.0.0.0", port: 4173 },
-  build: { target: "es2022" }
+  build: {
+    target: "es2022",
+    rolldownOptions: { output: {
+      strictExecutionOrder: true,
+      codeSplitting: { groups: [
+        { name: "phaser", test: /node_modules[\\/]phaser[\\/]/, priority: 20 },
+        { name: "network", test: /node_modules[\\/]@colyseus[\\/]/, priority: 10 },
+      ] },
+    } },
+  }
 });

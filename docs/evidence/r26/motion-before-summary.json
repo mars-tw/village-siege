@@ -1,0 +1,43 @@
+{
+  "schema": "village-siege-r26-motion-before/v1",
+  "build": {
+    "appVersion": "1.1.1",
+    "artifact": "GitHub Pages artifact 36863152368",
+    "url": "http://127.0.0.1:5175/village-siege/play.html"
+  },
+  "method": "Desktop Chromium 1280x720. A user-owned normal-play save was imported through System > Save/Replay > Import Save. Units were selected by visible canvas clicks and moved by normal right-click ground commands. No game private API, runtime command, state mutation, route mock, or clock control was used.",
+  "worker": {
+    "unit": "拓荒工匠",
+    "selectionCssPx": [576, 143],
+    "targetCssPx": [715, 185],
+    "continuousFrames": 80,
+    "observedCaptureDurationMs": 13837,
+    "representativeVisibleRingCssPx": {
+      "before": [576, 173],
+      "after": [757, 192]
+    },
+    "commandAccepted": true,
+    "privateFrames": ".audit-tmp/r26/motion-before-worker-frames",
+    "privateVideo": ".audit-tmp/r26/motion-before.webm",
+    "publicRepresentativePng": "motion-before-worker.png"
+  },
+  "military": {
+    "unit": "邊境戰士",
+    "paidNormalPlayEvidence": "Imported owner save showed 邊境戰士 150/150 and normal military controls 攻擊移動/巡邏/橫列/主動/碎甲擊/停止.",
+    "selectionCssPx": [700, 250],
+    "targetCssPx": [430, 460],
+    "continuousFrames": 60,
+    "observedCaptureDurationMs": 10340,
+    "representativeVisibleRingCssPx": {
+      "before": [700, 263],
+      "after": [496, 438]
+    },
+    "commandAccepted": true,
+    "privateFrames": ".audit-tmp/r26/motion-before-military4-frames",
+    "privateVideo": ".audit-tmp/r26/motion-before-military4.webm",
+    "publicRepresentativePng": "motion-before-military.png"
+  },
+  "coordinateExtractionNote": "The sequential PNG files are the authoritative continuous visual samples. Automated copper-pixel trackers were retained privately as experimental metadata, but were not used to claim a baseline pass because other copper UI/building pixels can capture the tracker after a moving ring crosses dense scenery.",
+  "baselineFinding": "LEGACY_MOVEMENT_REPRODUCED",
+  "status": "VERIFIED_VISUAL_BASELINE"
+}

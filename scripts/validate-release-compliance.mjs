@@ -88,7 +88,7 @@ function validateAssetsAndAttribution() {
   assert(actualPngs.length === declared.size, `Asset file count ${actualPngs.length} does not match manifest count ${declared.size}`);
   for (const file of actualPngs) {
     const entry = declared.get(file);
-    assert(entry, `PNG is missing from release manifest: ${file}`);
+    assert(entry, `Raster art is missing from release manifest: ${file}`);
     const buffer = readFileSync(join(repoRoot, file));
     assert(buffer.length === entry.bytes, `Byte count drift for ${file}`);
     assert(sha256(buffer) === entry.sha256, `SHA-256 drift for ${file}`);
@@ -96,7 +96,7 @@ function validateAssetsAndAttribution() {
     assert(matchingRows.length === 1, `${file} must match exactly one attribution row; found ${matchingRows.length}`);
   }
   for (const row of rows.filter((candidate) => candidate.pattern.includes("assets/original/"))) {
-    assert(actualPngs.some((file) => row.regex.test(file)), `Attribution line ${row.line} matches no shipped PNG`);
+    assert(actualPngs.some((file) => row.regex.test(file)), `Attribution line ${row.line} matches no shipped raster asset`);
   }
 
   const runtimeAssets = [...declared.values()].filter((entry) => entry.runtime);
@@ -228,7 +228,7 @@ function validateRuntimeDirectory(directory, manifest) {
     assert(sha256(readFileSync(file)) === entry.sha256, `Runtime bundle hash drift: ${pathWithinRuntime}`);
     expected.delete(pathWithinRuntime);
   }
-  assert(expected.size === 0, `Runtime bundle is missing approved PNGs: ${[...expected.keys()].join(", ")}`);
+  assert(expected.size === 0, `Runtime bundle is missing approved raster assets: ${[...expected.keys()].join(", ")}`);
   const totalBytes = files.reduce((total, file) => total + statSync(file).size, 0);
   assert(totalBytes <= manifest.runtimeBundleBudgetBytes, `Runtime bundle is ${totalBytes} bytes; budget is ${manifest.runtimeBundleBudgetBytes}`);
   return { pngs: runtimePngs.length, files: files.length, totalBytes };
@@ -247,7 +247,7 @@ try {
     const runtimeDirectory = process.argv[runtimeIndex + 1];
     assert(runtimeDirectory, "--runtime-dir requires a directory");
     const runtimeResult = validateRuntimeDirectory(runtimeDirectory, assetResult.manifest);
-    console.log(`[release-compliance] runtime bundle ${runtimeResult.files} files, ${runtimeResult.pngs} approved PNGs, ${runtimeResult.totalBytes} bytes`);
+    console.log(`[release-compliance] runtime bundle ${runtimeResult.files} files, ${runtimeResult.pngs} approved raster assets, ${runtimeResult.totalBytes} bytes`);
   }
   console.log("[release-compliance] PASS");
 } catch (error) {

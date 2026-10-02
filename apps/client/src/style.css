@@ -44,7 +44,10 @@ canvas { display: block; width: 100%; height: 100%; image-rendering: auto; }
   white-space: nowrap;
 }
 .orientation-blocked .progression-trigger { display: none; }
+.orientation-blocked .battle-objectives-trigger { display: none; }
 .canvas-control-proxy:not(button){left:0!important;top:0!important;width:1px!important;height:1px!important;clip-path:inset(50%);opacity:1;pointer-events:none}
+.visible-art-loading{position:absolute;z-index:16;top:94px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);padding:10px 14px;border:1px solid #c7a66a;background:#243e31ef;color:#fff0cb;font:700 14px "Segoe UI","Noto Sans TC",sans-serif;pointer-events:none;text-align:center}
+.visible-art-loading[hidden]{display:none}
 
 #game-root,
 #game-root:fullscreen {

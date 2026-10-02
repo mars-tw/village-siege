@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "testedAt": "2026-10-02T12:10:00+08:00",
+  "url": "http://127.0.0.1:5176/village-siege/play.html",
+  "appVersion": "1.2.0",
+  "bundle": "/assets/index-BoB_fdYW.js",
+  "buildDesignation": "tested development-production build; not a final hash",
+  "session": "r26-touch-acceptance",
+  "constraints": {
+    "publicUiOnly": true,
+    "privateRuntimeUsed": false,
+    "directSimulationClockUsed": false,
+    "coldLoadBenchmark": false,
+    "video": false
+  },
+  "viewports": [
+    {"width": 1366, "height": 600, "emulation": "desktop Chromium", "result": "PASS", "screenshot": "touch-acceptance/1366x600-objectives.png"},
+    {"width": 1024, "height": 768, "emulation": "Chromium generic mobile touch; not physical device", "maxTouchPoints": 1, "minVisiblePanelButtonCssPx": 44, "panelOverlapCount": 0, "panelOutsideCount": 0, "result": "PASS", "screenshot": "touch-acceptance/1024x768-touch-objectives.png"},
+    {"width": 844, "height": 390, "emulation": "Chromium generic mobile touch; not physical device", "maxTouchPoints": 1, "minVisiblePanelButtonCssPx": 44, "panelOverlapCount": 0, "panelOutsideCount": 0, "result": "PASS", "screenshot": "touch-acceptance/844x390-touch-objectives.png"}
+  ],
+  "checks": {
+    "objectiveTrigger": "PASS",
+    "objectiveEveryObservedPageClosable": "PASS",
+    "objectiveBuildBarracksPlacement": "PASS",
+    "technologyOpenSwitchClose": "PASS",
+    "simulationContinuesAfterTechnologyClose": "PASS",
+    "objectiveToTechnology": "NOT_APPLICABLE_ACTION_NOT_OFFERED",
+    "barracksDivertAndResumeSameSite": "PASS",
+    "consoleErrors": 0
+  },
+  "localTraceDirectory": ".audit-tmp/r26/touch-acceptance"
+}

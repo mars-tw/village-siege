@@ -86,6 +86,10 @@ import { getBattleModePolicy, idFromPolicy, type BattleModeId } from "../game/ba
 import { unitVisualProfile } from "../game/unitVisualProfile";
 import { createBattleAudio } from "../game/battleAudio";
 import { createBattleFeedback } from "../ui/battleFeedback";
+import { initialBattleArtIds } from "../game/initialBattleArt";
+import { UnitMotionPresentation } from "../game/unitMotionPresentation";
+import { createBattleObjectivesPanel, type BattleObjectivesPanelControl } from "../ui/battleObjectivesPanel";
+import type { BattleObjectiveAction } from "../game/battleObjectives";
 import type { ProgressionAction } from "../game/progressionPresentation";
 import { saveAutoSave } from "../game/autoSave";
 import { chooseContinuationWorker, constructionContinuationCommand, continuationMovementBlockedCells } from "../game/constructionContinuation";
@@ -192,6 +196,8 @@ interface UnitView {
   action: CombatAction;
   combatPhase?: PublicEntityState["combatPhase"];
   walkUntilTick?: number;
+  motion?: UnitMotionPresentation;
+  lastMoveTick?: number;
 }
 
 interface ActionSpec {
@@ -216,6 +222,8 @@ interface MonsterView {
   attackCooldownTicks: number;
   action: CombatAction;
   combatPhase?: PublicEntityState["combatPhase"];
+  motion?: UnitMotionPresentation;
+  lastMoveTick?: number;
 }
 
 interface UnitActorView extends FrameAnimatedCombatActorView {
@@ -297,6 +305,11 @@ export class VillageAssaultScene extends Phaser.Scene {
   private battleMode: BattleModeId = "siege";
   private battleAudio?: ReturnType<typeof createBattleAudio>;
   private battleFeedback?: ReturnType<typeof createBattleFeedback>;
+  private readonly initialArtIds = new Set<CombatArtId>();
+  private readonly visibleArtPending = new Set<CombatArtId>();
+  private assetLoadingOutput?: HTMLOutputElement;
+  private objectivesPanel?: BattleObjectivesPanelControl;
+  private objectivesWasPaused = false;
   private progressionWasPaused = false;
   private continueSaveJson?: string;
   private autoSaveTimer?: number;
@@ -440,12 +453,26 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.noticeUntil = performance.now() + 5_000;
     this.artLoadFailures = [];
     this.artLoadPromises.clear();
+    this.initialArtIds.clear(); this.visibleArtPending.clear();
     this.pendingArtIds.clear();
     this.failedArtIds.clear();
     this.artRetryAt.clear();
     this.dynamicArtIds.clear();
     this.artLoadGeneration += 1;
     this.pointerGesture.reset();
+  }
+
+  private prepareOfflineRuntime(): void {
+    if (this.runtime || this.multiplayerClient) return;
+    this.runtime = createVillageAssaultRuntime({ playerVillageId: this.villageId, aiPersonality: this.aiPersonality,
+      aiDifficulty: this.tutorialEnabled ? "novice" : this.aiDifficulty, seed: this.battleSeed, victoryPolicy: getBattleModePolicy(this.battleMode) });
+    if (!this.continueSaveJson) return;
+    this.runtime.importSaveJson(this.continueSaveJson);
+    this.battleMode = idFromPolicy(this.runtime.state.victory.policy); this.tutorialEnabled = false;
+    const savedPlayer = this.runtime.state.players.find(player => player.id === VILLAGE_ASSAULT_PLAYER_ID);
+    const savedAi = this.runtime.state.aiControllers.find(controller => controller.playerId === VILLAGE_ASSAULT_AI_ID);
+    if (savedPlayer) this.villageId = savedPlayer.villageId;
+    if (savedAi) { this.aiPersonality = savedAi.personality; this.aiDifficulty = savedAi.difficulty; }
   }
 
   preload(): void {
@@ -459,11 +486,13 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.load.on(Phaser.Loader.Events.PROGRESS, this.updateBattleLoadProgress, this);
     try {
       assertCombatAnimationManifestValid();
+      this.prepareOfflineRuntime();
+      for (const id of initialBattleArtIds(this.multiplayerClient ? this.firstMatchFrame?.snapshot : this.runtime.view)) this.initialArtIds.add(id);
       preloadFrontierLandscape(this);
       const assets = [
         VILLAGE_WORKER_FRAME_ASSET,
-        ...ANIMATED_UNIT_FRAME_ASSETS.filter((asset) => asset.artId === "warrior"),
-        ...ANIMATED_MONSTER_FRAME_ASSETS,
+        ...ANIMATED_UNIT_FRAME_ASSETS.filter(asset => this.initialArtIds.has(asset.artId)),
+        ...ANIMATED_MONSTER_FRAME_ASSETS.filter(asset => this.initialArtIds.has(asset.artId)),
       ].flatMap((asset) => frameAssetFiles(asset)).filter((asset) => !this.textures.exists(asset.textureKey));
       this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, this.onArtLoadError, this);
       if (!this.textures.exists(FRONTIER_BUILDING_TEXTURE)) this.load.image(FRONTIER_BUILDING_TEXTURE, FRONTIER_BUILDING_PATH);
@@ -499,11 +528,8 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.battleLoading?.fail("部分角色素材未能下載。請檢查網路後重新載入，或返回主選單。");
       return;
     }
-    validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, "warrior"), "warrior");
     validateFrameAnimatedCombatActorManifest(this, VILLAGE_WORKER_ANIMATION_MANIFEST, "villager");
-    for (const asset of ANIMATED_MONSTER_FRAME_ASSETS) {
-      validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, asset.artId), asset.artId);
-    }
+    for (const id of this.initialArtIds) validateFrameAnimatedCombatActorManifest(this, requireFrameAnimatedManifest(COMBAT_ANIMATION_MANIFEST, id), id);
     if (this.multiplayerClient) {
       this.onlineSource = new OnlineAssaultMatchSource(this.multiplayerClient, { firstFrame: this.firstMatchFrame });
       const initial = this.onlineSource.current;
@@ -515,22 +541,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       this.villageId = initial.participants.find((participant) => participant.id === initial.recipientPlayerId)?.villageId ?? this.villageId;
       this.tutorialEnabled = false;
     } else {
-      this.runtime = createVillageAssaultRuntime({
-        playerVillageId: this.villageId,
-        aiPersonality: this.aiPersonality,
-        aiDifficulty: this.tutorialEnabled ? "novice" : this.aiDifficulty,
-        seed: this.battleSeed,
-        victoryPolicy: getBattleModePolicy(this.battleMode),
-      });
-      if (this.continueSaveJson) {
-        this.runtime.importSaveJson(this.continueSaveJson); this.continueSaveJson = undefined;
-        this.battleMode = idFromPolicy(this.runtime.state.victory.policy);
-        this.tutorialEnabled = false;
-        const savedPlayer = this.runtime.state.players.find(player => player.id === VILLAGE_ASSAULT_PLAYER_ID);
-        const savedAi = this.runtime.state.aiControllers.find(controller => controller.playerId === VILLAGE_ASSAULT_AI_ID);
-        if (savedPlayer) this.villageId = savedPlayer.villageId;
-        if (savedAi) { this.aiPersonality = savedAi.personality; this.aiDifficulty = savedAi.difficulty; }
-      }
+      this.prepareOfflineRuntime();
     }
     const initialSnapshot = this.currentView();
     this.battleAudio = createBattleAudio();
@@ -589,13 +600,22 @@ export class VillageAssaultScene extends Phaser.Scene {
     });
     this.layoutInterface();
     this.battleStarted = true;
+    this.assetLoadingOutput = document.createElement("output"); this.assetLoadingOutput.className = "visible-art-loading"; this.assetLoadingOutput.hidden = true; this.assetLoadingOutput.setAttribute("role", "status");
+    (this.game.canvas.parentElement ?? document.body).append(this.assetLoadingOutput);
     this.createWorkerPanel();
+    this.objectivesPanel = createBattleObjectivesPanel(this.game.canvas.parentElement ?? document.body, {
+      snapshot: () => this.currentView(), action: action => this.runObjectiveAction(action), feedback: () => this.notice,
+      opened: () => { this.objectivesWasPaused = this.paused; if (!this.onlineSource) this.paused = true; this.input.enabled = false; this.pointerGesture.reset(); },
+      closed: () => { this.paused = this.objectivesWasPaused; this.input.enabled = true; if (this.sys.isActive()) this.refreshInterface(true); },
+    });
+    this.layoutInterface();
     if (!this.onlineSource) {
       this.autoSaveTimer = window.setInterval(() => void this.saveAutomaticBattle(), 30_000);
       window.addEventListener("pagehide", this.saveBeforePageHide);
       void this.saveAutomaticBattle();
     }
     this.cleanupBattleLoading();
+    this.continueSaveJson = undefined;
   }
 
   private readonly updateBattleLoadProgress = (progress: number): void => {
@@ -624,6 +644,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.invalidateBattlePreload();
     this.scene.restart({villageId:this.villageId,aiPersonality:this.aiPersonality,aiDifficulty:this.aiDifficulty,
       returnScene:this.returnScene,tutorial:this.tutorialEnabled,seed:this.battleSeed,battleMode:this.battleMode,
+      continueSaveJson:this.continueSaveJson,
       multiplayerClient:this.multiplayerClient,firstMatchFrame:this.firstMatchFrame});
   }
 
@@ -648,15 +669,23 @@ export class VillageAssaultScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (!this.battleStarted) return;
     this.progressionPanel?.update();
+    this.objectivesPanel?.update();
     this.updateCamera(delta);
     this.tacticalMinimap?.update(_time, this.currentView());
     for (const actor of this.retiringActors) actor.update(delta);
     if (this.onlineSource) {
+      this.updateAssetLoadingNotice();
       this.updateUnitAnimations(Math.min(delta, 250));
       this.applyOnlinePresentation();
       return;
     }
+    if (this.visibleArtPending.size) {
+      this.updateLocalMotion(Math.min(delta, 250));
+      this.updateUnitAnimations(Math.min(delta, 250));
+      this.syncEntityViews(false); this.updateAssetLoadingNotice(); return;
+    }
     if (this.paused || this.ended || this.orientationBlocked || !this.runtime) return;
+    this.updateLocalMotion(Math.min(delta, 250));
     this.updateUnitAnimations(Math.min(delta, 250));
     const result = this.runtime.step(Math.min(delta, 250));
     if (result.steps === 0) {
@@ -864,9 +893,7 @@ export class VillageAssaultScene extends Phaser.Scene {
           this.failedArtIds.delete(artId);
         }
         if (!this.isArtReady(artId)) {
-          void this.ensureArtLoaded(artId)
-            .then(() => { if (this.sys.isActive()) this.syncEntityViews(false); })
-            .catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
+          this.requestVisibleArt(artId);
           return;
         }
       }
@@ -904,6 +931,7 @@ export class VillageAssaultScene extends Phaser.Scene {
   private syncPublicMonsterView(entity: PublicMonsterEntity, initial: boolean): void {
     let view = this.monsterViews.get(entity.id);
     if (!view) {
+      if (!this.requestVisibleArt(entity.typeId)) return;
       view = this.createPublicMonsterView(entity);
       this.monsterViews.set(entity.id, view);
     }
@@ -1153,25 +1181,17 @@ export class VillageAssaultScene extends Phaser.Scene {
           this.failedArtIds.delete(artId);
         }
         if (!this.isArtReady(artId)) {
-          void this.ensureArtLoaded(artId)
-            .then(() => {
-              if (this.sys.isActive()) this.syncEntityViews(false);
-            })
-            .catch((error: unknown) => this.handleDynamicArtFailure(artId, error));
+          this.requestVisibleArt(artId);
           return;
         }
       }
       view = this.createUnitView(entity);
       this.unitViews.set(entity.id, view);
     }
-    const target = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
     if (!initial && (view.grid.x !== entity.position.x || view.grid.y !== entity.position.y)) {
       view.actor.faceVector(entity.position.x - view.grid.x, entity.position.y - view.grid.y);
-      this.tweens.killTweensOf(view.actor.container);
-      this.tweens.add({ targets: view.actor.container, x: target.x, y: target.y, duration: 170, ease: "Sine.Out" });
-    } else {
-      view.actor.setPosition(target.x, target.y);
     }
+    this.setLocalMotionTarget(view, entity.position, initial, 1_000_000 / UNITS[entity.typeId].speedMilliTilesPerSecond, entity.combat.phase === "windup" || entity.combat.phase === "commit");
     view.actor.setFacing(entity.facing);
     if (entity.typeId === "villager") view.actor.setWorkerPose?.(this.workerPose(entity));
     const action = this.actionForUnit(entity, view);
@@ -1190,24 +1210,22 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.drawCargoPack(view.cargoPack, entity.cargo.kind, entity.cargo.amount, UNITS[entity.typeId].carryCapacity);
     view.cargoPack.setVisible(!this.compactUi && entity.cargo.amount > 0 && this.selectedIds.has(entity.id));
     view.cargoLabel.setText(entity.cargo.amount > 0 ? `${cargoGlyph}${entity.cargo.amount}/${UNITS[entity.typeId].carryCapacity}` : "").setVisible(!this.compactUi && entity.cargo.amount > 0 && this.selectedIds.has(entity.id));
-    view.actor.container.setDepth(target.y + 100);
+    view.actor.container.setDepth(view.actor.container.y + 100);
   }
 
   private syncMonsterView(entity: MonsterEntityState, initial: boolean): void {
     let view = this.monsterViews.get(entity.id);
     if (!view) {
+      if (!this.requestVisibleArt(entity.typeId)) return;
       view = this.createMonsterView(entity);
       this.monsterViews.set(entity.id, view);
     }
-    const target = gridToWorld(entity.position, VILLAGE_ASSAULT_ORIGIN);
     const moved = view.grid.x !== entity.position.x || view.grid.y !== entity.position.y;
     if (!initial && moved) {
       view.actor.faceVector(entity.position.x - view.grid.x, entity.position.y - view.grid.y);
-      this.tweens.killTweensOf(view.actor.container);
-      this.tweens.add({ targets: view.actor.container, x: target.x, y: target.y, duration: 170, ease: "Sine.Out" });
-    } else {
-      view.actor.setPosition(target.x, target.y).setFacing(entity.facing);
     }
+    this.setLocalMotionTarget(view, entity.position, initial, 1000 / MONSTERS[entity.typeId].moveSpeed, entity.combat.phase === "windup" || entity.combat.phase === "commit");
+    view.actor.setFacing(entity.facing);
     const action: CombatAction = entity.hitPoints < view.hitPoints
       ? "hurt"
       : entity.combat.phase === "windup" && entity.combat.action === "ability"
@@ -1216,7 +1234,7 @@ export class VillageAssaultScene extends Phaser.Scene {
           ? "attack"
       : entity.attackCooldownTicks > view.attackCooldownTicks
         ? "attack"
-        : moved
+        : moved || view.motion?.moving
           ? "walk"
           : "idle";
     if (action !== view.action || action === "hurt"
@@ -1232,7 +1250,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     view.selection.setVisible(this.selectedIds.has(entity.id));
     view.label.setVisible(!this.compactUi && this.selectedIds.has(entity.id));
     this.drawUnitHealth(view.health, entity);
-    view.actor.container.setDepth(target.y + 112);
+    view.actor.container.setDepth(view.actor.container.y + 112);
   }
 
   private createMonsterView(entity: MonsterEntityState): MonsterView {
@@ -1371,6 +1389,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     if (entity.hitPoints < view.hitPoints) return "hurt";
     if (entity.combat.action === "ability") return "cast";
     if (entity.combat.action === "attack") return "attack";
+    if (view.motion?.moving) return "walk";
     if (view.grid.x !== entity.position.x || view.grid.y !== entity.position.y) return "walk";
     if (entity.order.type === "attack") {
       const target = this.entityById(entity.order.targetId);
@@ -1391,6 +1410,35 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
     if (entity.order.type === "deliver" || entity.order.type === "move" || entity.order.type === "attackMove" || entity.order.type === "patrol") return "walk";
     return "idle";
+  }
+
+  private setLocalMotionTarget(view: UnitView | MonsterView, grid: GridPoint, initial: boolean, defaultStepMs: number, combatCorrection: boolean): void {
+    const tick = this.runtime.view.serverTick;
+    const previous = gridToWorld(view.grid, VILLAGE_ASSAULT_ORIGIN), target = gridToWorld(grid, VILLAGE_ASSAULT_ORIGIN);
+    if (initial) {
+      view.motion = new UnitMotionPresentation(target, tick, { defaultStepIntervalMs: defaultStepMs });
+      view.lastMoveTick = undefined;
+      view.actor.setPosition(target.x, target.y);
+      return;
+    }
+    view.motion ??= new UnitMotionPresentation(previous, tick, { defaultStepIntervalMs: defaultStepMs });
+    const moved = view.grid.x !== grid.x || view.grid.y !== grid.y;
+    const interval = moved && view.lastMoveTick !== undefined ? Phaser.Math.Clamp((tick - view.lastMoveTick) * 100, 100, Math.max(1200, defaultStepMs * 2)) : defaultStepMs;
+    const remaining = Math.hypot(target.x - view.motion.position.x, target.y - view.motion.position.y);
+    view.motion.setAuthoritativeTarget({ serverTick: tick, position: target, observedStepIntervalMs: interval,
+      ...(combatCorrection && remaining > 0.05 ? { effectiveSpeedPixelsPerSecond: remaining / 0.10 } : {}) });
+    if (Math.max(Math.abs(view.grid.x - grid.x), Math.abs(view.grid.y - grid.y)) > 2) {
+      const position = view.motion.snapToAuthoritativeTarget(); view.actor.setPosition(position.x, position.y);
+    }
+    if (moved) view.lastMoveTick = tick;
+  }
+
+  private updateLocalMotion(delta: number): void {
+    for (const view of [...this.unitViews.values(), ...this.monsterViews.values()]) {
+      if (!view.motion) continue;
+      const point = view.motion.update(delta); view.actor.setPosition(point.x, point.y);
+      view.actor.container.setDepth(point.y + ("cargoLabel" in view ? 100 : 112));
+    }
   }
 
   private workerPose(entity: UnitEntityState): VillageWorkerPose {
@@ -2336,6 +2384,23 @@ export class VillageAssaultScene extends Phaser.Scene {
     ];
   }
 
+  private runObjectiveAction(action: BattleObjectiveAction): boolean {
+    if (this.ended) return false;
+    if (action.kind === "progression") {
+      this.objectivesPanel?.close(); this.progressionPanel?.open(action.tab); return true;
+    }
+    if (action.kind === "build") return this.runProgressionAction({ kind: "build", type: action.buildingType });
+    if (action.kind === "command") return this.issue(action.command, action.command.type === "attack" ? "部隊開始攻擊已偵察目標" : "部隊開始偵察與尋敵");
+    if (action.kind === "selectUnitGroup") {
+      const allowed = new Set(this.currentView().entities.filter(entity => isPublicUnit(entity) && entity.ownerId === this.currentPlayerId() && entity.hitPoints > 0).map(entity => entity.id));
+      this.selectedIds.clear(); for (const id of action.entityIds) if (allowed.has(id)) this.selectedIds.add(id);
+      this.refreshSelectionViews(); this.refreshInterface(true); return this.selectedIds.size > 0;
+    }
+    const producer = this.currentView().entities.find(entity => isPublicBuilding(entity) && entity.ownerId === this.currentPlayerId() && entity.typeId === action.buildingType && entity.complete);
+    if (!producer) return this.runProgressionAction({ kind: "build", type: action.buildingType });
+    this.selectOnly(producer.id); this.centerCameraOn(producer.position); return true;
+  }
+
   private createWorkerPanel(): void {
     const host = this.game.canvas.parentElement ?? document.body;
     this.workerPanel = createWorkerManagementPanel(host, {
@@ -3058,7 +3123,7 @@ export class VillageAssaultScene extends Phaser.Scene {
       return;
     }
     for (const entity of this.runtime.state.entities) {
-      if (entity.kind !== "building") continue;
+      if (entity.kind !== "building" || entity.ownerId !== VILLAGE_ASSAULT_PLAYER_ID) continue;
       const job = entity.productionQueue[0];
       const type = job?.kind === "train" ? job.unitType : undefined;
       if (!type) continue;
@@ -3083,11 +3148,30 @@ export class VillageAssaultScene extends Phaser.Scene {
     }
   }
 
+  private requestVisibleArt(artId: CombatArtId): boolean {
+    if (this.isArtReady(artId)) { this.visibleArtPending.delete(artId); return true; }
+    this.visibleArtPending.add(artId);
+    if (this.artLoadPromises.has(artId)) return false;
+    if (this.failedArtIds.has(artId) && performance.now() < (this.artRetryAt.get(artId) ?? 0)) return false;
+    this.failedArtIds.delete(artId);
+    void this.ensureArtLoaded(artId).then(() => {
+      this.visibleArtPending.delete(artId); this.updateAssetLoadingNotice();
+      if (this.sys.isActive()) this.syncEntityViews(false);
+    }).catch(error => this.handleDynamicArtFailure(artId, error));
+    return false;
+  }
+
+  private updateAssetLoadingNotice(): void {
+    if (!this.assetLoadingOutput) return;
+    this.assetLoadingOutput.hidden = this.visibleArtPending.size === 0;
+    this.assetLoadingOutput.textContent = this.failedArtIds.size ? "角色動作下載失敗，正在重試；可從系統返回或匯出存檔" : this.onlineSource ? "正在下載新出現角色的完整動作" : "正在下載新出現角色的完整動作，單人戰局暫停等候";
+  }
+
   private ensureArtLoaded(artId: CombatArtId): Promise<void> {
     if (this.isArtReady(artId)) return Promise.resolve();
     const pending = this.artLoadPromises.get(artId);
     if (pending) return pending;
-    const asset = ANIMATED_UNIT_FRAME_ASSETS.find((candidate) => candidate.artId === artId);
+    const asset = [...ANIMATED_UNIT_FRAME_ASSETS, ...ANIMATED_MONSTER_FRAME_ASSETS].find((candidate) => candidate.artId === artId);
     if (!asset) return Promise.reject(new Error(`Missing unit art asset for ${artId}`));
     const files = frameAssetFiles(asset);
     const requiredKeys = new Set(files.map((file) => file.textureKey));
@@ -4349,6 +4433,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.topRoot?.setScale(this.uiScale).setPosition(uiX, topY);
     this.actionRoot?.setScale(this.uiScale).setPosition(uiX, actionY);
     const canvasRect = this.game.canvas.getBoundingClientRect();
+    this.objectivesPanel?.setPosition(Math.max(8, canvasRect.width - 334), Math.max(8, actionY * canvasRect.height / height - 58));
     this.battleFeedback?.setTop((topY + TOP_PANEL_HEIGHT * this.uiScale + 8) * canvasRect.height / height);
     this.progressionPanel?.setPosition(Math.max(8, canvasRect.width - 112), Math.max(8, actionY * canvasRect.height / height - 58));
     if (this.workerTrigger) Object.assign(this.workerTrigger.style, { left: `${Math.max(8, canvasRect.width - 222)}px`, top: `${Math.max(8, actionY * canvasRect.height / height - 58)}px` });
@@ -4369,7 +4454,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     worldCamera.setZoom(worldZoom).centerOn(focusX, focusY);
     this.orientationBlocked = profile.mobile && !profile.landscape;
     (this.game.canvas.parentElement ?? document.body).classList.toggle("orientation-blocked", this.orientationBlocked);
-    if (this.orientationBlocked) { this.workerPanel?.close(); this.progressionPanel?.close(); }
+    if (this.orientationBlocked) { this.workerPanel?.close(); this.progressionPanel?.close(); this.objectivesPanel?.close(); }
     if (this.tacticalMinimap) {
       const minimapScale = Math.min(1, Math.max(0.8, this.uiScale));
       this.tacticalMinimap.layout(
@@ -4579,6 +4664,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.progressionPanel?.destroy(); this.progressionPanel = undefined;
     this.workerPanel?.destroy(); this.workerPanel = undefined; this.workerTrigger?.remove(); this.workerTrigger = undefined;
     this.battleFeedback?.destroy(); this.battleFeedback = undefined; this.battleAudio?.destroy(); this.battleAudio = undefined;
+    this.objectivesPanel?.destroy(); this.objectivesPanel = undefined;
     this.pointerGesture.reset();
     this.onlineDisposers.splice(0).forEach((dispose) => dispose());
     if (this.onlineSource && !this.onlineLeaveRequested) void this.onlineSource.leave();
@@ -4645,6 +4731,7 @@ export class VillageAssaultScene extends Phaser.Scene {
     this.pendingArtIds.clear();
     this.failedArtIds.clear();
     this.artRetryAt.clear();
+    this.visibleArtPending.clear(); this.initialArtIds.clear(); this.assetLoadingOutput?.remove(); this.assetLoadingOutput = undefined;
     this.mapView?.destroy();
     this.settlementOverlay?.destroy();
     this.fogOverlay?.destroy();

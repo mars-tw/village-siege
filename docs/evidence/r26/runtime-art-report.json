@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "encoder": "sharp 0.35.5; libwebp 1.6.0",
+  "provenance": "Derived only from the checked-in Village Siege frontier PNG atlases; no artwork was regenerated and no frame was removed.",
+  "assets": [
+    {
+      "source": "assets/original/frontier/buildings.png",
+      "output": "assets/original/frontier/buildings.webp",
+      "sourceBytes": 2085918,
+      "outputBytes": 1263750,
+      "savedBytes": 822168,
+      "width": 1536,
+      "height": 1152,
+      "alphaDiffPixels": 0,
+      "visibleRgbDiffPixels": 0,
+      "transparentRgbResetPixels": 416410,
+      "outputSha256": "1ba44d5eb6d0fc01f92fe3861f46a8e54db9504763ceef808d8fc796cf5c41b8"
+    },
+    {
+      "source": "assets/original/frontier/landscape/materials.png",
+      "output": "assets/original/frontier/landscape/materials.webp",
+      "sourceBytes": 684618,
+      "outputBytes": 653090,
+      "savedBytes": 31528,
+      "width": 1024,
+      "height": 1024,
+      "alphaDiffPixels": 0,
+      "visibleRgbDiffPixels": 0,
+      "transparentRgbResetPixels": 0,
+      "outputSha256": "7de3bc4b3a8d05e0a29b6ab3628dbbd603f37a6f7213fd63dca36c2ae247e0ac"
+    },
+    {
+      "source": "assets/original/frontier/landscape/nature.png",
+      "output": "assets/original/frontier/landscape/nature.webp",
+      "sourceBytes": 578547,
+      "outputBytes": 508776,
+      "savedBytes": 69771,
+      "width": 2048,
+      "height": 1024,
+      "alphaDiffPixels": 0,
+      "visibleRgbDiffPixels": 0,
+      "transparentRgbResetPixels": 0,
+      "outputSha256": "1fe934b65624d085cfec2edd0d3ccf92fcd1b3c51b1942b80b24edcd6a44e812"
+    },
+    {
+      "source": "assets/original/frontier/buildings.png",
+      "output": "assets/original/frontier/buildings-menu.webp",
+      "sourceBytes": 2085918,
+      "outputBytes": 100140,
+      "width": 768,
+      "height": 576,
+      "columns": 4,
+      "rows": 3,
+      "cellWidth": 192,
+      "cellHeight": 192,
+      "outputSha256": "62204ae56d7c3dd66266d5d052c8665783804ee8b77ddd077543080ed958f01f",
+      "verification": "lossy menu preview; frame order and 4 × 3 positions preserved"
+    }
+  ],
+  "totals": {
+    "convertedBattleAtlasesBeforeBytes": 3349083,
+    "convertedBattleAtlasesAfterBytes": 2425616,
+    "convertedBattleAtlasesSavedBytes": 923467,
+    "releaseRuntimeBeforeBytes": 7522007,
+    "releaseRuntimeAfterBytes": 6698680,
+    "releaseRuntimeSavedBytes": 823327,
+    "menuBuildingPreviewBeforeBytes": 2085918,
+    "menuBuildingPreviewAfterBytes": 100140
+  }
+}

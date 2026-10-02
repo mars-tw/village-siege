@@ -29,8 +29,8 @@ export function villageSiegePwa(): Plugin {
       const manifest = JSON.parse(await readFile(path.join(repoRoot, "assets/release-asset-manifest.json"), "utf8")) as {
         assets: ReleaseAsset[];
       };
-      const originalRuntimePngs = new Set(manifest.assets
-        .filter((asset) => asset.runtime === true && asset.file.endsWith(".png"))
+      const originalRuntimeRasters = new Set(manifest.assets
+        .filter((asset) => asset.runtime === true && /\.(?:png|webp)$/.test(asset.file))
         .map((asset) => asset.file.replace(/^apps\/client\/public\//, "")));
       const files: string[] = [];
       async function visit(directory: string): Promise<void> {
@@ -39,9 +39,9 @@ export function villageSiegePwa(): Plugin {
           if (entry.isDirectory()) { await visit(absolute); continue; }
           const relative = path.relative(outputRoot, absolute).split(path.sep).join("/");
           if (relative === "sw.js" || relative === "runtime-config.js" || relative.endsWith(".map")) continue;
-          // CI removes production-unapproved original PNGs after Vite emits them.
-          if (relative.startsWith("assets/original/") && relative.endsWith(".png")
-              && !originalRuntimePngs.has(relative)) continue;
+          // Match the raster allowlist used by the post-build runtime pruner.
+          if (relative.startsWith("assets/original/") && /\.(?:png|webp)$/.test(relative)
+              && !originalRuntimeRasters.has(relative)) continue;
           files.push(relative);
         }
       }

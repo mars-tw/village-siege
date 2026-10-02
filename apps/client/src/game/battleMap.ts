@@ -237,8 +237,8 @@ let landscapeTextureSequence = 0;
 
 export function preloadFrontierLandscape(scene: Phaser.Scene): void {
   for (const [key, file] of [
-    [FRONTIER_MATERIALS_TEXTURE, "materials.png"],
-    [FRONTIER_NATURE_TEXTURE, "nature.png"],
+    [FRONTIER_MATERIALS_TEXTURE, "materials.webp"],
+    [FRONTIER_NATURE_TEXTURE, "nature.webp"],
   ] as const) {
     if (!scene.textures.exists(key)) scene.load.image(key, publicAssetUrl(`assets/original/frontier/landscape/${file}`));
   }

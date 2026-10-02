@@ -55,7 +55,7 @@ export function installPwa(isMainMenu: () => boolean): () => void {
   const downloadButton = document.createElement("button");
   downloadButton.type = "button";
   downloadButton.className = "pwa-download";
-  downloadButton.title = "下載約 10 MB，完成後可離線玩單人戰役";
+  downloadButton.title = "下載約 9 MB，完成後可離線玩單人戰役";
   const installButton = document.createElement("button");
   installButton.type = "button";
   installButton.className = "pwa-install";

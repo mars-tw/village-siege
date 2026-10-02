@@ -56,7 +56,7 @@ const PLAYER = 0x315e4d;
 const ENEMY = 0x8f3b3a;
 
 export const FRONTIER_BUILDING_TEXTURE = "frontier-painted-buildings";
-export const FRONTIER_BUILDING_PATH = publicAssetUrl("assets/original/frontier/buildings.png");
+export const FRONTIER_BUILDING_PATH = publicAssetUrl("assets/original/frontier/buildings.webp");
 
 /** Row-major contract for the original, transparent 4 × 3 raster atlas. */
 const PAINTED_BUILDING_ORDER = [
