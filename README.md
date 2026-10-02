@@ -4,11 +4,19 @@ Village Siege 是 MIT 授權的開源瀏覽器即時戰略遊戲。它採用原�
 
 ## 1.3：真實遊玩影片（2026-10-02）
 
-主選單右上角按「實玩影片」，或在戰場開啟「系統 → 鏡頭視角 → 實玩影片」，可觀看三段真實操作：採集與建造、科技與部隊移動、林緣遭遇戰。每段 24 秒，保留實際資源、施工、軍隊與戰利品回饋；影片沒有音訊。
+主選單品牌旁按「實玩影片」，或在戰場開啟「系統 → 鏡頭視角 → 實玩影片」，可觀看三段真實操作：採集與建造、科技與部隊移動、林緣遭遇戰。每段 24 秒，保留實際資源、施工、軍隊與戰利品回饋；影片沒有音訊。
 
 影片按播放後才下載，單人戰局觀看時暫停、關閉後恢復。離線戰役下載不包含影片；完整遊戲仍可離線玩。MP4、封面、來源與雜湊均隨原始碼以 MIT 授權公開。
 
 **[遊玩 1.3.1／觀看實玩影片](https://mars-tw.github.io/village-siege/play.html?v=1.3.1)** · [錄影與驗收報告](docs/CODEX_RESPONSE_R27.md)
+
+### 遊玩介紹影片
+
+點選下方封面即可開啟 MP4，或進入遊戲按「實玩影片」使用內建播放器。
+
+| 採集與建造 · 24 秒 | 科技與部隊移動 · 24 秒 | 林緣遭遇戰 · 24 秒 |
+| --- | --- | --- |
+| [![播放採集與建造](apps/client/public/media/gameplay/economy.webp)](https://mars-tw.github.io/village-siege/media/gameplay/economy.mp4) | [![播放科技與部隊移動](apps/client/public/media/gameplay/movement.webp)](https://mars-tw.github.io/village-siege/media/gameplay/movement.mp4) | [![播放林緣遭遇戰](apps/client/public/media/gameplay/battle.webp)](https://mars-tw.github.io/village-siege/media/gameplay/battle.mp4) |
 
 ## 1.2：移動、進場與出征指引（2026-10-02）
 
