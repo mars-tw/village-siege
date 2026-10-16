@@ -1,3 +1,9 @@
+> **專案整合公告｜Project merged**
+>
+> 本專案已併入 [三相邊境 · Trine Frontier（strategy-anthology）](https://github.com/mars-tw/strategy-anthology)。後續更新在新 repo 進行；本 repo 保留為歷史紀錄。
+>
+> This project has been merged into [Trine Frontier (strategy-anthology)](https://github.com/mars-tw/strategy-anthology). Future updates will take place in the new repository; this repository is retained as a historical record.
+
 # Village Siege／村莊攻防
 
 Village Siege 是 MIT 授權的開源瀏覽器即時戰略遊戲。指揮工匠採集、興建村莊、發展科技，再集結軍隊穿過河谷與野獸營地。採用原創中世紀等角美術，支援電腦與手機、平板橫向操作。
